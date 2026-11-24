@@ -1,7 +1,7 @@
 {"task": "HEADERS-MACRO-FORM-AUDIT", "model": "opus", "tokens": null,
  "result": "Macro form audit: 8265 macros / 13480 (macro, header) pairs x 8 configurations; 12042 pairs match, 1438 pairs (1024 macros) differ; probe landed as a header_check module in report mode with a failing self-control",
  "branch": "task/headers-macro-form-audit", "head": null,
- "gate": {"affected": "see jobs headers-macro-form-audit-gate2 (direct tier), headers-macro-form-audit-plants2", "peak": null},
+ "gate": {"affected": "685 passed / 0 failed (direct tier, mei:headers-macro-form-audit-gate3); plants 7 of 7 caught", "peak": "1.6G"},
  "accepted_first_attempt": null,
  "rulings": [{"item": "C1: about 1200 C++ rows where the reference's macro has an enumeration type and libniji's an int literal (_SC_*, nl_item, MSG_*, MS_* under D-X.126/COMPAT-34, ...)", "recommendation": "emit the enumerator in C++ (match the type); revisit D-X.126 for MS_*"},
               {"item": "D1/D2/E1: #if usability and header self-sufficiency differences (libniji more permissive)", "recommendation": "match only where a program can tell (D1: code compiling on libniji fails on the reference); low priority"}],
@@ -20,4 +20,4 @@
  "improvement": "A failing self-control inside a report-mode check is what made the probe's own blind spots (-w, system-header suppression) visible; report-mode checks should always carry one",
  "next_step": "coordinator briefs follow-ups A (stack-size macros), B (header defects), C (C++ enum/char types); then turn FORM-DIFF rows into FAILs",
  "report_file": "handoff/HEADERS-MACRO-FORM-AUDIT.md",
- "jobs": ["mei:headers-macro-form-audit-gate2", "mei:headers-macro-form-audit-plants2", "mei:headers-macro-form-audit-t7"]}
+ "jobs": ["mei:headers-macro-form-audit-gate3", "mei:headers-macro-form-audit-plants3", "mei:headers-macro-form-audit-t7"]}
