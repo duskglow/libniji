@@ -164,7 +164,19 @@ typedef int lwpid_t;
 # endif
 # ifndef __NIJI_D_struct_user_fpregs_struct
 #  define __NIJI_D_struct_user_fpregs_struct 1
-struct user_fpregs_struct { char __niji_opaque[512] __attribute__ ((__aligned__ (8))); };
+struct user_fpregs_struct {
+  unsigned short cwd;
+  unsigned short swd;
+  unsigned short ftw;
+  unsigned short fop;
+  unsigned long long rip;
+  unsigned long long rdp;
+  unsigned int mxcsr;
+  unsigned int mxcr_mask;
+  unsigned int st_space[32];
+  unsigned int xmm_space[64];
+  unsigned int padding[24];
+};
 # endif
 # ifndef __NIJI_D_prfpregset_t
 #  define __NIJI_D_prfpregset_t 1

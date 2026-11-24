@@ -40,9 +40,20 @@ typedef enum {
   TD_EVENTS_ENABLE = 31,
 } td_event_e;
 # endif
+# ifndef __NIJI_D_struct_td_thragent
+#  define __NIJI_D_struct_td_thragent 1
+struct td_thragent;
+# endif
+# ifndef __NIJI_D_td_thragent_t
+#  define __NIJI_D_td_thragent_t 1
+typedef struct td_thragent td_thragent_t;
+# endif
 # ifndef __NIJI_D_struct_td_thrhandle
 #  define __NIJI_D_struct_td_thrhandle 1
-struct td_thrhandle { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct td_thrhandle {
+  td_thragent_t * th_ta_p;
+  void * th_unique;
+};
 # endif
 # ifndef __NIJI_D_td_thrhandle_t
 #  define __NIJI_D_td_thrhandle_t 1
@@ -256,9 +267,56 @@ typedef enum {
   TD_EVENTS_ENABLE = 31,
 } td_event_e;
 # endif
+# ifndef __NIJI_D_td_event_e
+#  define __NIJI_D_td_event_e 1
+typedef enum {
+  TD_ALL_EVENTS = 0,
+  TD_EVENT_NONE = 0,
+  TD_READY = 1,
+  TD_SLEEP = 2,
+  TD_SWITCHTO = 3,
+  TD_SWITCHFROM = 4,
+  TD_LOCK_TRY = 5,
+  TD_CATCHSIG = 6,
+  TD_IDLE = 7,
+  TD_CREATE = 8,
+  TD_DEATH = 9,
+  TD_PREEMPT = 10,
+  TD_PRI_INHERIT = 11,
+  TD_REAP = 12,
+  TD_CONCURRENCY = 13,
+  TD_TIMEOUT = 14,
+  TD_MIN_EVENT_NUM = 1,
+  TD_MAX_EVENT_NUM = 14,
+  TD_EVENTS_ENABLE = 31,
+} td_event_e;
+# endif
+# ifndef __NIJI_D_struct_td_thragent
+#  define __NIJI_D_struct_td_thragent 1
+struct td_thragent;
+# endif
+# ifndef __NIJI_D_td_thragent_t
+#  define __NIJI_D_td_thragent_t 1
+typedef struct td_thragent td_thragent_t;
+# endif
+# ifndef __NIJI_D_struct_td_thrhandle
+#  define __NIJI_D_struct_td_thrhandle 1
+struct td_thrhandle {
+  td_thragent_t * th_ta_p;
+  void * th_unique;
+};
+# endif
+# ifndef __NIJI_D_td_thrhandle_t
+#  define __NIJI_D_td_thrhandle_t 1
+typedef struct td_thrhandle td_thrhandle_t;
+# endif
 # ifndef __NIJI_D_struct_td_event_msg
 #  define __NIJI_D_struct_td_event_msg 1
-struct td_event_msg { char __niji_opaque[24] __attribute__ ((__aligned__ (8))); };
+struct td_event_msg {
+  td_event_e event;
+  const td_thrhandle_t * th_p;
+  union { unsigned long data; } msg;
+};
 # endif
 # ifndef __NIJI_D_td_event_msg_t
 #  define __NIJI_D_td_event_msg_t 1
@@ -318,9 +376,20 @@ typedef enum {
   NOTIFY_SYSCALL = 2,
 } td_notify_e;
 # endif
+# ifndef __NIJI_D_td_notify_e
+#  define __NIJI_D_td_notify_e 1
+typedef enum {
+  NOTIFY_BPT = 0,
+  NOTIFY_AUTOBPT = 1,
+  NOTIFY_SYSCALL = 2,
+} td_notify_e;
+# endif
 # ifndef __NIJI_D_struct_td_notify
 #  define __NIJI_D_struct_td_notify 1
-struct td_notify { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct td_notify {
+  td_notify_e type;
+  union { void * bptaddr; int syscallno; } u;
+};
 # endif
 # ifndef __NIJI_D_td_notify_t
 #  define __NIJI_D_td_notify_t 1
@@ -328,7 +397,18 @@ typedef struct td_notify td_notify_t;
 # endif
 # ifndef __NIJI_D_struct_td_ta_stats
 #  define __NIJI_D_struct_td_ta_stats 1
-struct td_ta_stats { char __niji_opaque[40] __attribute__ ((__aligned__ (4))); };
+struct td_ta_stats {
+  int nthreads;
+  int r_concurrency;
+  int nrunnable_num;
+  int nrunnable_den;
+  int a_concurrency_num;
+  int a_concurrency_den;
+  int nlwps_num;
+  int nlwps_den;
+  int nidle_num;
+  int nidle_den;
+};
 # endif
 # ifndef __NIJI_D_td_ta_stats_t
 #  define __NIJI_D_td_ta_stats_t 1
@@ -378,17 +458,111 @@ struct td_thragent;
 #  define __NIJI_D_td_thragent_t 1
 typedef struct td_thragent td_thragent_t;
 # endif
+# ifndef __NIJI_D_struct_td_thragent
+#  define __NIJI_D_struct_td_thragent 1
+struct td_thragent;
+# endif
+# ifndef __NIJI_D_td_thragent_t
+#  define __NIJI_D_td_thragent_t 1
+typedef struct td_thragent td_thragent_t;
+# endif
 # ifndef __NIJI_D_struct_td_thrhandle
 #  define __NIJI_D_struct_td_thrhandle 1
-struct td_thrhandle { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct td_thrhandle {
+  td_thragent_t * th_ta_p;
+  void * th_unique;
+};
 # endif
 # ifndef __NIJI_D_td_thrhandle_t
 #  define __NIJI_D_td_thrhandle_t 1
 typedef struct td_thrhandle td_thrhandle_t;
 # endif
+# ifndef __NIJI_D_struct_td_thragent
+#  define __NIJI_D_struct_td_thragent 1
+struct td_thragent;
+# endif
+# ifndef __NIJI_D_td_thragent_t
+#  define __NIJI_D_td_thragent_t 1
+typedef struct td_thragent td_thragent_t;
+# endif
+# ifndef __NIJI_D_td_thr_state_e
+#  define __NIJI_D_td_thr_state_e 1
+typedef enum {
+  TD_THR_ANY_STATE = 0,
+  TD_THR_UNKNOWN = 1,
+  TD_THR_STOPPED = 2,
+  TD_THR_RUN = 3,
+  TD_THR_ACTIVE = 4,
+  TD_THR_ZOMBIE = 5,
+  TD_THR_SLEEP = 6,
+  TD_THR_STOPPED_ASLEEP = 7,
+} td_thr_state_e;
+# endif
+# ifndef __NIJI_D_td_thr_type_e
+#  define __NIJI_D_td_thr_type_e 1
+typedef enum {
+  TD_THR_ANY_TYPE = 0,
+  TD_THR_USER = 1,
+  TD_THR_SYSTEM = 2,
+} td_thr_type_e;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D_struct_td_thr_events
+#  define __NIJI_D_struct_td_thr_events 1
+struct td_thr_events {
+  unsigned int event_bits[2];
+};
+# endif
+# ifndef __NIJI_D_td_thr_events_t
+#  define __NIJI_D_td_thr_events_t 1
+typedef struct td_thr_events td_thr_events_t;
+# endif
 # ifndef __NIJI_D_struct_td_thrinfo
 #  define __NIJI_D_struct_td_thrinfo 1
-struct td_thrinfo { char __niji_opaque[384] __attribute__ ((__aligned__ (8))); };
+struct td_thrinfo {
+  td_thragent_t * ti_ta_p;
+  unsigned int ti_user_flags;
+  unsigned long ti_tid;
+  char * ti_tls;
+  void * ti_startfunc;
+  void * ti_stkbase;
+  long ti_stksize;
+  void * ti_ro_area;
+  int ti_ro_size;
+  td_thr_state_e ti_state;
+  unsigned char ti_db_suspended;
+  td_thr_type_e ti_type;
+  long ti_pc;
+  long ti_sp;
+  short ti_flags;
+  int ti_pri;
+  int ti_lid;
+  sigset_t ti_sigmask;
+  unsigned char ti_traceme;
+  unsigned char ti_preemptflag;
+  unsigned char ti_pirecflag;
+  sigset_t ti_pending;
+  td_thr_events_t ti_events;
+};
 # endif
 # ifndef __NIJI_D_td_thrinfo_t
 #  define __NIJI_D_td_thrinfo_t 1
