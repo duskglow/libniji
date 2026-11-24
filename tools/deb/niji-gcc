@@ -3,8 +3,14 @@
 # (docs/install-packages.md; package niji6-dev). Installed as /usr/bin/niji-gcc, with
 # /usr/bin/niji-g++ a link to it; the name picks the language.
 #
-# Compiling (-c, -S, -E, -M, -MM) is the system compiler with the system's C headers, unchanged
-# (libniji has no header set of its own yet; it is ABI-compatible with the glibc 2.39 headers).
+# Compiling uses libniji's own C headers (plan/headers.md slice 20), never the system's: -nostdinc,
+# then (C++ only) the C++ library's directories as the compiler lists them, the sysroot's
+# usr/include/x86_64-linux-gnu and usr/include (libniji's headers, and links to the kernel UAPI
+# headers of linux-libc-dev), then the compiler's own include directory. A program's -I and
+# -isystem directories come first, as with the system compiler. With -nostdinc among the
+# arguments nothing is added; with -nostdinc++ the C++ library's directories are left out.
+# NIJI_SYSTEM_HEADERS=1 compiles with the system's headers instead (libniji is ABI-compatible
+# with the glibc 2.39 headers), as before slice 20.
 # Linking uses only libniji's start files and libraries from the sysroot /usr/lib/niji (the link
 # editor runs with --sysroot, so the linker scripts there resolve inside it) and sets the program
 # interpreter to libniji's loader, so the program starts on libniji, never on the system's C library:
@@ -33,6 +39,38 @@ case ${0##*/} in
     *++) cc=${NIJI_REAL_CXX:-g++}; cxx=yes ;;
     *) cc=${NIJI_REAL_CC:-gcc}; cxx=no ;;
 esac
+
+# The header search path (appended: a program's own -I/-isystem directories, given earlier, stay
+# first). The language is C++ for niji-g++, after `-x c++`, or for a C++ source name.
+inc=$sysroot/usr/include
+lang=c; [ $cxx = yes ] && lang=c++
+hdr=yes; cxxdirs=yes; prev=""
+[ -n "${NIJI_SYSTEM_HEADERS:-}" ] && hdr=no
+for a in "$@"; do
+    case $prev:$a in
+        -x:c++ | *:-xc++ | *:*.cc | *:*.cp | *:*.cxx | *:*.cpp | *:*.CPP | *:*.c++ | *:*.C | *:*.ii) lang=c++ ;;
+    esac
+    case $a in
+        -nostdinc) hdr=no ;;
+        -nostdinc++) cxxdirs=no ;;
+    esac
+    prev=$a
+done
+if [ $hdr = yes ]; then
+    if [ ! -f "$inc/features.h" ]; then
+        echo "niji-gcc: $inc/features.h is missing (install niji6-dev, or set NIJI_SYSTEM_HEADERS=1)" >&2
+        exit 1
+    fi
+    gccinc=$("$cc" -print-file-name=include)
+    set -- "$@" -nostdinc
+    if [ $lang = c++ ] && [ $cxxdirs = yes ]; then
+        # The compiler's own search list (its -v report), C++ library directories only.
+        for d in $("$cc" -x c++ -E -v - </dev/null 2>&1 | sed -n '/^#include <\.\.\.> search starts here:/,/^End of search list\./s/^ \(.*\/c++\/.*\)/\1/p'); do
+            set -- "$@" -isystem "$d"
+        done
+    fi
+    set -- "$@" -isystem "$inc/x86_64-linux-gnu" -isystem "$inc" -isystem "$gccinc"
+fi
 
 mode=dynamic
 for a in "$@"; do

@@ -1,0 +1,9 @@
+# Plants of slice 20 (cargo xtask plants; docs/plants.md): the compiler drivers' header search path.
+# Each command runs the driver tests of crates/boundary/tests/niji_cc_headers.rs on the mutated script.
+s20-cc-cxxdirs | scripts/niji-cc | perl:s/(for d in .*?\n\s*)set -- "\$\@" -isystem "\$d"/$1:/s | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -x c\+\+ -c p.cc failed|niji-cc -c p.cc failed
+s20-cc-nostdinc | scripts/niji-cc | perl:s/-nostdinc \| -shared\) hdr=no/-shared) hdr=no/ | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -nostdinc found <stdio.h>
+s20-cc-optout | scripts/niji-cc | perl:s/\[ -n "\$\{NIJI_SYSTEM_HEADERS:-\}" \] && hdr=no/true/ | cargo test -p niji-boundary --test niji_cc_headers | msg:NIJI_SYSTEM_HEADERS=1 niji-cc -c s.c failed
+s20-cc-uapi | scripts/niji-cc | perl:s/ -isystem "\$products\/uapi"// | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -c p.c failed
+s20-gcc-inc | tools/deb/niji-gcc | perl:s/-isystem "\$inc" -isystem "\$gccinc"/-isystem "\$gccinc"/ | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-gcc -c p.c failed
+s20-gcc-cxxdirs | tools/deb/niji-gcc | perl:s/(for d in .*?\n\s*)set -- "\$\@" -isystem "\$d"/$1:/s | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-g\+\+ -c p.cc failed
+s20-gcc-optout | tools/deb/niji-gcc | perl:s/\[ -n "\$\{NIJI_SYSTEM_HEADERS:-\}" \] && hdr=no/true/ | cargo test -p niji-boundary --test niji_cc_headers | msg:NIJI_SYSTEM_HEADERS=1 niji-gcc -c s.c failed

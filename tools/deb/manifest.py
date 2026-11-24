@@ -62,6 +62,8 @@ CHARMAPS = "usr/share/i18n/charmaps/"
 UNSHIPPED = {
     "libc.so": "the packages ship the linker script tools/deb/<flavour>/libc-so.ld as libc.so",
     "libm.so.6.source-digest": "the build's cache key for libm.so.6, not a library file",
+    "include/niji/native.h": "the native C ABI's header (include/), staged beside the C headers for the build's own "
+                             "programs; shipping it is a new public interface, not decided",
 }
 
 
@@ -124,7 +126,9 @@ def lint_errors(products=None):
             errs.append("%s: mode %s is not four octal digits" % (where, mode))
         if kind == "file":
             # `@` inside a name: the locale sources' modifiers (ca_ES@valencia, LOCALE-SOURCES-GEN).
-            if not re.fullmatch(r"[A-Za-z0-9_+-][A-Za-z0-9_.+-]*(/[A-Za-z0-9_+-][A-Za-z0-9_.+@-]*)?", src):
+            # include/<path>: libniji's C headers (slice 20), staged by `cargo xtask so` in subdirectories.
+            if not re.fullmatch(r"[A-Za-z0-9_+-][A-Za-z0-9_.+-]*(/[A-Za-z0-9_+-][A-Za-z0-9_.+@-]*)?", src) and not \
+                    re.fullmatch(r"include(/[A-Za-z0-9_+-][A-Za-z0-9_.+-]*)+", src):
                 errs.append("%s: a file row's source is a product name or <dir>/<name>, not %s" % (where, src))
             elif products is not None and not os.path.isfile(os.path.join(products, src)):
                 errs.append("%s: product %s is not in %s (cargo xtask so writes no such file)" % (where, src, products))
@@ -152,6 +156,12 @@ def lint_errors(products=None):
         # The top level, and each product directory a file row reads from (charmaps/): every file
         # of it is shipped.
         dirs = [""] + sorted({s.split("/")[0] for s in shipped if "/" in s})
+        # include/ (slice 20's headers) is a tree: each of its subdirectories is checked too.
+        if "include" in dirs and os.path.isdir(os.path.join(products, "include")):
+            for sub, _ds, _fs in sorted(os.walk(os.path.join(products, "include"))):
+                rel = os.path.relpath(sub, products)
+                if rel != "include":
+                    dirs.append(rel)
         for d in dirs:
             top = os.path.join(products, d)
             for name in (sorted(os.listdir(top)) if os.path.isdir(top) else []):
