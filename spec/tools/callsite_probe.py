@@ -67,6 +67,11 @@ DIAG = ["-fmax-errors=0", "-fno-diagnostics-show-caret", "-fdiagnostics-plain-ou
 # --include mode, C++ units only: `-isystem` for g++'s own C++ library directories, ahead of libniji's, so a C++ unit
 # sees the libstdc++ wrapper headers (<stdlib.h>'s std:: overloads of abs and div) a real C++ build sees.
 CXX_INC = []
+# --include mode: libniji's tree, the compiler's and the UAPI tree as `-isystem`, for every unit except one that brings
+# its own `-nostdinc` set (the C++98 redeclaration units, plain_inc): there the header must be an ordinary `-I`
+# directory as on the reference, since g++ accepts a redeclaration with another exception specification from a system
+# header, and both of a function's redeclarations would then compile.
+INC = []
 OBJ = ["-c", "-fno-asynchronous-unwind-tables", "-fno-stack-protector", "-fno-ipa-icf", "-fcf-protection=none"]
 OVERLAYS = [("", ""), ("+gnu", "-D_GNU_SOURCE"), ("+gnu64", "-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64")]
 # The C.9 macros that expand to a `_chk` call: (macro, header, expression).
@@ -145,7 +150,8 @@ def compile_unit(lang, flags, path, lines, tests, extra, obj=None):
                 text.append(payload)
         with open(path, "w") as f:
             f.write("\n".join(text) + "\n")
-        cmd = [COMPILER[lang]] + flags.split() + extra + (CXX_INC if lang != "c" else []) + DIAG + ["-x", "c" if lang == "c" else "c++", path]
+        cmd = [COMPILER[lang]] + flags.split() + extra + ([] if "-nostdinc" in extra else
+               (CXX_INC if lang != "c" else []) + INC) + DIAG + ["-x", "c" if lang == "c" else "c++", path]
         cmd += ["-o", obj] if obj else ["-fsyntax-only"]
         p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         if p.returncode == 0:
@@ -413,11 +419,11 @@ def main():
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
     absent = []
     if inc:
-        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
         uapi = os.environ.get("NIJI_UAPI") or os.path.join(os.path.dirname(inc), "uapi")
         if not os.path.isdir(uapi):
             sys.exit(f"callsite_probe: --include needs the kernel UAPI tree: set NIJI_UAPI ({uapi} does not exist)")
-        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, "-isystem", uapi])
+        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc, "-I" + uapi]
+        INC.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, "-isystem", uapi])
         CXX_INC.extend(x for d in cxx_library_dirs() for x in ("-isystem", d))
         absent = sorted({h for h, _ in fns.values()} - {"-"} | {m[1] for m in MACROS})
         absent = [h for h in absent if not os.path.isfile(os.path.join(inc, h))]
