@@ -2,3 +2,60 @@
 # are accepted, one printed line each, grouped under a comment that gives the reason (a differences row of
 # docs/differences-from-glibc.md, or the follow-up story that removes it). Ratchet: a line the probe no longer shows
 # is a FAIL (stale); the list only shrinks.
+# sys/pidfd.h in C++: libniji declares the four functions with C linkage, so a C++ call or address-of names the
+# exported symbol; the table's rows are the mangled names no library exports. docs/differences-from-glibc.md row
+# "pidfd_getfd, pidfd_getpid, pidfd_open, pidfd_send_signal ... called from C++" (no compatibility option, reason in the row).
+missing sys/pidfd.h pidfd_getfd addr _Z11pidfd_getfdiij [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_getfd addr pidfd_getfd table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_getpid addr _Z12pidfd_getpidi [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_getpid addr pidfd_getpid table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_open addr _Z10pidfd_openij [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_open addr pidfd_open table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_send_signal addr _Z17pidfd_send_signaliiP9siginfo_tj [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_send_signal addr pidfd_send_signal table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+# -O2 inline forms not yet given (D-X.158's design, as HEADERS-O2-INLINES did for 26 other names): the 12 ctype.h
+# is*_l classifiers (the reference reads the locale's table inline), gettext/dgettext/ngettext/dngettext (the
+# reference calls dcgettext/dcngettext with LC_MESSAGES, gettext(3)) and __cmsg_nxthdr (CMSG_NXTHDR inline). libniji
+# calls the exported function of the same name, which gives the same result; every one is exported by both
+# libraries, so a program built on libniji's headers links and runs on either. Follow-up story (recommended in the
+# SL-HEADERS-P4-CALLSITES hand-back) removes these lines.
+missing ctype.h isalnum_l call - [*]
+extra ctype.h isalnum_l call isalnum_l [*]
+missing ctype.h isalpha_l call - [*]
+extra ctype.h isalpha_l call isalpha_l [*]
+missing ctype.h isblank_l call - [*]
+extra ctype.h isblank_l call isblank_l [*]
+missing ctype.h iscntrl_l call - [*]
+extra ctype.h iscntrl_l call iscntrl_l [*]
+missing ctype.h isdigit_l call - [*]
+extra ctype.h isdigit_l call isdigit_l [*]
+missing ctype.h isgraph_l call - [*]
+extra ctype.h isgraph_l call isgraph_l [*]
+missing ctype.h islower_l call - [*]
+extra ctype.h islower_l call islower_l [*]
+missing ctype.h isprint_l call - [*]
+extra ctype.h isprint_l call isprint_l [*]
+missing ctype.h ispunct_l call - [*]
+extra ctype.h ispunct_l call ispunct_l [*]
+missing ctype.h isspace_l call - [*]
+extra ctype.h isspace_l call isspace_l [*]
+missing ctype.h isupper_l call - [*]
+extra ctype.h isupper_l call isupper_l [*]
+missing ctype.h isxdigit_l call - [*]
+extra ctype.h isxdigit_l call isxdigit_l [*]
+missing libintl.h dgettext call dcgettext [*]
+extra libintl.h dgettext call dgettext [*]
+missing libintl.h dngettext call dcngettext [*]
+extra libintl.h dngettext call dngettext [*]
+missing libintl.h gettext call dcgettext [*]
+extra libintl.h gettext call gettext [*]
+missing libintl.h ngettext call dcngettext [*]
+extra libintl.h ngettext call ngettext [*]
+missing netrose/rose.h __cmsg_nxthdr call - [*]
+extra netrose/rose.h __cmsg_nxthdr call __cmsg_nxthdr [*]
+# Probe artefact: the C++17 overload-set probe resolves `&div` on libniji's headers and not on the reference's,
+# but black-box probes of both header sets under the C++ library's include directories agree on everything a
+# program sees: `&div` is an overload set on both (`auto p = &div` fails, `div_t (*)(int, int)` and
+# `ldiv_t (*)(long, long)` both bind), div(int, int) is div_t, div(10L, 3L) is ldiv_t, and noexcept(div(1, 2)),
+# noexcept(div(1L, 2L)), noexcept(div(1LL, 2LL)) match (C++17; with and without _GNU_SOURCE).
+differs noexcept stdlib.h div table [error - error] libniji [noexcept no error]
