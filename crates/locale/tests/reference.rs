@@ -873,6 +873,9 @@ enum Item {
     Word(usize),
 }
 
+/// A category's name, its number (`LC_NUMERIC` 1) and its compared keywords.
+type Category = (&'static str, usize, &'static [(&'static str, Item)]);
+
 /// s31_8_c_1 (LOCALE-TRANSLIT-TABLE, ruling #7791): every legacy-codeset entry of the generated
 /// `SUPPORTED`, compiled in its codeset, holds what the reference's `locale -k` printed for that
 /// name where it differs from its UTF-8 sibling (the probe dump's own rows; the rest the UTF-8
@@ -887,7 +890,7 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let dump = std::fs::read_to_string(root.join("spec/locale-probe/locales.tsv")).unwrap();
     #[rustfmt::skip]
-    let keys: &[(&str, usize, &[(&str, Item)])] = &[
+    let keys: &[Category] = &[
         ("LC_NUMERIC", 1, &[("decimal_point", Str(0)), ("thousands_sep", Str(1)), ("numeric-thousands-sep-wc", Word(4))]),
         ("LC_MONETARY", 4, &[("int_curr_symbol", Str(0)), ("currency_symbol", Str(1)), ("mon_decimal_point", Str(2)), ("mon_thousands_sep", Str(3)),
             ("positive_sign", Str(5)), ("negative_sign", Str(6)), ("crncystr", Str(15)), ("duo_currency_symbol", Str(23)), ("monetary-thousands-sep-wc", Word(44))]),
