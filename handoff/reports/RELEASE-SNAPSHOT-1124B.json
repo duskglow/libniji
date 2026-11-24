@@ -1,0 +1,34 @@
+{
+ "task": "RELEASE-SNAPSHOT-1124B",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 80d1f809b (serial 1; niji6 and system flavour sort above 22.3's): B1 fixed (dlc 300/300, _dl_find_object bad 0 of 300), #25 niji-g++ rows unwind and equal g++ 3/3, #24/#11/--library-path equal stock, #14 bash's command compiles, no check worse than 22.3; start-up -40% user instructions, +1 fault per start",
+ "branch": "task/release-snapshot-1124b",
+ "head": null,
+ "gate": {"affected": "GATE bad=0 (clippy all-features, xtask clippy, static, records, direct tier; keke gate-1)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "L2: a locale compiled from libniji's shipped en_US source formats %c as 'Sun, Nov 22, 2026, 02:05:09 PM'; reference glibc 2.39 and trixie stock give 'Mon 23 Nov 2026 02:05:09 PM UTC' (shipped d_t_fmt data, not localedef); recommend a story comparing every shipped locale's items with the reference's compiled locales (black-box locale -k)",
+  "L3: new lintian W libc-bin extended-description-line-too-long line 2 (unwrapped $programs list in tools/deb/description/libc-bin)",
+  "+1 page fault per start on every start-up row, both CPU classes, not attributed",
+  "D1 stale: docs/install-packages.md:159 and tools/deb/description/locales still say locale sources are absent / placeholder",
+  "D3: docs/RELEASE-NOTES.md Unreleased lacks the B1 fix, #25, #24, #11, locale sources/localedef and the start-up drop",
+  "D4: docs/compat-flags.md:33 (COMPAT-12) names crates/boundary/tests/s29_rpc_reply_source.rs, which does not exist",
+  "B1 diagnostic (dlcd, mei) is not in jobs: it exits 1 by design on its 'stock run is not the recorded reference' line; its libniji verdicts are bad total 0 of 300 and bad-find total 0 of 300 for prog and prog-niji",
+  "dladdr dli_sname for an address shared by several symbols differs from stock (printf vs _IO_printf; cosf64 vs none), same on 22.3"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "dladdr names a dlopen'd library mapped in the loader's segment hole (dlc)", "before": 299, "after": 300, "unit": "of 300 named", "measured": true},
+  {"kind": "perf", "what": "empty main start-up, user instructions (Zen 1), 22.3 -> head", "before": 260618, "after": 156382, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "empty main start-up, user instructions (Skylake-SP), 22.3 -> head", "before": 260857, "after": 156623, "unit": "instr/start", "measured": true},
+  {"kind": "cost", "what": "page faults per start, every start-up row, both classes (empty main Zen 1)", "before": 51, "after": 52, "unit": "faults/start", "measured": true},
+  {"kind": "coverage", "what": "release-check plants (all CAUGHT)", "before": null, "after": 6, "unit": "plants", "measured": true},
+  {"kind": "unblock", "what": "snapshot-2026-11-23.1 staged on keke (9 .debs + SHA256SUMS + MANIFEST) for the coordinator's tag", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "a release check that waits on another (eetwet after y14r) should be chained under one label or registered at once, so one jobwait over the whole list works; and the .deb relay keke->local->mei could be a single ops tool step instead of hand-run scp",
+ "next_step": "coordinator: tag/publish snapshot-2026-11-23.1 from keke ~/release-staging/snapshot-20261123.1/; brief stories for L2 (locale data parity), L3 (description wrap) and D1/D3/D4",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1124B.md",
+ "jobs": ["keke:release-snapshot-1124b-gate-1", "keke:release-snapshot-1124b-plants-1", "keke:release-snapshot-1124b-debs-1", "keke:release-snapshot-1124b-smoke-keke-1", "keke:release-snapshot-1124b-heapnode-1", "keke:release-snapshot-1124b-gaimass-1", "keke:release-snapshot-1124b-pkgdiff-1", "keke:release-snapshot-1124b-stage-1", "keke:release-snapshot-1124b-install-1", "keke:release-snapshot-1124b-startup-keke-1", "mei:release-snapshot-1124b-smoke-mei-1", "mei:release-snapshot-1124b-roots-1", "mei:release-snapshot-1124b-lint-1", "mei:release-snapshot-1124b-dlc-1", "mei:release-snapshot-1124b-y25c-1", "mei:release-snapshot-1124b-y25n-1", "mei:release-snapshot-1124b-y2411-1", "mei:release-snapshot-1124b-y14l-1", "mei:release-snapshot-1124b-y21-1", "mei:release-snapshot-1124b-startup-mei-1"]
+}

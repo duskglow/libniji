@@ -1,0 +1,23 @@
+{"task": "CHAIN-COST-AUDIT", "model": "opus", "tokens": null,
+ "result": "689 chains ranked by cost per realized gain ($4,665, $9/gain overall; 6+ story chains $29/gain vs $5 single); worst 10 explained; E4 tripwire proposed: review at 5th story, $20 or 8 legs without a landed gain",
+ "branch": "task/chain-cost-audit", "head": null,
+ "gate": {"affected": "0 test targets selected (docs only); checks and static", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "E4 tripwire thresholds", "recommendation": "review when a chain reaches its 5th story, $20 cumulative cost or 8 session legs with no landed measured gain; re-arm on a landed gain or after a 'continue' review"},
+  {"item": "init_dynamic_empty_main_stays_within_its_instruction_bound named in 11 reds across stories since 11-16", "recommendation": "review the bound itself as a shared cause, not per story"}
+ ],
+ "informational": [
+  "runs.cost_usd absent before 2026-11-10 (estimated from tokens, $953) and runs.impact absent before 2026-11-12; no runs recorded 2026-10-25..11-03",
+  "premise: PRINTF-NO-HEAP is at -3 by id but used 9 session legs; INTERNAL-ALLOC-ROUTING-4 was closed without running; LD-RELR-LOOP landed at -4 ($16)",
+  "cost per run rose from $3.03 (11-10..11-16) to $4.51 (11-17..11-23)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit only: no product, test or record changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "tooling", "what": "re-runnable chain cost audit (tools/chain_cost_audit.py) and tripwire threshold tables", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "record impact on every landed story and count session legs as continuations; a chain's realized gain is invisible when only unlanded continuations record it",
+ "next_step": "coordinator builds the tripwire in liella-ops from results/chain-cost-audit/README.md",
+ "report_file": "handoff/CHAIN-COST-AUDIT.md",
+ "jobs": ["keke:chain-cost-audit-gate3", "keke:chain-cost-audit-precheck2"]}

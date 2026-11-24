@@ -23,6 +23,7 @@ use niji_legacy::malloc_compat::{self, Ctx};
 use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
 use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
 
+use crate::caller_alloc;
 use crate::raw;
 use crate::sys::CSys;
 
@@ -258,9 +259,12 @@ fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>)
 /// Gaps [`map_aligned_exactly`] asks the kernel for before it gives up.
 const EXACT_ROUNDS: usize = 8;
 /// Bound on a round's blockers: `(align + head + len) / (head + len)` rounded up (one more than
-/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`]; a gap needing
-/// more is not blocked.
-const EXACT_BLOCKERS: usize = 8;
+/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`], 9 for a later
+/// segment's (metadata and 8 slabs, 2304 KiB, HEAP-SECOND-NODE-MAP); a gap needing more is not
+/// blocked. At 8 a later segment found no aligned range under an address-space limit, and the
+/// heap fell back to mapping per request: find over 200000 entries needed 2560 KiB more
+/// (HEAP-FIND-DEPTH-NEED, D-3.25).
+const EXACT_BLOCKERS: usize = 9;
 
 /// `len` bytes mapped with `prot` at exactly `start`, never replacing a mapping.
 fn map_fixed_noreplace(start: usize, len: usize, prot: u32) -> Option<usize> {
@@ -443,7 +447,13 @@ unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        rust_dealloc(ptr.expose_provenance(), layout.size());
+        // The alignment is a constant at nearly every call site, so the test folds away: an
+        // over-aligned block is always the heap's own (D-X.156), the rest may be a replacement's.
+        if layout.align() > ALIGN {
+            rust_dealloc_private(ptr.expose_provenance(), layout.size());
+        } else {
+            rust_dealloc(ptr.expose_provenance(), layout.size());
+        }
     }
 
     // UNSAFE(allocator): the trait's provided method, overridden (HEAP-CUTS C2).
@@ -459,16 +469,173 @@ unsafe impl GlobalAlloc for Niji {
     }
 }
 
+// ------------------------------------------------------------------------------ internal routing
+//
+// Ruling #7583 (D-X.156): when a program, an `LD_PRELOAD` library or a tool replaces the malloc
+// family, the library's own allocations at most `ALIGN`-aligned go through the replacement.
+// INTERNAL-ALLOC-ROUTING-3: the ordinary path makes no test of its own for it. One word,
+// `RESERVE_LAST`, carries it, read only where the paths already made a test:
+// * in the release and resize paths it is the reserve's bound: the largest offset from the
+//   reserve's base sent to the reserve's branch. `usize::MAX` (routed) sends every block they
+//   name there, where `release_cold` hands it to the replacement's `free` (the reserve's own
+//   blocks stay the reserve's);
+// * in the allocation paths it gates the fast path's read of the thread's heap cache word, in
+//   place of the test of whose thread block it is (`thread::heap_cache_word`, D-X.60): at
+//   `RESERVE_OPEN`, set once `open_own_fast` ran in a process the runtime started and nothing was
+//   routed, the fast path reads the word directly (`OwnPages`, as `malloc`'s); at any other value
+//   the cache word is withheld from the library's own allocations and they take
+//   `rust_alloc_gated`, where the routing test is.
+// Its three states: `RESERVE_OPEN + 1` (closed: before `thread::init_initial`, and for good in a
+// process another library started), `RESERVE_OPEN` (open), at least `usize::MAX - 1` (routed).
+// Both bounds below the routed state cover every block the reserve hands out (`reserve_alloc`
+// starts each at a multiple of 8 from its page-aligned base, so at an offset of at most
+// `RESERVE - 8`) and no byte past it. `route_internal` (in `early_init`) and `open_own_fast` (in
+// `thread::init_initial`) are the only writers; both run at most once, on the initial thread,
+// before any other thread exists.
+
+/// [`RESERVE_LAST`] with the allocation fast path open: the offset of the last 8-byte slot of the
+/// reserve.
+const RESERVE_OPEN: usize = RESERVE - 8;
+/// The largest offset from the reserve's base that the release path sends to the reserve's
+/// branch, and the allocation fast path's gate (the states above).
+static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE_OPEN + 1);
+
+/// Route the library's own allocations through the replacing malloc family from here on
+/// (`caller_alloc::decide_route`, once, in `early_init`, before any thread exists).
+pub(crate) fn route_internal() {
+    RESERVE_LAST.store(usize::MAX, Relaxed);
+}
+
+/// Open the fast path of the library's own allocations unless they are routed:
+/// `thread::init_initial`, once, when the runtime owns the initial thread's block. One
+/// subtraction whatever the state: closed becomes [`RESERVE_OPEN`], routed stays above the
+/// reserve (`usize::MAX - 1`). At most once per process (each `runtime::start` instance calls
+/// `init_initial` once): a second call would close the fast path and cut the reserve's last slot
+/// from the release bound.
+#[inline(always)]
+pub(crate) fn open_own_fast() {
+    RESERVE_LAST.fetch_sub(1, Relaxed);
+}
+
+/// Whether the library's own allocations are routed ([`route_internal`] ran).
+#[inline(always)]
+fn routed() -> bool {
+    reserve_last() > RESERVE
+}
+
+/// Whether the library's own allocations take the fast path through the thread block's cache
+/// word ([`open_own_fast`] ran and nothing is routed).
+#[inline(always)]
+fn own_fast_open() -> bool {
+    reserve_last() == RESERVE_OPEN
+}
+
+/// [`RESERVE_LAST`] as a plain read, not an atomic load, so the paths' tests take it as a memory
+/// operand (owner ruling #7708).
+#[inline(always)]
+fn reserve_last() -> usize {
+    // UNSAFE(process-flag): a write-once routing bound and gate, read without an atomic (#7708).
+    #[allow(unsafe_code)]
+    // UNSAFE(process-flag) SAFETY: `route_internal` and `open_own_fast` are the only writers of
+    // `RESERVE_LAST`; each runs at most once, on the initial thread (`early_init`,
+    // `thread::init_initial`), before the runtime or the program creates any other thread; every
+    // later thread starts after those stores (thread creation orders them) and a fork child copies
+    // the settled word, so no store runs concurrently with this read (no data race). The pointer
+    // is a static's, always valid and aligned for a `usize`.
+    unsafe {
+        *RESERVE_LAST.as_ptr()
+    }
+}
+
+/// A block for the library's own use from the replacing allocator: `malloc` or, zeroed,
+/// `calloc` through the symbols. 0 when the replacement has none: the library's fallible
+/// collections then report `ENOMEM`, so a replacement that fails a call makes the call that
+/// needed it fail, as with the reference. The reserve is not used: it stands in for libniji's own
+/// heap only. Out of line and cold: only a process with a replacement gets here.
+#[cold]
+#[inline(never)]
+fn routed_alloc(size: usize, zero: bool) -> usize {
+    let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) };
+    p.expose_provenance()
+}
+
+/// The release path's reserve test with the routing bound ([`RESERVE_LAST`]): true for a block
+/// of the reserve, and for every block once routed.
+#[inline(always)]
+fn reserve_or_routed(addr: usize) -> bool {
+    addr.wrapping_sub(reserve_base()) <= reserve_last()
+}
+
+/// [`rust_dealloc`] for a block [`reserve_or_routed`] names: the reserve's own block back to the
+/// reserve, any other (only once routed) to the replacement's `free`. Cold: the reserve serves
+/// only when the heap is exhausted.
+#[cold]
+#[inline(never)]
+fn release_cold(addr: usize, size: usize) {
+    if !reserve_free(addr, size) {
+        caller_alloc::free(core::ptr::with_exposed_provenance_mut(addr));
+    }
+}
+
 /// [`libniji`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
-/// reserve; 0 without memory.
+/// reserve; 0 without memory. Once routed, a block at most [`ALIGN`]-aligned comes from the
+/// replacement ([`routed_alloc`]).
 pub fn rust_alloc(size: usize, align: usize) -> usize {
-    HEAP.alloc(&CSys, &KernelPages, size, align).map_or_else(|| reserve_alloc(size, align), |b| b.addr)
+    if own_fast_open() {
+        if let Some(b) = Heap::alloc_fast(&OwnPages, size, align) {
+            return b.addr;
+        }
+        return rust_alloc_slow(size, align);
+    }
+    rust_alloc_gated(size, align, false)
+}
+
+/// [`rust_alloc`] past its fast path: the heap's slow path, else the reserve. Out of line, so
+/// that `rust_alloc` stays small (the callers that inline it keep their constant alignment).
+#[inline(never)]
+fn rust_alloc_slow(size: usize, align: usize) -> usize {
+    HEAP.alloc_slow(&CSys, &KernelPages, size, align).map_or_else(|| reserve_alloc(size, align), |b| b.addr)
 }
 
 /// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
-    match HEAP.alloc(&CSys, &KernelPages, size, align) {
+    if own_fast_open() {
+        if let Some(b) = Heap::alloc_fast(&OwnPages, size, align) {
+            zero_fresh(b.addr, size);
+            return b.addr;
+        }
+        return rust_alloc_zeroed_slow(size, align);
+    }
+    rust_alloc_gated(size, align, true)
+}
+
+/// [`rust_alloc_zeroed`] past its fast path, as [`rust_alloc_slow`].
+#[inline(never)]
+fn rust_alloc_zeroed_slow(size: usize, align: usize) -> usize {
+    zeroed_or_reserve(HEAP.alloc_slow(&CSys, &KernelPages, size, align), size, align)
+}
+
+/// [`rust_alloc`] and [`rust_alloc_zeroed`] while their fast path is closed: through the
+/// replacement once routed (at most [`ALIGN`]-aligned), else the heap with the cache word read
+/// as the general paths read it (whose thread block it is, D-X.60).
+#[inline(never)]
+fn rust_alloc_gated(size: usize, align: usize, zero: bool) -> usize {
+    if align <= ALIGN && routed() {
+        return routed_alloc(size, zero);
+    }
+    let b = HEAP.alloc(&CSys, &KernelPages, size, align);
+    if zero {
+        zeroed_or_reserve(b, size, align)
+    } else {
+        b.map_or_else(|| reserve_alloc(size, align), |b| b.addr)
+    }
+}
+
+/// The zeroed block for [`rust_alloc_zeroed`] from the heap's answer `b`, else from the reserve.
+#[inline(always)]
+fn zeroed_or_reserve(b: Option<niji_rt::heap::Block>, size: usize, align: usize) -> usize {
+    match b {
         Some(b) => {
             if !b.zeroed {
                 zero_fresh(b.addr, size);
@@ -485,8 +652,18 @@ pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
     }
 }
 
-/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
+/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes at most
+/// [`ALIGN`]-aligned (once routed, the replacement's block).
 pub fn rust_dealloc(addr: usize, size: usize) {
+    if reserve_or_routed(addr) {
+        return release_cold(addr, size);
+    }
+    checked("free", HEAP.free(&CSys, &KernelPages, addr));
+}
+
+/// [`libniji`]'s `dealloc` of a block allocated above [`ALIGN`]: always the heap's or the
+/// reserve's, routed or not.
+pub fn rust_dealloc_private(addr: usize, size: usize) {
     if !reserve_free(addr, size) {
         checked("free", HEAP.free(&CSys, &KernelPages, addr));
     }
@@ -498,9 +675,11 @@ pub fn rust_dealloc(addr: usize, size: usize) {
 /// [`Heap::resize`], so a growth inside its size class stays in place and a large block moves by
 /// `mremap`, instead of the trait's default allocate + copy + free. A block of the reserve, or
 /// one with a larger alignment (`Heap::resize` moves at [`ALIGN`]), takes that default path;
-/// so does a resize the heap has no memory for, so that the reserve still serves it.
+/// so does a resize the heap has no memory for, so that the reserve still serves it. Once
+/// routed, a block at most [`ALIGN`]-aligned takes the default path too, through the
+/// replacement's `malloc` and `free`.
 pub fn rust_realloc(addr: usize, size: usize, align: usize, new_size: usize) -> usize {
-    if align <= ALIGN && !in_reserve(addr) {
+    if align <= ALIGN && !reserve_or_routed(addr) {
         match HEAP.resize(&CSys, &KernelPages, addr, new_size, copy_blocks) {
             Ok(Some(b)) => return b.addr,
             Ok(None) => {}
@@ -510,7 +689,11 @@ pub fn rust_realloc(addr: usize, size: usize, align: usize, new_size: usize) -> 
     let new = rust_alloc(new_size, align);
     if new != 0 {
         copy_blocks(addr, new, size.min(new_size));
-        rust_dealloc(addr, size);
+        if align > ALIGN {
+            rust_dealloc_private(addr, size);
+        } else {
+            rust_dealloc(addr, size);
+        }
     }
     new
 }

@@ -1,0 +1,13 @@
+{"task": "SHSTK-OPT-IN-4", "model": "opus", "tokens": null,
+ "result": "Merged origin/next to clear the train's dlopen.rs conflict (one import line); gate, xtask test, full-profile hot_text and plants green on the merge",
+ "branch": "task/shstk-opt-in-4", "head": null,
+ "gate": {"affected": "11721 passed / 0 failed", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The Skylake-SP dynamic empty-main start-up count (CI red on run 3's train) is confirmed only by the train; on the Zen 1 host hot_text_products passes in both profiles"],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "SHSTK-OPT-IN part 1 (marking + D-27.97) mergeable into next again; unblocks SHSTK-ENABLE", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "A one-line import conflict cost a full agent run (gate + xtask test + plants, about 2.5 h of host time); the train could hand trivially resolvable use-list conflicts to a cheap resolver that then runs only the direct gate",
+ "next_step": "Land with the train; then run 3's fix-forward (find/PT_LOAD filters reuse check_table's pass) and SHSTK-ENABLE",
+ "report_file": "handoff/SHSTK-OPT-IN.md",
+ "jobs": ["keke:shstk-opt-in-4-lint1", "keke:shstk-opt-in-4-gate1", "keke:shstk-opt-in-4-test1", "keke:shstk-opt-in-4-hottext1", "keke:shstk-opt-in-4-plants1", "keke:shstk-opt-in-4-plants2", "keke:shstk-opt-in-4-precheck1"]}

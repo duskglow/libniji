@@ -1,0 +1,11 @@
+name: an unknown short option: message and Try line, exit 64
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: -x
+status: exit 64
+stdout:
+stderr:
+| gencat: invalid option -- 'x'
+| Try `gencat --help' or `gencat --usage' for more information.

@@ -12,12 +12,9 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+use oracle::root;
+use std::path::Path;
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 fn ensure_locale(dir: &Path, name: &str) -> bool {
     if dir.join(name).join("LC_COLLATE").exists() {
@@ -28,15 +25,7 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
 }
 
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/zones_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/zones_diff.c").build(out, niji)
 }
 
 // Why each recorded difference is kept (libniji's choice where glibc's behaviour is an artifact or

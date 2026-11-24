@@ -13,7 +13,6 @@ use libfuzzer_sys::fuzz_target;
 use niji::error::Result;
 use niji::locale::file::Cat;
 use niji::locale::Locale;
-use niji::mem::TryVec;
 use niji::num::float::Rounding;
 use niji::printf::{self as pf, Arg, Class, Count, Len, Out, Piece, Plain, Unit};
 use niji::text::{self, Decoded, Encoding, MbState};
@@ -44,7 +43,7 @@ impl pf::Env for Env {
 
     fn store_count(&mut self, _addr: usize, _len: Len, _count: usize) {}
 
-    fn error_text(&mut self, out: &mut TryVec<u8>) -> Result<()> {
+    fn error_text(&mut self, out: &mut pf::ErrorText) -> Result<()> {
         out.extend_from_slice(b"No such file or directory")
     }
 

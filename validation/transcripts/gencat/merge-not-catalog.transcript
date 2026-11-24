@@ -1,0 +1,20 @@
+name: an existing file that is not a catalog is replaced
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: o.cat
+| garbage file
+file: j.msg
+| $set 1
+| 2 TWO
+| 3 three
+| $set 6
+| 1 six
+arg: -o
+arg: o.cat
+arg: j.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 2f32b5647f855670aef4281873b7e2aa259bd95c467ec0b9502239c9ce3c69bc size 98

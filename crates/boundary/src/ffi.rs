@@ -57,6 +57,13 @@ pub(crate) struct StrDiff {
 unsafe extern "C" {
     safe fn niji_csys_abi_version() -> u32;
 
+    /// `niji_csys_compat_ctype_store` (adapter/runtime.c): stores `words[i]` into the legacy ctype
+    /// object at `at[i]` (skipped when 0) in `libc.so.6`; does nothing elsewhere. Every non-zero
+    /// `at[i]` must be the loader's answer for that object's versioned name (its only caller,
+    /// `locale::compat_ctype_objects`, passes nothing else): a word-sized writable object.
+    #[link_name = "niji_csys_compat_ctype_store"]
+    pub(crate) safe fn compat_ctype_store(at: &[usize; 6], words: &[usize; 6]);
+
     /// `%fs:0`.
     #[allow(dead_code)] // Rust reads %fs inline since TINY-HOT (tb.rs); the C layer still calls it
     pub(crate) safe fn niji_machine_tp() -> usize;
@@ -517,9 +524,12 @@ unsafe extern "C" {
     /// `_longjmp`: as `niji_machine_siglongjmp`, without the mask. Same obligation.
     #[allow(dead_code)] // reached only from C (`_longjmp`, machine/setjmp.S)
     pub(crate) safe fn niji_machine_longjmp_nomask(env: usize, val: i32) -> !;
-    /// Where a `makecontext` function returns to. Never called from Rust; only its address is
-    /// taken.
+    /// Where a `makecontext` context starts (it calls the function in %r12). Never called from
+    /// Rust; only its address is taken.
     pub(crate) safe fn niji_machine_start_context();
+    /// The calling thread's shadow-stack pointer as its caller sees it, 0 when the thread has
+    /// none (D-21.5). Reads one register; no obligation.
+    pub(crate) safe fn niji_machine_ssp() -> usize;
     /// The next argument of a `va_list` as a register-sized value (`va_arg(*ap, long)`).
     /// Proof obligation: `ap` is the `va_list *` a C adapter passed for this call (it lives
     /// until the adapter returns), and no more arguments are read than the C caller passed

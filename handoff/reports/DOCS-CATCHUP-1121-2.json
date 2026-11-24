@@ -1,0 +1,10 @@
+{"task": "DOCS-CATCHUP-1121-2", "model": "sonnet", "tokens": null,
+ "result": "Merged next; RELEASE-NOTES conflict resolved to next's per-snapshot structure plus one Unreleased entry (COMPAT-38 thread exit); differences rows kept",
+ "branch": "task/docs-catchup-1121-2", "head": "463efc821",
+ "gate": {"affected": "gate2 green (gate-1 red: iconv test link needed cargo xtask so, environment)", "peak": null},
+ "jobs": ["mei:docs-catchup-1121-2-gate2", "mei:docs-catchup-1121-2-so"],
+ "accepted_first_attempt": null, "rulings": [], "informational": [], "refused": [],
+ "impact": [{"kind": "coverage", "what": "Unreleased lists the COMPAT-38 thread-exit change; D-12.34 rows COMPAT-39..41 land with the branch", "before": 0, "after": 4, "unit": "doc entries", "measured": false}],
+ "improvement": "the affected gate selects xtask transcripts for a docs change but the role lacks target/niji after a clean; the test link is a dangling file, not a skip",
+ "next_step": "land; a follow-up docs story for snapshots 1121C onward is already covered by next's sections",
+ "report_file": "handoff/DOCS-CATCHUP-1121.md"}

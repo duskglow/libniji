@@ -1,0 +1,49 @@
+{
+ "task": "GATE-HONEST-METRICS-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "Train 975 red fixed per owner ruling #8323: the per-locale-directory trace leg is dropped and the cause test pins the archive form; release tool back to 2/2 windows on the merged head (next 9139a21d9 + branch); WINDOW-BIN-BYTES stays gated (#8322: this branch lands no blocking fault-ratio gate)",
+ "branch": "task/gate-honest-metrics-4",
+ "head": "d8f77f1a3",
+ "gate": {
+  "affected": "7 suites, 700 passed / 0 failed (direct tier); cargo xtask test 12700 passed / 0 failed, conformance 149/0; release check 36 passed",
+  "peak": "3.2G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Release bin 2 (locale, strings, tool) has 255 B of headroom on next 9139a21d9 + this branch (65,281 of 65,536); no plan member has a section name past the old 256-byte cut, so the bytes are next's. A few hundred bytes of locale/tool/strings growth spills tool's own 4.5 KB group again (3 windows); #8322 is the route the owner chose",
+  "#8322 not applied: this branch's fault ratios report unless NIJI_FAULT_BOUNDS=enforce, so WINDOW-BIN-BYTES stays gated as it is",
+  "The per-directory trace of legs 2-3 is in the branch history before d20f3ccc8 for when #8323's measurement brings #8134 back",
+  "cargo xtask test (fast products) printed the non-blocking D-X.145 WINDOW-COUNT REPORT locale 3/2, tool 3/2 (the release profile blocks and is 2/2); next fast count not measured"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "release-profile WINDOW-BIN-BYTES on the merged head: mode tool windows (train 975 red had 3 of 2)",
+   "before": 3,
+   "after": 2,
+   "unit": "windows",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the archive-form cause check (setlocale keys, textdomain keys dropped), both CAUGHT",
+   "before": null,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A window-bin red should print each mode's lower bound and the contended bin's per-signature bytes (as the leg-4 analysis had to compute by hand from layout-bins.tsv); a headroom warning under ~1 KB on a bin shared by budgeted modes would have flagged train 975 before the train",
+ "next_step": "Train re-runs the merged head; #8323's measurement (distribution default locale form, archive-host cost) is owed before #8134 returns",
+ "report_file": "handoff/GATE-HONEST-METRICS-4-report.md",
+ "jobs": [
+  "gate-honest-metrics-4-gate1",
+  "gate-honest-metrics-4-plants1",
+  "gate-honest-metrics-4-rel1",
+  "gate-honest-metrics-4-xtest1",
+  "gate-honest-metrics-4-lint1"
+ ]
+}

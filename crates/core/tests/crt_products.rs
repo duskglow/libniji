@@ -245,10 +245,12 @@ fn start_files_follow_the_psabi() {
         assert!(!secs.iter().any(|x| x.2.contains('W') && x.2.contains('X')), "{installed}: a writable code section: {secs:?}");
     }
     // Mcrt1.o: no driver names it; nothing in it reaches a program (the assembler's empty
-    // .text/.data/.bss are allocated but hold no byte).
+    // .text/.data/.bss are allocated but hold no byte). Its one allocated note is the GNU property
+    // note every shipped object carries (D-X.164), so that a link with it keeps the shadow-stack
+    // property; it holds no code or data.
     let m = p.join("niji-Mcrt1.o");
     let msecs = sections(&m);
-    assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0), "Mcrt1.o has allocated content: {msecs:?}");
+    assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0 && !(x.0 == ".note.gnu.property" && x.1 == "NOTE")), "Mcrt1.o has allocated content: {msecs:?}");
     assert!(symbols(&m).iter().all(|x| x[1] == "LOCAL"), "Mcrt1.o defines a symbol");
     // grcrt1.o: the static-PIE start plus the profiling hook in .preinit_array.
     let g = p.join("niji-grcrt1.o");

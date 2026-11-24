@@ -1,0 +1,8 @@
+{"task": "DOCS-CATCHUP-1121-3", "model": "sonnet", "tokens": null,
+ "result": "Merged next; Unreleased entry moved to a release-notes fragment; RELEASE-NOTES conflict gone; clippy and static green",
+ "branch": "task/docs-catchup-1121-3", "head": "7f15cdc30",
+ "gate": {"affected": "0 selected (docs only)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["a heredoc was attempted once by mistake and refused by the hook; not retried"], "refused": [],
+ "impact": [{"kind": "coverage", "what": "release-notes fragment for the COMPAT-38 thread-exit change", "before": 0, "after": 1, "unit": "fragments", "measured": true}],
+ "jobs": ["mei:docs-catchup-1121-3-gate"],
+ "improvement": "none", "next_step": "land; later snapshots 1121C..1122D need a docs follow-up", "report_file": "handoff/DOCS-CATCHUP-1121.md"}

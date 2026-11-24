@@ -1,0 +1,29 @@
+# LOCALE-COLLATE-TAILORINGS-2 plants: the generated collation root (crates/collate-root and
+# spec/locale/collate-root.txt) against generated_root_collation_is_the_references_en_us.
+# Generator: variable weighting, the two class rules, the level-4 code point order, expansions.
+shifted-keeps-variable | crates/collate-root/src/lib.rs | perl:s/after_variable = true;\s*continue;/after_variable = true;/s | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+no-variant-block | crates/collate-root/src/lib.rs | lit:key[0].insert(0, VARIANT_BLOCK); ==> | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+no-format-first | crates/collate-root/src/lib.rs | lit:if format_first { ==> if false && format_first { | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+level4-reverse-cp | crates/collate-root/src/lib.rs | lit:(key, !first.contains(cp), *cp) ==> (key, !first.contains(cp), u32::MAX - *cp) | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+expand-first-only | crates/collate-root/src/lib.rs | lit:mine.extend(theirs.iter().copied()); ==> if mine.is_empty() { mine.extend(theirs.iter().copied()); } | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+# Rules file: one rule of each kind changed or dropped.
+after-level | spec/locale/collate-root.txt | lit:after 1DE3 A75B 3 ==> after 1DE3 A75B 2 | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+after-level-1e9b | spec/locale/collate-root.txt | lit:after 1E9B A784 2 ==> after 1E9B A784 3 | cargo test -p niji-locale --test reference generated_root | equivalent:the later `same A784 A785 2` rewrites A784's level 2 to A785's (0020 011D), so U+1E9B (0020 011E) follows A784 at level 2 whether it was placed at level 2 or 3, and no other element has level-2 weights 0020 011E (plants-1 SURVIVED: order and levels identical)
+after-level4-dropped | spec/locale/collate-root.txt | lit:after 0601 0600 4 ==> | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+same-level | spec/locale/collate-root.txt | lit:same A784 A785 2 ==> same A784 A785 3 | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+expand-short | spec/locale/collate-root.txt | lit:expand 0676 0648 0621 ==> expand 0676 0648 | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+contract-dropped | spec/locale/collate-root.txt | lit:contract 006C 00B7 0140 ==> | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+undefined-dropped | spec/locale/collate-root.txt | lit:undefined 30000 323AF ==> | cargo test -p niji-locale --test reference generated_root | msg:generated_root_collation_is_the_references_en_us.*(FAILED|panicked)
+# cargo xtask plants results (12 plants: 11 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# shifted-keeps-variable: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# no-variant-block: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# no-format-first: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# level4-reverse-cp: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# expand-first-only: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# after-level: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# after-level-1e9b: EQUIVALENT
+# after-level4-dropped: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# same-level: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# expand-short: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# contract-dropped: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us
+# undefined-dropped: CAUGHT, caught by reference generated_root_collation_is_the_references_en_us

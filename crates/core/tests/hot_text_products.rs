@@ -7,6 +7,8 @@
 //! program runs without address-space randomisation, so a build gives the same count every run.
 //! Faults are deterministic counters (WL gate rule), not timing.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
+#[path = "support/contain.rs"]
+mod contain;
 
 use std::path::{Path, PathBuf};
 use std::os::unix::process::CommandExt;
@@ -106,8 +108,17 @@ use niji_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// (`pre`, ahead of the head bin) reads one more in each mode from 0x4000 (fast: from 0x800, start-up only
 /// from 0x4000), the head bin's room for what precedes the group being 0x400. TRUE_BOUND 11 -> 11 / 10,
 /// LOCALE_BOUND 47 -> 43 / 43, TOOL_BOUND 50 -> 44 / 45.
-const TRUE_BOUND: [u64; 2] = [11, 10];
-const LOCALE_BOUND: [u64; 2] = [43, 43];
+/// GATE-HONEST-METRICS (owner ruling #8135, D-X.165): the absolute counts above were a function of the
+/// host's environment as much as of the products (a host without locale-archive reads 13 more in `locale` and
+/// `tool`, the reference 14 more), so they fired on every run on one host class or the other and guarded
+/// nothing. Every runtime fault metric is now the ratio libniji / reference: the same `page_faults.c`, the same
+/// harness ([`faults`]), on the same host, linked against the host's C library ([`reference_probe`]), so the
+/// host's environment cancels. The bound is on the ratio, in thousandths ([`check_ratio`]), per profile, at the
+/// highest ratio measured on the host classes in [`RATIO_HOSTS`], no margin (the counts are deterministic); the
+/// absolute counts are printed beside it and do not gate. Like the counts before them (D-X.136), the ratios
+/// report and do not block unless [`FAULT_BOUNDS_ENV`]`=enforce` (the release ratchet); they only come down.
+const TRUE_RATIO: [u64; 2] = [345, 345];
+const LOCALE_RATIO: [u64; 2] = [1103, 1103];
 /// "tool" mode: a coreutils-shaped program (setlocale, bindtextdomain, atexit, getenv, strtoimax,
 /// printf), see `init_coreutils_shaped_program_stays_within_its_page_fault_bound`.
 /// PERF-READDIR-ENTRY-4 (layout-only delta, owner rule): CI read tool 69 (bound 68) for the readdir
@@ -119,7 +130,17 @@ const LOCALE_BOUND: [u64; 2] = [43, 43];
 /// both bases. TOOL_BOUND 68 -> 71 (rule above: the highest count, 69, plus 2); LOCALE_BOUND stays 68
 /// (66 plus 2), TRUE_BOUND stays 23. STARTUP-FAULTS-RESTORE-5: 60 -> 58 (see TRUE_BOUND).
 /// LAYOUT-TRACE-DEFAULT: 56 -> 50 (see TRUE_BOUND). LAYOUT-WINDOW-BINS-7: 50 -> 44 / 45 (see TRUE_BOUND).
-const TOOL_BOUND: [u64; 2] = [44, 45];
+/// GATE-HONEST-METRICS: a ratio to the reference (see [`TRUE_RATIO`]).
+const TOOL_RATIO: [u64; 2] = [1154, 1154];
+/// The host classes [`TRUE_RATIO`] and the other ratio bounds were measured on (GATE-HONEST-METRICS, next
+/// 0495c4684's fast products, warm-up + 5 runs, every run identical), libniji / reference, static probe: Skylake-SP
+/// host (per-locale directories, no locale-archive) true 10 / 29, locale 56 / 53, tool 58 / 53, fork 5 / 7,
+/// localtime and localtime + mktime 36 / 32, float 4 / 1; Haswell-EP and Zen 1 hosts (locale-archive) the same
+/// but locale 43 / 39, tool 45 / 39. Dynamic probe: Skylake-SP true 65 / 49, locale 107 / 81, tool 109 / 81;
+/// Haswell-EP and Zen 1 65 / 48, 93 / 66, 95 / 66. Each bound is the highest ratio, rounded up to a thousandth.
+/// The release profile takes the same bounds until it is measured the same way (the absolute release counts
+/// were at or under the fast ones: TRUE_BOUND 10 against 11, TOOL_BOUND 45 against 44).
+const RATIO_HOSTS: &str = "Skylake-SP (per-locale directories), Haswell-EP and Zen 1 (locale-archive)";
 const RUNS: usize = 5;
 /// Every mode of `page_faults.c` whose first-call state is start-up state (the bounds below count each).
 const STARTUP_PROBE_MODES: [&str; 10] = ["true", "locale", "tool", "fork", "mktime", "localtime", "localtime_mktime", "float", "strings", "rebind"];
@@ -247,31 +268,201 @@ fn faults(exe: &Path, mode: &str) -> u64 {
     faults_env(exe, mode, &[])
 }
 
+/// The length of every [`call_dir`] path: the exec path (`<dir>/page_faults`) and so the start-up stack's
+/// strings keep one length whatever the call (HOTTEXT-FAULT-ENV above). It is the length of the name the
+/// bounds were measured with (`/tmp/nht-<pid:010>-<n>`, LOCALE-PER-DIR-LOAD), so the counts do not move.
+const CALL_DIR_LEN: usize = "/tmp/nht-0000000000-0".len();
+
+/// RELEASE-STEP-EXEC-FAIL: the private directory of one [`faults_env`] call, never another call's in this
+/// process. Each call removes its directory at its start and its end. Under `cargo test` (the CI release step),
+/// every test of this file runs in one process (one pid) on parallel threads, and the directory used to be
+/// `<pid>-<call % 10>`: a call that ten later calls outlived had its staged program removed under it. (Measured
+/// on the Skylake-SP host, release products, load up to 42: at most 5 later calls started during any call, so this
+/// was a latent race, not shown to have fired.) nextest runs each test in a process of its own. The number is the
+/// call's own count, at a fixed width, so the name keeps [`CALL_DIR_LEN`].
+fn call_dir() -> PathBuf {
+    static CALL: AtomicUsize = AtomicUsize::new(0);
+    let n = CALL.fetch_add(1, Ordering::Relaxed);
+    assert!(n < 10_000, "call_dir: {n} calls in one process; widen the number (and keep CALL_DIR_LEN)");
+    PathBuf::from(format!("/tmp/n{:010}-{n:04}", std::process::id()))
+}
+
+#[test]
+fn harness_fault_call_dirs_are_never_shared() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `call_dir`). More calls than the
+    // ten slots the directories used to rotate through: every call's directory differs, and all have
+    // one length (the count must not move with which call it was).
+    let dirs: Vec<PathBuf> = (0..32).map(|_| call_dir()).collect();
+    for d in &dirs {
+        assert_eq!(d.as_os_str().len(), CALL_DIR_LEN, "{} is not {CALL_DIR_LEN} bytes long", d.display());
+    }
+    let mut unique = dirs.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), dirs.len(), "two calls of call_dir share a directory: {dirs:?}");
+}
+
+/// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
+/// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
+/// STARTUP-RELAY-EXEC: the `page_faults` relay reports a failed exec as `errno <n>`; the failure adds
+/// that errno's name (`errno 2 (No such file or directory ...)`).
+fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
+    (!o.status.success()).then(|| {
+        let err = String::from_utf8_lossy(&o.stderr);
+        let mut why = format!("{what} failed: {}; stderr: {:?}", o.status, err.trim());
+        for n in err.split("errno ").skip(1).filter_map(|t| t.split(|c: char| !c.is_ascii_digit()).next()?.parse::<i32>().ok()) {
+            why.push_str(&format!("; errno {n}: {}", std::io::Error::from_raw_os_error(n)));
+        }
+        why
+    })
+}
+
+#[test]
+fn harness_failed_run_reports_its_stderr() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `run_failure`).
+    let o = Command::new("sh").args(["-c", "echo 'page_faults: not found' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains("127") && why.contains("page_faults: not found"), "the failure does not carry the status and stderr: {why}");
+    let ok = Command::new("sh").args(["-c", "echo minflt 1 >&2"]).stdin(Stdio::null()).output().expect("sh");
+    assert_eq!(run_failure("probe", &ok), None);
+    // STARTUP-RELAY-EXEC: the relay's `errno <n>` is named.
+    let o = Command::new("sh").args(["-c", "echo 'page_faults relay: execve /x/page_faults failed: errno 2' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains(&format!("errno 2: {}", std::io::Error::from_raw_os_error(2))), "the relay's errno is not named: {why}");
+}
+
+#[test]
+fn harness_relay_names_a_failed_exec_and_its_errno() {
+    // STARTUP-RELAY-EXEC: no spec clause (this file's harness, `page_faults.c` relay). The relay's
+    // child execs the path the relay was exec'd by (AT_EXECFN). Exec'd as `/proc/self/fd/<n>` with <n>
+    // close-on-exec, the relay itself starts (the kernel opens the path before it closes the descriptor),
+    // and its child's exec of that path finds no descriptor <n>: the relay must name the path and the
+    // errno (ENOENT), not exit 127 alone.
+    use std::os::fd::AsRawFd;
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    if !Path::new("/proc/self/fd").is_dir() {
+        eprintln!("SKIP harness_relay_names_a_failed_exec_and_its_errno: no /proc/self/fd (proc is not mounted)");
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_relay_exec");
+    build(&exe);
+    let file = std::fs::File::open(&exe).unwrap(); // std opens it close-on-exec
+    let via = format!("/proc/self/fd/{}", file.as_raw_fd());
+    let o = Command::new(&via).arg0("page_faults").args(["relay", "true"]).current_dir("/").env_clear().stdin(Stdio::null()).output().expect("the relay");
+    drop(file);
+    let why = run_failure("relay true", &o).expect("the relay's exec of a closed descriptor's path succeeded");
+    assert_eq!(o.status.code(), Some(127), "{why}");
+    let named = format!("execve {via} failed: errno {}", 2);
+    assert!(why.contains(&named) && why.contains(&std::io::Error::from_raw_os_error(2).to_string()), "the relay does not name its failed exec ({named}): {why}");
+}
+
+/// LOCALE-PER-DIR-LOAD (D-7.21): the locale data the probes count. Where `/usr/lib/locale` held a locale
+/// archive, `LANG=en_US.UTF-8` mapped one file; a host with per-locale directories instead (a Skylake-SP
+/// host after locales-all) maps about 13 (tool 58 and setlocale + printf 57 faults against 44 and 43, and the
+/// tool count read 58 or 59 by text pad, failing `init_data_clusters_hold_at_every_text_phase`). The
+/// probes therefore run with an archive of their own, holding only en_US.utf8 (host `localedef
+/// --prefix`), bind-mounted on `/usr/lib/locale` in a user and mount namespace (`unshare -r -m`): the
+/// counts then do not depend on the host's locale layout. Measured with one static probe: Skylake-SP host
+/// (directories) 10 / 43 / 44 (start-up, setlocale + printf, tool) with this archive, the Zen 1
+/// host 10 / 43 / 44 with its own archive and with this one. `Err` (no localedef, no user namespaces,
+/// or a `sh` that adds environment strings) names why the host's own layout is counted instead.
+fn probe_locale_archive() -> Result<&'static [u8], &'static str> {
+    static ARCHIVE: std::sync::OnceLock<Result<Vec<u8>, String>> = std::sync::OnceLock::new();
+    let built = ARCHIVE.get_or_init(|| {
+        let r = make_probe_locale_archive();
+        if let Err(why) = &r {
+            eprintln!("NOTE: the page-fault probes count the host's own locale layout: {why}");
+        }
+        r
+    });
+    built.as_ref().map(Vec::as_slice).map_err(String::as_str)
+}
+
+fn make_probe_locale_archive() -> Result<Vec<u8>, String> {
+    let root = std::env::temp_dir().join(format!("niji-hot-text-locale-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let dir = root.join("usr/lib/locale");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let made = Command::new("localedef")
+        .arg(format!("--prefix={}", root.display()))
+        .args(["-i", "en_US", "-f", "UTF-8", "en_US.UTF-8"])
+        .stdin(Stdio::null())
+        .output();
+    let archive = std::fs::read(dir.join("locale-archive"));
+    // The namespace runs the same script as `faults_env`, with `env` in place of the probe.
+    let ns = contain::user("unshare")
+        .args(["-r", "-m", "sh", "-c", r#"mount --bind "$1" /usr/lib/locale || exit 99; unset PWD; exec env"#, "sh"])
+        .arg(&dir)
+        .current_dir("/")
+        .env_clear()
+        .env("LANG", "en_US.UTF-8")
+        .stdin(Stdio::null())
+        .output();
+    let _ = std::fs::remove_dir_all(&root);
+    let archive = match (made, archive) {
+        (_, Ok(a)) if !a.is_empty() => a,
+        (Ok(o), _) => return Err(format!("localedef wrote no archive: {}", String::from_utf8_lossy(&o.stderr).trim())),
+        (Err(e), _) => return Err(format!("localedef cannot be run: {e}")),
+    };
+    match ns {
+        Ok(o) if o.status.success() && o.stdout == b"LANG=en_US.UTF-8\n" => Ok(archive),
+        Ok(o) if o.status.success() => Err(format!("sh adds to the environment: {:?}", String::from_utf8_lossy(&o.stdout))),
+        Ok(o) => Err(format!("unshare -r -m with a bind mount failed ({}): {}", o.status, String::from_utf8_lossy(&o.stderr).trim())),
+        Err(e) => Err(format!("unshare cannot be run: {e}")),
+    }
+}
+
 /// [`faults`] with `env` added to the program's fixed environment (a dynamic program's `LD_LIBRARY_PATH`).
 fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
-    // One directory per call (the tests run in parallel); the name always has the same length.
-    static CALL: AtomicUsize = AtomicUsize::new(0);
-    let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
-    let dir = PathBuf::from(format!("/tmp/niji-hot-text-{:010}-{n}", std::process::id()));
+    // One directory per call (the tests run in parallel); the name always has the same length, and the
+    // exec path `<dir>/page_faults` is as long as the earlier `/tmp/niji-hot-text-<pid>-<n>/p`.
+    let dir = call_dir();
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let run = dir.join("p");
+    let run = dir.join("page_faults");
     stage(exe, &run);
+    // With the probe archive, `sh` (in the namespace) mounts it and execs the probe found through an
+    // unexported PATH, so argv[0] is `page_faults` and the environment is LANG plus `env` only, as below.
+    let locale = probe_locale_archive().ok().map(|a| {
+        let l = dir.join("locale");
+        std::fs::create_dir_all(&l).unwrap();
+        std::fs::write(l.join("locale-archive"), a).unwrap();
+        l
+    });
     no_randomisation();
     let mut seen = Vec::with_capacity(RUNS + 1);
     for _ in 0..=RUNS {
-        let o = Command::new(&run)
-            .arg0("page_faults")
-            .arg("relay")
-            .arg(mode)
-            .current_dir("/")
-            .env_clear()
-            .env("LANG", "en_US.UTF-8")
-            .envs(env.iter().copied())
-            .stdin(Stdio::null())
-            .output()
-            .unwrap();
-        assert!(o.status.success(), "{} {mode} failed: {:?}", exe.display(), o.status);
+        let mut cmd = match &locale {
+            Some(l) => {
+                let mut c = contain::user("unshare");
+                c.env_clear()
+                    .env("LANG", "en_US.UTF-8")
+                    .args(["-r", "-m", "sh", "-c"])
+                    .arg(r#"mount --bind "$1" /usr/lib/locale || exit 99; unset PWD; PATH=$2; mode=$3; shift 3; for kv; do export "$kv"; done; exec page_faults relay "$mode""#)
+                    .arg("sh")
+                    .arg(l)
+                    .arg(&dir)
+                    .arg(mode)
+                    .args(env.iter().map(|(k, v)| format!("{k}={v}")));
+                c
+            }
+            None => {
+                let mut c = Command::new(&run);
+                c.arg0("page_faults").arg("relay").arg(mode).env_clear().env("LANG", "en_US.UTF-8").envs(env.iter().copied());
+                c
+            }
+        };
+        let first = cmd.get_program().to_owned();
+        let o = cmd.current_dir("/").stdin(Stdio::null()).output().unwrap_or_else(|e| panic!("{} cannot be run: {e}", Path::new(&first).display()));
+        // A failure of the namespace script (99: the bind mount; 127: `unshare`, `setpriv` or the probe could
+        // not be executed; the relay's own exec of the counted run) names itself on stderr: the run's status
+        // alone does not say which step failed.
+        if let Some(why) = run_failure(&format!("{} {mode}", exe.display()), &o) {
+            panic!("{why}");
+        }
         let err = String::from_utf8_lossy(&o.stderr);
         let n: u64 = err.trim().strip_prefix("minflt ").and_then(|v| v.parse().ok()).unwrap_or_else(|| panic!("unexpected output {err:?}"));
         seen.push(n);
@@ -286,7 +477,8 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
     // PAGEFAULTS-2: hot-text grouping of the startup, setlocale and printf paths.
     let r = root();
     assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
-    // The locale comes from the system archive, like the workloads the WL gate counts.
+    // The locale comes from an archive, as the workloads the WL gate counts had it when the bounds were
+    // measured: the probes' own (`probe_locale_archive`), or the host's where that cannot be made.
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
@@ -294,8 +486,58 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
     let exe = dir.join("page_faults_niji");
     build(&exe);
     let (t, l) = (faults(&exe, "true"), faults(&exe, "locale"));
-    check_whole_count("startup-only program", t, TRUE_BOUND, "start-up grew or its text left the hot group?");
-    check_whole_count("setlocale + printf program", l, LOCALE_BOUND, "hot-text grouping lost?");
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("startup-only program", t, faults(&reference, "true"), TRUE_RATIO, "start-up grew or its text left the hot group?");
+    check_ratio("setlocale + printf program", l, faults(&reference, "locale"), LOCALE_RATIO, "hot-text grouping lost?");
+}
+
+/// GATE-HONEST-METRICS (#8135): `page_faults.c` linked against the host's C library (the reference), static
+/// or as a position-independent dynamic program, with the host's compiler, in `target/test-oracles`; run with
+/// [`faults`] like the products' probe, on the same host, it is the denominator of every fault ratio. `None`,
+/// with the reason printed, where the host's C library has no static archive.
+fn reference_probe(dynamic: bool) -> Option<PathBuf> {
+    let dir = root().join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join(if dynamic { "page_faults_reference_dyn" } else { "page_faults_reference" });
+    let link: &[&str] = if dynamic { &["-fPIE", "-pie"] } else { &["-static"] };
+    // Several tests (separate processes under nextest) build it at once: each links a file of its own and renames
+    // it into place, so a test staging the program ([`stage`]) never copies one another test is still writing (a
+    // shared output read ENOEXEC once). The name holds a per-call number besides the process id: under `cargo test`
+    // the tests are threads of one process (two threads linking one `<pid>.part` renamed it away from each other).
+    static LINK: AtomicUsize = AtomicUsize::new(0);
+    let n = LINK.fetch_add(1, Ordering::Relaxed);
+    let part = dir.join(format!("{}.{}.{n}.part", exe.file_name().and_then(|n| n.to_str()).unwrap_or("ref"), std::process::id()));
+    let o = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-fno-builtin"])
+        .args(link)
+        .arg(root().join("crates/core/tests/oracle/page_faults.c"))
+        .arg("-o")
+        .arg(&part)
+        .stdin(Stdio::null())
+        .output()
+        .expect("cc");
+    if !o.status.success() {
+        eprintln!("SKIP: page_faults.c does not link against the host's C library ({}): {}", if dynamic { "dynamic" } else { "static" }, String::from_utf8_lossy(&o.stderr).trim());
+        let _ = std::fs::remove_file(&part);
+        return None;
+    }
+    std::fs::rename(&part, &exe).expect("rename the reference probe into place");
+    Some(exe)
+}
+
+/// GATE-HONEST-METRICS (#8135, D-X.165): `niji` page faults of a probe mode against `reference`, the same
+/// mode of [`reference_probe`] on this host. Fails (through [`fault_bound`]: a report unless enforced) when the
+/// ratio exceeds `bounds[profile]` thousandths; the absolute counts are printed and do not gate.
+fn check_ratio(what: &str, niji: u64, reference: u64, bounds: [u64; 2], hint: &str) {
+    let p = profile_index();
+    let (bound, profile) = (bounds[p], ["fast", "release"][p]);
+    let reference = reference.max(1);
+    let ratio = niji.saturating_mul(1000).div_ceil(reference);
+    eprintln!("{what} ({profile}): {niji} page faults, the reference {reference}: ratio {ratio}/1000 (bound {bound}/1000; measured on {RATIO_HOSTS})");
+    fault_bound(
+        niji.saturating_mul(1000) <= bound.saturating_mul(reference),
+        &format!("{what} ({profile} products): {niji} page faults against the reference's {reference} on this host, ratio {ratio}/1000 > {bound}/1000 ({hint})"),
+    );
 }
 
 /// LAYOUT-LDSO-ORDER: the static probes above never map the interpreter. This one is `page_faults.c`
@@ -342,7 +584,10 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// on ext4 and page-aligned on tmpfs, so the same file pages fall in different 64 KiB fault-around windows. The
 /// loader now places every view 64 KiB-aligned itself (`map_view`); the test below checks the two file systems
 /// read the same count.
-const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
+/// GATE-HONEST-METRICS (#8135, #8136): the absolute bound (last 73 / 67) became [`DYN_RATIO`]'s first row, a
+/// ratio to the reference's dynamic probe on the same host, and the probe's `locale` and `tool` modes joined it.
+/// The ratio bounds of [`DYN_PROBE_MODES`], in thousandths, per profile (see [`TRUE_RATIO`]).
+const DYN_RATIO: [[u64; 2]; 3] = [[1355, 1355], [1410, 1410], [1440, 1440]];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
@@ -375,9 +620,19 @@ fn init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_t
 #[test]
 fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
-    let t = dyn_startup_faults(&lib);
-    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+    let t = dyn_startup_faults(&lib, &DYN_PROBE_MODES);
+    let Some(reference) = reference_probe(true) else { return };
+    for ((mode, bounds), n) in DYN_PROBE_MODES.iter().zip(DYN_RATIO).zip(t) {
+        let what = format!("dynamic program, mode {mode}");
+        check_ratio(&what, n, faults(&reference, mode), bounds, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+    }
 }
+
+/// GATE-HONEST-METRICS (#8136): the dynamic probe's modes, how users run libniji (D-X.141): start-up only,
+/// then the setlocale + printf and the coreutils-shaped programs, whose faults are the largest gap to the
+/// reference users pay (+27 to +29, TEST-BOUNDS-AUDIT). Each against the same mode of the reference's dynamic
+/// probe on the same host ([`check_ratio`]).
+const DYN_PROBE_MODES: [&str; 3] = ["true", "locale", "tool"];
 
 /// DYN-START-SPEED-2; no spec clause (cost of the products). The start-up count of the program above does
 /// not depend on the file system that holds ld.so and libc.so.6: the same products staged on the RAM file
@@ -412,15 +667,15 @@ fn init_dynamic_startup_fault_count_does_not_depend_on_the_file_system() {
         return;
     }
     assert_eq!(a.as_os_str().len(), b.as_os_str().len(), "{} and {} differ in length", a.display(), b.display());
-    let (ta, tb) = (dyn_startup_faults(&a), dyn_startup_faults(&b));
+    let (ta, tb) = (dyn_startup_faults(&a, &["true"])[0], dyn_startup_faults(&b, &["true"])[0]);
     eprintln!("dynamic startup-only program: {ta} page faults with the objects on {ka}, {tb} on {kb}");
     assert_eq!(ta, tb, "the start-up fault count depends on the file system holding ld.so and libc.so.6 ({ka}: {ta}, {kb}: {tb}): a whole-file view left where the kernel places it?");
 }
 
 /// Stage ld.so and libc.so.6 of the products in the new directory `lib` (removed afterwards), link
 /// `oracle/page_faults.c` as a position-independent program whose interpreter and LD_LIBRARY_PATH are
-/// that directory, and return its whole-process minor faults in mode `true` ([`faults_env`]).
-fn dyn_startup_faults(lib: &Path) -> u64 {
+/// that directory, and return its whole-process minor faults in each of `modes` ([`faults_env`]).
+fn dyn_startup_faults(lib: &Path, modes: &[&str]) -> Vec<u64> {
     let r = root();
     let p = r.join("target/niji");
     assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
@@ -454,7 +709,7 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
         .expect("cc");
     assert!(st.success(), "page_faults.c does not link as a dynamic program of the products");
     let path = lib.display().to_string();
-    let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
+    let t = modes.iter().map(|m| faults_env(&exe, m, &[("LD_LIBRARY_PATH", path.as_str())])).collect();
     let _ = std::fs::remove_dir_all(&lib);
     t
 }
@@ -524,10 +779,37 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// 170,176 and release 159,226 (both more than 10% under the LD-OBJECT-ONCE bounds, so they went red); the
 /// Skylake-SP bounds are those levels plus 2%. Zen 1 host not run in this test: its levels are taken as the
 /// Skylake-SP levels minus 117 (the reverse of the rule above), plus 2%.
-const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [173_600, 162_500]),
-    ("AMD EPYC 7551 32-Core Processor", [173_500, 162_300]),
+/// GATE-HONEST-METRICS (owner rulings #8135, #8158, D-X.165): the absolute bounds (last 173,600 / 162,500
+/// Skylake-SP, 173,500 / 162,300 Zen 1) became ratios to the reference's count of the same program on the same
+/// host, in ten-thousandths, so a CPU class with no row is no longer skipped ([`DYN_START_RATIO_OTHER`]). Each row
+/// is its old absolute bound divided by the reference's count on that host (deterministic: every one of 21 runs
+/// identical), so on every host that had a bound the ratio fails exactly where the count failed: as tight as
+/// before, not looser. Why the bound sits there, not at the current level: the eleven reds of this test since
+/// 11-16 (#8158) were trains and stories whose loader or libc.so.6 start-up grew past it; the reds were real
+/// growth of what users pay, the host never moved the count (user instructions are identical run to run on both
+/// classes), so re-expressing the bound changes no verdict and raising it would loosen the ratchet (ALWAYS
+/// FORWARD). The 11-23 red (173,794 > 173,600, fast, Skylake-SP) stays red: ratio 17,060 > 17,040.
+const DYN_START_RATIO: [(&str, [u64; 2]); 3] = [
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [17_040, 15_951]),
+    ("AMD EPYC 7551 32-Core Processor", [18_070, 16_904]),
+    ("Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", [17_652, 16_524]),
 ];
+/// The ratio bounds on a CPU model [`DYN_START_RATIO`] has no row for: the highest row.
+const DYN_START_RATIO_OTHER: [u64; 2] = [18_070, 16_904];
+// GATE-HONEST-METRICS: the measurements behind [`DYN_START_RATIO`] (next 0495c4684's fast products, the test's
+// counter, median of 20, three series, every user count identical): the reference 101,873 (Skylake-SP), 96,012
+// (Zen 1), 98,341 (Haswell-EP); libniji 170,965, 170,771, 170,769. Rows: the old absolute bound / the reference,
+// rounded down (Skylake-SP 173,600 and 162,500; Zen 1 173,500 and 162,300). Haswell-EP had no row (skipped): libniji
+// counts the same on every class to 0.12%, so it takes the Skylake-SP absolute bounds over its own reference.
+/// GATE-HONEST-METRICS (#8144): the run-to-run spread of the kernel's instructions for the dynamic empty main, 20
+/// runs, three series per host, measured before deciding whether to gate them: Skylake-SP host, libniji min 759,876
+/// to max 841,719 (max - min up to 10.6% of the median), the reference 578,365 to 655,440 (up to 12%); medians of
+/// the three series within 0.8%. Over 1%: reported, not gated (the owner's rule for #8144).
+/// Haswell-EP: libniji 748,348 to 825,081 (up to 10.2%), the reference 564,651 to 653,838 (up to 15.5%); Zen 1:
+/// libniji 769,648 to 890,224 (up to 15.4%), the reference 582,292 to 702,423 (up to 20%). The minimum of 20 is
+/// steadier (within 0.4% across series for libniji, 1.1% for the reference); median ratio libniji / reference
+/// 1.30 to 1.32 on the three classes.
+const DYN_KERNEL_SPREAD: &str = "run-to-run spread of 20 runs up to 10.6% (Skylake-SP), 10.2% (Haswell-EP), 15.4% (Zen 1): over 1%";
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
 const DYN_INSTR_RUNS: &str = "21";
@@ -582,7 +864,7 @@ fn dyn_link_with(lib: &Path, src: &Path, exe: &Path, objs: &[PathBuf]) {
 /// The median user-mode instructions of `exe` from exec to exit (`oracle/exec_instr.c`, built with the
 /// host's compiler), run with only `env`; `None` when this host gives no instruction counter (the
 /// harness's message is printed).
-fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
+fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<(u64, Option<[u64; 3]>)> {
     let counter = lib.join("exec_instr");
     if !counter.exists() {
         let st = Command::new("cc").args(["-O1", "-o"]).arg(&counter).arg(root().join("crates/core/tests/oracle/exec_instr.c")).status().expect("cc");
@@ -602,7 +884,12 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
     }
     assert!(o.status.success(), "exec_instr {} failed ({}): {err}", exe.display(), o.status);
     let median = out.split_whitespace().nth(2).and_then(|v| v.parse().ok());
-    Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
+    // GATE-HONEST-METRICS (#8144): `kinstr MIN MEDIAN MAX`, the kernel's instructions on the program's behalf.
+    let kernel = out.lines().find_map(|l| l.strip_prefix("kinstr ")).and_then(|k| {
+        let v: Vec<u64> = k.split_whitespace().filter_map(|x| x.parse().ok()).collect();
+        (v.len() == 3).then(|| [v[0], v[1], v[2]])
+    });
+    Some((median.unwrap_or_else(|| panic!("unexpected output {out:?}")), kernel))
 }
 
 /// The system calls `exe` (staged in `lib`, [`dyn_stage`]) makes from its exec to its exit, as "nr arg0
@@ -731,19 +1018,36 @@ fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
     let niji = exec_instr(&lib, &exe, &[("LD_LIBRARY_PATH", path.as_str())]);
     let host = exec_instr(&lib, &reference, &[]);
     let _ = std::fs::remove_dir_all(&lib);
-    let (Some(niji), Some(host)) = (niji, host) else { return };
+    let (Some((niji, nk)), Some((host, hk))) = (niji, host) else { return };
     let cpu = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     let model = cpu.lines().find_map(|l| l.strip_prefix("model name").and_then(|v| v.split_once(':')).map(|(_, m)| m.trim().to_owned())).unwrap_or_default();
     let p = profile_index();
     let profile = ["fast", "release"][p];
-    let tenths = niji.saturating_mul(10) / host.max(1);
-    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({}.{}x)", tenths / 10, tenths % 10);
-    let Some(bound) = DYN_START_INSTR.iter().find(|(m, _)| *m == model).map(|(_, b)| b[p]).filter(|&b| b != 0) else {
-        eprintln!("SKIP: no {profile} bound for this CPU model ({model:?}) in DYN_START_INSTR");
-        return;
-    };
-    assert!(niji <= bound, "dynamic empty main ({profile}): {niji} instructions > {bound}: the interpreter's or libc.so.6's start-up grew");
-    assert!(niji >= bound - bound / 10, "dynamic empty main ({profile}): {niji} instructions, more than 10% under {bound}: tighten DYN_START_INSTR");
+    let ratio = niji.saturating_mul(10_000).div_ceil(host.max(1));
+    eprintln!("dynamic empty main ({profile}, {model}): {niji} user instructions; the host's C library {host}: ratio {ratio}/10000");
+    // #8144: the kernel's instructions, reported and not gated: their run-to-run spread is over 1%
+    // ([`DYN_KERNEL_SPREAD`]).
+    match (nk, hk) {
+        (Some([a, m, z]), Some([ra, rm, rz])) => eprintln!(
+            "dynamic empty main ({profile}): kernel instructions min / median / max of {DYN_INSTR_RUNS}: {a} / {m} / {z}, the host's C library {ra} / {rm} / {rz}; median ratio {}/10000; user + kernel median ratio {}/10000 (reported, not gated: {DYN_KERNEL_SPREAD})",
+            m.saturating_mul(10_000) / rm.max(1),
+            niji.saturating_add(m).saturating_mul(10_000) / host.saturating_add(rm).max(1)
+        ),
+        _ => {
+            // Reported, so it must be there where the host lets this user count kernel events.
+            let paranoid = std::fs::read_to_string("/proc/sys/kernel/perf_event_paranoid").ok().and_then(|v| v.trim().parse::<i64>().ok());
+            assert!(paranoid.is_none_or(|v| v >= 2), "dynamic empty main: no kernel instruction count, but perf_event_paranoid is {paranoid:?} (exec_instr.c's kinstr counter lost?)");
+            eprintln!("dynamic empty main: no kernel instruction counter here (perf_event_paranoid {paranoid:?})");
+        }
+    }
+    let bound = DYN_START_RATIO.iter().find(|(m, _)| *m == model).map_or(DYN_START_RATIO_OTHER[p], |(_, b)| b[p]);
+    assert!(
+        niji.saturating_mul(10_000) <= bound.saturating_mul(host),
+        "dynamic empty main ({profile}, {model}): {niji} user instructions against the host's C library's {host}, ratio {ratio}/10000 > {bound}/10000: the interpreter's or libc.so.6's start-up grew"
+    );
+    if ratio < bound.saturating_sub(bound / 10) {
+        panic!("dynamic empty main ({profile}): ratio {ratio}/10000, more than 10% under {bound}/10000: tighten DYN_START_RATIO");
+    }
 }
 
 #[test]
@@ -825,7 +1129,8 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// the tightening to the new level is left to the slice that records them (LAYOUT-WINDOW-BINS-6).
 /// LAYOUT-WINDOW-BINS-7 (slice 3): origin/next f494ad65d, fast 36, release 36 on the Zen 1 and the Skylake-SP
 /// host (the same probe binaries, every run identical; see TRUE_BOUND). 40 / 40 -> 36 / 36.
-const LOCALTIME_BOUND: [u64; 2] = [36, 36];
+/// GATE-HONEST-METRICS: a ratio to the reference (see [`TRUE_RATIO`]).
+const LOCALTIME_RATIO: [u64; 2] = [1125, 1125];
 
 /// The first `localtime_r` (zone load included) and the first `mktime` after it, counted
 /// together (PERF-ZONE-LOAD-FAULTS-2): a fault that moves from one call to its neighbour (the
@@ -841,13 +1146,9 @@ const LOCALTIME_BOUND: [u64; 2] = [36, 36];
 /// origin/next 5bbefc645, same host and harness, every run identical: fast 40, release 42.
 /// LAYOUT-WINDOW-BINS-5: fast 36, release 36 (Zen 1 host role); release 42 -> 40, as [`LOCALTIME_BOUND`].
 /// LAYOUT-WINDOW-BINS-7: fast 36, release 36 on the Zen 1 and the Skylake-SP host; 40 / 40 -> 36 / 36.
-const LOCALTIME_MKTIME_BOUND: [u64; 2] = [36, 36];
-
-/// A whole-process count this far under its bound fails too: either the probe no longer counts
-/// start-up (a call-only count reads about 20 under these bounds) or the level improved and the bound
-/// must come down to it (ALWAYS FORWARD). Room for the one-fault spread once seen between host classes (none
-/// since the window bins, LAYOUT-WINDOW-BINS-7).
-const WHOLE_COUNT_SLACK: u64 = 4;
+/// GATE-HONEST-METRICS: a ratio to the reference (see [`TRUE_RATIO`]). The under-side check of the absolute
+/// counts (more than 4 under the bound) is retired with them: it fired on every run of one host class.
+const LOCALTIME_MKTIME_RATIO: [u64; 2] = [1125, 1125];
 
 /// [`check_whole_count`]'s hint for the two localtime modes.
 const LOCALTIME_HINT: &str = "zone-load or mktime text left the hot group, or start-up grew?";
@@ -864,19 +1165,6 @@ fn profile_index() -> usize {
     }
 }
 
-/// [`faults`] of a whole-process mode, checked against its per-profile bound from both sides; `hint` names the
-/// likely cause of a count over the bound.
-fn check_whole_count(what: &str, s: u64, bounds: [u64; 2], hint: &str) {
-    let p = profile_index();
-    let bound = bounds[p];
-    let profile = ["fast", "release"][p];
-    eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
-    fault_bound(s <= bound, &format!("{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})"));
-    fault_bound(
-        s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
-        &format!("{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"),
-    );
-}
 
 /// The switch that makes the runtime fault bounds blocking: `NIJI_FAULT_BOUNDS=enforce` (the release ratchet).
 const FAULT_BOUNDS_ENV: &str = "NIJI_FAULT_BOUNDS";
@@ -908,7 +1196,8 @@ fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound
     let exe = dir.join("page_faults_niji_localtime_mktime");
     build(&exe);
     let s = faults(&exe, "localtime_mktime");
-    check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND, LOCALTIME_HINT);
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("start-up + first localtime_r + first mktime", s, faults(&reference, "localtime_mktime"), LOCALTIME_MKTIME_RATIO, LOCALTIME_HINT);
 }
 
 #[test]
@@ -926,7 +1215,8 @@ fn init_first_localtime_r_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_localtime");
     build(&exe);
     let s = faults(&exe, "localtime");
-    check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND, LOCALTIME_HINT);
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("start-up + first localtime_r", s, faults(&reference, "localtime"), LOCALTIME_RATIO, LOCALTIME_HINT);
 }
 
 /// The faults of a program's first `%.2f` (PERF-FIRSTCALL-MKTIME-SNPRINTF). `format_float` with the
@@ -935,7 +1225,8 @@ fn init_first_localtime_r_stays_within_its_page_fault_bound() {
 /// = that plus 2 for layout-only deltas, below the six stack faults alone of the inlined frame.
 /// STARTUP-FAULTS-RESTORE-4: fast 2, release 4 (Haswell-EP host, relay harness); FLOAT_BOUND 6 -> 5.
 /// LAYOUT-TRACE-DEFAULT: 3 in both profiles on all four host classes (see TRUE_BOUND); FLOAT_BOUND 5 -> 3.
-const FLOAT_BOUND: u64 = 3;
+/// GATE-HONEST-METRICS: a ratio to the reference (see [`TRUE_RATIO`]); one fault of the reference.
+const FLOAT_RATIO: [u64; 2] = [4000, 4000];
 
 #[test]
 fn init_first_float_conversion_stays_within_its_page_fault_bound() {
@@ -947,8 +1238,8 @@ fn init_first_float_conversion_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_float");
     build(&exe);
     let s = faults(&exe, "float");
-    eprintln!("first %.2f: {s} page faults (bound {FLOAT_BOUND})");
-    fault_bound(s <= FLOAT_BOUND, &format!("first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)"));
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("first %.2f", s, faults(&reference, "float"), FLOAT_RATIO, "a large stack frame back on the float path?");
 }
 
 #[test]
@@ -966,7 +1257,8 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_tool");
     build(&exe);
     let t = faults(&exe, "tool");
-    check_whole_count("coreutils-shaped program", t, TOOL_BOUND, "the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log");
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("coreutils-shaped program", t, faults(&reference, "tool"), TOOL_RATIO,"the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log");
 }
 
 /// "fork" mode: the minor faults of a `fork` child that calls `_exit(0)` (the second of two, from
@@ -986,7 +1278,11 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
 /// identical; next read 6 release and 7 fast) once the state the child reads joined the `.data1` cluster,
 /// whose pages start-up touches, so the bound is 6.
 /// LAYOUT-TRACE-DEFAULT: 5 in both profiles on all four host classes (see TRUE_BOUND); FORK_BOUND 6 -> 5.
+/// GATE-HONEST-METRICS: the fork test is a ratio to the reference ([`FORK_RATIO`]); this absolute bound stays only
+/// in [`init_data_clusters_hold_at_every_text_phase`], a structural check of the `.data1` cluster at every data pad.
 const FORK_BOUND: u64 = 5;
+/// The fork child's faults against the reference's on the same host, in thousandths (see [`TRUE_RATIO`]).
+const FORK_RATIO: [u64; 2] = [715, 715];
 
 #[test]
 fn init_fork_child_stays_within_its_page_fault_bound() {
@@ -999,8 +1295,8 @@ fn init_fork_child_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_fork");
     build(&exe);
     let f = faults(&exe, "fork");
-    eprintln!("minor faults: fork child {f} (bound {FORK_BOUND})");
-    fault_bound(f <= FORK_BOUND, &format!("fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)"));
+    let Some(reference) = reference_probe(false) else { return };
+    check_ratio("fork child", f, faults(&reference, "fork"), FORK_RATIO, "fork path left the traced hot group? see target/product/<profile>/trace.log");
 }
 
 /// HOTTEXT-COLD-STARTUP: start-up's machine entry points (each in its own `.text.<f>` section of
@@ -1718,27 +2014,125 @@ fn init_data_clusters_hold_at_every_text_phase() {
                 Some((a, z)) if z > 0 && ((a + z - 1) >> 12) - (a >> 12) + 1 == z.div_ceil(4096) => eprintln!("data phase {region} {pad:#x}: .data1 {a:#x}+{z:#x}"),
                 other => bad.push(format!("{region} {pad:#x}: .data1 {other:x?} takes more than ceil(size / 4 KiB) pages")),
             }
-            // The `pre` pads also move the text windows by one (the base's own text phase, measured on
-            // LAYOUT-TEXT-PIN-9's head: true 15 -> 16 at pre 0x800), so equal counts are required at the
-            // `cold` pads, where only the data classes move, and at the `lbss` and `data` pads, which move
-            // the `.lbss` and `.data` objects against the page grid (the written start-up state must not be there).
-            for mode in ["true", "tool", "fork"].into_iter().filter(|_| region != "pre") {
+            // GATE-HONEST-METRICS (#8133): the text pads (`pre`, `cold`) no longer compare fault counts. A count
+            // there moved by one when unrelated bytes made a start-up function outside the hot group straddle a
+            // 64 KiB window (the per-locale-directory load on a host without locale-archive), and passed again
+            // when other bytes moved it back. The cause is checked instead, at every phase at once:
+            // [`startup_text_outside_the_hot_group`] below. Equal counts stay required at the `lbss` and `data`
+            // pads, which move the `.lbss` and `.data` objects against the page grid (the written start-up state
+            // must not be there) and no text.
+            for mode in ["true", "tool", "fork"].into_iter().filter(|_| region == "lbss" || region == "data") {
                 let n = faults(&exe, mode);
                 eprintln!("data phase {region} {pad:#x}: {mode} {n}");
                 counts.entry(mode).or_insert_with(Vec::new).push((format!("{region} {pad:#x}"), n));
             }
         }
     }
+    let traced = base.join("traced");
+    std::fs::create_dir_all(&traced).expect("temp dir");
+    let map = link_map(&traced, &root().join("target/niji/niji-crt1.o"));
+    bad.extend(startup_text_outside_the_hot_group(&traced.join("page_faults"), &map));
     let _ = std::fs::remove_dir_all(&base);
     for (mode, seen) in &counts {
         if seen.iter().any(|(_, n)| *n != seen[0].1) {
-            bad.push(format!("{mode}: fault count moves with the text phase: {seen:?}"));
+            bad.push(format!("{mode}: fault count moves with the data phase: {seen:?}"));
         }
         if *mode == "fork" && seen.iter().any(|(_, n)| *n > FORK_BOUND) {
             bad.push(format!("fork child above its bound {FORK_BOUND}: {seen:?}"));
         }
     }
     assert!(bad.is_empty(), "data phase: {bad:#?}");
+}
+
+/// The `page_faults` modes whose start-up text [`startup_text_outside_the_hot_group`] traces: the whole-process
+/// probes of [`init_data_clusters_hold_at_every_text_phase`] (`fork` traced into its child) and `locale`.
+const TRACED_STARTUP_MODES: [&str; 4] = ["true", "locale", "tool", "fork"];
+
+/// GATE-HONEST-METRICS (#8133, owner ruling: gate on the cause, not on count equality across pads). Every
+/// function of `libc.a` that `exe` (the probe linked with map text `map`) runs in [`TRACED_STARTUP_MODES`]
+/// lies inside the hot group's address range ([`hot_text_range`]); one line per function outside it, naming
+/// the function and its input section. Traced with the build's tracer (`tools/hottext/trace_gdb.py`, a
+/// one-shot breakpoint on every function) on the host's own CPU, with the environment the fault probes run
+/// with (`LANG=en_US.UTF-8`, stdin `/dev/null`). One locale load form is checked, the locale-archive (the CI
+/// host's default, and the form the build traces): `true` and `fork`, which load no locale, run with the host's
+/// own data files (no redirection); `locale` and `tool` run with the build's data files in their archive form
+/// (`canon_host.sh`'s redirection), whatever form the host's own files take (GATE-HONEST-METRICS-4, owner
+/// ruling #8323: grouping the per-locale-directory load path is held until it is measured). Where a function lies does
+/// not depend on any pad: group membership is by section, so one link checks every text phase, and a
+/// function outside the group is named whether or not a pad happens to make it straddle a window (the count
+/// equality it replaces saw it only then). No spec clause (layout of the products).
+fn startup_text_outside_the_hot_group(exe: &Path, map: &str) -> Vec<String> {
+    let (lo, hi) = hot_text_range(map);
+    assert!(lo < hi, "no .text.startup / .text.sorted.h* input sections in the link map");
+    let inputs = text_inputs(map);
+    let dir = exe.parent().expect("probe directory");
+    let tracer = root().join("tools/hottext/trace_gdb.py");
+    // GATE-HONEST-METRICS-4 (#8323): the locale load form is pinned to the archive. The host's own files run
+    // whichever form the host has (a host without locale-archive reads one directory per locale), so the modes
+    // that load a locale take the build's data files (`canon_host.sh`): its archive redirection (last line).
+    let canon = dir.join("canon");
+    let o = Command::new("bash").arg(root().join("tools/hottext/canon_host.sh")).arg(&canon).stdin(Stdio::null()).output().expect("bash");
+    assert!(o.status.success(), "canon_host.sh failed ({}): {}", o.status, String::from_utf8_lossy(&o.stderr).trim());
+    let archive = String::from_utf8_lossy(&o.stdout).lines().next_back().unwrap_or_default().to_string();
+    assert!(archive.contains("/usr/lib/locale/locale-archive="), "canon_host.sh archive redirection: {archive:?}");
+    let runs = TRACED_STARTUP_MODES.iter().map(|&m| match m {
+        "locale" | "tool" => (m, "build files, locale-archive", archive.as_str()),
+        _ => (m, "host files", ""),
+    });
+    let mut ran = std::collections::BTreeMap::new();
+    for (n, (mode, form, redirect)) in runs.enumerate() {
+        let (names, addrs, log) = (dir.join(format!("names.{n}.{mode}")), dir.join(format!("addrs.{n}.{mode}")), dir.join(format!("gdb.{n}.{mode}.log")));
+        let o = Command::new("gdb")
+            .args(["-nx", "-batch", "-x"])
+            .arg(&tracer)
+            .arg("--args")
+            .arg(exe)
+            .arg(mode)
+            .env("HOT_TEXT_OUT", &names)
+            .env("HOT_TEXT_ADDRS", &addrs)
+            .env("HOT_TEXT_CLASSES", "host")
+            .env("HOT_TEXT_ENV_LANG", "en_US.UTF-8")
+            .env("HOT_TEXT_STDIN", "/dev/null")
+            .env("HOT_TEXT_FOLLOW_FORK", if mode == "fork" { "child" } else { "" })
+            .env("HOT_TEXT_REDIRECT", redirect)
+            .env("PYTHONDONTWRITEBYTECODE", "1")
+            .stdin(Stdio::null())
+            .output()
+            .expect("gdb (the build's tracer needs it too)");
+        let _ = std::fs::write(&log, &o.stderr);
+        let text = std::fs::read_to_string(&addrs).unwrap_or_default();
+        assert!(
+            o.status.success() && !text.is_empty(),
+            "trace of page_faults {mode} ({form}) failed ({}): {}",
+            o.status,
+            String::from_utf8_lossy(&o.stderr).lines().rev().take(6).collect::<Vec<_>>().join(" | ")
+        );
+        for a in text.lines().filter_map(|l| u64::from_str_radix(l.trim(), 16).ok()) {
+            ran.entry(a).or_insert_with(|| format!("{mode} ({form})"));
+        }
+    }
+    let syms = Command::new("nm").arg("--defined-only").arg(exe).output().expect("nm");
+    let mut names: std::collections::BTreeMap<u64, Vec<String>> = std::collections::BTreeMap::new();
+    for l in String::from_utf8_lossy(&syms.stdout).lines() {
+        if let [a, _, n] = l.split_whitespace().collect::<Vec<_>>()[..] {
+            if let Ok(a) = u64::from_str_radix(a, 16) {
+                names.entry(a).or_default().push(n.to_string());
+            }
+        }
+    }
+    let (mut outside, mut library) = (Vec::new(), 0usize);
+    for (&a, mode) in &ran {
+        let Some(s) = inputs.iter().find(|s| s.2 > 0 && (s.1..s.1.saturating_add(s.2)).contains(&a)) else { continue };
+        if !s.3.contains("libc.a(") {
+            continue; // the program's own functions and the start file's `_start` (`.text.startup`)
+        }
+        library = library.saturating_add(1);
+        if !(lo..hi).contains(&a) {
+            outside.push(format!("{mode}: {} at {a:#x} ({}, {}) runs outside the hot group {lo:#x}..{hi:#x}", names.get(&a).map_or("?".into(), |n| n.join("/")), s.0, s.3));
+        }
+    }
+    eprintln!("traced start-up text: {} functions ran ({library} of libc.a) in modes {TRACED_STARTUP_MODES:?} (true and fork with the host's files, locale and tool with the build's locale-archive); {} outside the hot group {lo:#x}..{hi:#x}", ran.len(), outside.len());
+    outside
 }
 
 /// The input sections of a link map whose name starts with `prefix`: (name, address, size). GNU ld prints a

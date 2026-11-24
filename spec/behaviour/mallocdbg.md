@@ -37,6 +37,10 @@ build run with a third scratch name (SHA-256 `2c39f9d3...1d97` for all three). A
 third argument printed exactly the first 842 lines. Nothing was left behind: the trace file is
 removed by the program, the scratch directories and the build were removed afterwards, the
 probe's own core-file limit is 0 and `/var/crash` gained nothing.
+Rechecked 2026-11-23 (REF-DEVTOOLS-RECHECK) on a Skylake-SP host (Ubuntu 24.04.5; `libc6`, which
+ships `libc_malloc_debug.so.0`, and `libc-bin` 2.39-0ubuntu8.9; `libc-devtools` 2.39-0ubuntu8.12;
+kernel 6.8.0-149-generic; gcc 13.3.0) with the same commands: the output is byte-identical to the
+record (1108 lines, SHA-256 `2c39f9d3...`). The probe runs no `libc-devtools` program.
 
 The record has two parts.
 

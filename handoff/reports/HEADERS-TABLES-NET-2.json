@@ -1,0 +1,21 @@
+{"task": "HEADERS-TABLES-NET-2", "model": "opus", "tokens": null,
+ "result": "merged origin/next into the slice 13 network header tables (macros.tsv conflict resolved by key); generated files reproduce unchanged; gate, header_check and plants green",
+ "branch": "task/headers-tables-net-2", "head": null,
+ "gate": {"affected": "18 suites ok (11643 passed / 0 failed), conformance 98 passed / 0 failed", "peak": "15G, oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "header_check's new uapi pairing checks (from next) now catch the over-packing plant htn-nested-always-packed that the predecessor marked equivalent; the plants file names the message instead",
+   "a nested aggregate's alignment is still checked only where a kernel header embeds it in a packed struct (check gap narrowed, not closed)",
+   "htn2-plants1 was refused by the plants copy check because a header_check job I started in the role at the same second wrote __pycache__ files during the copy: run nothing that writes to the role while plants copies it"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "HEADERS-TABLES-NET's 490 macros, 25 structs and 4 legacy headers can land (CI merge conflict removed)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants on the merge: 7 CAUGHT (one formerly equivalent plant now caught)", "before": 6, "after": 7, "unit": "plants caught", "measured": true},
+   {"kind": "coverage", "what": "header_check checks on the merged tree, 0 failed", "before": 16348, "after": 16499, "unit": "checks", "measured": true}
+ ],
+ "improvement": "plants could refuse earlier with a clearer cause: a copy check that names files newer than the copy's start as 'written during the copy' would have pointed straight at the concurrent job",
+ "next_step": "landing (coordinator); then a follow-up story for the template-only definitions (function-like and member macros, ICMP_TSLEN, net/if_slip.h SIOC*)",
+ "report_file": "handoff/HEADERS-TABLES-NET.md",
+ "jobs": ["shiki:htn2-gate1", "shiki:htn2-plants3", "shiki:htn2-hcheck1"]}

@@ -1,0 +1,62 @@
+{
+ "task": "LOCALE-COLLATE-TAILORINGS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE (scope #7998/#8008: the shared root): generated LC_COLLATE root = DUCET 15.1 shifted + code point level 4 + 228-line rules file (2 class rules, 127 undefined ranges, 33 after, 1 same, 3 expand, 2 contract, each with probe evidence); equal to the reference's en_US for all 1,112,063 code points (order and level) and the corpus; D-31.32",
+ "branch": "task/locale-collate-tailorings-2",
+ "head": "30812f6ac",
+ "gate": {
+  "affected": "FULL: the train's (Cargo.toml, crates/*/Cargo.toml, spec/locale/collate-root.txt); changed crates' tests (cargo xtask so + cargo test -p niji-collate-root -p niji-locale) all passed, 0 failed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "collseq (bracket-range order) differs from the reference: there U+03B1 sorts before U+0041 while strcoll orders A first; the test prints the count without asserting it; needs its own fnmatch/regex probe in the stacked run",
+  "Root contractions beyond l·/L· are not probed (DUCET has Cyrillic, Tibetan and other contractions)",
+  "Plant after-level-1e9b (after 1E9B A784 2 -> 3) is equivalent: the later same A784 A785 2 rewrites the anchor's level 2, so the order and levels are unchanged; the level placement is proved on after 1DE3 A75B 3 -> 2",
+  "Leg 1 added niji-collate-root to the workspace without committing the Cargo.lock update; cargo rewrote the lock on every role build, so precheck found lct2-tests and lct2-plants2 tested other content; the lock is now committed (cargo output) and both jobs re-ran as lct2-tests2 and lct2-plants3"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "generated root collation equal to the reference's en_US.UTF-8: adjacent code point pairs differing in order or level",
+   "before": null,
+   "after": 0,
+   "unit": "pairs of 1,112,063 code points",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "root collation data committed: rules file instead of the probed table",
+   "before": 120000,
+   "after": 228,
+   "unit": "lines",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the generator and the rules file",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "the per-locale tailorings story (stacked on LOCALE-PROBE-GEN-2, LOCALE-SOURCES-GEN-2) builds on this root",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "cargo xtask affected --list took 497 s CPU (8.8 min wall) on a role tree just to report FULL escalation; a fast path that stops at the first FULL reason, before building the conformance selection, would save each Cargo.toml-touching story about 8 minutes",
+ "next_step": "New story (L), stacked on LOCALE-PROBE-GEN-2 + LOCALE-SOURCES-GEN-2: emit the root into the generated sources, apply 16,151 tailoring rules and 6 own-order tables, probe collseq, add per-locale tests",
+ "report_file": "handoff/LOCALE-COLLATE-TAILORINGS-2-report.md",
+ "jobs": [
+  "mei:lct2-tests2",
+  "mei:lct2-plants3"
+ ]
+}

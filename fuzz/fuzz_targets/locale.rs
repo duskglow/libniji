@@ -78,7 +78,7 @@ fn use_locale(loc: &Locale) {
         let _ = ctype::wclasses(c, loc);
         let _ = text::display_width(c, loc);
         for name in [&b"alpha"[..], b"upper", b"punct", b"blank"] {
-            if let Some(w) = ctype::wctype(name, loc) {
+            if let Some(w) = ctype::wctype_class(name, loc) {
                 let _ = ctype::is_wclass(c, w, loc);
             }
         }

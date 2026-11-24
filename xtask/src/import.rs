@@ -315,7 +315,7 @@ pub(crate) fn import_into(src: &Path, release: &Path, want: &Header) -> Result<R
     for e in &order {
         let dst = release.join(e.path());
         match e {
-            Entry::File { path, .. } => crate::so::publish(&release.join(import_tmp(path)), &dst)?,
+            Entry::File { path, .. } => crate::so::publish_verbatim(&release.join(import_tmp(path)), &dst)?,
             Entry::Link { target, .. } => {
                 if dst.symlink_metadata().is_ok() {
                     fs::remove_file(&dst).map_err(|e| format!("{}: {e}", dst.display()))?;

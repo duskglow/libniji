@@ -1,0 +1,13 @@
+name: an input that cannot be opened: message, exit 1, no catalog
+clause: s31_12_f_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --new
+arg: -o
+arg: o.cat
+arg: missing.msg
+status: exit 1
+stdout:
+stderr:
+| cannot open input file `missing.msg': No such file or directory

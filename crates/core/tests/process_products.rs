@@ -17,23 +17,12 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+use oracle::root;
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let oracle = r.join("crates/core/tests/oracle");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(oracle.join("process_diff.c")).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(oracle.join("process_diff.c"));
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/process_diff.c").build(out, niji)
 }
 
 /// Lines that differ from the reference by decision: text the reference's line starts with, and

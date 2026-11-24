@@ -1,0 +1,26 @@
+name: escape sequences, octal, continuation lines and blanks after the number
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| 1 a\\tb\\nc\\\\d\\101\\x41\\q
+| 2 cont\\
+| nued
+| 3  two-blanks
+| 4
+| 5 
+| 6\ttab
+| 7 \\v\\b\\r\\f
+| 8 \\0101\\7
+| 9 ab\\200cd
+| 10 cr\r
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:10: invalid escape sequence
+written-file: o.cat sha256 1236cb278e9c0f9963ab79645cad391360f524a861fb5eba72fd09c00043aabf size 309

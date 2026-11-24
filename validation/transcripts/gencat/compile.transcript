@@ -1,0 +1,21 @@
+name: -o compiles a source into a catalog (byte comparison)
+clause: s31_12_c_1
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $ a comment
+| $set 1
+| 1 Hello, world
+| 2 second message
+| $set 2
+| 1 another set
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 8b38fdcb79e73ece0823d75eaaa5cb507d9c599f1224c82eb0a5e7a7bd72d287 size 124

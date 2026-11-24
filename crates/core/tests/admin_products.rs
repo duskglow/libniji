@@ -15,24 +15,13 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 use std::os::unix::process::ExitStatusExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/admin_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/admin_diff.c").build(out, niji)
 }
 
 /// `modify_ldt`'s errors (three-way rule: the spec's "thin wrapper" with C0.1 and modify_ldt(2)'s

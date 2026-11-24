@@ -161,6 +161,15 @@ AMD EPYC 7551 32-Core Processor	cbench_malloc	malloc_free_64	125	libniji 122.1 v
 AMD EPYC 7551 32-Core Processor	cbench_malloc	realloc_null_24	146	libniji 143.1 vs glibc 174.1; headroom 2%; LIMITS-TIGHTEN-2 new row
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_unmeasured	qsort_c_cmp_1024	49	First count (BENCH-ROWS-UNMEASURED, Skylake-SP host, counters-only, all-mode instr per comparison): libniji 47.83 vs glibc 31.71 (1.51x); headroom 2%; includes the comparator and the 4 KiB copy per sort
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_unmeasured	readdir_entry_flat	1650	First count: libniji 1611 vs glibc 1604 (all-mode, kernel getdents included; user-only 54.3 vs 46.1 = 1.18x); headroom 2.4%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	fnmatch_names_utf8	982	New row (MATCHER-WORDEXP-RETHINK, owner #8238): libniji 962.6 vs glibc 1474.0 (Skylake-SP count); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	fnmatch_names_ch	587	libniji 574.6 vs glibc 1564.1 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; pre-PATTERN-NESTING-3 base 755.9); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	fnmatch_names_class	738	libniji 723.2 vs glibc 1657.2 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 892.3); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	fnmatch_names_period	494	libniji 483.5 vs glibc 925.4 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 644.5); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	fnmatch_names_star_c	382	libniji 374.5 vs glibc 1418.9 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 564.1); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	wordexp_plain_8	3495	libniji 3426.0 vs glibc 6170.7 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 3778.9); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	wordexp_quoted	3751	ABOVE glibc: libniji 3676.7 vs glibc 2531.3 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 3782.0); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	wordexp_split_var	3697	ABOVE glibc: libniji 3624.4 vs glibc 3479.3 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 3795.4); headroom 2%
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_opt	wordexp_tilde_var	4070	ABOVE glibc: libniji 3989.8 vs glibc 3014.6 (Skylake-SP count, MATCHER-WORDEXP-RETHINK; base 4100.9); headroom 2%
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cbench_unmeasured	fts_entry_flat	7000	First count: libniji 6830 vs glibc 7891 (all-mode; user-only 1490 vs 792 = 1.88x ABOVE glibc in user code, kernel share lower); headroom 2.5%
 AMD EPYC 7551 32-Core Processor	cbench_locale	setlocale_all_c	119	LOCALE-SLOTS-GROWTH-7 (ruling #6981), next's level: libniji 117.1 vs glibc 157.4 (Zen 1 host); wl_percall setlocale_all_c next 121.6, branch 119.7
 AMD EPYC 7551 32-Core Processor	cbench_locale	setlocale_query_en_us	70	ABOVE glibc: libniji 69.1 vs glibc 42.0 (Zen 1 host); LOCALE-SLOTS-GROWTH-7 (ruling #6981), next's level (wl_percall setlocale_query next 71 = branch 71) + 1 for the 69.0-69.1 spread across CPU classes

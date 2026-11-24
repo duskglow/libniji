@@ -19,6 +19,10 @@ use niji::locale::file::Category;
 use niji::locale::table3::Table3;
 use niji_locale::{Files, Kind, TryVec};
 
+/// The generated collation root against the reference's en_US (D-31.32).
+#[path = "reference/collate_root.rs"]
+mod collate_root;
+
 const I18N: &str = "/usr/share/i18n";
 /// The decompressed size a charmap may have (the largest installed is under 4 MiB).
 const CHARMAP_LIMIT: usize = 64 << 20;
@@ -454,7 +458,10 @@ fn undefined_categories_get_the_references_defaults() {
             let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(mine.as_slice().to_vec())).unwrap());
             match n {
                 0 => diff_ctype(t, o, &mut out),
-                3 => diff_collate(t, o, charmap == "UTF-8", &mut out),
+                3 => {
+                    diff_collate(t, o, charmap == "UTF-8", &mut out);
+                    diff_items(file, t, o, &[], &mut out);
+                }
                 _ => diff_items(file, t, o, &[], &mut out),
             }
         }
@@ -784,6 +791,62 @@ fn generated_sources_take_the_reference_values_and_its_ctype_differences() {
     assert!(out.is_empty(), "{} differences from the reference:\n{}", out.len(), out.join("\n"));
 }
 
+/// s31_8_c_1 (D-31.27, D-31.31): the generated source `C` compiled for UTF-8 (`localedef -i C -f UTF-8`) is the
+/// built-in C.UTF-8: every code point below 0x110000 has the built-in's classes (the twelve POSIX classes and
+/// libniji's `combining`, `combining_level3`), simple case maps and width, and `LC_COLLATE` is the no-rules code
+/// point order (`strcoll` as `strcmp`).
+#[test]
+fn generated_c_source_compiles_to_the_builtin_c_utf8() {
+    use niji::ctype::Class;
+    use niji::locale::collate::{Collate, Collation};
+    let ours = niji_locale::compile(b"C", b"UTF-8", &mut Sources(sources())).unwrap_or_else(|e| panic!("C: the generated source does not compile: {e:?}"));
+    let cat = |n: usize| Category::parse(leak(ours[n].as_ref().unwrap_or_else(|| panic!("C: no category {n}")).as_slice().to_vec())).unwrap();
+    assert!(matches!(Collate::parse(cat(3)), Some(Collation::CodePoint)), "C: LC_COLLATE is not the no-rules code point order");
+    let ctype = CtypeFile::parse(cat(0)).expect("C: an LC_CTYPE the reader refuses");
+    let classes = [
+        ("upper", Class::UPPER),
+        ("lower", Class::LOWER),
+        ("alpha", Class::ALPHA),
+        ("digit", Class::DIGIT),
+        ("xdigit", Class::XDIGIT),
+        ("space", Class::SPACE),
+        ("print", Class::PRINT),
+        ("graph", Class::GRAPH),
+        ("blank", Class::BLANK),
+        ("cntrl", Class::CNTRL),
+        ("punct", Class::PUNCT),
+        ("alnum", Class::ALNUM),
+    ]
+    .map(|(n, bit)| (n, ctype.class_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no class {n}")), bit));
+    let extra = [("combining", niji::unicode::is_combining as fn(u32) -> bool), ("combining_level3", niji::unicode::is_combining_level3)]
+        .map(|(n, f)| (n, ctype.class_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no class {n}")), f));
+    let maps = [("toupper", niji::unicode::to_upper as fn(u32) -> u32), ("tolower", niji::unicode::to_lower), ("totitle", niji::unicode::to_title)]
+        .map(|(n, f)| (n, ctype.map_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no map {n}")), f));
+    let mut out = Vec::new();
+    for c in 0..0x11_0000u32 {
+        let want = niji::unicode::classes(c);
+        for &(n, k, bit) in &classes {
+            if ctype.in_class(k, c) != want.intersects(bit) {
+                out.push(format!("U+{c:04X} class {n}: built-in {}", want.intersects(bit)));
+            }
+        }
+        for &(n, k, f) in &extra {
+            if ctype.in_class(k, c) != f(c) {
+                out.push(format!("U+{c:04X} class {n}: built-in {}", f(c)));
+            }
+        }
+        for &(n, k, f) in &maps {
+            if ctype.map(k, c) != f(c) {
+                out.push(format!("U+{c:04X} {n}: U+{:04X}, built-in U+{:04X}", ctype.map(k, c), f(c)));
+            }
+        }
+        if ctype.width(c) != niji::unicode::width(c) {
+            out.push(format!("U+{c:04X} width {}, built-in {}", ctype.width(c), niji::unicode::width(c)));
+        }
+    }
+    assert!(out.is_empty(), "C: {} differences from the built-in C.UTF-8, first:\n{}", out.len(), out[..out.len().min(20)].join("\n"));
+}
+
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).
@@ -869,4 +932,138 @@ fn products_localedef_searches_i18npath_and_the_working_directory() {
     let o = run("o2");
     assert_eq!((o.status.code(), point("o2")), (Some(0), Some(b'W')), "{}", String::from_utf8_lossy(&o.stderr));
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The C locale's collation over UTF-8: all of Unicode in code point order, one `..` run (equal-width names).
+const CODE_POINT_ORDER: &str = "LC_COLLATE\norder_start forward\n<U00000000>\n..\n<U0010FFFF>\norder_end\nEND LC_COLLATE\n";
+
+/// s31_8_c_1 (D-31.31): all of Unicode in code point order compiles to the reference's own C.UTF-8 `LC_COLLATE`
+/// (no rules; the collation-sequence values of the bytes and of every code point; the codeset), item for item; the
+/// products' `localedef` compiles it within a 64 MiB address space (it needs under 16 MiB; placing every code point needs far more) to
+/// the library's file, which the reference's `locale` loads without a message. Skips without the reference's
+/// compiled C.UTF-8, the UTF-8 charmap or the products (`cargo xtask so`).
+#[test]
+fn code_point_order_compiles_like_the_reference_c_utf8() {
+    let theirs = Path::new("/usr/lib/locale/C.utf8/LC_COLLATE");
+    let (Ok(theirs), Ok(_)) = (std::fs::read(theirs), Disk.read(Kind::Charmap, b"UTF-8")) else {
+        println!("skip: needs {} and the UTF-8 charmap", theirs.display());
+        return;
+    };
+    let dir = std::env::temp_dir().join(format!("niji-locale-cpo-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("cpo");
+    std::fs::write(&src, CODE_POINT_ORDER).unwrap();
+    let lib = niji_locale::compile_output(src.to_str().unwrap().as_bytes(), b"UTF-8", &mut Disk).unwrap();
+    let ours = lib.files[3].as_ref().expect("LC_COLLATE").as_slice().to_vec();
+    let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(ours.clone())).unwrap());
+    let mut out = Vec::new();
+    diff_collate(t, o, true, &mut out);
+    // Item 17 (the code points' collation-sequence values) is a table whose layout is the writer's own: compared by
+    // value over every code point.
+    diff_items("LC_COLLATE", t, o, &[17], &mut out);
+    let (tt, ot) = (Table3::parse(t.item(17)).expect("their item 17"), Table3::parse(o.item(17)).expect("our item 17"));
+    let bad: Vec<u32> = (0..0x11_0000u32).filter(|&c| tt.value_u32(c) != ot.value_u32(c)).take(8).collect();
+    if !bad.is_empty() {
+        out.push(format!("LC_COLLATE item 17 differs at {bad:x?}"));
+    }
+    assert!(out.is_empty(), "{} differences:\n{}", out.len(), out.join("\n"));
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() {
+        println!("skip the program: needs {} (cargo xtask so)", bin.display());
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let run = Command::new("sh")
+        .args(["-c", "ulimit -v 65536 && exec \"$0\" \"$@\"", bin.to_str().unwrap(), "-c", "--quiet", "-i"])
+        .arg(&src)
+        .args(["-f", "UTF-8"])
+        .arg(dir.join("cpo.utf8"))
+        .env_clear()
+        .output()
+        .unwrap();
+    let got = std::fs::read(dir.join("cpo.utf8/LC_COLLATE")).unwrap_or_default();
+    assert!(got == ours, "status {:?}, {} bytes, not the library's: {}", run.status.code(), got.len(), String::from_utf8_lossy(&run.stderr));
+    match Command::new("locale").env_clear().env("LOCPATH", &dir).env("LC_COLLATE", "cpo.utf8").output() {
+        Ok(o) => assert!(o.status.success() && o.stderr.is_empty(), "the reference's locale: {}", String::from_utf8_lossy(&o.stderr)),
+        Err(e) => println!("skip the load: the reference's locale cannot run: {e}"),
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Sources by name from one directory (an absolute name as given), charmaps installed.
+struct Under(PathBuf);
+
+impl Files for Under {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        if kind == Kind::Charmap {
+            return Disk.read(kind, name);
+        }
+        let name = String::from_utf8_lossy(name).into_owned();
+        let p = if name.starts_with('/') { PathBuf::from(&name) } else { self.0.join(&name) };
+        TryVec::from_slice(&std::fs::read(p).map_err(|_| niji_locale::Error::missing("no such file"))?).map_err(Into::into)
+    }
+}
+
+/// s31_8_g_5: strings of every string category with characters ISO-8859-1 lacks, a test's own
+/// source with an `include` chain (found through `I18NPATH`), compiled by both: every item of
+/// every category file that holds such strings equal. Transliterated (own entry before an include's, the first include
+/// before the second, the first alternative that fits whole), and not (no entry, an alternative
+/// that does not fit, a string's single character): the string empty.
+#[test]
+fn strings_the_charmap_lacks_are_transliterated_as_the_reference_does() {
+    let u = |s: &str| s.chars().map(|c| format!("<U{:04X}>", c as u32)).collect::<String>();
+    let q = |s: &str| format!("\"{}\"", u(s));
+    let tl = |e: &[(&str, &[&str])]| e.iter().map(|(f, to)| format!("{} {}\n", u(f), to.iter().map(|t| q(t)).collect::<Vec<_>>().join(";"))).collect::<String>();
+    let ctype = |body: String| format!("LC_CTYPE\ntranslit_start\n{body}translit_end\nEND LC_CTYPE\n");
+    let dir = std::env::temp_dir().join(format!("niji-locale-translit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("tra"), ctype(format!("include \"trc\";\"\"\n{}", tl(&[("\u{20ac}", &["A1"]), ("\u{4e01}", &["Z"])])))).unwrap();
+    std::fs::write(dir.join("trb"), ctype(tl(&[("\u{4e01}", &["Y"]), ("\u{4e02}", &["W"])]))).unwrap();
+    std::fs::write(dir.join("trc"), ctype(tl(&[("\u{4e03}", &["V"]), ("\u{4e01}", &["U"])]))).unwrap();
+    let own = tl(&[("\u{20ac}", &["EUR"]), ("\u{202f}", &[" "]), ("\u{2030}", &["\u{2031}", "%0"]), ("\u{2032}", &["\u{2033}"]), ("\u{2033}", &["\""]), ("\u{2034}", &["", "A\u{2035}", "B"])]);
+    let list = |v: &[&str]| v.iter().map(|s| q(s)).collect::<Vec<_>>().join(";");
+    let mon: Vec<&str> = ["\u{20ac}", "a\u{4e00}b", "\u{4e01}", "\u{4e02}", "\u{4e03}", "x\u{2030}", "\u{2032}", "\u{2034}", "\u{e9}", "m", "m", "m"].into();
+    let src = format!(
+        "comment_char %\nescape_char /\n{}\
+LC_MONETARY\nint_curr_symbol {}\ncurrency_symbol {}\nmon_decimal_point {}\nmon_thousands_sep {}\nmon_grouping 3\npositive_sign \"\"\nnegative_sign {}\n\
+int_frac_digits 2\nfrac_digits 2\np_cs_precedes 1\np_sep_by_space 1\nn_cs_precedes 1\nn_sep_by_space 1\np_sign_posn 1\nn_sign_posn 1\nEND LC_MONETARY\n\
+LC_NUMERIC\ndecimal_point {}\nthousands_sep {}\ngrouping 3\nEND LC_NUMERIC\n\
+LC_MESSAGES\nyesexpr {}\nnoexpr {}\nyesstr {}\nnostr {}\nEND LC_MESSAGES\n\
+LC_ADDRESS\npostal_fmt {}\ncountry_name {}\nlang_name {}\ncountry_ab2 \"DE\"\ncountry_ab3 \"DEU\"\ncountry_num 276\nEND LC_ADDRESS\n\
+LC_TELEPHONE\ntel_int_fmt {}\nint_prefix {}\nEND LC_TELEPHONE\n\
+LC_NAME\nname_fmt {}\nname_mr {}\nEND LC_NAME\n\
+LC_IDENTIFICATION\ntitle {}\nsource {}\nEND LC_IDENTIFICATION\n\
+LC_TIME\nabday {}\nday {}\nabmon {}\nmon {}\nd_t_fmt {}\nd_fmt \"%x\"\nt_fmt \"%X\"\nam_pm {}\nt_fmt_ampm \"%r\"\nweek 7;19971130;4\ndate_fmt \"%a\"\nEND LC_TIME\n",
+        ctype(format!("include \"tra\";\"\"\ninclude \"trb\";\"\"\n{own}")),
+        q("EUR "), q("\u{20ac}"), q("\u{2030}"), q("\u{202f}"), q("-\u{4e00}"),
+        q("\u{4e01}"), q("\u{4e02}"),
+        q("^[yY\u{20ac}]"), q("^[nN\u{4e00}]"), q("y\u{20ac}s"), q("n\u{2032}"),
+        q("%a%N\u{20ac}"), q("\u{4e00}"), q("x\u{202f}y"),
+        q("+%c \u{20ac}"), q("49"),
+        q("%d%t\u{20ac}"), q("M\u{4e03}"),
+        q("T \u{20ac}"), q("S\u{4e00}"),
+        list(&["a"; 7]), list(&["d"; 7]), list(&["m"; 12]), list(&mon), q("%c\u{20ac}"), list(&["AM\u{4e00}", "PM\u{20ac}"]),
+    );
+    let path = dir.join("trsrc");
+    std::fs::write(&path, src).unwrap();
+    let out = dir.join("out");
+    let run = Command::new("localedef").args(["-c", "-f", "ISO-8859-1", "-i"]).arg(&path).arg(&out).env("LC_ALL", "C").env("I18NPATH", &dir).current_dir(&dir).output();
+    if !(run.is_ok() && out.join("LC_TIME").exists()) {
+        println!("skip: the reference localedef wrote nothing: {run:?}");
+        return;
+    }
+    let ours = niji_locale::compile_output(path.to_str().unwrap().as_bytes(), b"ISO-8859-1", &mut Under(dir.clone())).unwrap_or_else(|e| panic!("{e:?}"));
+    let mut diffs = Vec::new();
+    // The categories whose strings are converted (LC_CTYPE, which converts none, is the table's
+    // own; LC_COLLATE converts none).
+    for (n, file) in FILES.iter().enumerate() {
+        let (Some(file), false) = (file, n == 0 || n == 3) else { continue };
+        let theirs = Category::parse(leak(std::fs::read(out.join(file)).unwrap())).unwrap();
+        let mine = Category::parse(leak(ours.files[n].as_ref().unwrap().as_slice().to_vec())).unwrap();
+        diff_items(file, theirs, mine, &[], &mut diffs);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(diffs.is_empty(), "{} differences from the reference:\n{}", diffs.len(), diffs.join("\n"));
 }

@@ -1,0 +1,26 @@
+name: $quote: quoted texts, an escaped quote, an unterminated one
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $quote "
+| 1 "q one"  trailing
+| 2 ""
+| 3 "a\\"b"
+| 4 no quote
+| 5 "unterminated
+| $quote
+| 6 "plain"
+| $quote \xc3\xa9
+| 7 "x"
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:6: unterminated message
+| i.msg:9: invalid quote character
+written-file: o.cat sha256 ebb2d9af66a70840ba091c95969c766f67bea5f5a90a00570558ac776b70a71d size 225

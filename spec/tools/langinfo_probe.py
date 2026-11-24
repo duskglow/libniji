@@ -13,7 +13,10 @@ generate their own (D-5.4).
 
 Columns: category, index, name, kind (W word / P bytes), C value, C.UTF-8 value (decimal for W,
 hex for P). "C" differs from "C.UTF-8" in MB_CUR_MAX, the codeset items and the transliteration
-table; its LC_IDENTIFICATION is recorded as C.UTF-8's (D-7.10).
+table; its LC_IDENTIFICATION is the reference "C" one with the contact fields of an individual
+(address, contact, e-mail, telephone, fax) recorded empty (D-7.10, D-7.22).
+
+PROBE source: spec/tools/probe_langinfo.c (built against the reference library).
 """
 import os
 import shutil
@@ -24,6 +27,8 @@ import sys
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
 import locale_inspect as li  # noqa: E402
 
+# The LC_IDENTIFICATION items that hold an individual's contact data (D-7.10).
+PERSONAL = ('ADDRESS', 'CONTACT', 'EMAIL', 'TEL', 'FAX')
 SRC = '/usr/lib/locale/C.utf8'
 COPY = '/tmp/niji-langinfo-probe'
 CATS = [('LC_CTYPE', 0), ('LC_NUMERIC', 1), ('LC_TIME', 2), ('LC_COLLATE', 3), ('LC_MONETARY', 4),
@@ -84,10 +89,15 @@ def main():
                 # The codeset differs in "C": one string.
                 cval = (craw.split(b'\0')[0] + b'\0').hex()
             elif c == 12:
-                # LC_IDENTIFICATION is descriptive metadata. The reference "C" names a person
-                # (address, e-mail, telephone); libniji's "C" carries the C.UTF-8 values instead
-                # (D-7.10), so no personal contact data is copied.
-                cval = uval
+                # LC_IDENTIFICATION: the reference "C" values (D-7.22), except the contact fields
+                # of an individual, recorded empty so no personal contact data is copied (D-7.10).
+                if label.split('_NL_IDENTIFICATION_')[-1] in PERSONAL:
+                    cval = '00'
+                elif label.endswith('_CATEGORY'):
+                    # One string per category, LC_CTYPE..LC_IDENTIFICATION (12).
+                    cval = (b'\0'.join(craw.split(b'\0')[:12]) + b'\0').hex()
+                else:
+                    cval = (first(craw) + b'\0').hex()
             else:
                 # Everything else is shared; a probe read runs past short items, so only the
                 # first string is compared, and a difference is reported for review.

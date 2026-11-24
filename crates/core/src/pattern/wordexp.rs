@@ -47,7 +47,7 @@
 
 use crate::error::{Errno, Result};
 use crate::locale::Locale;
-use crate::mem::{InlineVec, TryVec};
+use crate::mem::{InlineVec, LazyInlineVec, TryVec};
 
 use super::fnmatch::Pattern;
 use super::regex::text::{self, Mode, Unit};
@@ -200,11 +200,34 @@ impl Default for Seg {
 /// A word list under construction: inline for a usual text.
 type Segs = InlineVec<Seg, 12>;
 
+/// A context the parser is inside (one per open `"..."`, `${name<op>word}` or arithmetic
+/// expansion), on [`Parser::frames`]: nesting is a stack on the heap, not recursion, so it is
+/// bounded by the text's length (the caller's memory), never by the thread stack.
+#[derive(Clone, Copy, Debug, Default)]
+enum Frame {
+    /// Inside double quotes: the segments go to the enclosing context's list.
+    #[default]
+    DQuote,
+    /// The word of `${name<op>word}` (`quoted`: the expansion is inside double quotes): its
+    /// segments are `nest[first..]`; `depth` counts unmatched `{`; `at_start`: nothing of the word
+    /// has been read yet (a tilde prefix may start it).
+    Brace { name: Name, op: Op, colon: bool, quoted: bool, depth: usize, at_start: bool, first: usize },
+    /// The text of `$((...))` (`$[...]`: `square`): its segments are `nest[first..]`; `depth`
+    /// counts unmatched opening brackets; `quoted`: the expansion is inside double quotes.
+    Arith { square: bool, quoted: bool, depth: usize, first: usize },
+}
+
 struct Parser<'a> {
     s: &'a [u8],
     i: usize,
     nocmd: bool,
-    depth: usize,
+    /// The contexts open inside the current word, innermost last. This stack, `nest` and
+    /// `arena` are made on first use: most texts open no `${...}` word or arithmetic text, and
+    /// filling their inline storage was a cost of every call (MATCHER-WORDEXP-RETHINK).
+    frames: LazyInlineVec<Frame, 2>,
+    /// The segments of the open `${...}` words and arithmetic texts, each frame's from its
+    /// `first`: moved to `arena` when the frame closes.
+    nest: LazyInlineVec<Seg, 4>,
     /// The words' text, every `Seg::Text` a range of it: one buffer for the whole call (inline
     /// for a usual text: no allocation). Each word starts with a separator byte, so that no
     /// range of an earlier word reaches the current word's `floor`.
@@ -215,10 +238,8 @@ struct Parser<'a> {
     /// Where each word's segments end in the list [`Parser::words`] returns.
     ends: InlineVec<usize, 16>,
     /// The segments of nested words (`${x:-word}`, `$((expr))`), each stored when complete.
-    arena: InlineVec<Seg, 4>,
+    arena: LazyInlineVec<Seg, 4>,
 }
-
-const MAX_DEPTH: usize = 128;
 
 fn is_name_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_'
@@ -230,10 +251,13 @@ fn is_name(b: u8) -> bool {
 
 /// Append `b` to the text of `segs`: to its last segment when that is text quoted alike and of
 /// the current word (it starts at or after `floor`; a segment that does not end the buffer is
-/// first copied to its end), else as a new segment.
-fn push_text(segs: &mut Segs, text: &mut InlineVec<u8, 128>, floor: usize, b: &[u8], quoted: bool) -> Wr<()> {
+/// first copied to its end) and of the current context (at or after `first` in `segs`), else
+/// as a new segment.
+fn push_text<const N: usize>(segs: &mut InlineVec<Seg, N>, first: usize, text: &mut InlineVec<u8, 128>, floor: usize, b: &[u8], quoted: bool) -> Wr<()> {
+    // With `first` 0 (a word's own list) any last segment is ours: no length read.
+    let ours = first == 0 || segs.len() > first;
     if let Some(Seg::Text { at, quoted: q, input: false }) = segs.as_mut_slice().last_mut() {
-        if *q == quoted && at.0 >= floor {
+        if ours && *q == quoted && at.0 >= floor {
             if at.1 != text.len() {
                 let start = text.len();
                 for k in at.0..at.1 {
@@ -255,11 +279,13 @@ fn push_text(segs: &mut Segs, text: &mut InlineVec<u8, 128>, floor: usize, b: &[
 
 /// Append the input's bytes `at` to the text of `segs` without copying them: to its last
 /// segment when that is a range of the input quoted alike that ends where `at` starts (the two
-/// ranges make one), else as a new segment. (Merging is not needed for the result: a word's text
-/// is the concatenation of its segments either way.)
-fn push_input(segs: &mut Segs, at: Span, quoted: bool) -> Wr<()> {
+/// ranges make one; never one before `first`, of an enclosing context), else as a new segment.
+/// (Merging is not needed for the result: a word's text is the concatenation of its segments
+/// either way.)
+fn push_input<const N: usize>(segs: &mut InlineVec<Seg, N>, first: usize, at: Span, quoted: bool) -> Wr<()> {
+    let ours = first == 0 || segs.len() > first;
     if let Some(Seg::Text { at: last, quoted: q, input: true }) = segs.as_mut_slice().last_mut() {
-        if *q == quoted && last.1 == at.0 {
+        if ours && *q == quoted && last.1 == at.0 {
             last.1 = at.1;
             return Ok(());
         }
@@ -282,13 +308,89 @@ impl Parser<'_> {
         self.s.get(self.i + k).copied()
     }
 
-    fn enter(&mut self) -> Wr<()> {
-        self.depth += 1;
-        if self.depth > MAX_DEPTH { Err(WordError::Syntax) } else { Ok(()) }
+    /// Where the current context's segments start in `nest`: the innermost open `${...}` word
+    /// or arithmetic text (double quotes write to their enclosing context's list); `None` when
+    /// the context is the word itself (its segments go to the word list).
+    #[inline]
+    fn nest_first(&self) -> Option<usize> {
+        let f = self.frames.as_slice();
+        let top = match f.last() {
+            Some(Frame::DQuote) => f.len().checked_sub(2).and_then(|k| f.get(k)),
+            t => t,
+        };
+        match top {
+            Some(Frame::Brace { first, .. } | Frame::Arith { first, .. }) => Some(*first),
+            _ => None,
+        }
     }
 
-    fn leave(&mut self) {
-        self.depth = self.depth.saturating_sub(1);
+    /// [`push_text`] to the current context's list.
+    fn put_text(&mut self, segs: &mut Segs, b: &[u8], quoted: bool) -> Wr<()> {
+        match self.nest_first() {
+            Some(first) => push_text(self.nest.force(), first, &mut self.text, self.floor, b, quoted),
+            None => push_text(segs, 0, &mut self.text, self.floor, b, quoted),
+        }
+    }
+
+    /// [`push_input`] to the current context's list.
+    fn put_input(&mut self, segs: &mut Segs, at: Span, quoted: bool) -> Wr<()> {
+        match self.nest_first() {
+            Some(first) => push_input(self.nest.force(), first, at, quoted),
+            None => push_input(segs, 0, at, quoted),
+        }
+    }
+
+    /// A segment onto the current context's list.
+    fn put(&mut self, segs: &mut Segs, s: Seg) -> Wr<()> {
+        match self.nest_first() {
+            Some(_) => self.nest.push(s)?,
+            None => segs.push(s)?,
+        }
+        Ok(())
+    }
+
+    /// The innermost frame's bracket count set to `d`.
+    fn set_depth(&mut self, d: usize) {
+        if let Some(Frame::Brace { depth, .. } | Frame::Arith { depth, .. }) = self.frames.as_mut_slice().last_mut() {
+            *depth = d;
+        }
+    }
+
+    /// Parse until every open context is closed, one step of the innermost at a time: a context
+    /// opened inside another is a frame pushed, not a call, so nesting costs no thread stack.
+    ///
+    /// Out of line: only a word with an open context gets here, and inlined into
+    /// [`Parser::word`] the frame machine's registers cost the plain word's loop spills.
+    #[inline(never)]
+    fn nested(&mut self, segs: &mut Segs) -> Wr<()> {
+        loop {
+            match self.frames.as_slice().last().copied() {
+                None => return Ok(()),
+                Some(Frame::DQuote) => self.dquote_step(segs)?,
+                Some(Frame::Brace { quoted, depth, at_start, .. }) => self.brace_step(segs, quoted, depth, at_start)?,
+                Some(Frame::Arith { square, depth, .. }) => self.arith_step(segs, square, depth)?,
+            }
+        }
+    }
+
+    /// Close the innermost `${...}` word or arithmetic text (its closing bytes read): its
+    /// segments into the arena, and the expansion they make onto the enclosing context's list.
+    fn close(&mut self, segs: &mut Segs) -> Wr<()> {
+        let frame = self.frames.pop();
+        let first = match frame {
+            Some(Frame::Brace { first, .. } | Frame::Arith { first, .. }) => first,
+            _ => return Err(WordError::Syntax),
+        };
+        let start = self.arena.len();
+        self.arena.extend_from_slice(self.nest.as_slice().get(first..).unwrap_or(&[]))?;
+        let r = (start, self.arena.len());
+        self.nest.truncate(first);
+        let seg = match frame {
+            Some(Frame::Brace { name, op, colon, quoted, .. }) => Seg::Param { name, form: Form::Op { op, colon, word: r }, quoted },
+            Some(Frame::Arith { quoted, .. }) => Seg::Arith { expr: r, quoted },
+            _ => return Err(WordError::Syntax),
+        };
+        self.put(segs, seg)
     }
 
     /// The words of the whole text: their segments in one list (one allocation for all the
@@ -307,13 +409,6 @@ impl Parser<'_> {
             self.word(segs)?;
             self.ends.push(segs.len())?;
         }
-    }
-
-    /// A finished nested word into the arena: its range.
-    fn stash(&mut self, segs: &Segs) -> Wr<Range> {
-        let start = self.arena.len();
-        self.arena.extend_from_slice(segs.as_slice())?;
-        Ok((start, self.arena.len()))
     }
 
     /// A tilde prefix at the current `~`: the user name and the offset after it, when the
@@ -348,22 +443,27 @@ impl Parser<'_> {
                     let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
                     self.i += 2;
                     if n != b'\n' {
-                        push_text(segs, &mut self.text, self.floor, &[n], true)?;
+                        push_text(segs, 0, &mut self.text, self.floor, &[n], true)?;
                     }
                 }
                 b'\'' => {
                     let start = self.i + 1;
                     let Some(len) = self.s.get(start..).and_then(|r| r.iter().position(|&c| c == b'\'')) else { return Err(WordError::Syntax) };
-                    push_input(segs, (start, start + len), true)?;
+                    push_input(segs, 0, (start, start + len), true)?;
                     self.i = start + len + 1;
                 }
                 b'"' => {
                     self.i += 1;
                     // A quoted piece even when empty.
-                    push_input(segs, (self.i, self.i), true)?;
-                    self.dquote(segs)?;
+                    push_input(segs, 0, (self.i, self.i), true)?;
+                    self.dquote_word(segs)?;
                 }
-                b'$' => self.dollar(segs, false)?,
+                b'$' => {
+                    self.dollar(segs, false)?;
+                    if !self.frames.is_empty() {
+                        self.nested(segs)?;
+                    }
+                }
                 b'`' => self.backquote(segs, false)?,
                 b'~' if tilde_here => match self.tilde_prefix() {
                     Some((a, z)) => {
@@ -371,7 +471,7 @@ impl Parser<'_> {
                         self.i = z;
                     }
                     None => {
-                        push_input(segs, (self.i, self.i + 1), false)?;
+                        push_input(segs, 0, (self.i, self.i + 1), false)?;
                         self.i += 1;
                     }
                 },
@@ -379,22 +479,34 @@ impl Parser<'_> {
                     assignment_seen = true;
                     let name = self.s.get(word_start..self.i).unwrap_or(&[]);
                     tilde_ok = name.first().is_some_and(|&c| is_name_start(c)) && name.iter().all(|&c| is_name(c));
-                    push_input(segs, (self.i, self.i + 1), false)?;
+                    push_input(segs, 0, (self.i, self.i + 1), false)?;
                     self.i += 1;
                 }
                 _ => {
                     // This byte and the plain bytes after it, as one piece of text.
                     let start = self.i;
                     let run = self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| ends_plain_run(c))).map_or(self.s.len(), |k| start + 1 + k);
-                    push_input(segs, (start, run), false)?;
+                    push_input(segs, 0, (start, run), false)?;
                     self.i = run;
                 }
             }
         }
     }
 
-    /// The inside of double quotes, after the opening `"`, up to and including the closing one.
-    fn dquote(&mut self, segs: &mut Segs) -> Wr<()> {
+    /// Where the run of plain bytes inside double quotes that starts at `start` ends.
+    fn dquote_run(&self, start: usize) -> usize {
+        self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'"' | b'\\' | b'$' | b'`'))).map_or(self.s.len(), |k| start + 1 + k)
+    }
+
+    /// Double quotes in the word's own context (no frame open; the opening `"` read), up to
+    /// and including the closing `"`: the usual case, read here without a frame. Their
+    /// segments go to the word's list, as from a [`Frame::DQuote`] with nothing under it. An
+    /// expansion that opens a context (`${name<op>word}`, `$((...))`) gets the double quotes'
+    /// frame under it, and [`Parser::nested`] reads the rest.
+    ///
+    /// Out of line, as [`Parser::nested`]: the plain word's loop keeps its registers.
+    #[inline(never)]
+    fn dquote_word(&mut self, segs: &mut Segs) -> Wr<()> {
         loop {
             let Some(b) = self.peek() else { return Err(WordError::Syntax) };
             match b {
@@ -402,32 +514,60 @@ impl Parser<'_> {
                     self.i += 1;
                     return Ok(());
                 }
-                b'\\' => {
-                    let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
-                    match n {
-                        b'\n' => self.i += 2,
-                        b'$' | b'`' | b'"' | b'\\' => {
-                            push_text(segs, &mut self.text, self.floor, &[n], true)?;
-                            self.i += 2;
-                        }
-                        _ => {
-                            // The backslash stays, as it stands in the input.
-                            push_input(segs, (self.i, self.i + 1), true)?;
-                            self.i += 1;
-                        }
+                b'$' => {
+                    self.dollar(segs, true)?;
+                    if let Some(opened) = self.frames.pop() {
+                        self.frames.push(Frame::DQuote)?;
+                        self.frames.push(opened)?;
+                        return self.nested(segs);
                     }
                 }
-                b'$' => self.dollar(segs, true)?,
-                b'`' => self.backquote(segs, true)?,
+                b'\\' | b'`' => self.dquote_step(segs)?,
                 _ => {
-                    // This byte and the plain bytes after it, as one piece of text.
                     let start = self.i;
-                    let run = self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'"' | b'\\' | b'$' | b'`'))).map_or(self.s.len(), |k| start + 1 + k);
-                    push_input(segs, (start, run), true)?;
+                    let run = self.dquote_run(start);
+                    push_input(segs, 0, (start, run), true)?;
                     self.i = run;
                 }
             }
         }
+    }
+
+    /// One step inside double quotes (the innermost frame): a run of text, an escape, an
+    /// expansion, or the closing `"` (the frame ends).
+    fn dquote_step(&mut self, segs: &mut Segs) -> Wr<()> {
+        let Some(b) = self.peek() else { return Err(WordError::Syntax) };
+        match b {
+            b'"' => {
+                self.i += 1;
+                self.frames.pop();
+            }
+            b'\\' => {
+                let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
+                match n {
+                    b'\n' => self.i += 2,
+                    b'$' | b'`' | b'"' | b'\\' => {
+                        self.put_text(segs, &[n], true)?;
+                        self.i += 2;
+                    }
+                    _ => {
+                        // The backslash stays, as it stands in the input.
+                        self.put_input(segs, (self.i, self.i + 1), true)?;
+                        self.i += 1;
+                    }
+                }
+            }
+            b'$' => self.dollar(segs, true)?,
+            b'`' => self.backquote(segs, true)?,
+            _ => {
+                // This byte and the plain bytes after it, as one piece of text.
+                let start = self.i;
+                let run = self.dquote_run(start);
+                self.put_input(segs, (start, run), true)?;
+                self.i = run;
+            }
+        }
+        Ok(())
     }
 
     /// A backquoted command substitution at the current `` ` ``.
@@ -458,8 +598,8 @@ impl Parser<'_> {
         if self.nocmd {
             return Err(WordError::CmdSub);
         }
-        segs.push(Seg::Cmd { at: (start, self.text.len()), input: false, quoted })?;
-        Ok(())
+        let at = (start, self.text.len());
+        self.put(segs, Seg::Cmd { at, input: false, quoted })
     }
 
     /// The end of a `$(...)` whose text starts at `from`: the offset of its `)`.
@@ -514,111 +654,117 @@ impl Parser<'_> {
         }
     }
 
-    /// The text of an arithmetic expansion, from the current offset up to `close` (`))` for
-    /// `$((`, `]` for `$[`), parsed as inside double quotes.
-    fn arith(&mut self, square: bool) -> Wr<Range> {
-        let mut segs = Segs::new();
+    /// An arithmetic expansion whose text starts at the current offset and ends at `close` (`))`
+    /// for `$((`, `]` for `$[`), parsed as inside double quotes; `quoted`: the expansion is.
+    /// Plain text is read here whole; anything else opens a frame ([`Self::arith_step`]).
+    fn arith_open(&mut self, segs: &mut Segs, square: bool, quoted: bool) -> Wr<()> {
+        if let Some(expr) = self.arith_plain(square)? {
+            return self.put(segs, Seg::Arith { expr, quoted });
+        }
+        let first = self.nest.len();
+        self.frames.push(Frame::Arith { square, quoted, depth: 0, first })?;
+        Ok(())
+    }
+
+    /// The text of an arithmetic expansion when it is plain (no `\`, `$` or backquote) and
+    /// well-formed: read whole, into the arena as one range of the input, not copied (`None`:
+    /// the frame's steps read it).
+    fn arith_plain(&mut self, square: bool) -> Wr<Option<Range>> {
         // The usual expression is plain text: one scan finds its end and it is one piece of text.
-        // Anything that needs handling of its own (`\`, `$`, a backquote) takes the loop below
-        // from the start; so does a malformed end (the loop gives the error).
-        {
-            let (open, close) = if square { (b'[', b']') } else { (b'(', b')') };
-            let rest = self.s.get(self.i..).unwrap_or(&[]);
-            let mut depth = 0usize;
-            let mut k = 0usize;
-            while let Some(&c) = rest.get(k) {
-                if matches!(c, b'\\' | b'$' | b'`') {
+        // Anything that needs handling of its own (`\`, `$`, a backquote) takes the frame's
+        // steps from the start; so does a malformed end (the steps give the error).
+        let (open, close) = if square { (b'[', b']') } else { (b'(', b')') };
+        let rest = self.s.get(self.i..).unwrap_or(&[]);
+        let mut depth = 0usize;
+        let mut k = 0usize;
+        while let Some(&c) = rest.get(k) {
+            if matches!(c, b'\\' | b'$' | b'`') {
+                break;
+            }
+            if c == open {
+                depth += 1;
+            } else if c == close {
+                if depth > 0 {
+                    depth -= 1;
+                } else if square || rest.get(k + 1) == Some(&b')') {
+                    let start = self.arena.len();
+                    self.arena.push(Seg::Text { at: (self.i, self.i + k), quoted: true, input: true })?;
+                    self.i += k + if square { 1 } else { 2 };
+                    return Ok(Some((start, self.arena.len())));
+                } else {
                     break;
                 }
-                if c == open {
-                    depth += 1;
-                } else if c == close {
-                    if depth > 0 {
-                        depth -= 1;
-                    } else if square {
-                        push_text(&mut segs, &mut self.text, self.floor, rest.get(..k).unwrap_or(&[]), true)?;
-                        self.i += k + 1;
-                        return self.stash(&segs);
-                    } else if rest.get(k + 1) == Some(&b')') {
-                        push_text(&mut segs, &mut self.text, self.floor, rest.get(..k).unwrap_or(&[]), true)?;
-                        self.i += k + 2;
-                        return self.stash(&segs);
-                    } else {
-                        break;
-                    }
-                }
-                k += 1;
             }
+            k += 1;
         }
-        let mut depth = 0usize;
-        loop {
-            let Some(b) = self.peek() else { return Err(WordError::Syntax) };
-            match b {
-                b'(' if !square => {
-                    depth += 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b"(", true)?;
-                    self.i += 1;
-                }
-                b')' if !square => {
-                    if depth == 0 {
-                        if self.peek_at(1) == Some(b')') {
-                            self.i += 2;
-                            return self.stash(&segs);
-                        }
-                        return Err(WordError::Syntax);
-                    }
-                    depth -= 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b")", true)?;
-                    self.i += 1;
-                }
-                b'[' if square => {
-                    depth += 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b"[", true)?;
-                    self.i += 1;
-                }
-                b']' if square => {
-                    if depth == 0 {
-                        self.i += 1;
-                        return self.stash(&segs);
-                    }
-                    depth -= 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b"]", true)?;
-                    self.i += 1;
-                }
-                b'\\' => {
-                    let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
-                    match n {
-                        b'\n' => {}
-                        b'$' | b'`' | b'"' | b'\\' => push_text(&mut segs, &mut self.text, self.floor, &[n], true)?,
-                        _ => push_text(&mut segs, &mut self.text, self.floor, &[b'\\', n], true)?,
-                    }
-                    self.i += 2;
-                }
-                b'$' => self.dollar(&mut segs, true)?,
-                b'`' => self.backquote(&mut segs, true)?,
-                _ => {
-                    // This byte and the plain bytes after it, as one piece of text.
-                    let start = self.i;
-                    let run = self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'(' | b')' | b'[' | b']' | b'\\' | b'$' | b'`'))).map_or(self.s.len(), |k| start + 1 + k);
-                    let t = self.s.get(start..run).unwrap_or(&[]);
-                    push_text(&mut segs, &mut self.text, self.floor, t, true)?;
-                    self.i = run;
-                }
-            }
-        }
+        Ok(None)
     }
 
-    /// An expansion at the current `$`.
+    /// One step of an arithmetic expansion's text (the innermost frame; `depth`: its unmatched
+    /// opening brackets): a bracket, an escape, an expansion, a run of text, or the end.
+    fn arith_step(&mut self, segs: &mut Segs, square: bool, depth: usize) -> Wr<()> {
+        let Some(b) = self.peek() else { return Err(WordError::Syntax) };
+        match b {
+            b'(' if !square => {
+                self.set_depth(depth + 1);
+                self.put_text(segs, b"(", true)?;
+                self.i += 1;
+            }
+            b')' if !square => {
+                if depth == 0 {
+                    if self.peek_at(1) == Some(b')') {
+                        self.i += 2;
+                        return self.close(segs);
+                    }
+                    return Err(WordError::Syntax);
+                }
+                self.set_depth(depth - 1);
+                self.put_text(segs, b")", true)?;
+                self.i += 1;
+            }
+            b'[' if square => {
+                self.set_depth(depth + 1);
+                self.put_text(segs, b"[", true)?;
+                self.i += 1;
+            }
+            b']' if square => {
+                if depth == 0 {
+                    self.i += 1;
+                    return self.close(segs);
+                }
+                self.set_depth(depth - 1);
+                self.put_text(segs, b"]", true)?;
+                self.i += 1;
+            }
+            b'\\' => {
+                let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
+                match n {
+                    b'\n' => {}
+                    b'$' | b'`' | b'"' | b'\\' => self.put_text(segs, &[n], true)?,
+                    _ => self.put_text(segs, &[b'\\', n], true)?,
+                }
+                self.i += 2;
+            }
+            b'$' => self.dollar(segs, true)?,
+            b'`' => self.backquote(segs, true)?,
+            _ => {
+                // This byte and the plain bytes after it, as one piece of text.
+                let start = self.i;
+                let s = self.s;
+                let run = s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'(' | b')' | b'[' | b']' | b'\\' | b'$' | b'`'))).map_or(s.len(), |k| start + 1 + k);
+                self.put_text(segs, s.get(start..run).unwrap_or(&[]), true)?;
+                self.i = run;
+            }
+        }
+        Ok(())
+    }
+
+    /// An expansion at the current `$`, onto the current context's list. One that contains a
+    /// nested text (`${name<op>word}`, arithmetic with expansions) opens a frame instead: it is
+    /// complete when the frame closes.
     fn dollar(&mut self, segs: &mut Segs, quoted: bool) -> Wr<()> {
-        self.enter()?;
-        let r = self.dollar_inner(segs, quoted);
-        self.leave();
-        r
-    }
-
-    fn dollar_inner(&mut self, segs: &mut Segs, quoted: bool) -> Wr<()> {
         let Some(n) = self.peek_at(1) else {
-            push_text(segs, &mut self.text, self.floor, b"$", quoted)?;
+            self.put_text(segs, b"$", quoted)?;
             self.i += 1;
             return Ok(());
         };
@@ -626,8 +772,7 @@ impl Parser<'_> {
         match n {
             b'(' if self.peek_at(2) == Some(b'(') => {
                 self.i += 3;
-                let expr = self.arith(false)?;
-                segs.push(Seg::Arith { expr, quoted })?;
+                self.arith_open(segs, false, quoted)?;
             }
             b'(' => {
                 let end = self.command_end(self.i + 2)?;
@@ -636,17 +781,17 @@ impl Parser<'_> {
                 if self.nocmd {
                     return Err(WordError::CmdSub);
                 }
-                segs.push(Seg::Cmd { at, input: true, quoted })?;
+                self.put(segs, Seg::Cmd { at, input: true, quoted })?;
             }
             b'[' => {
                 self.i += 2;
-                let expr = self.arith(true)?;
-                segs.push(Seg::Arith { expr, quoted })?;
+                self.arith_open(segs, true, quoted)?;
             }
             b'{' => {
                 self.i += 2;
-                let p = self.braced(quoted)?;
-                segs.push(p)?;
+                if let Some(p) = self.braced(quoted)? {
+                    self.put(segs, p)?;
+                }
             }
             c if is_name_start(c) => {
                 let start = self.i + 1;
@@ -654,11 +799,11 @@ impl Parser<'_> {
                 while self.s.get(k).is_some_and(|&c| is_name(c)) {
                     k += 1;
                 }
-                segs.push(simple(Name::Var((start, k))))?;
+                self.put(segs, simple(Name::Var((start, k))))?;
                 self.i = k;
             }
             c if c.is_ascii_digit() => {
-                segs.push(simple(Name::Positional(usize::from(c - b'0'))))?;
+                self.put(segs, simple(Name::Positional(usize::from(c - b'0'))))?;
                 self.i += 2;
             }
             b'@' | b'*' | b'#' | b'$' => {
@@ -668,24 +813,25 @@ impl Parser<'_> {
                     b'#' => Name::Count,
                     _ => Name::Pid,
                 };
-                segs.push(simple(name))?;
+                self.put(segs, simple(name))?;
                 self.i += 2;
             }
             b'?' | b'-' | b'!' => {
                 // Left as written (as glibc; POSIX leaves them unspecified for wordexp).
-                push_text(segs, &mut self.text, self.floor, &[b'$', n], quoted)?;
+                self.put_text(segs, &[b'$', n], quoted)?;
                 self.i += 2;
             }
             _ => {
-                push_text(segs, &mut self.text, self.floor, b"$", quoted)?;
+                self.put_text(segs, b"$", quoted)?;
                 self.i += 1;
             }
         }
         Ok(())
     }
 
-    /// A `${...}` after its `{`.
-    fn braced(&mut self, quoted: bool) -> Wr<Seg> {
+    /// A `${...}` after its `{`: the expansion, or `None` when it has a word (`${name<op>word}`),
+    /// whose frame is then open ([`Self::brace_step`]).
+    fn braced(&mut self, quoted: bool) -> Wr<Option<Seg>> {
         let mut length = false;
         if self.peek() == Some(b'#') && self.peek_at(1).is_some_and(|c| c != b'}') {
             let after = self.peek_at(1).unwrap_or(0);
@@ -729,12 +875,12 @@ impl Parser<'_> {
                 return Err(WordError::Syntax);
             }
             self.i += 1;
-            return Ok(Seg::Param { name, form: Form::Length, quoted });
+            return Ok(Some(Seg::Param { name, form: Form::Length, quoted }));
         }
         let Some(c) = self.peek() else { return Err(WordError::Syntax) };
         if c == b'}' {
             self.i += 1;
-            return Ok(Seg::Param { name, form: Form::Plain, quoted });
+            return Ok(Some(Seg::Param { name, form: Form::Plain, quoted }));
         }
         let (op, colon, len) = match (c, self.peek_at(1)) {
             (b':', Some(b'-')) => (Op::Default, true, 2),
@@ -752,92 +898,97 @@ impl Parser<'_> {
             _ => return Err(WordError::Syntax),
         };
         self.i += len;
-        let word = self.brace_word(quoted)?;
-        Ok(Seg::Param { name, form: Form::Op { op, colon, word }, quoted })
+        // The usual word, plain bytes up to its `}` (nothing the steps below treat apart: no
+        // quote, escape, brace, expansion or leading `~`): one text segment, without a frame.
+        let rest = self.s.get(self.i..).unwrap_or(&[]);
+        if let Some(n) = rest.iter().position(|&b| matches!(b, b'}' | b'{' | b'\\' | b'\'' | b'"' | b'$' | b'`')) {
+            if rest.get(n) == Some(&b'}') && rest.first() != Some(&b'~') {
+                let start = self.arena.len();
+                if n > 0 {
+                    let at = self.text.len();
+                    self.text.extend_from_slice(rest.get(..n).unwrap_or(&[]))?;
+                    self.arena.push(Seg::Text { at: (at, self.text.len()), quoted, input: false })?;
+                }
+                self.i += n + 1;
+                return Ok(Some(Seg::Param { name, form: Form::Op { op, colon, word: (start, self.arena.len()) }, quoted }));
+            }
+        }
+        let first = self.nest.len();
+        self.frames.push(Frame::Brace { name, op, colon, quoted, depth: 0, at_start: true, first })?;
+        Ok(None)
     }
 
-    /// The word of a `${name<op>word}`, up to and including the `}` that closes it (brace
-    /// levels counted, quoted strings and substitutions skipped: XCU 2.6.2).
-    fn brace_word(&mut self, quoted: bool) -> Wr<Range> {
-        self.enter()?;
-        let mut segs = Segs::new();
-        let mut depth = 0usize;
-        let mut first = true;
-        let r = loop {
-            let Some(b) = self.peek() else { break Err(WordError::Syntax) };
-            let at_start = first;
-            first = false;
-            match b {
-                b'}' if depth == 0 => {
-                    self.i += 1;
-                    break Ok(());
+    /// One step of the word of a `${name<op>word}` (the innermost frame), up to and including
+    /// the `}` that closes it (brace levels counted, quoted strings and substitutions skipped:
+    /// XCU 2.6.2); `depth` and `at_start` as in [`Frame::Brace`].
+    fn brace_step(&mut self, segs: &mut Segs, quoted: bool, depth: usize, at_start: bool) -> Wr<()> {
+        if at_start {
+            if let Some(Frame::Brace { at_start, .. }) = self.frames.as_mut_slice().last_mut() {
+                *at_start = false;
+            }
+        }
+        let Some(b) = self.peek() else { return Err(WordError::Syntax) };
+        match b {
+            b'}' if depth == 0 => {
+                self.i += 1;
+                return self.close(segs);
+            }
+            b'}' => {
+                self.set_depth(depth - 1);
+                self.put_text(segs, b"}", quoted)?;
+                self.i += 1;
+            }
+            b'{' => {
+                self.set_depth(depth + 1);
+                self.put_text(segs, b"{", quoted)?;
+                self.i += 1;
+            }
+            b'\\' => {
+                let Some(n) = self.peek_at(1) else { return Err(WordError::Syntax) };
+                self.i += 2;
+                if n == b'\n' {
+                    return Ok(());
                 }
-                b'}' => {
-                    depth -= 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b"}", quoted)?;
-                    self.i += 1;
-                }
-                b'{' => {
-                    depth += 1;
-                    push_text(&mut segs, &mut self.text, self.floor, b"{", quoted)?;
-                    self.i += 1;
-                }
-                b'\\' => {
-                    let Some(n) = self.peek_at(1) else { break Err(WordError::Syntax) };
-                    self.i += 2;
-                    if n == b'\n' {
-                        continue;
-                    }
-                    if quoted && !matches!(n, b'$' | b'`' | b'"' | b'\\' | b'}') {
-                        push_text(&mut segs, &mut self.text, self.floor, &[b'\\', n], true)?;
-                    } else {
-                        push_text(&mut segs, &mut self.text, self.floor, &[n], true)?;
-                    }
-                }
-                b'\'' if !quoted => {
-                    let start = self.i + 1;
-                    let Some(len) = self.s.get(start..).and_then(|r| r.iter().position(|&c| c == b'\'')) else { break Err(WordError::Syntax) };
-                    let t = self.s.get(start..start + len).unwrap_or(&[]);
-                    let at = self.text.len();
-                    self.text.extend_from_slice(t)?;
-                    segs.push(Seg::Text { at: (at, self.text.len()), quoted: true, input: false })?;
-                    self.i = start + len + 1;
-                }
-                b'"' => {
-                    self.i += 1;
-                    segs.push(Seg::Text { at: (self.text.len(), self.text.len()), quoted: true, input: false })?;
-                    if let Err(e) = self.dquote(&mut segs) {
-                        break Err(e);
-                    }
-                }
-                b'$' => {
-                    if let Err(e) = self.dollar(&mut segs, quoted) {
-                        break Err(e);
-                    }
-                }
-                b'`' => {
-                    if let Err(e) = self.backquote(&mut segs, quoted) {
-                        break Err(e);
-                    }
-                }
-                b'~' if at_start && !quoted => match self.tilde_prefix_in_brace() {
-                    Some((a, z)) => {
-                        segs.push(Seg::Tilde((a, z)))?;
-                        self.i = z;
-                    }
-                    None => {
-                        push_text(&mut segs, &mut self.text, self.floor, b"~", false)?;
-                        self.i += 1;
-                    }
-                },
-                _ => {
-                    push_text(&mut segs, &mut self.text, self.floor, &[b], quoted)?;
-                    self.i += 1;
+                if quoted && !matches!(n, b'$' | b'`' | b'"' | b'\\' | b'}') {
+                    self.put_text(segs, &[b'\\', n], true)?;
+                } else {
+                    self.put_text(segs, &[n], true)?;
                 }
             }
-        };
-        self.leave();
-        r.and_then(|()| self.stash(&segs))
+            b'\'' if !quoted => {
+                let start = self.i + 1;
+                let Some(len) = self.s.get(start..).and_then(|r| r.iter().position(|&c| c == b'\'')) else { return Err(WordError::Syntax) };
+                let t = self.s.get(start..start + len).unwrap_or(&[]);
+                let at = self.text.len();
+                self.text.extend_from_slice(t)?;
+                let end = self.text.len();
+                self.put(segs, Seg::Text { at: (at, end), quoted: true, input: false })?;
+                self.i = start + len + 1;
+            }
+            b'"' => {
+                self.i += 1;
+                let at = self.text.len();
+                self.put(segs, Seg::Text { at: (at, at), quoted: true, input: false })?;
+                self.frames.push(Frame::DQuote)?;
+            }
+            b'$' => self.dollar(segs, quoted)?,
+            b'`' => self.backquote(segs, quoted)?,
+            b'~' if at_start && !quoted => match self.tilde_prefix_in_brace() {
+                Some((a, z)) => {
+                    self.put(segs, Seg::Tilde((a, z)))?;
+                    self.i = z;
+                }
+                None => {
+                    self.put_text(segs, b"~", false)?;
+                    self.i += 1;
+                }
+            },
+            _ => {
+                self.put_text(segs, &[b], quoted)?;
+                self.i += 1;
+            }
+        }
+        Ok(())
     }
 
     /// A tilde prefix at the start of a `${...}` word (ends at `/`, `:` or the closing `}`).
@@ -1001,6 +1152,38 @@ impl Field {
     }
 }
 
+/// Work of [`Expander::segs`], on its stack: segments to expand, or the end of a nested word
+/// expanded into pieces of its own (the top of the stack of them).
+#[derive(Clone, Copy, Debug)]
+enum Job<'s> {
+    /// Expand `segs` (`quoted`, `in_word` as for [`Expander::segs`]).
+    Segs { segs: &'s [Seg], quoted: bool, in_word: bool },
+    /// `${name=word}` with the parameter unset (or null): assign the word, which is the result.
+    Assign { name: Name, kind: Kind },
+    /// `${name?word}` with the parameter unset (or null): the message, and `WRDE_BADVAL`.
+    /// `empty`: the word is (the default message).
+    Error { name: Name, empty: bool },
+    /// `${name%word}` and the like: remove the word's match from the value `vals[at]`.
+    Trim { op: Op, kind: Kind, at: Span },
+    /// `$((...))` with expansions in its text: evaluate the expanded text.
+    Arith { quoted: bool },
+}
+
+impl Default for Job<'_> {
+    fn default() -> Self {
+        Job::Segs { segs: &[], quoted: false, in_word: false }
+    }
+}
+
+/// A nested word to expand before a segment is complete: `then`, when the word goes to pieces
+/// of its own and the segment is finished from them (else it adds to the current pieces).
+struct Nested<'s> {
+    word: &'s [Seg],
+    quoted: bool,
+    in_word: bool,
+    then: Option<Job<'s>>,
+}
+
 struct Expander<'a, S: Shell, W: Words> {
     sh: &'a mut S,
     out: &'a mut W,
@@ -1148,7 +1331,9 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
         }
     }
 
-    fn param(&mut self, name: &Name, form: &Form, quoted: bool, p: &mut Pieces) -> Wr<()> {
+    /// A parameter expansion into `p`; `Some` names a nested word to expand first (and what
+    /// then finishes it), for [`Self::segs`] to schedule.
+    fn param(&mut self, name: &Name, form: &Form, quoted: bool, p: &mut Pieces, vals: &mut TryVec<u8>) -> Wr<Option<Nested<'a>>> {
         let kind = if quoted { Kind::Quoted } else { Kind::Expanded };
         let checks_undef = matches!(name, Name::Var(_) | Name::Positional(_));
         // `$@` and `$*`: one field per argument (unquoted, and `"$@"`).
@@ -1162,7 +1347,7 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                 self.sh.arg(i, &mut a)?;
                 p.push(&a, kind)?;
             }
-            return Ok(());
+            return Ok(None);
         }
         if quoted && matches!(name, Name::Star) && matches!(form, Form::Plain) {
             let sep: TryVec<u8> = match &self.ifs {
@@ -1180,15 +1365,17 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                 v.extend_from_slice(&a)?;
             }
             p.push(&v, kind)?;
-            return Ok(());
+            return Ok(None);
         }
         let mut v = ValBuf::new();
         let set = self.lookup(name, &mut v)?;
-        self.param_value(name, form, kind, checks_undef, set.then_some(v.as_slice()), p)
+        self.param_value(name, form, kind, checks_undef, set.then_some(v.as_slice()), p, vals)
     }
 
-    /// [`Self::param`] for a parameter whose value is `v` (`None`: unset).
-    fn param_value(&mut self, name: &Name, form: &Form, kind: Kind, checks_undef: bool, v: Option<&[u8]>, p: &mut Pieces) -> Wr<()> {
+    /// [`Self::param`] for a parameter whose value is `v` (`None`: unset). A pattern removal
+    /// keeps the value at the end of `vals` until its word is expanded.
+    #[allow(clippy::too_many_arguments)]
+    fn param_value(&mut self, name: &Name, form: &Form, kind: Kind, checks_undef: bool, v: Option<&[u8]>, p: &mut Pieces, vals: &mut TryVec<u8>) -> Wr<Option<Nested<'a>>> {
         let quoted = kind == Kind::Quoted;
         match form {
             Form::Plain => {
@@ -1203,7 +1390,7 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                         return Err(WordError::BadVal);
                     }
                     p.push(b"0", kind)?;
-                    return Ok(());
+                    return Ok(None);
                 };
                 let n = self.char_count(v);
                 p.push(decimal(i128::try_from(n).unwrap_or(0))?.as_slice(), kind)?;
@@ -1221,12 +1408,12 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                         if test {
                             p.push(v.unwrap_or(&[]), kind)?;
                         } else {
-                            self.segs(word, quoted, true, p)?;
+                            return Ok(Some(Nested { word, quoted, in_word: true, then: None }));
                         }
                     }
                     Op::Alt => {
                         if test {
-                            self.segs(word, quoted, true, p)?;
+                            return Ok(Some(Nested { word, quoted, in_word: true, then: None }));
                         } else {
                             p.push(b"", kind)?;
                         }
@@ -1235,124 +1422,229 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                         if test {
                             p.push(v.unwrap_or(&[]), kind)?;
                         } else {
-                            let mut w = Pieces::new();
-                            self.segs(word, true, true, &mut w)?;
-                            let value = w.text();
-                            match name {
-                                Name::Var(n) => self.sh.set_var(self.input(*n), value)?,
-                                _ => return Err(WordError::Syntax),
-                            }
-                            p.push(value, kind)?;
+                            return Ok(Some(Nested { word, quoted: true, in_word: true, then: Some(Job::Assign { name: *name, kind }) }));
                         }
                     }
                     Op::Error => {
                         if test {
                             p.push(v.unwrap_or(&[]), kind)?;
                         } else {
-                            let mut w = Pieces::new();
-                            self.segs(word, true, true, &mut w)?;
-                            let mut msg = TryVec::new();
-                            match name {
-                                Name::Var(n) => msg.extend_from_slice(self.input(*n))?,
-                                Name::Positional(i) => msg.extend_from_slice(decimal(i128::try_from(*i).unwrap_or(0))?.as_slice())?,
-                                _ => {}
-                            }
-                            msg.extend_from_slice(b": ")?;
-                            let text = w.text();
-                            if word.is_empty() {
-                                msg.extend_from_slice(b"parameter null or not set")?;
-                            } else {
-                                msg.extend_from_slice(text)?;
-                            }
-                            msg.push(b'\n')?;
-                            self.sh.stderr(&msg);
-                            return Err(WordError::BadVal);
+                            return Ok(Some(Nested { word, quoted: true, in_word: true, then: Some(Job::Error { name: *name, empty: word.is_empty() }) }));
                         }
                     }
                     Op::SuffixShort | Op::SuffixLong | Op::PrefixShort | Op::PrefixLong => {
-                        let v = v.unwrap_or(&[]);
-                        let mut w = Pieces::new();
-                        self.segs(word, quoted, true, &mut w)?;
-                        let pat = Pattern::new(&w.pattern()?, 0, self.loc)?;
-                        let bounds = self.char_bounds(v)?;
-                        let n = bounds.len();
-                        let mut cut: Option<(usize, usize)> = None;
-                        let loc = self.loc;
-                        let mut try_cut = |a: usize, b: usize| -> Result<bool> {
-                            if pat.matches(v.get(a..b).unwrap_or(&[]), loc)? {
-                                cut = Some((a, b));
-                                return Ok(true);
-                            }
-                            Ok(false)
-                        };
-                        let len = v.len();
-                        // Prefix removal: one pass over the value tells which prefixes match
-                        // (a match per prefix was quadratic in the value's length).
-                        let prefix_ends = if matches!(op, Op::PrefixShort | Op::PrefixLong) { pat.prefix_matches(v, loc)? } else { None };
-                        // Suffix removal likewise: one backward pass for all suffixes.
-                        let suffix_starts = if matches!(op, Op::SuffixShort | Op::SuffixLong) { pat.suffix_matches(v, loc)? } else { None };
-                        match op {
-                            Op::PrefixShort | Op::PrefixLong if prefix_ends.is_some() => {
-                                let hit = |&e: &usize| prefix_ends.as_ref().and_then(|m| m.get(e)).copied().unwrap_or(false);
-                                let found = if matches!(op, Op::PrefixShort) { bounds.iter().find(|&e| hit(e)) } else { bounds.iter().rev().find(|&e| hit(e)) };
-                                if let Some(&e) = found {
-                                    cut = Some((0, e));
-                                }
-                            }
-                            Op::SuffixShort | Op::SuffixLong if suffix_starts.is_some() => {
-                                let hit = |&s: &usize| suffix_starts.as_ref().and_then(|m| m.get(s)).copied().unwrap_or(false);
-                                // Shortest = the latest start, longest = the earliest.
-                                let found = if matches!(op, Op::SuffixShort) { bounds.iter().rev().find(|&s| hit(s)) } else { bounds.iter().find(|&s| hit(s)) };
-                                if let Some(&s) = found {
-                                    cut = Some((s, len));
-                                }
-                            }
-                            Op::PrefixShort => {
-                                for &e in bounds.iter() {
-                                    if try_cut(0, e)? {
-                                        break;
-                                    }
-                                }
-                            }
-                            Op::PrefixLong => {
-                                for k in (0..n).rev() {
-                                    if try_cut(0, bounds.get(k).copied().unwrap_or(0))? {
-                                        break;
-                                    }
-                                }
-                            }
-                            Op::SuffixShort => {
-                                for k in (0..n).rev() {
-                                    if try_cut(bounds.get(k).copied().unwrap_or(0), len)? {
-                                        break;
-                                    }
-                                }
-                            }
-                            _ => {
-                                for &s in bounds.iter() {
-                                    if try_cut(s, len)? {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        let rest: &[u8] = match cut {
-                            Some((0, b)) if matches!(op, Op::PrefixShort | Op::PrefixLong) => v.get(b..).unwrap_or(&[]),
-                            Some((a, _)) if matches!(op, Op::SuffixShort | Op::SuffixLong) => v.get(..a).unwrap_or(&[]),
-                            _ => v,
-                        };
-                        p.push(rest, kind)?;
+                        let start = vals.len();
+                        vals.extend_from_slice(v.unwrap_or(&[]))?;
+                        let then = Job::Trim { op: *op, kind, at: (start, vals.len()) };
+                        return Ok(Some(Nested { word, quoted, in_word: true, then: Some(then) }));
                     }
                 }
             }
         }
+        Ok(None)
+    }
+
+    /// The end of a pattern removal (`op`): the value `v` without the part that the pattern of
+    /// the expanded word `w` matches, into `p` as `kind`.
+    fn trim(&mut self, op: Op, kind: Kind, v: &[u8], w: &Pieces, p: &mut Pieces) -> Wr<()> {
+        let pat = Pattern::new(&w.pattern()?, 0, self.loc)?;
+        let bounds = self.char_bounds(v)?;
+        let n = bounds.len();
+        let mut cut: Option<(usize, usize)> = None;
+        let loc = self.loc;
+        let mut try_cut = |a: usize, b: usize| -> Result<bool> {
+            if pat.matches(v.get(a..b).unwrap_or(&[]), loc)? {
+                cut = Some((a, b));
+                return Ok(true);
+            }
+            Ok(false)
+        };
+        let len = v.len();
+        // Prefix removal: one pass over the value tells which prefixes match
+        // (a match per prefix was quadratic in the value's length).
+        let prefix_ends = if matches!(op, Op::PrefixShort | Op::PrefixLong) { pat.prefix_matches(v, loc)? } else { None };
+        // Suffix removal likewise: one backward pass for all suffixes.
+        let suffix_starts = if matches!(op, Op::SuffixShort | Op::SuffixLong) { pat.suffix_matches(v, loc)? } else { None };
+        match op {
+            Op::PrefixShort | Op::PrefixLong if prefix_ends.is_some() => {
+                let hit = |&e: &usize| prefix_ends.as_ref().and_then(|m| m.get(e)).copied().unwrap_or(false);
+                let found = if matches!(op, Op::PrefixShort) { bounds.iter().find(|&e| hit(e)) } else { bounds.iter().rev().find(|&e| hit(e)) };
+                if let Some(&e) = found {
+                    cut = Some((0, e));
+                }
+            }
+            Op::SuffixShort | Op::SuffixLong if suffix_starts.is_some() => {
+                let hit = |&s: &usize| suffix_starts.as_ref().and_then(|m| m.get(s)).copied().unwrap_or(false);
+                // Shortest = the latest start, longest = the earliest.
+                let found = if matches!(op, Op::SuffixShort) { bounds.iter().rev().find(|&s| hit(s)) } else { bounds.iter().find(|&s| hit(s)) };
+                if let Some(&s) = found {
+                    cut = Some((s, len));
+                }
+            }
+            Op::PrefixShort => {
+                for &e in bounds.iter() {
+                    if try_cut(0, e)? {
+                        break;
+                    }
+                }
+            }
+            Op::PrefixLong => {
+                for k in (0..n).rev() {
+                    if try_cut(0, bounds.get(k).copied().unwrap_or(0))? {
+                        break;
+                    }
+                }
+            }
+            Op::SuffixShort => {
+                for k in (0..n).rev() {
+                    if try_cut(bounds.get(k).copied().unwrap_or(0), len)? {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                for &s in bounds.iter() {
+                    if try_cut(s, len)? {
+                        break;
+                    }
+                }
+            }
+        }
+        let rest: &[u8] = match cut {
+            Some((0, b)) if matches!(op, Op::PrefixShort | Op::PrefixLong) => v.get(b..).unwrap_or(&[]),
+            Some((a, _)) if matches!(op, Op::SuffixShort | Op::SuffixLong) => v.get(..a).unwrap_or(&[]),
+            _ => v,
+        };
+        p.push(rest, kind)?;
         Ok(())
     }
 
     /// Expand `segs` into `p`. `quoted`: inside double quotes; `in_word`: the word of a
     /// `${...}` (its unquoted text then behaves as an expansion result).
-    fn segs(&mut self, segs: &[Seg], quoted: bool, in_word: bool, p: &mut Pieces) -> Wr<()> {
-        for s in segs {
+    ///
+    /// A nested word (`${x:-word}`, an arithmetic text with expansions) is a job on a stack on
+    /// the heap, not a call: words nest as deep as the parser allowed (the text's length) at no
+    /// cost in thread stack. A word whose expansion is finished afterwards (assignment, error,
+    /// pattern removal, arithmetic) is expanded into pieces of its own, on `fresh`.
+    fn segs<'s>(&mut self, segs: &'s [Seg], quoted: bool, in_word: bool, p: &mut Pieces) -> Wr<()>
+    where
+        'a: 's,
+    {
+        // The values pattern removals keep while their words are expanded.
+        let mut vals: TryVec<u8> = TryVec::new();
+        let (mut rest, mut quoted, mut in_word) = (segs, quoted, in_word);
+        // The usual list: its segments in order, a nested word that ends it expanded in its
+        // place; only a word with more to do after it needs the stack.
+        while let Some((s, tail)) = rest.split_first() {
+            rest = tail;
+            let Some(next) = self.seg(s, quoted, in_word, p, &mut vals)? else { continue };
+            if next.then.is_none() && rest.is_empty() {
+                (rest, quoted, in_word) = (next.word, next.quoted, next.in_word);
+                continue;
+            }
+            return self.segs_deep(Job::Segs { segs: rest, quoted, in_word }, next, p, vals);
+        }
+        Ok(())
+    }
+
+    /// [`Self::segs`] from a nested word `next` on, `rest` after it: the stack of jobs.
+    #[inline(never)]
+    fn segs_deep<'s>(&mut self, rest: Job<'s>, next: Nested<'s>, p: &mut Pieces, mut vals: TryVec<u8>) -> Wr<()>
+    where
+        'a: 's,
+    {
+        let mut jobs: InlineVec<Job<'s>, 4> = InlineVec::new();
+        let mut fresh: TryVec<Pieces> = TryVec::new();
+        if matches!(rest, Job::Segs { segs, .. } if !segs.is_empty()) {
+            jobs.push(rest)?;
+        }
+        // The nested word to schedule: its word first, then what finishes it.
+        let mut next = Some(next);
+        loop {
+            if let Some(next) = next.take() {
+                if let Some(then) = next.then {
+                    fresh.push(Pieces::new())?;
+                    jobs.push(then)?;
+                }
+                jobs.push(Job::Segs { segs: next.word, quoted: next.quoted, in_word: next.in_word })?;
+            }
+            let Some(job) = jobs.pop() else { return Ok(()) };
+            let Job::Segs { segs, quoted, in_word } = job else {
+                let w = fresh.pop().ok_or(WordError::Syntax)?;
+                let target = match fresh.as_mut_slice().last_mut() {
+                    Some(f) => f,
+                    None => &mut *p,
+                };
+                self.finish(job, &w, target, &mut vals)?;
+                continue;
+            };
+            let mut rest = segs;
+            while let Some((s, tail)) = rest.split_first() {
+                rest = tail;
+                let target = match fresh.as_mut_slice().last_mut() {
+                    Some(f) => f,
+                    None => &mut *p,
+                };
+                let Some(n) = self.seg(s, quoted, in_word, target, &mut vals)? else { continue };
+                if !rest.is_empty() {
+                    jobs.push(Job::Segs { segs: rest, quoted, in_word })?;
+                }
+                next = Some(n);
+                break;
+            }
+        }
+    }
+
+    /// The end of a nested word's job: `w` is the word expanded; the result into `p`.
+    fn finish(&mut self, job: Job<'_>, w: &Pieces, p: &mut Pieces, vals: &mut TryVec<u8>) -> Wr<()> {
+        match job {
+            Job::Segs { .. } => Ok(()),
+            Job::Assign { name, kind } => {
+                let value = w.text();
+                match name {
+                    Name::Var(n) => self.sh.set_var(self.input(n), value)?,
+                    _ => return Err(WordError::Syntax),
+                }
+                p.push(value, kind)?;
+                Ok(())
+            }
+            Job::Error { name, empty } => {
+                let mut msg = TryVec::new();
+                match name {
+                    Name::Var(n) => msg.extend_from_slice(self.input(n))?,
+                    Name::Positional(i) => msg.extend_from_slice(decimal(i128::try_from(i).unwrap_or(0))?.as_slice())?,
+                    _ => {}
+                }
+                msg.extend_from_slice(b": ")?;
+                if empty {
+                    msg.extend_from_slice(b"parameter null or not set")?;
+                } else {
+                    msg.extend_from_slice(w.text())?;
+                }
+                msg.push(b'\n')?;
+                self.sh.stderr(&msg);
+                Err(WordError::BadVal)
+            }
+            Job::Trim { op, kind, at } => {
+                let r = self.trim(op, kind, vals.as_slice().get(at.0..at.1).unwrap_or(&[]), w, p);
+                vals.truncate(at.0);
+                r
+            }
+            Job::Arith { quoted } => {
+                let undef = self.undef();
+                let v = arith::evaluate(w.text(), undef, &mut |name: &[u8], out: &mut ValBuf| self.sh.var(name, out))?;
+                p.push(decimal(i128::from(v))?.as_slice(), if quoted { Kind::Quoted } else { Kind::Expanded })?;
+                Ok(())
+            }
+        }
+    }
+
+    /// One segment expanded into `p` (`quoted`, `in_word` as for [`Self::segs`]); `Some`: a
+    /// nested word to expand first. Inlined into the usual list's loop of [`Self::segs`] (a
+    /// call per segment is the usual word's measured cost); [`Self::segs_deep`] has its own copy.
+    #[inline(always)]
+    fn seg(&mut self, s: &Seg, quoted: bool, in_word: bool, p: &mut Pieces, vals: &mut TryVec<u8>) -> Wr<Option<Nested<'a>>> {
+        {
             match s {
                 Seg::Text { at, quoted: q, input } => {
                     let bytes = seg_text(self.input, self.text, *at, *input);
@@ -1377,7 +1669,7 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                         p.push(&t, if in_word { Kind::Expanded } else { Kind::Literal })?;
                     }
                 }
-                Seg::Param { name, form, quoted: q } => self.param(name, form, *q || quoted, p)?,
+                Seg::Param { name, form, quoted: q } => return self.param(name, form, *q || quoted, p, vals),
                 Seg::Cmd { at, input, quoted: q } => {
                     let mut o = TryVec::new();
                     let text = seg_text(self.input, self.text, *at, *input);
@@ -1390,21 +1682,18 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                 Seg::Arith { expr, quoted: q } => {
                     let expr = self.arena.get(expr.0..expr.1).unwrap_or(&[]);
                     let undef = self.undef();
-                    let v = if let [Seg::Text { at, input, .. }] = expr {
-                        // Text alone (the usual expression): evaluated where it lies, no expansion.
-                        let text = seg_text(self.input, self.text, *at, *input);
-                        arith::evaluate(text, undef, &mut |name: &[u8], out: &mut ValBuf| self.sh.var(name, out))?
-                    } else {
-                        let mut e = Pieces::new();
-                        self.segs(expr, true, false, &mut e)?;
-                        let text = e.text();
-                        arith::evaluate(text, undef, &mut |name: &[u8], out: &mut ValBuf| self.sh.var(name, out))?
+                    let [Seg::Text { at, input, .. }] = expr else {
+                        // Expansions in it: the text expanded first (as inside double quotes).
+                        return Ok(Some(Nested { word: expr, quoted: true, in_word: false, then: Some(Job::Arith { quoted: *q || quoted }) }));
                     };
+                    // Text alone (the usual expression): evaluated where it lies, no expansion.
+                    let text = seg_text(self.input, self.text, *at, *input);
+                    let v = arith::evaluate(text, undef, &mut |name: &[u8], out: &mut ValBuf| self.sh.var(name, out))?;
                     p.push(decimal(i128::from(v))?.as_slice(), if *q || quoted { Kind::Quoted } else { Kind::Expanded })?;
                 }
             }
         }
-        Ok(())
+        Ok(None)
     }
 
     /// Whether the byte at `v[i]` is in `IFS` when the IFS byte set decides it alone (a
@@ -1605,7 +1894,7 @@ fn seg_text<'t>(input: &'t [u8], text: &'t [u8], at: Span, from_input: bool) -> 
 /// fields given so far are the partial result; on any other error the caller discards them.
 pub fn wordexp<S: Shell, W: Words>(words: &[u8], flags: i32, loc: &Locale, sh: &mut S, out: &mut W) -> core::result::Result<(), WordError> {
     // The words' text is about as long as the input: one allocation for it.
-    let mut parser = Parser { s: words, i: 0, nocmd: flags & NOCMD != 0, depth: 0, text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: InlineVec::new() };
+    let mut parser = Parser { s: words, i: 0, nocmd: flags & NOCMD != 0, frames: LazyInlineVec::new(), nest: LazyInlineVec::new(), text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: LazyInlineVec::new() };
     let mut segs = Segs::new();
     parser.words(&mut segs)?;
     let parsed = segs.as_slice();
@@ -1670,6 +1959,7 @@ pub mod arith {
 
     use super::WordError;
     use crate::error::Result;
+    use crate::mem::TryVec;
 
     /// An operator's spelling as a number (its bytes, little-endian), so that operators are
     /// compared as integers, not as text.
@@ -1775,7 +2065,6 @@ pub mod arith {
         tok: Tok,
         undef: bool,
         var: Var<'v>,
-        depth: usize,
         /// Precedence level of the current token when it is a binary operator (`NO_LEVEL` else),
         /// set by `advance` so the climbing loop does not classify the operator again.
         lvl: u8,
@@ -1846,10 +2135,6 @@ pub mod arith {
             Ok(())
         }
 
-        fn is(&self, op: Code) -> bool {
-            self.tok == Tok::Op(op)
-        }
-
         fn value_of(&mut self, a: usize, n: usize, eval: bool) -> core::result::Result<i64, WordError> {
             if !eval {
                 return Ok(0);
@@ -1868,55 +2153,106 @@ pub mod arith {
             if neg { c.checked_neg().ok_or(WordError::Syntax) } else { Ok(c) }
         }
 
-        fn primary(&mut self, eval: bool) -> core::result::Result<i64, WordError> {
-            match self.tok {
-                Tok::Num(v) => {
-                    self.advance()?;
-                    Ok(v)
-                }
-                Tok::Name(a, n) => {
-                    self.advance()?;
-                    self.value_of(a, n, eval)
-                }
-                Tok::Op(OPEN) => {
-                    self.advance()?;
-                    let v = self.cond(eval)?;
-                    if !self.is(CLOSE) {
-                        return Err(WordError::Syntax);
-                    }
-                    self.advance()?;
-                    Ok(v)
-                }
-                _ => Err(WordError::Syntax),
-            }
-        }
-
-        fn unary(&mut self, eval: bool) -> core::result::Result<i64, WordError> {
-            self.depth += 1;
-            if self.depth > 512 {
-                return Err(WordError::Syntax);
-            }
-            let r = match self.tok {
-                Tok::Op(op @ (ADD | SUB | INVERT | NOT)) => {
-                    self.advance()?;
-                    let v = self.unary(eval)?;
-                    match op {
-                        ADD => Ok(v),
-                        SUB => {
-                            if eval {
-                                v.checked_neg().ok_or(WordError::Syntax)
-                            } else {
-                                Ok(0)
-                            }
+        /// The whole expression's value: a conditional expression (`?:`, right-associative)
+        /// over the binary operators by precedence (each level's operators applied left to
+        /// right, a tighter one's operands first), unary operators and parentheses. An operator
+        /// waits on a stack ([`Wait`]) until the token after its right operand binds no
+        /// tighter; only operators, `(`, `?` and `:` take an entry ([`Stack`]: inline for a
+        /// usual expression, on the heap beyond), never a call: parentheses and operators nest
+        /// as deep as the text allows. `eval` false: the operand is parsed, not evaluated (the
+        /// side of `&&`, `||` or `?:` that is not taken).
+        fn run(&mut self) -> core::result::Result<i64, WordError> {
+            let mut stack = Stack::new();
+            let mut eval = true;
+            loop {
+                // An operand: a constant or a name; the unary operators and `(` before it wait.
+                let mut v = loop {
+                    match self.tok {
+                        Tok::Num(x) => {
+                            self.advance()?;
+                            break x;
                         }
-                        INVERT => Ok(!v),
-                        _ => Ok(i64::from(v == 0)),
+                        Tok::Name(a, n) => {
+                            self.advance()?;
+                            break self.value_of(a, n, eval)?;
+                        }
+                        Tok::Op(op @ (ADD | SUB | INVERT | NOT)) => {
+                            self.advance()?;
+                            stack.push(Wait::Unary { op, eval })?;
+                        }
+                        Tok::Op(OPEN) => {
+                            self.advance()?;
+                            stack.push(Wait::Close)?;
+                        }
+                        _ => return Err(WordError::Syntax),
                     }
-                }
-                _ => self.primary(eval),
-            };
-            self.depth -= 1;
-            r
+                };
+                // The token after it, until one takes another operand (its `eval`).
+                eval = loop {
+                    let prec = match self.tok {
+                        Tok::Op(_) if self.lvl != NO_LEVEL => self.lvl.saturating_add(AT_BINARY),
+                        Tok::Op(QUESTION) => AT_QUESTION,
+                        Tok::Op(COLON) => AT_COLON,
+                        _ => AT_END,
+                    };
+                    // Apply what binds at least as tight: a `?:` only at a `:` or the end (it
+                    // groups to the right).
+                    while let Some(w) = stack.top() {
+                        match w {
+                            Wait::Unary { op, eval: e } => {
+                                v = match op {
+                                    ADD => v,
+                                    SUB if e => v.checked_neg().ok_or(WordError::Syntax)?,
+                                    SUB => 0,
+                                    INVERT => !v,
+                                    _ => i64::from(v == 0),
+                                };
+                            }
+                            Wait::Binary { op, prec: p, lhs, eval: e } if p >= prec => {
+                                v = if e { combine(op, lhs, v)? } else { 0 };
+                                eval = e;
+                            }
+                            Wait::Else { eval: e, take, a } if prec <= AT_COLON => {
+                                v = if !e { 0 } else if take { a } else { v };
+                                eval = e;
+                            }
+                            _ => break,
+                        }
+                        stack.pop();
+                    }
+                    match (self.tok, stack.top()) {
+                        (Tok::Op(op), _) if prec >= AT_BINARY => {
+                            self.advance()?;
+                            stack.push(Wait::Binary { op, prec, lhs: v, eval })?;
+                            // Short-circuit: the right side of `&&`/`||` is evaluated only when needed.
+                            break match op {
+                                AND => eval && v != 0,
+                                OR => eval && v == 0,
+                                _ => eval,
+                            };
+                        }
+                        _ if prec == AT_QUESTION => {
+                            self.advance()?;
+                            stack.push(Wait::Then { eval, c: v != 0 })?;
+                            break eval && v != 0;
+                        }
+                        (_, Some(Wait::Then { eval: e, c })) if prec == AT_COLON => {
+                            self.advance()?;
+                            stack.pop();
+                            stack.push(Wait::Else { eval: e, take: c, a: v })?;
+                            break e && !c;
+                        }
+                        (Tok::Op(CLOSE), Some(Wait::Close)) => {
+                            // `( ... )` is an operand: the token after it is looked at next.
+                            self.advance()?;
+                            stack.pop();
+                        }
+                        (_, None) if prec == AT_END => return Ok(v),
+                        // A `:` without its `?`, an unclosed `(` or `?`, a `)` too many.
+                        _ => return Err(WordError::Syntax),
+                    }
+                };
+            }
         }
 
         /// The binary operators by precedence (0 binds loosest), all left-associative: `||`,
@@ -1936,98 +2272,150 @@ pub mod arith {
                 _ => NO_LEVEL,
             }
         }
+    }
 
-        /// The operators of `level` and above, by precedence climbing: the same tree as one
-        /// recursive function per level (each level's operators applied left to right, a
-        /// tighter one's operands first), with one call per operand instead of one per level.
-        fn binary(&mut self, level: usize, eval: bool) -> core::result::Result<i64, WordError> {
-            if level >= 10 {
-                return self.unary(eval);
+    /// How tightly the token after an operand binds in [`P::run`]: the end of the expression
+    /// (or of a parenthesised one) loosest, then `:`, `?`, and the binary operators by level
+    /// from `AT_BINARY` up.
+    const AT_END: u8 = 0;
+    const AT_COLON: u8 = 1;
+    const AT_QUESTION: u8 = 2;
+    const AT_BINARY: u8 = 3;
+
+    /// What waits for an operand's value in [`P::run`] (`eval` as there).
+    #[derive(Clone, Copy, Debug)]
+    enum Wait {
+        /// A unary operator to apply.
+        Unary { op: Code, eval: bool },
+        /// The `)` of a parenthesised expression.
+        Close,
+        /// A binary operator (binding `prec`) and its left operand.
+        Binary { op: Code, prec: u8, lhs: i64, eval: bool },
+        /// A conditional expression's middle operand (`c`: whether the condition is true).
+        Then { eval: bool, c: bool },
+        /// Its last operand (`take`: the condition was true, the value is the middle one, `a`).
+        Else { eval: bool, take: bool, a: i64 },
+    }
+
+    /// How many [`Wait`]s [`Stack`] keeps inline: a usual expression needs no more.
+    const INLINE: usize = 6;
+
+    /// [`P::run`]'s stack: its first [`INLINE`] entries in place (no allocation), the rest on
+    /// the heap, so an expression nests as deep as its text allows.
+    struct Stack {
+        inline: [Wait; INLINE],
+        /// The number of entries: the first [`INLINE`] in `inline`, the rest in `heap`.
+        len: usize,
+        /// The entries above the inline ones.
+        heap: TryVec<Wait>,
+    }
+
+    impl Stack {
+        #[inline(always)]
+        fn new() -> Stack {
+            Stack { inline: [Wait::Close; INLINE], len: 0, heap: TryVec::new() }
+        }
+
+        #[inline(always)]
+        fn push(&mut self, w: Wait) -> Result<()> {
+            match self.inline.get_mut(self.len) {
+                Some(slot) => *slot = w,
+                None => self.heap.push(w)?,
             }
-            let mut lhs = self.unary(eval)?;
-            loop {
-                let Tok::Op(op) = self.tok else { return Ok(lhs) };
-                let l = usize::from(self.lvl);
-                if self.lvl == NO_LEVEL || l < level {
-                    return Ok(lhs);
-                }
-                self.advance()?;
-                // Short-circuit: the right side of `&&`/`||` is evaluated only when needed.
-                let rhs_eval = match op {
-                    AND => eval && lhs != 0,
-                    OR => eval && lhs == 0,
-                    _ => eval,
-                };
-                let rhs = self.binary(l + 1, rhs_eval)?;
-                if !eval {
-                    lhs = 0;
-                    continue;
-                }
-                lhs = match op {
-                    OR => i64::from(lhs != 0 || rhs != 0),
-                    AND => i64::from(lhs != 0 && rhs != 0),
-                    BIT_OR => lhs | rhs,
-                    BIT_XOR => lhs ^ rhs,
-                    BIT_AND => lhs & rhs,
-                    EQ => i64::from(lhs == rhs),
-                    NE => i64::from(lhs != rhs),
-                    LT => i64::from(lhs < rhs),
-                    LE => i64::from(lhs <= rhs),
-                    GT => i64::from(lhs > rhs),
-                    GE => i64::from(lhs >= rhs),
-                    SHL | SHR => {
-                        let n = u32::try_from(rhs).ok().filter(|n| *n < 64).ok_or(WordError::Syntax)?;
-                        if op == SHR {
-                            lhs >> n
-                        } else {
-                            let r = lhs << n;
-                            if r >> n != lhs {
-                                return Err(WordError::Syntax);
-                            }
-                            r
-                        }
+            self.len = self.len.wrapping_add(1);
+            Ok(())
+        }
+
+        /// Drop the top entry.
+        #[inline(always)]
+        fn pop(&mut self) {
+            if self.len > INLINE {
+                self.heap.pop();
+            }
+            self.len = self.len.saturating_sub(1);
+        }
+
+        #[inline(always)]
+        fn top(&self) -> Option<Wait> {
+            let n = self.len.checked_sub(1)?;
+            match self.inline.get(n) {
+                Some(w) => Some(*w),
+                None => self.heap.last().copied(),
+            }
+        }
+    }
+
+    /// `lhs op rhs` for a binary operator, evaluated: `WRDE_SYNTAX` for overflow, division by
+    /// zero and a bad shift.
+    fn combine(op: Code, lhs: i64, rhs: i64) -> core::result::Result<i64, WordError> {
+        Ok(match op {
+            OR => i64::from(lhs != 0 || rhs != 0),
+            AND => i64::from(lhs != 0 && rhs != 0),
+            BIT_OR => lhs | rhs,
+            BIT_XOR => lhs ^ rhs,
+            BIT_AND => lhs & rhs,
+            EQ => i64::from(lhs == rhs),
+            NE => i64::from(lhs != rhs),
+            LT => i64::from(lhs < rhs),
+            LE => i64::from(lhs <= rhs),
+            GT => i64::from(lhs > rhs),
+            GE => i64::from(lhs >= rhs),
+            SHL | SHR => {
+                let n = u32::try_from(rhs).ok().filter(|n| *n < 64).ok_or(WordError::Syntax)?;
+                if op == SHR {
+                    lhs >> n
+                } else {
+                    let r = lhs << n;
+                    if r >> n != lhs {
+                        return Err(WordError::Syntax);
                     }
-                    ADD => lhs.checked_add(rhs).ok_or(WordError::Syntax)?,
-                    SUB => lhs.checked_sub(rhs).ok_or(WordError::Syntax)?,
-                    MUL => lhs.checked_mul(rhs).ok_or(WordError::Syntax)?,
-                    DIV => lhs.checked_div(rhs).ok_or(WordError::Syntax)?,
-                    REM => lhs.checked_rem(rhs).ok_or(WordError::Syntax)?,
-                    _ => return Err(WordError::Syntax),
-                };
-            }
-        }
-
-        fn cond(&mut self, eval: bool) -> core::result::Result<i64, WordError> {
-            self.depth += 1;
-            if self.depth > 512 {
-                return Err(WordError::Syntax);
-            }
-            let c = self.binary(0, eval)?;
-            let r = if self.is(QUESTION) {
-                self.advance()?;
-                let a = self.cond(eval && c != 0)?;
-                if !self.is(COLON) {
-                    return Err(WordError::Syntax);
+                    r
                 }
-                self.advance()?;
-                let b = self.cond(eval && c == 0)?;
-                Ok(if !eval { 0 } else if c != 0 { a } else { b })
-            } else {
-                Ok(c)
-            };
-            self.depth -= 1;
-            r
-        }
+            }
+            ADD => lhs.checked_add(rhs).ok_or(WordError::Syntax)?,
+            SUB => lhs.checked_sub(rhs).ok_or(WordError::Syntax)?,
+            MUL => lhs.checked_mul(rhs).ok_or(WordError::Syntax)?,
+            DIV => lhs.checked_div(rhs).ok_or(WordError::Syntax)?,
+            REM => lhs.checked_rem(rhs).ok_or(WordError::Syntax)?,
+            _ => return Err(WordError::Syntax),
+        })
     }
 
     /// Evaluate `text` (already expanded). `var` reads a variable (`false`: unset).
     pub fn evaluate(text: &[u8], undef: bool, var: Var<'_>) -> core::result::Result<i64, WordError> {
-        let mut p = P { t: text, i: 0, tok: Tok::End, undef, var, depth: 0, lvl: NO_LEVEL };
+        let mut p = P { t: text, i: 0, tok: Tok::End, undef, var, lvl: NO_LEVEL };
         p.advance()?;
-        let v = p.cond(true)?;
+        let v = p.run()?;
         if p.tok != Tok::End {
             return Err(WordError::Syntax);
         }
         Ok(v)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    /// A text that opens no `${...}` word and no arithmetic text is parsed without making the
+    /// nesting stacks (their inline storage is made on first use, not filled on every call); one
+    /// that opens them makes them.
+    // no spec clause: cost of the parser (MATCHER-WORDEXP-RETHINK); XCU 2.6 defines the words.
+    #[test]
+    fn the_nesting_stacks_are_made_only_when_a_text_nests() {
+        let parse = |s: &[u8]| {
+            let mut p = Parser { s, i: 0, nocmd: true, frames: LazyInlineVec::new(), nest: LazyInlineVec::new(), text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: LazyInlineVec::new() };
+            let mut segs = Segs::new();
+            p.words(&mut segs).unwrap();
+            (p.frames.is_made(), p.nest.is_made(), p.arena.is_made())
+        };
+        for s in [&b"cc -O2 -Wall -o prog main.c util.c -lm"[..], b"'a b' \"c $HOME\" d\\ e", b"$WORDS", b"~/a $HOME b", b"x=~/y \"$1\" $#"] {
+            assert_eq!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
+        }
+        for s in [&b"${HOME:-/x}"[..], b"${HOME:-$x}", b"\"${HOME:-a b}\"", b"$((1+2))", b"$(($x+2))"] {
+            assert_ne!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
+        }
+        assert!(parse(b"${HOME:-$x}").0, "an expansion inside a ${{...}} word opens a frame");
     }
 }

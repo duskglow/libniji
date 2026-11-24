@@ -39,6 +39,7 @@ both	libc6	usr/lib/x86_64-linux-gnu/libnsl.so.1	file	libnsl.so.1	0644	debug	plac
 both	libc6	usr/lib/x86_64-linux-gnu/libpthread.so.0	file	libpthread.so.0	0644	debug	placeholder: its functions are in libc.so.6
 both	libc6	usr/lib/x86_64-linux-gnu/libresolv.so.2	file	libresolv.so.2	0644	debug	its exports jump to libc.so.6's definitions (D-16.6)
 both	libc6	usr/lib/x86_64-linux-gnu/librt.so.1	file	librt.so.1	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib/x86_64-linux-gnu/libthread_db.so.1	file	libthread_db.so.1	0644	debug	read by debuggers to list and inspect a program's threads (D-22.17)
 both	libc6	usr/lib/x86_64-linux-gnu/libutil.so.1	file	libutil.so.1	0644	debug	placeholder: its functions are in libc.so.6
 both	libc6	usr/lib64/ld-linux-x86-64.so.2	link	../lib/x86_64-linux-gnu/ld-linux-x86-64.so.2	-	none	the program interpreter /lib64/ld-linux-x86-64.so.2 through the merged-/usr link lib64 -> usr/lib64
 both	libc6-dev	usr/lib/x86_64-linux-gnu/Mcrt1.o	file	niji-Mcrt1.o	0644	archive	empty (SL-CRT)
@@ -66,6 +67,7 @@ both	libc6-dev	usr/lib/x86_64-linux-gnu/libpthread_nonshared.a	file	libpthread_n
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.a	file	libresolv.a	0644	archive	empty: the functions are in libc.a (D-16.6)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.so	link	libresolv.so.2	-	none	-lresolv links the shared library (issue #5)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/librt.a	file	librt.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libthread_db.so	link	libthread_db.so.1	-	none	-lthread_db links the shared library (D-22.17)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libutil.a	file	libutil.a	0644	archive	empty: the functions are in libc.a
 both	libc6-dev	usr/lib/x86_64-linux-gnu/rcrt1.o	file	niji-rcrt1.o	0644	archive	the start file of -static-pie links
 coexist	niji6	usr/lib/niji/lib	link	usr/lib	-	none	the sysroot's merged-/usr link
@@ -76,6 +78,7 @@ coexist	niji6-dev	usr/bin/niji-g++	link	niji-gcc	-	none	the C++ driver: the wrap
 coexist	niji6-dev	usr/bin/niji-gcc	text	niji-gcc	0755	none	the compiler wrapper (links with --sysroot=/usr/lib/niji)
 coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so	text	coexist/libc-so.ld	0644	none	the linker script; its paths are inside the sysroot
 coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libm.so	text	coexist/libm-so.ld	0644	none	-lm: libm.so.6, and libmvec.so.1 AS_NEEDED (issue #28); its paths are inside the sysroot
+coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/niji-unwinder.o	file	niji-unwinder.o	0644	archive	the program's own unwinder offered to the C library; niji-gcc links it into dynamic programs (D-22.24)
 coexist	niji6-dev	usr/share/doc/niji6-dev/changelog.gz	changelog	-	0644	none	-
 coexist	niji6-dev	usr/share/doc/niji6-dev/copyright	text	copyright	0644	none	-
 coexist	niji6-dev	usr/share/man/man1/niji-g++.1.gz	link	niji-gcc.1.gz	-	none	-
@@ -97,6 +100,7 @@ system	libc-bin	usr/sbin/zic	file	zic	0755	debug	dynamic, compiles time-zone sou
 system	libc-bin	usr/share/doc/libc-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-bin	usr/share/doc/libc-bin/copyright	text	copyright	0644	none	-
 system	libc-bin	usr/share/libc-bin/nsswitch.conf	text	system/nsswitch.conf	0644	none	the template the postinst installs when the root has no /etc/nsswitch.conf
+system	libc-dev-bin	usr/bin/gencat	file	gencat	0755	debug	dynamic, compiles message-catalog sources into D.2.2 catalogs (UTIL-14)
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/copyright	text	copyright	0644	none	-
 system	libc-l10n	usr/share/doc/libc-l10n/changelog.Debian.gz	changelog	-	0644	none	-
@@ -167,6 +171,7 @@ system	locales	usr/share/i18n/charmaps/GBK.gz	file	locale-charmaps/GBK.gz	0644	n
 system	locales	usr/share/i18n/charmaps/ISO-8859-1.gz	file	locale-charmaps/ISO-8859-1.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
 system	locales	usr/share/i18n/charmaps/UTF-8.gz	file	locale-charmaps/UTF-8.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
 system	locales	usr/share/i18n/charmaps/WINDOWS-31J.gz	file	locale-charmaps/WINDOWS-31J.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/locales/C	file	locale-sources/C	0644	none	LOCALE-C-UTF8-SOURCE: read by localedef -i C -f UTF-8 (C.UTF-8), generated from the built-in C.UTF-8
 system	locales	usr/share/i18n/locales/aa_DJ	file	locale-sources/aa_DJ	0644	none	LOCALE-PROBE-GEN: read by localedef -i, generated from a black-box probe of the reference's locales
 system	locales	usr/share/i18n/locales/aa_ER	file	locale-sources/aa_ER	0644	none	LOCALE-PROBE-GEN: read by localedef -i, generated from a black-box probe of the reference's locales
 system	locales	usr/share/i18n/locales/aa_ET	file	locale-sources/aa_ET	0644	none	LOCALE-PROBE-GEN: read by localedef -i, generated from a black-box probe of the reference's locales

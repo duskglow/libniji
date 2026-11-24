@@ -1,4 +1,6 @@
 libniji C library: locale support (placeholder)
  libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
- The locale compiler and locale data are not part of this build yet; the
- package exists so that dependencies on locales are met.
+ This package holds a set of character maps under /usr/share/i18n/charmaps;
+ the locale compiler (localedef) is in libc-bin. Locale source data is not
+ part of this build yet; the package exists so that dependencies on locales
+ are met.

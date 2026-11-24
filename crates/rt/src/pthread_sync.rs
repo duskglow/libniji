@@ -355,11 +355,13 @@ impl<'a> Mutex<'a> {
                 return Err(Errno::EDEADLK);
             }
         }
-        // An invalid deadline is an error only if the call would block (§22.4).
+        // An invalid deadline is an error only if the call would block (§22.4; D-22.26): a free
+        // mutex of any kind (an owner-died robust one included) is taken without looking at the
+        // deadline, through the kind's own try path; one that is held gives EINVAL, whatever the
+        // deadline's tv_sec.
         let invalid = matches!(how, LockWait::Until(_, t) if !valid(t));
-        let r = if invalid {
-            if self.try_fast(c, kind, me) { Ok(()) } else { Err(Errno::EINVAL) }
-        } else if kind & KIND_PI != 0 {
+        let how = if invalid { LockWait::Try } else { how };
+        let r = if kind & KIND_PI != 0 {
             self.lock_pi(c, kind, me, how)
         } else if kind & KIND_ROBUST != 0 {
             self.lock_robust(c, me, how)
@@ -368,6 +370,7 @@ impl<'a> Mutex<'a> {
         } else {
             self.lock_plain(c, ty, how)
         };
+        let r = if invalid && r == Err(Errno::EBUSY) { Err(Errno::EINVAL) } else { r };
         match r {
             Ok(()) | Err(Errno::EOWNERDEAD) => {
                 if w(self.words, M_OWNER).load(Relaxed) == OWNER_NOTRECOVERABLE && kind & KIND_ROBUST != 0 {
@@ -395,14 +398,6 @@ impl<'a> Mutex<'a> {
         } else {
             w(self.words, M_OWNER).load(Relaxed) == me && w(self.words, M_LOCK).load(Relaxed) != 0
         }
-    }
-
-    fn try_fast<C: Ctx>(&self, c: &C, kind: u32, me: u32) -> bool {
-        if kind & (KIND_ROBUST | KIND_PI | KIND_PP) != 0 {
-            return false;
-        }
-        let _ = (c, me);
-        w(self.words, M_LOCK).compare_exchange(0, 1, Acquire, Relaxed).is_ok()
     }
 
     fn lock_plain<C: Ctx>(&self, c: &C, ty: u32, how: LockWait<'_>) -> KResult<()> {
@@ -518,7 +513,9 @@ impl<'a> Mutex<'a> {
             Ok(())
         } else {
             match how {
-                LockWait::Try => c.sys().futex(lock, FUTEX_TRYLOCK_PI | private, 0, FutexArg::None, None, 0).map(drop),
+                // The kernel reports a lock held by another thread as EAGAIN (EWOULDBLOCK); a
+                // try-lock that cannot acquire is EBUSY (§22.4).
+                LockWait::Try => c.sys().futex(lock, FUTEX_TRYLOCK_PI | private, 0, FutexArg::None, None, 0).map(drop).map_err(|e| if e == Errno::EAGAIN { Errno::EBUSY } else { e }),
                 LockWait::Block => loop {
                     match c.sys().futex(lock, FUTEX_LOCK_PI | private, 0, FutexArg::None, None, 0) {
                         Err(Errno::EINTR | Errno::EAGAIN) => continue,
@@ -1256,17 +1253,19 @@ impl<'a> Sem<'a> {
     /// `sem_wait`, `sem_trywait` (`EAGAIN`), `sem_timedwait`/`clockwait` (`ETIMEDOUT`); a
     /// cancellation point (`ECANCELED`) and interruptible (`EINTR`).
     pub fn wait<C: Ctx>(&self, c: &C, how: LockWait<'_>) -> KResult<()> {
+        // An invalid deadline is EINVAL even when the semaphore could be taken (§22.7: the
+        // check is allowed there; D-22.26, as the reference).
+        if let LockWait::Until(_, t) = how {
+            if !valid(t) {
+                return Err(Errno::EINVAL);
+            }
+        }
         if self.try_take() {
             return Ok(());
         }
         let deadline = match how {
             LockWait::Try => return Err(Errno::EAGAIN),
-            LockWait::Until(clk, t) => {
-                if !valid(t) {
-                    return Err(Errno::EINVAL);
-                }
-                Some((clk, t))
-            }
+            LockWait::Until(clk, t) => Some((clk, t)),
             LockWait::Block => None,
         };
         w(self.words, S_WAITERS).fetch_add(1, SeqCst);

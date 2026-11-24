@@ -4,7 +4,8 @@
 usage: keys.py <names file>... > keys              sorted
        keys.py --ordered <names file>... > keys    first occurrence order (files in argument order)
        keys.py --aliases <objdump -t output>       `<symbol key>\t<section key>` (see aliases())
-       keys.py --sections <readelf -SW output>     function names of the function sections (see sections())
+       keys.py --sections <archive or object>      function names of the function sections (see sections())
+       keys.py --unlisted <objdump -t> <lib keys> <hit keys>   traced library functions whose section is unlisted
 The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
   1. drop the library's own prefix `__niji_libc_` (D-X.14 renames; the section keeps the C name);
   2. drop ThinLTO promotion suffixes `.llvm.<digits>`;
@@ -16,6 +17,7 @@ The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
 --ordered (HOT-ORDER) keeps the tracer's first-touch order: the hot-text list is a layout order.
 """
 import re
+import subprocess
 import sys
 
 OWN = "__niji_libc_"
@@ -264,15 +266,21 @@ def function_of(section):
 
 
 def sections(path):
-    """--sections <readelf -SW output>: the function name of every function section, one per line
-    (regen.sh: the names of libc.a that may be listed)."""
-    with open(path) as f:
-        for line in f:
-            m = re.match(r"^\s*\[\s*[0-9]+\]\s+(\S+)\s", line)
-            if m:
-                name = function_of(m.group(1))
-                if name:
-                    print(name)
+    """--sections <archive or object>: the function name of every function section, one per line
+    (regen.sh: the names of libc.a that may be listed), read with `objdump -h`.
+    GATE-HONEST-METRICS-3: not `readelf -SW`, which cuts a section name at 256 bytes: a function whose
+    mangled name is longer (a generic iterator adapter over a closure, 538 bytes) was traced but matched
+    no section here, so it was never listed and ran outside the hot group. A file objdump cannot read
+    fails rather than listing nothing."""
+    out = subprocess.run(["objdump", "-h", path], capture_output=True, text=True, check=False)
+    if out.returncode != 0:
+        sys.exit(f"keys.py --sections: objdump -h {path} failed ({out.returncode}): {out.stderr.strip()}")
+    for line in out.stdout.splitlines():
+        m = re.match(r"^\s*[0-9]+\s+(\S+)\s+[0-9a-f]{8}\s", line)
+        if m:
+            name = function_of(m.group(1))
+            if name:
+                print(name)
 
 
 def aliases(path):
@@ -299,6 +307,33 @@ def aliases(path):
     for k in sorted(seen):
         if len(seen[k]) == 1:
             print(f"{k}\t{next(iter(seen[k]))}")
+
+
+def unlisted(syms_path, lib_path, hit_path):
+    """--unlisted <objdump -t of libc.a> <lib.keys> <hit.keys>: the traced keys (hit.keys, first field) that
+    name a symbol in a function section of the archive whose section key is not in lib.keys (the names
+    --sections listed), one per line. GATE-HONEST-METRICS-3: a traced library function whose section the
+    listing missed (a name cut by the listing tool) was dropped from the list without a word; regen.sh now
+    fails on any key printed here. objdump -t prints the names whole, so it checks the listing."""
+    with open(lib_path) as f:
+        lib = {line.rstrip("\n") for line in f}
+    sec_of = {}
+    with open(syms_path) as f:
+        for line in f:
+            if "\t" not in line:
+                continue
+            left, right = line.rstrip("\n").split("\t", 1)
+            lf, rf = left.split(), right.split()
+            if len(lf) < 2 or len(rf) < 2:
+                continue
+            name = function_of(lf[-1])
+            if name is not None:
+                sec_of.setdefault(key(rf[-1]), set()).add(key(name))
+    with open(hit_path) as f:
+        for line in f:
+            k = line.rstrip("\n").split("\t", 1)[0]
+            if any(s not in lib for s in sec_of.get(k, ())):
+                print(k)
 
 
 def signatures(args):
@@ -348,6 +383,9 @@ def main():
         return
     if args[:1] == ["--sections"] and len(args) == 2:
         sections(args[1])
+        return
+    if args[:1] == ["--unlisted"] and len(args) == 4:
+        unlisted(args[1], args[2], args[3])
         return
     # --tagged <tier>=<names file>...: `<key>\t<tier>` in first-touch order, each key with the tier
     # of the first file that names it (HOTTEXT-STARTUP-COMPLETE).

@@ -4,8 +4,13 @@
  * jmp_buf (spec/abi/layouts.tsv): rbx, rbp, r12, r13, r14, r15, rsp, pc at 0..56, the
  * stack pointer, frame pointer and program counter mangled with the thread's pointer guard
  * (%fs:0x30: xor, then rotate left 17, as glibc does); __mask_was_saved (int) at 64;
- * __saved_mask at 72 (the kernel's 8 bytes). No shadow stack exists in a libniji process
- * (D-21.3), so none is recorded or unwound.
+ * __saved_mask at 72 (the kernel's 8 bytes); at 80, private to this file, the shadow-stack
+ * pointer (SSP) inside setjmp, 0 when the thread has no shadow stack (D-21.5: rdssp is a no-op
+ * then, so the zeroed register stays 0). Offset 80 is past the kernel's mask and inside the
+ * 104-byte cancellation buffer, whose word 10 libniji does not use (boundary/src/cancel.rs).
+ * longjmp pops the shadow stack to setjmp's SSP plus its own return entry (incssp, at most
+ * 255 entries per instruction) before it jumps: the hardware checks every later `ret` against
+ * the shadow stack, so a jump out of deeper frames must drop their entries.
  *
  * The glibc names exist only in the products (NIJI_EXPORT), so that tests never interpose
  * on the host C library; the niji_machine_ forms are always present. */
@@ -35,6 +40,9 @@ niji_machine_sigsetjmp:
 	xorq %fs:0x30, %rax
 	rolq $0x11, %rax
 	movq %rax, 56(%rdi)
+	xorl %eax, %eax			/* SSP (D-21.5), 0 without a shadow stack */
+	rdsspq %rax
+	movq %rax, 80(%rdi)
 	xorl %eax, %eax
 	testl %esi, %esi
 	setne %al
@@ -75,7 +83,11 @@ niji_machine_siglongjmp:
 	popq %rsi
 	popq %rdi
 niji_machine_longjmp_nomask:
-	movq 48(%rdi), %r8
+	xorl %ecx, %ecx			/* a shadow stack to pop first? (D-21.5) */
+	rdsspq %rcx
+	testq %rcx, %rcx
+	jnz 3f
+4:	movq 48(%rdi), %r8
 	movq 8(%rdi), %r9
 	movq 56(%rdi), %rdx
 	rorq $0x11, %r8
@@ -96,6 +108,23 @@ niji_machine_longjmp_nomask:
 2:	movq %r8, %rsp
 	movq %r9, %rbp
 	jmpq *%rdx
+/* SSP in %rcx (its top: this call's return entry). Pop to setjmp's SSP + 8, as if setjmp had
+ * returned; nothing when setjmp ran without a shadow stack or the target is not above. */
+3:	movq 80(%rdi), %rax
+	testq %rax, %rax
+	jz 4b
+	addq $8, %rax
+	subq %rcx, %rax
+	jbe 4b
+	shrq $3, %rax			/* entries to pop */
+5:	cmpq $255, %rax
+	jbe 6f
+	movl $255, %ecx
+	incsspq %rcx
+	subq $255, %rax
+	jmp 5b
+6:	incsspq %rax
+	jmp 4b
 	.size niji_machine_siglongjmp, .-niji_machine_siglongjmp
 	.size niji_machine_longjmp_nomask, .-niji_machine_longjmp_nomask
 

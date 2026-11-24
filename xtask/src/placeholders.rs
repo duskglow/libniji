@@ -33,7 +33,7 @@ use std::process::Command;
 
 /// The placeholder libraries (design §16). Which libraries are placeholders is the design's
 /// choice; what each exports and which version nodes it has come from versions.tsv.
-pub const LIBRARIES: [&str; 9] = ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc_malloc_debug.so.0", "libnsl.so.1", "libresolv.so.2", "libBrokenLocale.so.1"];
+pub const LIBRARIES: [&str; 10] = ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc_malloc_debug.so.0", "libnsl.so.1", "libresolv.so.2", "libBrokenLocale.so.1", "libthread_db.so.1"];
 
 /// The empty static archives the development package ships so `-l<x>` resolves in a static link
 /// (SL-SONAMES, plan/system-libc.md §2): the merged libraries' (their symbols are in `libc.a`;
@@ -55,7 +55,7 @@ pub const FORWARDED: [&str; 1] = ["libresolv.so.2"];
 
 /// The libraries with a `lib<x>.so -> <soname>` development link (so `-l<x>` links dynamically
 /// against them rather than the empty archive).
-pub const DEV_LINKS: [&str; 2] = ["libresolv.so.2", "libBrokenLocale.so.1"];
+pub const DEV_LINKS: [&str; 3] = ["libresolv.so.2", "libBrokenLocale.so.1", "libthread_db.so.1"];
 
 /// The file in the products directory naming, one per line, every file [`build`] may have written
 /// there, so a product a table no longer names is removed by the next build rather than lingering
@@ -688,7 +688,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_o
         let dst = release.join(soname);
         let tmp = crate::so::tmp_name(&dst);
         crate::so::run(Command::new(cc)
-            .args(["-shared", "-nostdlib", "-fPIC", "-O2", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(["-shared", "-nostdlib", "-fPIC", "-O2", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
             .args(cdebug)
             .arg(format!("-Wl,-soname,{soname}"))
             .arg(format!("-Wl,--version-script={}", map.display()))

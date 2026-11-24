@@ -1,0 +1,56 @@
+{
+ "task": "C-LOCALE-IDENTIFICATION",
+ "model": "opus",
+ "tokens": null,
+ "result": "Built-in C/POSIX LC_IDENTIFICATION now the reference's (TERRITORY \"ISO\", issue #11) except the five contact fields of an individual, empty by D-7.10; C.UTF-8 already equal",
+ "branch": "task/c-locale-identification",
+ "head": "d1ca49dbd",
+ "gate": {
+  "affected": "15 suites ok, 6527 passed / 0 failed (76 ignored), conformance 2/2",
+  "peak": "gate: peak memory 2.2G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The PROBE program spec/tools/langinfo_probe.py needs was not in the tree; added as spec/tools/probe_langinfo.c; a full re-record reproduced every other langinfo.tsv row byte for byte",
+  "kill-label <gate label> --kill ended the jobrun wrapper but left the gate's xtask affected --run children running (role sync then BUSY); kill-mine <role> --kill ended them",
+  "Brief asked all items equal the reference; coordinator #7965 ruled the five contact fields stay empty (D-7.10)",
+  "Superseded: c-locale-identification-lint (older head; the final gate ran clippy and static), c-locale-identification-gate (older head, stopped), c-locale-identification-plants (baseline over the 600 s limit), c-locale-identification-quick (old test version)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "nl_langinfo(_NL_IDENTIFICATION_TERRITORY) in C/POSIX: \"\" -> \"ISO\" (perl I18N-Langinfo test 94, XS-APItest locale test 92); title, source, revision, date, 12 category strings now the reference's",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "s7_4_c_2 checks all 17 C identification indices; locale_diff.c oracle diffs every identification item of C, POSIX, C.UTF-8 with the host; plants",
+   "before": null,
+   "after": 4,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "none",
+   "what": "Built-in item string pool grows by the new identification strings (data only, no code on a start-up path)",
+   "before": null,
+   "after": null,
+   "unit": "bytes",
+   "measured": false
+  }
+ ],
+ "improvement": "kill-label should end a gate job's whole session (its affected --run children survived and blocked the role sync); also the plants tool could run a generator step after applying a plant and before its own products rebuild, so table-generated data can be planted against product tests within the limit",
+ "next_step": "Land; reply on issue #11 naming the five empty items only as contact fields of an individual",
+ "report_file": "handoff/C-LOCALE-IDENTIFICATION-report.md",
+ "jobs": [
+  "keke:c-locale-identification-gate2",
+  "keke:c-locale-identification-plants2",
+  "keke:c-locale-identification-startup",
+  "keke:c-locale-identification-quick2"
+ ]
+}

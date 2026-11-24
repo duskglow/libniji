@@ -255,15 +255,16 @@ fn place_block(offs: usize, old: &[u64], got: &Collected) -> KResult<usize> {
         slot.copy_from_slice(&base.saturating_add(pos).to_ne_bytes());
         pos = end.saturating_add(1);
     }
+    // The new words' strings (each with its null byte) lie one after another in `got.bytes`, in
+    // the order of their slots: one copy for all of them, then each slot points at its start.
+    let last = ends.last().copied().unwrap_or(0);
+    if let (Some(dst), Some(src)) = (tail.get_mut(pos..pos.saturating_add(last)), got.bytes.as_slice().get(..last)) {
+        dst.copy_from_slice(src);
+    }
     let mut from = 0usize;
     for &end in ends {
         let Some(slot) = slots.next() else { break };
-        let len = end.saturating_sub(from);
-        if let (Some(dst), Some(src)) = (tail.get_mut(pos..pos.saturating_add(len)), got.bytes.as_slice().get(from..end)) {
-            dst.copy_from_slice(src);
-        }
-        slot.copy_from_slice(&base.saturating_add(pos).to_ne_bytes());
-        pos = pos.saturating_add(len);
+        slot.copy_from_slice(&base.saturating_add(pos).saturating_add(from).to_ne_bytes());
         from = end;
     }
     Ok(addr)
@@ -474,7 +475,9 @@ impl Words for Collected {
     }
 }
 
-/// `wordexp(words, we, flags)`: 0 or a `WRDE_*` failure.
+/// `wordexp(words, we, flags)`: 0 or a `WRDE_*` failure. Inlined into its one caller, the
+/// export: one call level, one prologue (about 30 instructions a call otherwise).
+#[inline]
 pub fn wordexp(words: KResult<&[u8]>, we: Option<&mut wordexp_t>, flags: c_int) -> c_int {
     let (Ok(text), Some(w)) = (words, we) else {
         errno::set(Errno::EFAULT);

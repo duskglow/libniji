@@ -83,7 +83,7 @@ pub fn host_lookup<S: Sys>(ctx: &Ctx<'_, S>, name: &[u8], family: Family) -> Ans
     };
     nscache::host(ctx, Some(name), fam, None, |life| {
         nss::run(
-            &ctx.spec(Database::Hosts),
+            ctx.spec(Database::Hosts),
             |svc| match (svc, ctx.dns) {
                 (Service::Files, _) => files::host_by_name(ctx.sys, ctx.paths.hosts, name, family, ctx.multi),
                 (Service::Dns, Some(r)) => resolv::host_by_name_life(ctx.sys, r, name, family, life),
@@ -98,7 +98,7 @@ pub fn host_lookup<S: Sys>(ctx: &Ctx<'_, S>, name: &[u8], family: Family) -> Ans
 pub fn host_lookup_addr<S: Sys>(ctx: &Ctx<'_, S>, a: Ip) -> Answer<Host> {
     nscache::host(ctx, None, 0, Some(a), |life| {
         nss::run(
-            &ctx.spec(Database::Hosts),
+            ctx.spec(Database::Hosts),
             |svc| match (svc, ctx.dns) {
                 (Service::Files, _) => files::host_by_addr(ctx.sys, ctx.paths.hosts, a),
                 (Service::Dns, Some(r)) => resolv::host_by_addr_life(ctx.sys, r, a, life),
@@ -195,8 +195,8 @@ pub struct Resolved {
 
 /// The host `name` through the process's switch (the `rcmd` family, `gethostid`): `Ok(None)`
 /// when it is not found, an error only for a system failure.
-pub fn resolve<S: Sys>(sys: &S, name: &[u8], family: Family) -> Result<Option<Resolved>> {
-    let ctx = Ctx::system(sys).with_multi();
+pub fn resolve<S: Sys>(sys: &S, pages: &dyn niji_rt::chunks::ChunkPages, name: &[u8], family: Family) -> Result<Option<Resolved>> {
+    let ctx = Ctx::system(sys, pages).with_multi();
     match host_by_name(&ctx, name, family) {
         Ok(h) => match h.addrs.first() {
             Some(&addr) => Ok(Some(Resolved { canonical: TryVec::from_slice(h.name())?, addr })),
@@ -235,7 +235,7 @@ fn net_sources<S: Sys, T>(ctx: &Ctx<'_, S>, mut pred: impl FnMut(&[u8]) -> bool,
     }
     let mut dns = Some(dns);
     let rec = nss::run(
-        &ctx.spec(Database::Networks),
+        ctx.spec(Database::Networks),
         |svc| match svc {
             Service::Files => files::find_line(ctx.sys, ctx.paths.networks, &mut pred).map(Rec::Line),
             Service::Dns => dns.take().map_or(Err(LookupError::Unavailable), |d| d(ctx.sys).map(Rec::Dns)),

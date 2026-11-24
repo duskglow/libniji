@@ -1,0 +1,37 @@
+name: symbolic sets and messages, -H writes the header
+clause: s31_12_i_1
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set SetA
+| MsgOne one
+| 5 five
+| MsgTwo two
+| $set 7
+| 1 x
+| M3 three
+| $set SetB
+| X x
+| $set 2
+| 1 plain
+arg: --new
+arg: -H
+arg: o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 77f0cb4589cf294188a85217bcc6679598a0b499c6aa9c5dd617d4499558bdf3 size 257
+written-file: o.h
+|
+| #define SetBSet 0x8\t/* i.msg:8 */
+| #define SetBX 0x1\t/* i.msg:9 */
+| #define AutomaticSet8M3 0x2\t/* i.msg:7 */
+|
+| #define SetASet 0x1\t/* i.msg:1 */
+| #define SetAMsgOne 0x1\t/* i.msg:2 */
+| #define SetAMsgTwo 0x6\t/* i.msg:4 */
