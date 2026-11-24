@@ -1,0 +1,4 @@
+# P4 part 2 (validation/headers_p4.py): the differences of noexcept.tsv and callsites.tsv on libniji's headers that
+# are accepted, one printed line each, grouped under a comment that gives the reason (a differences row of
+# docs/differences-from-glibc.md, or the follow-up story that removes it). Ratchet: a line the probe no longer shows
+# is a FAIL (stale); the list only shrinks.

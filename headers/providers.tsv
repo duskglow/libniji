@@ -27,6 +27,7 @@ ps_pdwrite	debugger	proc_service.h: the proc_service interface the debugger impl
 ps_pglobal_lookup	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 bindresvport6	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
 getumask	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
+alloca	none	declared by the reference (visibility.tsv, alloca.h), no export; a call compiles to GCC's builtin (GCC manual, "Other Builtins")
 fpclassify	generic	ISO C++ [c.math]: <cmath> declares std::fpclassify as overloaded functions; probe: using std::fpclassify compiles
 isfinite	generic	ISO C++ [c.math]: <cmath> declares std::isfinite as overloaded functions; probe: using std::isfinite compiles
 isgreater	generic	ISO C++ [c.math]: <cmath> declares std::isgreater as overloaded functions; probe: using std::isgreater compiles
