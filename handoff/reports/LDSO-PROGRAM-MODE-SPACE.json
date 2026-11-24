@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "ld.so program mode trims the program's aligned-reservation slack: program mode now maps no more than an exec beyond the reference's own difference (0/+240/+8176 KiB at 4 KiB/64 KiB/2 MiB alignment, equal to the reference); Yohane's find premise does not reproduce on the Zen 1 host (page-aligned find)",
  "branch": "task/ldso-program-mode-space",
- "head": null,
+ "head": "43f6ba8e9 (code; later commits are handoff/report prose)",
  "gate": {
   "affected": "806 passed / 0 failed (11 suites)",
   "peak": "2.1G"

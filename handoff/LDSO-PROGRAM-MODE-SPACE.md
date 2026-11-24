@@ -1,4 +1,10 @@
-# LDSO-PROGRAM-MODE-SPACE: handoff (leg 1)
+# LDSO-PROGRAM-MODE-SPACE: handoff (final, leg 2)
+
+DONE (leg 2): all jobs on code head 43f6ba8e9 green on keke: `ldso-program-mode-space-gate` (affected, 11 suites,
+806 passed / 0 failed, peak 2.1G), `-plants` (1 CAUGHT, 0 WARN), `-startup` (`cargo xtask test`: 7336 + 4855 passed;
+full-profile `so`; `hot_text_products` 37 passed). `cargo xtask precheck` GREEN (34 checks) on the synced head.
+Report: `handoff/reports/LDSO-PROGRAM-MODE-SPACE.json`. Hand-back COMPLETE. Nothing left to do on this branch; the
+"Exact next step" section below is leg 1's record.
 
 State: branch `task/ldso-program-mode-space`, fast-forwarded to origin/next 522ef9f30 (LD-START-MAPS-3 landed there at
 13:00Z; the branch had no commits then). Code head 43f6ba8e9. Role keke `~/w/n4` (Zen 1, 60 vCPU, kernel 6.8), synced
