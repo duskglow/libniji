@@ -84,13 +84,13 @@ Other crates: abi, boundary, charmaps, collate-root, core, kernel, ld, ld-so, ld
 | `/etc/ttys` | crates/legacy/src/accounting.rs:46 |
 | `/proc/loadavg` | crates/core/src/system.rs:191 |
 | `/proc/self/auxv` | crates/boundary/src/sys.rs:353 |
-| `/proc/self/exe` | crates/boundary/src/ld/link.rs:567 |
+| `/proc/self/exe` | crates/boundary/src/ld/link.rs:617 |
 | `/proc/self/fd` | crates/core/src/process.rs:453, crates/legacy/src/io_compat.rs:40 |
 | `/proc/self/fd/` | crates/core/src/term.rs:462, crates/legacy/src/fs_compat.rs:66 |
 | `/proc/self/fd/0123456789` | crates/legacy/src/accounting.rs:447 |
 | `/proc/self/fdinfo/` | crates/boundary/src/spawn.rs:439 |
 | `/proc/self/loginuid` | crates/legacy/src/accounting.rs:48 |
-| `/proc/self/maps` | crates/boundary/src/ld/image.rs:895, crates/boundary/src/ld/image.rs:926, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
+| `/proc/self/maps` | crates/boundary/src/ld/image.rs:1228, crates/boundary/src/ld/image.rs:1277, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
 | `/proc/self/mountinfo` | crates/core/src/system.rs:592 |
 | `/proc/self/ns/user` | crates/legacy/src/nscache.rs:324 |
 | `/proc/self/pagemap` | crates/boundary/src/classed.rs:132 |
