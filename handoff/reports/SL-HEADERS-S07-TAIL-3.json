@@ -1,5 +1,5 @@
 {"task": "SL-HEADERS-S07-TAIL-3", "model": "opus", "tokens": null,
- "result": "Merged next (diagattrs.tsv: spawn.h rows kept, pow rows dropped per errno veto); spawn.h/sys/param.h/sys/wait.h templates spell NULL with @@null; headers-gen clean and byte-identical; header_check 0 failed of 17084; direct gate green",
+ "result": "Merged next (diagattrs.tsv: spawn.h rows kept, pow rows dropped per errno veto); spawn.h/sys/param.h/sys/wait.h templates spell NULL with @@null; headers-gen clean and byte-identical; header_check 0 failed of 17084; direct gate green (gate2/hc2 rerun on the final synced head, same commands as gate/hc)",
  "branch": "task/sl-headers-s07-tail-3", "head": "9ff179900",
  "gate": {"affected": "685 passed / 0 failed (6 suites, 0 SKIPPED)", "peak": "2.5G"},
  "accepted_first_attempt": null,
@@ -10,4 +10,4 @@
  "improvement": "headers-gen's ownership error should name the directive that fixes it (@@null for null-type rows); a job chained with ';' hid a failed headers-gen behind rc 0",
  "next_step": "land via the CI train",
  "report_file": "handoff/SL-HEADERS-S07-TAIL-3.md",
- "jobs": ["sl-headers-s07-tail-3-gate", "sl-headers-s07-tail-3-hc", "sl-headers-s07-tail-3-hgen2"]}
+ "jobs": ["sl-headers-s07-tail-3-gate2", "sl-headers-s07-tail-3-hc2"]}

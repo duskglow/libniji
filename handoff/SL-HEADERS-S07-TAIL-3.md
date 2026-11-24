@@ -26,6 +26,9 @@ report json comes after it.
 * `gate`: clippy -D warnings, `cargo xtask static`, `cargo xtask so`, `affected --run --base origin/next`:
   6 suites, 685 passed, 0 failed, 0 SKIPPED, affected ok, peak 2.5G. The changed generated headers and
   diagattrs.tsv were checked by the generator-check bounded set (their FULL run is the train's).
+* Final-head jobs: `gate2` and `hc2` (the same commands as `gate` and `hc`), run after the last sync. The
+  earlier `gate`, `hc` and `hgen2` are SUPERSEDED. They were green, but precheck saw the role's content change
+  after they ran: the handoff-only sync listed s13.py as removed, and hgen2 rewrote the libc-include mtimes.
 * Plants: none. The template change produces byte-identical generated output, so it changes no behaviour a plant
   could break (equivalent by construction).
 * SUPERSEDED `hgen`: its clippy and static passed, but it reported rc 0 even though headers-gen failed (the chain
