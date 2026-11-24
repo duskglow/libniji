@@ -1,0 +1,12 @@
+id = "D-27.95"
+section = "s26-29"
+spec = "§27.1, §27.3"
+ann = "—"
+status = "active"
+amends = ["D-27.49"]
+story = "TLS-DYNAMIC-BLOCKS"
+date = "2026-11-23"
+tests = ["crates/core/tests/s27_dynlink_clauses.rs::s27_1_c_7", "crates/core/tests/s27_dynlink_clauses.rs::s27_3_f_0"]
+body = '''
+**`RTLD_DI_TLS_DATA` and `dlpi_tls_data` for a block made on first access: null until the calling thread has it (DL-19, story TLS-DYNAMIC-BLOCKS; amends D-27.49 as it asked: "revisit when DL-19 adds dynamic blocks").** An object without `DF_STATIC_TLS` gets its blocks per thread on first access (D-27.94), so before that access the calling thread has no block and no address to give: `dlinfo` stores a null pointer and `dl_iterate_phdr` reports a null `dlpi_tls_data`, then the block's address once the thread has it, as dlinfo(3) and dl_iterate_phdr(3) document and as the reference does. Making the block in `dlinfo` would allocate in a query and could end the process on failure. An object with `DF_STATIC_TLS` still has its block from `dlopen` on, and D-27.49's answer (the block's address before first use) stays for it, with its differences row and COMPAT-29. Tests: `s27_dlinfo.c` (null before first use for its global-dynamic helper, on both libraries), `s27_dlopen_tls_dynamic.c` (both answers in a new thread before and after its first access).
+'''

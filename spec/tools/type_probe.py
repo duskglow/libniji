@@ -174,7 +174,9 @@ def float_value(tname, data):
     frac = v & ((1 << fbits) - 1)
     bias = (1 << (ebits - 1)) - 1
     if exp == (1 << ebits) - 1:
-        return ("-" if sign else "") + ("inf" if frac == 0 else "nan")
+        # A NaN is quiet when the fraction's top bit is set and signaling otherwise (IEEE 754-2008 6.2.1; the x87
+        # format's explicit integer bit is outside `frac`): SNAN and its kin are signaling (C2X 7.12, TS 18661-1).
+        return ("-" if sign else "") + ("inf" if frac == 0 else "nan" if frac >> (fbits - 1) & 1 else "snan")
     if exp == 0:
         return hexfloat(sign, frac, 1 - bias - fbits)
     return hexfloat(sign, frac | (1 << fbits), exp - bias - fbits)

@@ -1,0 +1,5 @@
+# LIMITS-CONFIG-SMALL plants (cargo xtask plants; HL-18, HL-19; D-17.10)
+name-cap-restored | crates/boundary/src/report.rs | lit:if rest.is_empty() || more_store(rest) { ==> if rest.is_empty() { | cargo test -p niji --test s02_diagnostics_clauses s2_3_c_3 | msg:s2_3_c_3.*(FAILED|panicked)
+name-spill-ignored | crates/boundary/src/report.rs | lit:&& more_equal(rest) ==> | cargo test -p niji --test s02_diagnostics_clauses s2_3_c_3 | msg:s2_3_c_3.*(FAILED|panicked)
+getpass-cap-restored | crates/boundary/src/users.rs | lit:0 => usize::MAX, ==> 0 => 1 << 20, | cargo test -p niji-boundary --test s17_users_symbols sym_getpass_bound | msg:sym_getpass_bound.*(FAILED|panicked)
+getpass-nomem-undrained | crates/boundary/src/users.rs | perl:s/(fn read_line_stream.*?)fail = Some\(e\);/$1return Err(e);/s | cargo test -p niji-boundary --test s17_users_symbols sym_getpass_bound | msg:sym_getpass_bound.*(FAILED|panicked)

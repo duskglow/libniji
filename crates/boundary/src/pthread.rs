@@ -400,12 +400,8 @@ pub fn join_clock(t: pthread_t, clock: c_int, at: Option<&Timespec>) -> KResult<
     let c = clock_of(clock)?;
     match at {
         None => join(t, JoinWait::Block),
-        Some(ts) => {
-            if ts.nsec < 0 || ts.nsec >= 1_000_000_000 {
-                return Err(Errno::EINVAL);
-            }
-            join(t, JoinWait::Until(c, ts))
-        }
+        // An invalid tv_nsec is checked by `join` only when the thread still runs.
+        Some(ts) => join(t, JoinWait::Until(c, ts)),
     }
 }
 

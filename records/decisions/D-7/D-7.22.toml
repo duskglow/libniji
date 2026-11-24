@@ -1,0 +1,12 @@
+id = "D-7.22"
+section = "s07"
+spec = "§7.4"
+ann = "COMPAT"
+status = "active"
+amends = ["D-7.10", "D-7.16"]
+story = "C-LOCALE-IDENTIFICATION"
+date = "2026-11-23"
+tests = ["crates/core/tests/s07_locale_clauses.rs::s7_4_c_2", "crates/core/tests/locale_products.rs::locale_behaviour_equals_the_reference"]
+body = '''
+**The "C" locale's `LC_IDENTIFICATION` is the reference's, less an individual's contact fields** (GitHub issue #11: perl's `I18N-Langinfo` and `XS-APItest` tests expect `_NL_IDENTIFICATION_TERRITORY` to be `"ISO"` in "C"). Narrows D-7.10's difference: "C" (and "POSIX") report the reference's identification of the ISO/IEC 14652 i18n FDCC set (title, source, territory `ISO`, revision, date, one `i18n:1999` category string per category, codeset), probed black-box and recorded by `spec/tools/langinfo_probe.py` with its probe source `spec/tools/probe_langinfo.c` (a full re-record reproduced every other row of `spec/abi/langinfo.tsv` byte for byte). The address, contact, e-mail, telephone and fax items hold the contact data of an individual and stay empty, as D-7.10 accepted (owner, 2026-10-01; coordinator #7965). No compatibility option: restoring them would mean shipping that personal data. "C.UTF-8" already matched the reference and is unchanged. Checked against the host's library by `locale_diff.c` (every item of "C", "POSIX" and "C.UTF-8", all 12 category strings, the five contact fields left out).
+'''

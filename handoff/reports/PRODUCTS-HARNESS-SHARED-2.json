@@ -1,0 +1,21 @@
+{"task": "PRODUCTS-HARNESS-SHARED-2", "model": "opus", "tokens": null,
+ "result": "merged origin/next into the PRODUCTS-HARNESS-SHARED work and resolved the catalogs_products.rs conflict (next's run(.., mode: &str) with the branch's shared oracle::with_headers(.., HEADERS)); direct gate and the 10 plants green on the merged head",
+ "branch": "task/products-harness-shared-2", "head": null,
+ "gate": {"affected": "3549 passed / 0 failed (direct tier, 164 of 323 targets, both passes, 283 ignored)", "peak": "4.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Step 0 (clippy + static on the inherited head 52dc11c45) was green: the last run's only red was CI's merge conflict, not a failing job.",
+   "The products work itself is unchanged from PRODUCTS-HARNESS-SHARED (see handoff/PRODUCTS-HARNESS-SHARED.md); its impact rows still hold."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "PRODUCTS-HARNESS-SHARED (M5) can land again; it enables PRODUCTS-ONE-BINARY (M7)", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "size", "what": "lines in the migrated *_products.rs files (inherited from PRODUCTS-HARNESS-SHARED)", "before": 14515, "after": 13740, "unit": "lines", "measured": false},
+   {"kind": "tooling", "what": "files a products link-line change touches (inherited)", "before": 58, "after": 1, "unit": "files", "measured": false},
+   {"kind": "coverage", "what": "plants on the shared helpers re-run on the merged head", "before": 10, "after": 10, "unit": "plants CAUGHT", "measured": true}
+ ],
+ "improvement": "a story that only needs a merge-conflict resolution still re-runs a 48-minute direct gate (164 targets, because oracle.rs is shared); when only the conflicted file changed relative to an already-gated head, the gate could be cut to that file's targets plus the merge's own direct tier",
+ "next_step": "land; then PRODUCTS-ONE-BINARY (M7)",
+ "report_file": "handoff/PRODUCTS-HARNESS-SHARED.md",
+ "jobs": ["products-harness-shared-2-gate", "products-harness-shared-2-plants", "products-harness-shared-2-lint1"]}

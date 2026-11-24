@@ -1,0 +1,12 @@
+{"task": "PKG-COEXIST-SERIAL-2", "model": "sonnet", "tokens": null,
+ "result": "The CI red was a stale gencat product in the CI role's target/niji (no source on next builds gencat); with a fresh build all 6 deb_manifest tests pass; no code change",
+ "branch": "task/pkg-coexist-serial-2", "head": "21a9aacd9",
+ "gate": {"affected": "6 passed / 0 failed (deb_manifest, fresh cargo xtask so)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["manifest lint reads whatever is in target/niji: a product left by an earlier build on the same role (gencat) fails tables_are_sorted_well_formed_and_name_built_products; xtask so does not remove products it no longer builds",
+                   "the build logs 'layout: verdict cache: could not store ... (an ok line holds a newline)'"],
+ "refused": [],
+ "impact": [],
+ "improvement": "xtask so (or the lint) should ignore or clear products the current build does not produce, so a leftover on a CI role cannot fail an unrelated branch",
+ "next_step": "none", "report_file": "handoff/PKG-COEXIST-SERIAL.md",
+ "jobs": ["shiki:pkg-coexist-serial-2-debtest"]}

@@ -972,7 +972,14 @@ fn dlopen_tls_modules_past_the_vectors_in_place() {
     }
     let libc = named_libc(&lib, &top);
     build_all(vec![("tlsprog".into(), cc(&top, "tlsprog", TLS_PROG, &prog_flags(&lib, &ld, &libc, &[])))]);
-    let o = run(Command::new(top.join("tlsprog")).arg(&d));
+    // Each module's initial-exec block needs static room: 1100 of them pass the 1712-byte default
+    // (D-27.94), so the run asks for 32768 bytes more (`run` clears the environment first).
+    let mut cmd = Command::new(top.join("tlsprog"));
+    cmd.arg(&d).env_clear().env("GLIBC_TUNABLES", "glibc.rtld.optional_static_tls=32768");
+    if let Some(p) = std::env::var_os("PATH") {
+        cmd.env("PATH", p);
+    }
+    let o = cmd.output().unwrap();
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
     let want = "main 0\nbefore 0\nmain kept 0\nafter 0\none slot 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\ngrown kept 0\n";

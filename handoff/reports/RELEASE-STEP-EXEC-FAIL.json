@@ -1,0 +1,81 @@
+{
+ "task": "RELEASE-STEP-EXEC-FAIL",
+ "model": "opus",
+ "tokens": null,
+ "result": "Established (flag #8169, accepted): next failed init_data_clusters_hold_at_every_text_phase on the Skylake-SP CI host after the 06:32Z locales-all install (per-locale directories: tool 58/59 by text pad; with an en_US archive 45 at every pad); owner restored the archive 18:10Z. Release-step exits 127/99 remain NOT established; branch removes the latent shared-call-dir race and makes the next such failure print its stderr",
+ "branch": "task/release-step-exec-fail",
+ "head": null,
+ "gate": {
+  "affected": "35 passed / 0 failed (gate3, after the 18:10Z archive restore)",
+  "peak": "2.0G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Landing order with LOCALE-PER-DIR-LOAD (both rewrite faults_env)",
+   "recommendation": "land this branch; LOCALE-PER-DIR-LOAD keeps call_dir and run_failure (fixed-length dir name) when it merges next, so a further 127/99 prints its stderr"
+  },
+  {
+   "item": "empty-main instruction bound (train 953)",
+   "recommendation": "LD-START-MAPS adds +2422 of the 2972 headroom on next; it should pay for its instructions or carry a ruling; do not loosen the bound"
+  }
+ ],
+ "informational": [
+  "tool-mode faults (fast products) by /usr/lib/locale form: en_US archive 45, only the en_US.utf8 directory 38, the host's 511 directories 58: about 20 faults follow the number of locale directories present (for LOCALE-PER-DIR-LOAD: touch only the data needed)",
+  "The CI release step runs cargo test (one process for all tests) while the fast pass runs nextest (one process per test): cross-test harness races only show in the release step",
+  "perf records no page fault inside unshare -r: init_startup_data_accesses_are_in_the_data1_cluster cannot run in a user namespace",
+  "Slowing localedef by 20 s (probe-archive OnceLock held) did not trigger the % 10 directory reuse on tip 6f9fd5047 (2/2 green)",
+  "On the tip, setpriv and unshare (contain::user) also exit 127 when they cannot exec the next program: 127 alone does not mean page_faults was missing"
+ ],
+ "refused": [],
+ "jobs": [
+  "mei:release-step-exec-fail-gate3",
+  "mei:release-step-exec-fail-plants-3",
+  "mei:release-step-exec-fail-release3"
+ ],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "hot_text_products failure message carries the run's exit status and stderr (diagnosability of the release-step reds)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "faults_env call directories never shared under cargo test (latent race removed)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "harness tests added (3 plants, all caught)",
+   "before": 0,
+   "after": 2,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "cause of next's fast-pass red on the CI host (blocks every train without LOCALE-PER-DIR-LOAD): tool faults at cold 0x2000, per-directory locales vs an archive",
+   "before": 59,
+   "after": 45,
+   "unit": "minor faults (host dirs vs archive)",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "train 953 empty-main bound: per-candidate deltas (LD-START-MAPS +2422, SHSTK-OPT-IN-2 +362, THREAD-CREATE-COST +3 instr)",
+   "before": 170628,
+   "after": 173050,
+   "unit": "instr (next vs next+LD-START-MAPS)",
+   "measured": true
+  }
+ ],
+ "improvement": "Pin the test host's environment changes into the pipeline record (a host package install silently turned next red for every train for 10 hours); and run the release step's hot_text_products under nextest too, or the fast pass under cargo test once",
+ "next_step": "Coordinator: land this branch; LOCALE-PER-DIR-LOAD keeps call_dir/run_failure on merge; read the stderr of any further release-step 127/99",
+ "report_file": "handoff/RELEASE-STEP-EXEC-FAIL.md"
+}

@@ -1,0 +1,16 @@
+{"task": "CTYPE-OBJECTS-SETLOCALE-2", "model": "sonnet", "tokens": null,
+ "result": "train-owned s05 view restored; the six legacy ctype objects follow the global LC_CTYPE; plants 2/2 CAUGHT, full-profile start-up checks green, gate red only on known locale-environment tests",
+ "branch": "task/ctype-objects-setlocale-2", "head": "e813bd4c1",
+ "gate": {"affected": "conformance 54 passed / 0 failed; niji suites 4 failed (locale-environment: catalogs, locale_behaviour, printf_corpus, s7_2_f_0)", "peak": "14G"},
+ "accepted_first_attempt": false,
+ "rulings": [{"item": "built-in C.UTF-8 has no 32-bit ctype tables, so __ctype32_* hold the C tables there (last residual of D-5.13)", "recommendation": "follow-up story: give C.UTF-8 its own 32-bit tables (about 3 KiB rodata)"}],
+ "informational": ["gate and xtask test red only on host locale-environment tests (no locale archive on the gate machine; class #7846)", "start-up instruction count head vs base was never measured (counts-4 never ran)"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "__ctype_b/_tolower/_toupper and __ctype32_* follow setlocale(LC_CTYPE/LC_ALL) as the reference's do (D-5.13 shrunk to two residuals)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "conformance s05_ctype_legacy_objects setlocale rows; 2 plants", "before": null, "after": 2, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a driver that runs checks with set -e hides the later steps behind an unrelated red; run each check as its own job",
+ "next_step": "train judges the locale-environment reds; optional start-up count",
+ "report_file": "handoff/ctype-objects-setlocale.md",
+ "jobs": ["mei:ctype-objects-setlocale-2-plants", "mei:ctype-objects-setlocale-2-full", "mei:ctype-objects-setlocale-2-gate", "mei:ctype-objects-setlocale-2-checks"]}

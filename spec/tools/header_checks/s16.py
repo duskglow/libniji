@@ -5,7 +5,10 @@
 * `<sys/profil.h>`: the reference's header includes `<sys/time.h>` (slice 7, not generated yet), which brings fd_set,
   sigset_t, the pthread types and more at every level. Until that header exists the shared P1 skips it (its row has
   `p1` 0) and this module runs P1 on the one structure `<sys/profil.h>` itself declares, `struct prof`;
-* `<gnu/lib-names.h>`: one string macro per library of versions.tsv, with the library's soname.
+* `<gnu/lib-names.h>`: one string macro per library of versions.tsv, with the library's soname;
+* `must_fail`: `<sys/elf.h>` is shipped to fail in every configuration (D-X.130 (3)), with an #error naming the header.
+  header_check.py leaves it out of P5; the unit below includes it and the runner requires a failure that is that #error
+  ("is not provided"), not a missing file or a syntax slip.
 Loaded by spec/tools/header_check.py, which lists this directory.
 """
 import os
@@ -15,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check as hc  # noqa: E402
 
 PENDING_INCLUDE = {"sys/profil.h": {"prof"}}
+must_fail = ["sys/elf.h"]
 SLICE16 = ["dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h", "sys/platform/x86.h"]
 
 
@@ -63,6 +67,8 @@ def units(ctx):
         f"typedef char niji_so_{i}[__builtin_strcmp({n.split('.so')[0].upper().replace('-', '_')}_SO, \"{n}\") == 0 ? 1 : -1];\n"
         for i, n in enumerate(names))
     out += [(cid, "S16 gnu/lib-names.h", body) for cid in ctx.ids]
+    levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
+    out += [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n") for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
     return out
 
 

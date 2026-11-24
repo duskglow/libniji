@@ -651,9 +651,9 @@ fn s4_13_c_4() {
 #[test]
 fn s4_13_c_5() {
     let v = cstring::argz_add(b"a\0", b"c").unwrap();
-    let v = cstring::argz_insert(&v, 2, b"b").unwrap();
+    let v = cstring::argz_insert_list(&v, 2, b"b").unwrap();
     assert_eq!(entries(&v), [&b"a"[..], b"b", b"c"]);
-    let v = cstring::argz_delete(&v, 2).unwrap();
+    let v = cstring::argz_delete_list(&v, 2).unwrap();
     assert_eq!(entries(&v), [&b"a"[..], b"c"]);
 }
 
@@ -689,7 +689,7 @@ fn s4_14_c_0() {
     assert_eq!(cstring::envz_get(e, b"N"), None, "null value");
     assert_eq!(cstring::envz_get(e, b"E"), Some(8), "empty value, distinct from null");
     assert_eq!(cstring::envz_entry(e, b"N"), Some(4));
-    let added = cstring::envz_add(e, b"A", Some(b"2")).unwrap();
+    let added = cstring::envz_add_list(e, b"A", Some(b"2")).unwrap();
     assert_eq!(entries(&added), [&b"N"[..], b"E=", b"A=2"]);
     let kept = cstring::envz_merge(e, b"A=9\0B=1\0", false).unwrap();
     assert_eq!(entries(&kept), [&b"A=1"[..], b"N", b"E=", b"B=1"]);

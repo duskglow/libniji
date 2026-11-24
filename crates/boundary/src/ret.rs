@@ -358,7 +358,7 @@ pub fn errnum_store<T>(dst: Option<&mut T>, r: KResult<T>) -> c_int {
 }
 
 /// `time(t)`'s result: the value, also stored when `t` is given; -1 with `errno`.
-pub fn time(dst: Option<&mut i64>, r: KResult<i64>) -> i64 {
+pub fn time_result(dst: Option<&mut i64>, r: KResult<i64>) -> i64 {
     match r {
         Ok(v) => {
             if let Some(d) = dst {

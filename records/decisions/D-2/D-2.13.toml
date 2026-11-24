@@ -1,0 +1,11 @@
+id = "D-2.13"
+section = "s02"
+spec = "§2.3"
+ann = "ARB"
+status = "active"
+story = "ERROR-H-NORETURN"
+date = "2026-11-23"
+tests = ["crates/core/tests/s02_diagnostics_clauses.rs", "conformance/c/s02_error_returns.c"]
+body = '''
+**`<error.h>` declares `error` and `error_at_line` noreturn only for a call whose status is a nonzero constant.** Both return when the status is 0 (§2.3, s2_3_c_2/s2_3_c_3), so a plain `__noreturn__` declaration let the compiler drop the code after `error (0, ...)`. `spec/abi/diagattrs.tsv` writes their noreturn column as `nonzero:1` (the 1-based argument whose nonzero constant value means "does not return"; `spec/tools/attr_probe.py` measures it with a status-0 and a constant-1 caller), and `cargo xtask headers-gen` emits the plain declaration without noreturn plus, under GCC with `__OPTIMIZE__` (not clang, not C++: `__builtin_va_arg_pack` is GCC's), an always-inline `gnu_inline` wrapper that calls a noreturn `__asm__` alias of the same symbol only when `__builtin_constant_p (status) && status != 0`, else a returning alias. Chosen by a caller matrix (gcc 13.3, -O0/-O2; callers with status 0, constant 1, run-time variable): no noreturn keeps every call returning but loses the dead-code knowledge after `error (1, ...)`; the wrapper keeps every status-0 and variable call returning and drops the code after a constant-1 call at -O2, as the reference headers' callers see. A macro wrapper was rejected: `#define error(...)` breaks a member or callback spelled `obj->error (...)`. Clang was not available on the Zen 1 or Skylake-SP build hosts; clang takes the plain declaration (always correct). The other noreturn rows (exit family, abort, pthread_exit, thrd_exit, the longjmp family, err/errx/verr/verrx, __pthread_unwind_next) never return for any argument and keep `1`.
+'''

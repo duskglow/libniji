@@ -1,0 +1,26 @@
+{"task": "UNWIND-EXIT-COST", "model": "opus", "tokens": null,
+ "result": "COMPLETE: libniji's exit walk 46% cheaper (dynamic plain-C pthread_exit 57,115 -> 30,980 user instr at depth 0, 97,321 -> 52,340 at depth 10, cancel 70,106 -> 38,161); target (reference 8,825) not reached",
+ "branch": "task/unwind-exit-cost", "head": null,
+ "gate": {"affected": "7 suites, 265 passed / 0 failed (direct tier)", "peak": "1.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "No bound covers dynamic pthread_exit/pthread_cancel (validation/, benchmarks/): nothing to tighten; recommend a percall row with the new level in a follow-up",
+   "Candidate (b) (skip the walk when no frame can have a handler) not landed and not measured: needs a per-object personality-CIE answer cached across dlopen/dlclose; estimated ~25k per plain-C exit; recommend its own story",
+   "Skylake-SP not measured: only the Zen 1 role was assigned",
+   "Per-package `cargo clippy -p niji-boundary` (no workspace features) reports two unrelated lints (niji_machine_running_on_valgrind unused, fn-item cast); `cargo xtask clippy` is clean"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "dynamic plain-C pthread_exit depth 0 (exit's own cost, Zen 1)", "before": 57115, "after": 30980, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "dynamic plain-C pthread_exit depth 10", "before": 97321, "after": 52340, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "pthread_exit depth 10 with pthread_cleanup_push per frame", "before": 124468, "after": 80157, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "pthread_cancel depth 3 (in read)", "before": 70106, "after": 38161, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "C++ throw 10 frames (libgcc unwinder; unchanged, run-to-run spread ~14)", "before": 98986, "after": 98996, "unit": "instr/op", "measured": true},
+   {"kind": "correctness", "what": "an .eh_frame_hdr table count running past its segment finds nothing (tested)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants added (7, all caught) and one test case", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "affected --list waits for a build slot like a job (a foreground call timed out at 300 s): folding the FULL-escalation check into the gate job (gate.sh) avoided a second queue wait",
+ "next_step": "land; follow-ups: candidate (b) as its own story, a pthread_exit percall bound, thread::finish (19.5k)",
+ "report_file": "handoff/UNWIND-EXIT-COST.md",
+ "jobs": ["unwind-exit-cost-gate1", "unwind-exit-cost-plants2", "unwind-exit-cost-chk4", "unwind-exit-cost-static1"]}

@@ -457,6 +457,17 @@ fn ip27_finds_fdes_through_the_header_and_by_scanning() {
     o.add_segment(Image { addr: 0x1000, bytes: &CODE });
     o.set_header(EH);
     assert!(run(&[o], &mem, regs(&[(RA, 0x1001), (RSP, 0x7000)]), 0, 1).is_empty());
+    // A table whose count runs past the end of its segment (loaded data is untrusted) is not
+    // read: nothing is found through it, and nothing past the segment is touched.
+    let mut bytes = with_header(true);
+    if let Some(n) = bytes.get_mut(8..12) {
+        n.copy_from_slice(&u32::MAX.to_le_bytes());
+    }
+    let mut o = Object::new();
+    o.add_segment(Image { addr: EH, bytes: &bytes });
+    o.add_segment(Image { addr: 0x1000, bytes: &CODE });
+    o.set_header(EH);
+    assert!(run(&[o], &mem, regs(&[(RA, 0x2001), (RSP, 0x7000)]), 0, 1).is_empty());
     // An object without call-frame information describes nothing.
     let mut o = Object::new();
     o.add_segment(Image { addr: 0x1000, bytes: &CODE });

@@ -5,15 +5,8 @@ libniji was called Liella until November 2026.
 Each section's known limitations are those of its own snapshot; later sections say what was fixed. The newest
 snapshot's list is in `snapshot-2026-11-22.3` below.
 
-## Unreleased (on `next`, for the next snapshot)
-
-- **Thread exits without an unwinder ([#25](https://github.com/duskglow/libniji/issues/25)):** in a
-  `-static-libgcc` program that loads no `libgcc_s.so.1`, a thread exit (`pthread_exit`, cancellation) with unwind work
-  on its stack (`-fexceptions` cleanups, C++ destructors or handlers) no longer hangs: the process stops with a message
-  naming the cause and the fix (D-22.23; registered compatibility option COMPAT-38, row in
-  [differences-from-glibc.md](differences-from-glibc.md)).
-
-Every other change up to `snapshot-2026-11-22.3` is in the sections below.
+Changes on `next` since the newest snapshot are one file each in [release-notes.d/](release-notes.d/README.md);
+`cargo xtask release-notes` prints them assembled. This file holds released sections only.
 
 ## libniji: twenty-sixth pre-release, 2026-11-22 (`snapshot-2026-11-22.3`)
 
