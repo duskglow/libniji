@@ -3,10 +3,159 @@
 libniji was called Liella until November 2026.
 
 Each section's known limitations are those of its own snapshot; later sections say what was fixed. The newest
-snapshot's list is in `snapshot-2026-11-22.3` below.
+snapshot's list is in `snapshot-2026-11-24.1` below.
 
 Changes on `next` since the newest snapshot are one file each in [release-notes.d/](release-notes.d/README.md);
 `cargo xtask release-notes` prints them assembled. This file holds released sections only.
+
+## libniji: twenty-eighth pre-release, 2026-11-24 (`snapshot-2026-11-24.1`)
+
+`main` at commit `88c0518f`, tagged `snapshot-2026-11-24.1`. Changes since
+[`snapshot-2026-11-23.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-23.1).
+
+- **[#12](https://github.com/duskglow/libniji/issues/12), `gencat`:** `libc-dev-bin` now ships `/usr/bin/gencat`. The
+  catalogs it writes are byte-identical to stock `gencat`'s for the same input, its exit status matches stock's for
+  malformed and missing input, and `catopen`/`catgets` read catalogs back as stock does, by path and through
+  `NLSPATH`.
+- **[#21](https://github.com/duskglow/libniji/issues/21), address space of a long directory walk:** the heap's small
+  size classes are finer, so the issue's `find` over 200,000 entries needs 23,584 KiB more than over 3 files, down from
+  32,320 in 23.1 (stock: 26,976). The address space at start-up is not yet reduced in this snapshot; that change
+  landed after this commit.
+- **Shadow stack (Intel CET):** libniji's `libc.so.6`, `libm.so.6`, loader and start files now carry the shadow-stack
+  property, so programs linked against them are marked. Turning the shadow stack on is opt-in through
+  `GLIBC_TUNABLES`. Neither CPU class we test on has the feature, so these checks cover only the tunables' behaviour
+  without it, which equals stock's in every row.
+- **[#14](https://github.com/duskglow/libniji/issues/14), locales:** a locale compiled from the shipped `en_US` source
+  now formats dates and times as stock's does; compiled-locale read-back differs from stock in 0 of 37 checked lines
+  (23.1: 8).
+- **Start-up** costs about 2,100 fewer user instructions per dynamic start than 23.1 (about 1%); page faults are
+  unchanged.
+
+### Packages
+
+The same two flavours as before, built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64,
+attached with `SHA256SUMS`. GitHub does not allow `~` in asset names, so the `niji6` files are published with `.` in its
+place. `SHA256SUMS` lists the names as published, and the package versions inside the files are unchanged.
+
+- **Beside glibc** (`niji6`, `niji6-dev`), version `0.0~snapshot20261124.1+88c0518f6ba4`. It sorts above 23.1's.
+- **As the system C library** (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`,
+  `libc6-dbg`), version `2.39+niji20261124.1-1`, **experimental**. `libc-dev-bin` adds `gencat`.
+
+Checks on this commit:
+
+| Check | Result |
+|---|---|
+| Every check of 23.1 | equal or better |
+| [#12](https://github.com/duskglow/libniji/issues/12): stock `gencat` vs libniji's, three inputs | byte-identical; read-back equal to stock |
+| [#21](https://github.com/duskglow/libniji/issues/21): the issue's `find` formula | passes 5 of 5; 23,584 KiB (23.1: 32,320; stock 26,976) |
+| Shadow-stack tunables, dynamic and static, on CPUs without the feature | equal to stock |
+| [#14](https://github.com/duskglow/libniji/issues/14): bash's command, and compiled-locale read-back | compiles; 0 of 37 lines differ from stock |
+
+**The system flavour still has no C headers.** Its `libc6-dev` replaces Debian's, so after a system install no C
+program that includes a C library header compiles. Use the flavour beside glibc (which keeps the system's headers) to
+compile. The generated headers are in their last step and will come in a following snapshot.
+
+### Start-up
+
+Per dynamic program, ASLR off, median of 101 runs, user instructions / page faults:
+
+| Program | CPU class | glibc 2.39 | 23.1 | this snapshot |
+|---|---|---|---|---|
+| empty `main` | Skylake-SP | 107,752 / 49 | 156,623 / 52 | 154,535 / 52 |
+| three libraries | Skylake-SP | 143,094 / 65 | 231,770 / 67 | 229,676 / 67 |
+| `clock_gettime` | Skylake-SP | 109,862 / 50 | 167,599 / 55 | 165,510 / 55 |
+| empty `main` | Zen 1 | 101,533 / 48 | 156,382 / 52 | 154,296 / 52 |
+
+### Known limitations
+
+- **[#21](https://github.com/duskglow/libniji/issues/21), the rest:** the address space at start-up is still larger
+  than stock's (8,640 KiB against 3,988 in the issue's probe); the reduction landed after this commit.
+- **[#6](https://github.com/duskglow/libniji/issues/6), the rest:** some character-set names convert differently from
+  stock, and some names stock lists have no libniji converter.
+- **`$ORIGIN` in set-user-ID and set-group-ID programs:** expanded only for libraries in the default system library
+  directories. This is deliberate.
+- **Thread debugging of dynamically linked programs** waits for the loader's debugger interface (`_r_debug`).
+- The system flavour ships no C headers, as above.
+
+## libniji: twenty-seventh pre-release, 2026-11-23 (`snapshot-2026-11-23.1`)
+
+`main` at commit `80d1f809`, tagged `snapshot-2026-11-23.1`. Changes since
+[`snapshot-2026-11-22.3`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-22.3).
+
+- **[#25](https://github.com/duskglow/libniji/issues/25), C++ thread exit:** C++ programs built with `niji-g++` now
+  unwind a thread's stack on `pthread_exit` and on acting on a cancellation request, as with g++ and stock glibc:
+  destructors run, and `catch (abi::__forced_unwind&)` with a rethrow works. A program linked `-static-libgcc` with no
+  `libgcc_s.so.1` loaded no longer hangs at such an exit: it stops with a message naming the cause and the fix, with
+  stock's exit status.
+- **[#24](https://github.com/duskglow/libniji/issues/24):** every interface that reports where a loaded object came
+  from (`dladdr`, `dl_iterate_phdr`, the link map) gives the same path as stock.
+- **[#11](https://github.com/duskglow/libniji/issues/11):** the C, POSIX and C.UTF-8 locales answer `LC_IDENTIFICATION`
+  queries as stock does; the issue's reproducer prints `[ISO]`. The contact fields stay empty by design.
+- **[#14](https://github.com/duskglow/libniji/issues/14), locales:** `locales` now ships 287 locale sources, the
+  `SUPPORTED` list and charmaps, generated by libniji rather than copied from glibc, so bash's own `localedef` command
+  works on a system with only libniji's packages. `localedef` now accepts the POSIX symbolic character names, searches
+  the current directory and `I18NPATH`, fills the categories a source leaves out with defaults, writes the locale
+  archive, and transliterates strings the target charmap lacks.
+- **Dynamic start-up costs about 40% less.** User instructions per dynamic start fall by 39% to 40% against 22.3 (an
+  empty `main`: 260,857 -> 156,623; glibc 107,752), from handling each loaded object once, a faster relative-relocation
+  loop and validating each symbol once. Every start-up row takes one more page fault than 22.3; that is being traced.
+- **`ld.so` run as a program** now runs programs that need shared objects, and takes `--library-path`.
+- **Thread debugging of static programs:** `libthread_db.so.1` lets debuggers list the threads of a statically linked
+  libniji program, show each thread's backtrace and read its thread-local variables, live or from a core file (tested
+  with gdb 15.1).
+- **Under valgrind,** nothing is still reachable at exit ("All heap blocks were freed"), and stdio streams allocate
+  through the program's `malloc`.
+- **[#21](https://github.com/duskglow/libniji/issues/21):** the issue's probe and `find` formula give the same numbers
+  as 22.3.
+
+### Packages
+
+The same two flavours as before, built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64,
+attached with `SHA256SUMS`. GitHub does not allow `~` in asset names, so the `niji6` files are published with `.` in its
+place. `SHA256SUMS` lists the names as published, and the package versions inside the files are unchanged.
+
+- **Beside glibc** (`niji6`, `niji6-dev`), version `0.0~snapshot20261123.1+80d1f809b2d1`. It sorts above 22.3's.
+  `niji6` adds `libthread_db.so.1`; `niji6-dev` adds the `libthread_db.so` link and `niji-unwinder.o`.
+- **As the system C library** (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`,
+  `libc6-dbg`), version `2.39+niji20261123.1-1`, **experimental**.
+
+Checks on this commit:
+
+| Check | Result |
+|---|---|
+| Every check of 22.3 | equal or better |
+| [#25](https://github.com/duskglow/libniji/issues/25): the issue's three cases built with `niji-g++` | unwind; output equal to g++ with stock |
+| [#24](https://github.com/duskglow/libniji/issues/24), [#11](https://github.com/duskglow/libniji/issues/11), `ld.so --library-path` | equal to stock |
+| [#14](https://github.com/duskglow/libniji/issues/14): bash's exact command on a system with only libniji's packages | compiles, as on stock |
+| Dynamic start-up | **-39% to -40% user instructions**, one more page fault per start |
+
+**The system flavour has no C headers yet.** Its `libc6-dev` replaces Debian's, so after a system install no C program
+that includes a C library header compiles. Use the flavour beside glibc (which keeps the system's headers) to compile.
+
+### Start-up
+
+Per dynamic program, ASLR off, median of 101 runs, user instructions / page faults:
+
+| Program | CPU class | glibc 2.39 | 22.3 | this snapshot |
+|---|---|---|---|---|
+| empty `main` | Skylake-SP | 107,752 / 49 | 260,857 / 51 | 156,623 / 52 |
+| three libraries | Skylake-SP | 143,094 / 65 | 371,146 / 66 | 231,770 / 67 |
+| `clock_gettime` | Skylake-SP | 109,862 / 50 | 274,330 / 54 | 167,599 / 55 |
+| empty `main` | Zen 1 | 101,533 / 48 | 260,618 / 51 | 156,382 / 52 |
+
+### Known limitations
+
+- **Date and time formats of the shipped locale sources:** a locale compiled from the shipped `en_US` source formats
+  `%c` in the form `Sun, Nov 22, 2026, 02:05:09 PM` where stock's `en_US.UTF-8` uses `Sun 22 Nov 2026 02:05:09 PM UTC`. The
+  shipped sources' time, number and money formats are being compared with stock's.
+- **[#6](https://github.com/duskglow/libniji/issues/6), the rest:** 35 character-set names convert differently from
+  stock, and 222 names stock lists have no libniji converter.
+- **`$ORIGIN` in set-user-ID and set-group-ID programs:** expanded only for libraries in the default system library
+  directories. This is deliberate.
+- **[#21](https://github.com/duskglow/libniji/issues/21), the rest:** the address space at start-up is larger than
+  stock's.
+- **Thread debugging of dynamically linked programs** waits for the loader's debugger interface (`_r_debug`).
+- The system flavour ships no C headers, as above.
 
 ## libniji: twenty-sixth pre-release, 2026-11-22 (`snapshot-2026-11-22.3`)
 
