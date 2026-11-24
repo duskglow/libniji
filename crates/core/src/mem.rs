@@ -611,6 +611,31 @@ impl<T> DerefMut for TryBox<T> {
     }
 }
 
+/// Where data kept for the rest of the process goes (values that are never freed, such as an
+/// interned locale's view and item tables, D-7.8). The default methods leak them from the heap
+/// ([`TryVec::leak`], [`TryBox::leak`]); the products place them in an arena of their own
+/// instead, so a few small permanent objects do not open heap size classes nothing else uses
+/// (LOCALE-ADDRESS-SPACE).
+pub trait Permanent {
+    /// `n` copies of `fill`, kept for the rest of the process.
+    fn slice<T: Copy + 'static>(&self, n: usize, fill: T) -> Result<&'static mut [T]> {
+        let mut v = TryVec::with_capacity(n)?;
+        v.resize(n, fill)?;
+        Ok(v.leak())
+    }
+
+    /// `value`, kept for the rest of the process (never dropped).
+    fn value<T: 'static>(&self, value: T) -> Result<&'static mut T> {
+        Ok(TryBox::new(value)?.leak())
+    }
+}
+
+/// Permanent data on the heap: the default methods.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct OnHeap;
+
+impl Permanent for OnHeap {}
+
 /// An object in an [`Arena`]: chunk, offset and length.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ObjRef {

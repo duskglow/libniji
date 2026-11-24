@@ -14,10 +14,12 @@ use niji::locale::file::Cat;
 use niji::ctype::Class;
 use niji::locale::view::{LocaleView, EMPTY};
 use niji::locale::{Ctype, Item, Locale};
+use niji::mem::{OnHeap, Permanent};
 use niji_kernel::fd::Fd;
 use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
-use niji_kernel::uapi::{MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ};
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ, PROT_WRITE};
+use niji_rt::sync::RawMutex;
 use niji_legacy::ctype_tables::{self, C_CLASS, C_TOLOWER, C_TOUPPER, ZERO};
 use niji_legacy::global_locale::{self as gl, Mapper, Objects};
 
@@ -52,6 +54,83 @@ impl Objects for Glue {
         // (`words64`'s contract).
         if n == 0 || addr == 0 { &[] } else { tb::words64(addr, n) }
     }
+}
+
+/// An interned locale's view, item tables and name live for the rest of the process (D-7.8).
+/// Kept on the heap, a few kilobytes of them each opened a size class nothing else in a process
+/// uses (a 256 KiB slab each, so a UTF-8 locale grew a program's heap by a whole segment step);
+/// here they are packed into page chunks of their own instead (LOCALE-ADDRESS-SPACE, D-NEW). A
+/// program whose allocator replaces `malloc` still sees them as `malloc` calls (D-X.156).
+impl Permanent for Glue {
+    fn slice<T: Copy + 'static>(&self, n: usize, fill: T) -> KResult<&'static mut [T]> {
+        if heap::routed() {
+            return OnHeap.slice(n, fill);
+        }
+        let size = core::mem::size_of::<T>().checked_mul(n).ok_or(Errno::ENOMEM)?;
+        let at = perm_place(size, core::mem::align_of::<T>())?;
+        // `perm_place`'s bytes are aligned for `T`, from a mapping never unmapped, handed out once.
+        let fresh = tb::uninit_slice_at::<T>(at, n);
+        for e in fresh.iter_mut() {
+            e.write(fill);
+        }
+        Ok(tb::filled(fresh))
+    }
+
+    fn value<T: 'static>(&self, value: T) -> KResult<&'static mut T> {
+        if heap::routed() {
+            return OnHeap.value(value);
+        }
+        let at = perm_place(core::mem::size_of::<T>(), core::mem::align_of::<T>())?;
+        // Written, never dropped (permanent).
+        Ok(tb::uninit_at::<T>(at).write(value))
+    }
+}
+
+/// The arena's lock. Taken only inside `global_locale`'s lock (interning), so a `fork` child
+/// never finds it held unless it also finds that lock held.
+static PERM_LOCK: RawMutex = RawMutex::new();
+/// The arena's next free byte and the end of its current chunk (0: no chunk yet).
+static PERM_NEXT: AtomicUsize = AtomicUsize::new(0);
+static PERM_END: AtomicUsize = AtomicUsize::new(0);
+/// The size of the next chunk: 16 KiB first (one UTF-8 locale's data fits), doubling to 1 MiB.
+static PERM_CHUNK: AtomicUsize = AtomicUsize::new(16 << 10);
+/// The largest chunk the doubling reaches.
+const PERM_CHUNK_MAX: usize = 1 << 20;
+
+/// `size` bytes aligned to `align` (a power of two) from the arena, for the rest of the process.
+/// A request that does not fit the current chunk opens a new one (the old chunk's tail stays
+/// unused); one larger than the next chunk size gets a chunk of its own size. Zero bytes: an
+/// aligned address that needs no memory. Out of line and cold: once per interned locale.
+#[cold]
+#[inline(never)]
+fn perm_place(size: usize, align: usize) -> KResult<usize> {
+    if size == 0 {
+        return Ok(align);
+    }
+    let _g = PERM_LOCK.lock(&CSys);
+    let mask = align.wrapping_sub(1);
+    let fits = |next: usize, end: usize| {
+        let at = next.checked_add(mask)? & !mask;
+        (at.checked_add(size)? <= end).then_some(at)
+    };
+    let (next, end) = (PERM_NEXT.load(Relaxed), PERM_END.load(Relaxed));
+    // No chunk yet (both 0): nothing fits.
+    let at = match fits(next, end) {
+        Some(at) => at,
+        None => {
+            let chunk = PERM_CHUNK.load(Relaxed);
+            let need = size.checked_add(mask).and_then(|n| n.checked_add(4095)).ok_or(Errno::ENOMEM)? & !4095;
+            let len = chunk.max(need);
+            let region = CSys.mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0)?;
+            PERM_CHUNK.store(chunk.saturating_mul(2).min(PERM_CHUNK_MAX), Relaxed);
+            let base = region.addr();
+            let end = base.checked_add(len).ok_or(Errno::ENOMEM)?;
+            PERM_END.store(end, Relaxed);
+            fits(base, end).ok_or(Errno::ENOMEM)?
+        }
+    };
+    PERM_NEXT.store(at.saturating_add(size), Relaxed);
+    Ok(at)
 }
 
 /// `f` with `path` as a kernel path (NUL-terminated in a buffer).

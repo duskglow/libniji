@@ -790,6 +790,44 @@ pub(crate) fn words64(addr: usize, n: usize) -> &'static [AtomicUsize] {
     }
 }
 
+/// `n` elements of fresh memory for `T` (LOCALE-ADDRESS-SPACE's permanent arena). Crate-private
+/// contract: `addr` holds `n * size_of::<T>()` bytes aligned for `T`, from a read-write mapping
+/// that is never unmapped, handed to the caller alone and never handed out again.
+pub(crate) fn uninit_slice_at<T>(addr: usize, n: usize) -> &'static mut [core::mem::MaybeUninit<T>] {
+    // UNSAFE(slice): the contract above.
+    #[allow(unsafe_code)]
+    // SAFETY: memory nothing else references, valid and aligned for `n` elements for the rest of
+    // the process; `MaybeUninit` needs no initialised contents.
+    unsafe {
+        core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<T>>(addr), n)
+    }
+}
+
+/// Fresh memory for one `T` (LOCALE-ADDRESS-SPACE's permanent arena). Crate-private contract:
+/// [`uninit_slice_at`]'s with `n` = 1.
+pub(crate) fn uninit_at<T>(addr: usize) -> &'static mut core::mem::MaybeUninit<T> {
+    // UNSAFE(slice): the contract above.
+    #[allow(unsafe_code)]
+    // SAFETY: memory nothing else references, valid and aligned for one `T` for the rest of the
+    // process; `MaybeUninit` needs no initialised contents.
+    unsafe {
+        &mut *core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<T>>(addr)
+    }
+}
+
+/// `fresh` as `T`s once every element is written. Crate-private contract: the caller wrote each
+/// element of `fresh` (an [`uninit_slice_at`] slice).
+pub(crate) fn filled<T>(fresh: &'static mut [core::mem::MaybeUninit<T>]) -> &'static mut [T] {
+    let (p, n) = (fresh.as_mut_ptr().cast::<T>(), fresh.len());
+    // UNSAFE(slice): the contract above.
+    #[allow(unsafe_code)]
+    // SAFETY: the same `n` elements, all initialised; `fresh` was moved in, so this is the only
+    // reference to them.
+    unsafe {
+        core::slice::from_raw_parts_mut(p, n)
+    }
+}
+
 /// The `n` words of a cleanup buffer the calling thread registered (`__pthread_register_cancel`,
 /// `_pthread_cleanup_push`): the thread unwinds through them while their frames are live.
 /// Crate-private contract: `addr` is a value the C caller registered on this thread and has not

@@ -35,7 +35,7 @@ use niji::error::{Errno, KResult};
 use niji::locale::file::Cat;
 use niji::locale::view::LocaleView;
 use niji::locale::{self, name, Data, Locale, Source};
-use niji::mem::{TryBox, TryVec};
+use niji::mem::{Permanent, TryBox, TryVec};
 use niji_kernel::sys::Sys;
 use niji_rt::sync::RawMutex;
 
@@ -132,8 +132,9 @@ static GLOBAL: AtomicUsize = AtomicUsize::new(0);
 /// Serializes interning, mapping and `setlocale`/`newlocale` (loading may read files).
 static LOCK: RawMutex = RawMutex::new();
 
-/// Address-to-reference conversions for values this module leaked (the POSIX layer).
-pub trait Objects {
+/// Address-to-reference conversions for values this module leaked (the POSIX layer), and where
+/// an interned locale's view, item tables and name are kept ([`Permanent`]).
+pub trait Objects: Permanent {
     /// The locale view at `addr`, an address [`intern`] recorded (D-7.13).
     fn view_at(&self, addr: usize) -> &'static LocaleView;
     /// The `len` bytes at `addr`: a name this module recorded, or a mapping [`Mapper::map`]
@@ -560,7 +561,7 @@ fn intern_locked(objs: &impl Objects, l: Locale) -> KResult<usize> {
             if earlier.data(cat).same(d) { earlier.table(cat) } else { None }
         })
     };
-    let leaked: &'static LocaleView = TryBox::new(LocaleView::new(l, n.saturating_add(1), &reuse)?)?.leak();
+    let leaked: &'static LocaleView = objs.value(LocaleView::new_in(l, n.saturating_add(1), &reuse, objs)?)?;
     slot.store(addr_of(leaked), Release);
     if n.saturating_add(1) >= INDEXED_AT {
         index_add_cold(objs, LOCALES, n);
@@ -611,10 +612,11 @@ fn intern_name_locked(objs: &impl Objects, name: &[u8]) -> KResult<(usize, &'sta
     let leaked: &'static [u8] = if name == b"C" {
         b"C\0"
     } else {
-        let mut v = TryVec::with_capacity(name.len().saturating_add(1))?;
-        v.extend_from_slice(name)?;
-        v.push(0)?;
-        v.leak()
+        let kept = objs.slice(name.len().saturating_add(1), 0u8)?;
+        if let Some(to) = kept.get_mut(..name.len()) {
+            to.copy_from_slice(name);
+        }
+        kept
     };
     addr.store(addr_of(leaked), Release);
     len.store(name.len(), Release);

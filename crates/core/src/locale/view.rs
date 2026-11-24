@@ -12,7 +12,7 @@ use super::file::{Cat, Category};
 use super::{is_word_item, Ctype, Data, Item, Locale, Tab};
 use crate::ctype::{self, Class, Trans};
 use crate::error::Errno;
-use crate::mem::{TryBox, TryVec};
+use crate::mem::{OnHeap, Permanent, TryBox, TryVec};
 use super::classes::{self, ClassTable};
 use super::{Tables, C_CATS, C_UTF8_CATS};
 use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
@@ -385,10 +385,16 @@ impl LocaleView {
     /// The view of `locale`, interned as `handle`. Every compiled category without an item table
     /// gets one here, built once and leaked with the view (LV-3): `reuse` returns a table an
     /// earlier view already built for the same category file, so composite locales share them.
-    pub fn new(
+    pub fn new(locale: Locale, handle: usize, reuse: &dyn Fn(Cat, &Data) -> Option<Tab>) -> Result<LocaleView, Errno> {
+        LocaleView::new_in(locale, handle, reuse, &OnHeap)
+    }
+
+    /// [`LocaleView::new`] with the item tables and their [`Tables`] kept in `perm`.
+    pub fn new_in(
         mut locale: Locale,
         handle: usize,
         reuse: &dyn Fn(Cat, &Data) -> Option<Tab>,
+        perm: &impl Permanent,
     ) -> Result<LocaleView, Errno> {
         if locale.tables.is_none() {
             let mut cats: [Tab; 12] = [Tab::EMPTY; 12];
@@ -416,9 +422,7 @@ impl LocaleView {
                 }
             }
             if total > 0 {
-                let mut v = TryVec::with_capacity(total)?;
-                v.resize(total, Item::Word(0))?;
-                let mut rest: &'static mut [Item] = v.leak();
+                let mut rest: &'static mut [Item] = perm.slice(total, Item::Word(0))?;
                 for cat in Cat::ALL {
                     if let (Some(Some(f)), Some(slot)) = (build.get(cat.index()), cats.get_mut(cat.index())) {
                         let k = f.len().min(rest.len());
@@ -428,7 +432,7 @@ impl LocaleView {
                     }
                 }
             }
-            locale.tables = Some(TryBox::new(Tables(cats))?.leak());
+            locale.tables = Some(perm.value(Tables(cats))?);
         }
         let cats = by_number(locale.tables.map_or([Tab::EMPTY; 12], |t| t.0));
         let names = TimeNames::of(cats.get(2).copied().unwrap_or(Tab::EMPTY)); // LC_TIME is C category 2

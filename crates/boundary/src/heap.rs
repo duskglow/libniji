@@ -519,7 +519,7 @@ pub(crate) fn open_own_fast() {
 
 /// Whether the library's own allocations are routed ([`route_internal`] ran).
 #[inline(always)]
-fn routed() -> bool {
+pub(crate) fn routed() -> bool {
     reserve_last() > RESERVE
 }
 
