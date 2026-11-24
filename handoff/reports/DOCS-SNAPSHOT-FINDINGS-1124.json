@@ -1,6 +1,6 @@
 {"task": "DOCS-SNAPSHOT-FINDINGS-1124", "model": "sonnet", "tokens": null,
  "result": "D1, D3, D4 fixed and L3 fixed in the generated control text; lintian itself not run (mei refused, none on keke)",
- "branch": "task/docs-snapshot-findings-1124", "head": "HEADSHA",
+ "branch": "task/docs-snapshot-findings-1124", "head": "6feef8bb6",
  "gate": {"affected": "docs only: cargo xtask static green", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
