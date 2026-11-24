@@ -1,0 +1,26 @@
+{"task": "HEAP-FIND-DEPTH-NEED-3", "model": "opus", "tokens": null,
+ "result": "find workload test now gates on a same-run rule (need under ulimit -v <= the walk's unlimited VmSize at exit + 548 KiB, per layout phase) instead of a KiB constant over the 3-entry need; correct 0..264 over, the cause 1184..1444, plants 2/2 CAUGHT; INTERNAL-ALLOC-ROUTING-3 adds nothing to the walk (+4 KiB over 3 entries, 200000-entry need identical)",
+ "branch": "task/heap-find-depth-need-3", "head": null,
+ "gate": {"affected": "10455 passed / 0 failed (direct tier, 14 suites, conformance 9 passed)", "peak": "14G (page cache included), oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "INTERNAL-ALLOC-ROUTING-3 merged locally for a diagnostic (not pushed), Haswell-EP, page-exact, 8 phases: need over 200000 entries identical at every phase, 3-entry need 4 KiB lower (15924 vs 15928), so +4 KiB over 3 entries. No real address-space cost on this walk; train 973's 33808 (bound 33576) was a layout-phase reading, which the old constant could not separate from a regression.",
+   "Margins of the rule measured only on the Haswell-EP build host (role shiki); Zen 1 and Skylake-SP not measured this leg (no role there). The test prints the per-phase gap, so CI on Skylake-SP shows it.",
+   "On this host with next merged, the old constant would itself have failed: need over 3 entries 33752 at phase 10240 (with the preload) against 33576.",
+   "Heap (from leg 4, still open): under a limit a later segment can go to a slot whose growth another mapping blocks; 256..264 KiB at half the phases. Candidate story HEAP-SEGMENT-GROWTH-ROOM."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "find_over_200000_entries_bounds_its_address_space no longer reds on start-up, internal-allocation or layout-phase changes: the baseline (the same walk's unlimited footprint) is measured in the same run and phase; gap 0,0,0,0,256,264,256,256 KiB vs allowance 548 (Haswell-EP)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants on the find rule: blockers-8-find (1184..1444 KiB over, which issue #21's 35000 formula alone would pass at 34932) and never-aligned-find (24472..28416), both CAUGHT", "before": 1, "after": 2, "unit": "plants", "measured": true},
+   {"kind": "none", "what": "libniji's address-space need for the walk is unchanged by this leg (test and record only)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "cost", "what": "find test runtime (adds one unlimited run per phase; Haswell-EP, was 12.7 s on Skylake-SP)", "before": null, "after": 27.3, "unit": "s", "measured": true}
+ ],
+ "improvement": "Address-space bounds on a real program should compare its need under a limit with its own unlimited footprint in the same run (a freestanding preload reporting VmSize at exit) rather than a measured constant; the constant cost three red trains.",
+ "next_step": "Coordinator: land (FULL gate on the train).",
+ "report_file": "handoff/HEAP-FIND-DEPTH-NEED.md",
+ "jobs": ["shiki:heap-find-depth-need-3-gate", "shiki:heap-find-depth-need-3-plants", "shiki:heap-find-depth-need-3-lint2"],
+ "superseded": ["shiki:heap-find-depth-need-3-lint1 (clippy and static green; the test then found no VmSize line, fixed in 1c8ecd047)", "shiki:heap-find-depth-need-3-test2 (the find test alone on 1c8ecd047, green; the gate covers it on the final code head)"],
+ "job_results": {"gate": "rc 0: 10455 passed, 0 failed", "plants": "rc 0: 2 CAUGHT, 0 SURVIVED, 0 WARN", "lint2": "rc 0: clippy -D warnings, static"}
+}
