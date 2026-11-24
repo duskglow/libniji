@@ -9,5 +9,5 @@
 # Columns, tab-separated: header, what it waits for.
 header	waits_for
 complex.h	a slice of its own: a C++ spelling for union typedefs and the C++ library wrappers' rows (D-10.125)
-finclude/x86_64-linux-gnu/math-vector-fortran.h	a Fortran output form of the generator, fed by the libmvec tables (D-10.125)
+finclude/x86_64-linux-gnu/math-vector-fortran.h	a Fortran output form of the generator, fed by the libmvec tables, and a gfortran test (D-10.125); every function the file vectorises is in libniji's libmvec
 tgmath.h	a slice of its own: type-generic macro rows (D-10.125)
