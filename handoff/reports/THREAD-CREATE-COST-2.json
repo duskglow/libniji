@@ -1,0 +1,104 @@
+{
+ "task": "THREAD-CREATE-COST-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "merged origin/next (tls.rs conflict: next's on-demand/released slot store kept, superset of this branch's), added a test for the store this branch's reused-mapping change depends on; Skylake-SP: create+join 36,022 -> 1,205 static, 36,109 -> 1,345 dynamic (reference 2,285)",
+ "branch": "task/thread-create-cost-2",
+ "head": "cdd01ce70",
+ "gate": {
+  "affected": "11034 passed / 0 failed (direct tier, 17 suites; conformance 50 passed)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the empty-slot plant (fill_static's store of 0 into an on-demand or released ID's dtv slot) survived every existing test on the merged head (job thread-create-cost-2-plants); the new test dl_tls_threads::a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id covers it",
+  "validation/wl_percall.sh's header says static binaries, but WL_LINK defaults to dynamic (wl_lock.sh): a static count needs WL_LINK=static",
+  "dynamic pthread_exit remains 3.2x the reference (31,034 vs 9,558 on Skylake-SP): the unwinder walk, ruling #7877, story UNWIND-EXIT-COST"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "thread_create_join static (create + return + join), Skylake-SP, vs origin/next 9139a21d9",
+   "before": 36022,
+   "after": 1205,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join dynamic, Skylake-SP",
+   "before": 36109,
+   "after": 1345,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_exit static (create + pthread_exit + join), Skylake-SP",
+   "before": 36109,
+   "after": 1292,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_exit dynamic, Skylake-SP",
+   "before": 65798,
+   "after": 31034,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_exit_deep static, Skylake-SP",
+   "before": 36132,
+   "after": 1315,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_exit_deep dynamic, Skylake-SP",
+   "before": 75748,
+   "after": 40984,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join8 static (per thread), Skylake-SP",
+   "before": 27190,
+   "after": 1083,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join8 dynamic (per thread), Skylake-SP",
+   "before": 27292,
+   "after": 1211,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "test a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id (on-demand TLS block on a reused module ID in a reused thread mapping; reference and libniji); plant empty-slot",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  }
+ ],
+ "improvement": "wl_percall.sh header still says static binaries while WL_LINK defaults to dynamic: fix the header so a static+dynamic count is not run twice as dynamic (my first count job did)",
+ "next_step": "land; the dynamic pthread_exit gap is UNWIND-EXIT-COST's",
+ "report_file": "handoff/THREAD-CREATE-COST.md",
+ "jobs": [
+  "mei:thread-create-cost-2-gate3",
+  "mei:thread-create-cost-2-plants3",
+  "mei:thread-create-cost-2-gate",
+  "mei:thread-create-cost-2-counts",
+  "mei:thread-create-cost-2-counts-static"
+ ]
+}
