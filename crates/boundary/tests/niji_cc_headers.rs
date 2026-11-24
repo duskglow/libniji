@@ -27,7 +27,9 @@ const C_PROGRAM: &str = "#include <stdio.h>\n#include <stdlib.h>\n#include <stri
 int main(void) { char b[16]; strcpy(b, \"niji\"); printf(\"%s %zu\\n\", b, strlen(b)); return EXIT_SUCCESS; }\n";
 
 /// The C++ library's headers include libniji's C headers below them (`<cstdlib>` reaches `stdlib.h`).
-const CXX_PROGRAM: &str = "#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n#include <cmath>\n\
+/// `<locale.h>` comes first and names `__locale_t` on its own (D-X.169: the C++ library's locale support needs it).
+const CXX_PROGRAM: &str = "#include <locale.h>\ntypedef __locale_t lp_locale_t;\n\
+#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n#include <cmath>\n\
 #include <string>\n#include <vector>\n#include <iostream>\n\
 #ifndef __NIJI__\n#error not libniji's headers\n#endif\n\
 int main() { std::vector<std::string> v{\"a\"}; std::printf(\"%zu %d\\n\", v.size(), std::abs(-2)); return 0; }\n";
