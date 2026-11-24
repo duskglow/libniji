@@ -1,0 +1,5 @@
+# /etc/locale.alias: alternative names for locales, one "<alias> <locale>" line each, as
+# "deutsch de_DE.ISO-8859-1". setlocale reads it, through the
+# /usr/share/locale/locale.alias link, for a name it does not find. Lines starting with # are comments.
+#
+# libniji ships no aliases yet (D-31.37); add your own lines here.

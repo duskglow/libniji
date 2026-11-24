@@ -1,0 +1,17 @@
+Template: locales/locales_to_be_generated
+Type: multiselect
+Choices: ${locales}
+Description: Locales to compile:
+ A locale holds the conventions of a language and region: messages, dates,
+ numbers, money, sorting and character classes. Each locale selected here is
+ compiled by locale-gen into /usr/lib/locale/locale-archive and listed in
+ /etc/locale.gen; a UTF-8 locale is the usual choice.
+
+Template: locales/default_environment_locale
+Type: select
+Choices: None, ${locales}
+Default: None
+Description: Default locale of the system environment:
+ The locale chosen here is written as LANG to /etc/locale.conf (update-locale),
+ which login sessions read. None leaves LANG unset, so programs use the C
+ locale unless the user sets one.

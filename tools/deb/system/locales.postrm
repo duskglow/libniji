@@ -1,0 +1,17 @@
+#!/bin/sh
+# locales (libniji) postrm (UTIL-LOCALE-GEN, D-31.37). DPKG_ROOT is honoured (dpkg --root
+# --force-script-chrootless). On purge, what the postinst and locale-gen created goes (Debian
+# Policy 10.7.3: files that are not conffiles are removed on purge): /etc/locale.gen,
+# /etc/locale.conf with its /etc/default/locale link, and the compiled archive. A plain remove keeps
+# them, so programs keep their locales.
+set -e
+
+if [ "$1" = purge ]; then
+    rm -f "$DPKG_ROOT/etc/locale.gen" "$DPKG_ROOT/etc/locale.conf" "$DPKG_ROOT/usr/lib/locale/locale-archive"
+    if [ -L "$DPKG_ROOT/etc/default/locale" ]; then
+        rm -f "$DPKG_ROOT/etc/default/locale"
+    fi
+    rmdir "$DPKG_ROOT/etc/default" "$DPKG_ROOT/usr/lib/locale" 2>/dev/null || true
+fi
+
+exit 0
