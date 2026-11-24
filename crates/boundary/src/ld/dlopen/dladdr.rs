@@ -24,7 +24,7 @@
 //!   A handle must be a published link map (one comparison per object, never dereferenced).
 
 use super::dlsym::start_path;
-use super::{c_string, dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
+use super::{c_string, dlerr, dyn_string, read_section, start_arg, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
 use crate::ld::index::Found;
 use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
@@ -318,7 +318,8 @@ fn request(v: &View, i: usize, req: i32, arg: usize) -> Result<i32, &'static [u8
         RTLD_DI_ORIGIN => put_str(arg, origin(v, i).ok_or(&b"dlinfo: the origin of the object is unknown"[..])?),
         RTLD_DI_TLS_MODID => put(arg, tls_place(v, i).map_or(0, |p| usize::try_from(p.module).unwrap_or(0))),
         RTLD_DI_TLS_DATA => {
-            let data = tls_place(v, i).map_or(0, |p| tb::tp().wrapping_add_signed(isize::try_from(p.tp_offset).unwrap_or(0)));
+            // An on-demand block (DL-19) the calling thread has not made yet: 0, as documented.
+            let data = tls_place(v, i).map_or(0, |p| super::super::tls::thread_address(p, 0, false));
             put(arg, data);
         }
         RTLD_DI_PHDR => {

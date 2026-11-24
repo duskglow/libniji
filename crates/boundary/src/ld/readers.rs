@@ -473,6 +473,12 @@ fn tls_module(e: &Entry) -> (u64, usize) {
     for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
+            if niji_ld::tls::dynamic_align(off).is_some() {
+                // An on-demand block (DL-19): the calling thread's, or null when it has none yet
+                // (dl_iterate_phdr(3): "if it has been allocated in the calling thread").
+                let p = niji_ld::tls::Placed { module, tp_offset: niji_ld::tls::NO_STATIC };
+                return (module, super::tls::thread_address(p, 0, false));
+            }
             let tp = u64::try_from(tb::tp()).unwrap_or(0);
             return (module, usize::try_from(tp.wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()))).unwrap_or(0));
         }

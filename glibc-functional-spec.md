@@ -5389,6 +5389,10 @@ decided differently from the reference; each has a row in `docs/differences-from
   line skipped, output written, exit 1. An error inside a category: `<file>:<line>: <CATEGORY>: syntax error`;
   without `-c` exit 4 and no output; with `-c` output written (that category with its default) and exit 1 (POSIX
   `localedef` exit status 1: warnings or errors, output created) (probe `localedef-syntax`).
+* An `LC_COLLATE` section without an `order_start` (empty, or `collating-symbol` lines only):
+  `<file>:<END line>: LC_COLLATE: empty category description not allowed`, then `[error] too many errors; giving
+  up`, exit 1 with or without `-c`; the output directory is made and no category file is written. A section with
+  `order_start` and `order_end` and nothing between compiles (probe `localedef-empty-collate`).
 
 ### 31.9 zic
 

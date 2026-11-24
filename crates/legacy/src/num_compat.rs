@@ -88,7 +88,7 @@ fn special(x: Float, out: &mut [u8]) -> Option<Cvt> {
 }
 
 /// `ecvt`/`qecvt`/`ecvt_r`: `ndigit` significant digits, correctly rounded in `mode`.
-pub fn ecvt(x: Float, ndigit: i32, mode: Rounding, out: &mut [u8]) -> Cvt {
+pub fn ecvt_digits(x: Float, ndigit: i32, mode: Rounding, out: &mut [u8]) -> Cvt {
     if let Some(c) = special(x, out) {
         return c;
     }
@@ -104,7 +104,7 @@ pub fn ecvt(x: Float, ndigit: i32, mode: Rounding, out: &mut [u8]) -> Cvt {
 
 /// `fcvt`/`qfcvt`/`fcvt_r`: rounded to `ndigit` places after the point (negative values round
 /// to the left of it); the digits run from the first significant one to that place.
-pub fn fcvt(x: Float, ndigit: i32, mode: Rounding, out: &mut [u8]) -> Cvt {
+pub fn fcvt_digits(x: Float, ndigit: i32, mode: Rounding, out: &mut [u8]) -> Cvt {
     if let Some(c) = special(x, out) {
         return c;
     }
@@ -287,7 +287,7 @@ pub const LONG_DOUBLE_DIGITS: i32 = 21;
 /// returned). The caller reduces `ndigit` to [`DOUBLE_DIGITS`] or [`LONG_DOUBLE_DIGITS`].
 pub fn cvt_static<const N: usize>(slot: &Buf<N>, x: Float, ndigit: i32, mode: Rounding, decpt: &mut i32, sign: &mut i32, fixed: bool) -> usize {
     let mut buf = [0u8; N];
-    let c = if fixed { fcvt(x, ndigit, mode, &mut buf) } else { ecvt(x, ndigit, mode, &mut buf) };
+    let c = if fixed { fcvt_digits(x, ndigit, mode, &mut buf) } else { ecvt_digits(x, ndigit, mode, &mut buf) };
     *decpt = c.decpt;
     *sign = i32::from(c.neg);
     slot.store(buf.get(..=c.len).unwrap_or(&buf));
@@ -297,7 +297,7 @@ pub fn cvt_static<const N: usize>(slot: &Buf<N>, x: Float, ndigit: i32, mode: Ro
 /// `ecvt_r`/`fcvt_r` (and the `q` forms): digits into the caller's buffer; 0. `ndigit` is
 /// reduced by the caller, as for [`cvt_static`].
 pub fn cvt_r(x: Float, ndigit: i32, mode: Rounding, decpt: &mut i32, sign: &mut i32, out: &mut [u8], fixed: bool) -> i64 {
-    let c = if fixed { fcvt(x, ndigit, mode, out) } else { ecvt(x, ndigit, mode, out) };
+    let c = if fixed { fcvt_digits(x, ndigit, mode, out) } else { ecvt_digits(x, ndigit, mode, out) };
     *decpt = c.decpt;
     *sign = i32::from(c.neg);
     0

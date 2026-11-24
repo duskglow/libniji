@@ -15,6 +15,7 @@
 //! | `unsafe-audit` | Enforce the unsafe policy: none outside niji-boundary; five documented categories inside it, inline assembly only in the tb-field site (plan §2.1). |
 //! | `csys-gen`     | Generate the C layer's syscall wrappers and their Rust declarations from `csys/syscalls.tsv` (K5); `--check` fails if stale. |
 //! | `abi-gen`      | Generate `niji_abi::layout` and the Appendix C layout tests from `spec/abi/layouts.tsv`; `--check` fails if stale. |
+//! | `locale-sources <dir>` | Write the locale sources generated from Unicode CLDR (`spec/cldr`), their shared files and `SUPPORTED` into `<dir>` (D-31.27). |
 //! | `unicode-gen`  | Generate the Unicode tables (`crates/core/src/unicode/tables.rs`) from `spec/unicode/15.1.0` (IP-19, D-5.4); `--check` fails if stale. |
 //! | `encodings-gen` | Generate the built-in multi-byte `iconv` codecs' tables (`crates/core/src/iconv/jis_tables.rs`) from the WHATWG Encoding Standard indexes in `spec/encoding/whatwg`; `--check` fails if stale. |
 //! | `headers-gen`  | Generate libniji's C headers (`libc-include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit. `--out DIR` writes the headers below DIR only (no `libc-include/`, no abi-gen), for probing the templates as they are.
@@ -61,6 +62,7 @@ mod affected;
 mod encodings;
 mod encodings_cjk;
 mod charmaps;
+mod locales;
 mod align;
 mod bench;
 mod classed;
@@ -209,6 +211,7 @@ fn main() -> ExitCode {
         "locale-gen" => langinfo::run(&root, args.iter().any(|a| a == "--check")),
         "native-gen" => native::run(&root, args.iter().any(|a| a == "--check")),
         "headers-gen" => headers::run_args(&root, &args[1..]),
+        "locale-sources" => locales::run(&root, &args[1..]),
         "compat-gen" => compat::run(&root, args.iter().any(|a| a == "--check")),
         "math-gen" => math::run(&root, args.iter().any(|a| a == "--check")),
         "mathcmp" => math::run_mathcmp(&root, &args[1..]),
@@ -247,7 +250,7 @@ fn main() -> ExitCode {
         "layout-check" => layout::run(&root, &args[1..]),
         "startup-ro-plan" => startup_ro::dump(&root, &args[1..]),
         _ => {
-            println!("usage: cargo xtask <stubs [--force] | precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | encodings-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | startup-pair --base <tree> [--head <tree>] [--runs N] [--rows a,b] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | ldso-trace --prefix <dir> | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
+            println!("usage: cargo xtask <stubs [--force] | precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | locale-sources <dir> | encodings-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | startup-pair --base <tree> [--head <tree>] [--runs N] [--rows a,b] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | ldso-trace --prefix <dir> | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
             Ok(())
         }
     };
@@ -441,9 +444,9 @@ fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::St
         return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra).envs(env)));
     }
     let mut args = vec!["--workspace".to_string()];
-    // As the interposed pass did: the pure-Rust sweeps run in the first pass only
-    // (`nextest::PASS0_ONLY`, #889), the heavy math products sweeps shard 0 only
-    // (`nextest::PASS1_SHARD0`, D-X.36), and binaries without niji-boundary code once (CI-GATE-DIET).
+    // The pure-Rust sweeps (`nextest::PASS0_ONLY`, #889), the products targets but
+    // `nextest::PASS2_PRODUCTS` (D-X.161) and binaries without niji-boundary code (CI-GATE-DIET)
+    // run in the first pass only.
     let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &[])) } else { Vec::new() };
     args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
     args.extend(extra.iter().cloned());

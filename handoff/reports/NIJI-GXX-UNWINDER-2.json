@@ -1,0 +1,16 @@
+{"task": "NIJI-GXX-UNWINDER-2", "model": "opus", "tokens": null,
+ "result": "merged origin/next into the NIJI-GXX-UNWINDER work; docs/install-packages.md conflict resolved keeping next's libmvec entries and this branch's niji-unwinder.o; no code change",
+ "branch": "task/niji-gxx-unwinder-2", "head": "9d60fc324",
+ "gate": {"affected": "niji-gxx-unwinder-2-gate1 (merged head): 5863 passed / 0 failed, 15 of 15 suites, conformance 39 passed", "peak": "8.3G"},
+ "accepted_first_attempt": null,
+ "jobs": ["shiki:niji-gxx-unwinder-2-gate1", "shiki:niji-gxx-unwinder-2-plants1", "shiki:niji-gxx-unwinder-2-startup1"],
+ "rulings": [],
+ "informational": [],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "NIJI-GXX-UNWINDER can land (CI stopped on the docs/install-packages.md conflict); the snapshot waits on it", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "correctness", "what": "inherited from run 1: threaded C++ built with niji-g++ unwinds on pthread_exit / cancellation instead of the FATAL + abort", "before": 134, "after": 0, "unit": "exit status", "measured": false}
+ ],
+ "improvement": "A conflict where both sides only add entries to the same table row could be resolved by the train's appendmerge as a union of list items instead of needing an agent run.",
+ "next_step": "land",
+ "report_file": "handoff/NIJI-GXX-UNWINDER.md"}

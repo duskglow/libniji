@@ -25,15 +25,23 @@
 //! # Matching
 //!
 //! The pattern becomes a list of items; matching computes, item by item, the set of string
-//! positions that can be reached (a bit set), so the time is polynomial in the lengths
-//! whatever the pattern (no backtracking): `*` and the extended groups never make it
-//! exponential. `!(...)` is the complement, among the strings starting at a position, of what
-//! its alternatives match there.
+//! positions that can be reached (a bit set), with no backtracking. `!(...)` is the complement,
+//! among the strings starting at a position, of what its alternatives match there.
+//!
+//! The groups of the pattern's own sequence are evaluated on whole sets of positions. A group
+//! nested in another is evaluated at most once per start position in a match, its result kept
+//! for every later use (the memo; `Memo`), and every evaluation runs on an explicit stack on the
+//! heap, not by recursion: groups nest as deep as the pattern allows, at no cost in thread stack.
+//! With a pattern of `m` characters and a string of `n`: a group has `n + 1` entries, each
+//! computed by one pass over the items of its alternatives (every item belongs to one group's
+//! alternatives), an item costs at most `n + 1` entry lookups and an `O(n)` union or complement
+//! each, and a pass that stops for a missing entry resumes once per entry computed: the work is
+//! `O(m n^3)` at worst, polynomial whatever the nesting.
 
 #![allow(clippy::arithmetic_side_effects)] // positions and counts are bounded by the lengths of the pattern and the string
 
 use crate::ctype::{self, WClass};
-use crate::error::{Errno, Result};
+use crate::error::Result;
 use crate::locale::collate::Collation;
 use crate::locale::Locale;
 use crate::mem::TryVec;
@@ -54,9 +62,6 @@ pub const CASEFOLD: i32 = 16;
 pub const EXTMATCH: i32 = 32;
 /// `FNM_NOMATCH`.
 pub const NOMATCH: i32 = 1;
-
-/// Nesting of extended groups beyond this is refused (an error, never a wrong answer).
-const MAX_DEPTH: usize = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Op {
@@ -96,10 +101,41 @@ enum Item {
     Any,
     Star,
     Set(Set),
-    Group(Op, TryVec<TryVec<Item>>),
+    /// An extended group: its alternatives are the sequences `alts` of the [`Prog`]; `id`
+    /// numbers the pattern's groups from 0.
+    Group { op: Op, alts: core::ops::Range<usize>, id: usize },
     /// A trailing `\`: nothing matches.
     Never,
 }
+
+/// A compiled pattern: every sequence of items in one list, a group naming its alternatives by
+/// index, so nothing nests in memory. A pattern nested however deep is compiled, matched and
+/// dropped without recursion (its depth costs heap, bounded by the pattern's length, never
+/// thread stack).
+#[derive(Debug)]
+struct Prog {
+    /// The pattern's own sequence first (`root` items), then the groups' alternatives.
+    items: TryVec<Item>,
+    root: usize,
+    /// Each alternative's items, a range of `items` (empty for a pattern without groups: no
+    /// allocation but the items).
+    seqs: TryVec<core::ops::Range<usize>>,
+    /// How many groups there are.
+    groups: usize,
+}
+
+impl Prog {
+    fn seq(&self, k: usize) -> &[Item] {
+        self.seqs.as_slice().get(k).and_then(|r| self.items.as_slice().get(r.clone())).unwrap_or(&[])
+    }
+
+    fn root(&self) -> &[Item] {
+        self.items.as_slice().get(..self.root).unwrap_or(&[])
+    }
+}
+
+/// A sequence queued for parsing: its index in [`Prog::seqs`] and its text `from..to`.
+type Todo = TryVec<(usize, usize, usize)>;
 
 /// A text decoded into characters: the characters and the byte offset of each (and of the end).
 struct Units {
@@ -185,7 +221,7 @@ impl Parser<'_> {
         let k = self.item_close(j, to, d)?;
         let name = self.bytes_of(j + 2, k);
         let v = if d == ch(b':') {
-            Special::Class(ctype::wctype(name, self.loc)?)
+            Special::Class(ctype::wctype_class(name, self.loc)?)
         } else {
             Special::Char(text::collating_element(self.mode, name)?)
         };
@@ -297,9 +333,36 @@ impl Parser<'_> {
         Ok(None)
     }
 
-    /// The alternatives of a group's text `i..close`, split at its top-level `|`.
-    fn alternatives(&self, i: usize, close: usize, depth: usize) -> Result<TryVec<TryVec<Item>>> {
-        let mut alts = TryVec::new();
+    /// The pattern's characters `0..to` compiled. Each sequence is parsed in one pass; a group's
+    /// alternatives are queued (a list on the heap) and parsed after the sequence holding it, so
+    /// each sequence's items lie together and nesting never recurses. A group's text is scanned
+    /// once per group around it: the work is at most the pattern's length times its nesting depth.
+    fn program(&self, to: usize) -> Result<Prog> {
+        // At most one item per character.
+        let mut prog = Prog { items: TryVec::with_capacity(to)?, root: 0, seqs: TryVec::new(), groups: 0 };
+        // The queue and the alternatives' ranges allocate only once there is a group.
+        let mut todo = Todo::new();
+        self.seq(0, to, &mut prog, &mut todo)?;
+        prog.root = prog.items.len();
+        while let Some((k, from, to)) = todo.pop() {
+            let start = prog.items.len();
+            self.seq(from, to, &mut prog, &mut todo)?;
+            let end = prog.items.len();
+            if let Some(r) = prog.seqs.as_mut_slice().get_mut(k) {
+                *r = start..end;
+            }
+        }
+        Ok(prog)
+    }
+
+    /// Queue the alternatives of a group's text `i..close` (split at its top-level `|`) as new
+    /// sequences: their indices in `prog.seqs`.
+    fn alternatives(&self, i: usize, close: usize, prog: &mut Prog, todo: &mut Todo) -> Result<core::ops::Range<usize>> {
+        let first = prog.seqs.len();
+        let mut queue = |from: usize, to: usize| -> Result<()> {
+            todo.push((prog.seqs.len(), from, to))?;
+            prog.seqs.push(0..0)
+        };
         let mut start = i;
         let mut level = 0usize;
         let mut j = i;
@@ -315,21 +378,20 @@ impl Parser<'_> {
             } else if c == ch(b')') {
                 level = level.saturating_sub(1);
             } else if c == ch(b'|') && level == 0 {
-                alts.push(self.seq(start, j, depth + 1)?)?;
+                queue(start, j)?;
                 start = j + 1;
             }
             j += 1;
         }
-        alts.push(self.seq(start, close, depth + 1)?)?;
-        Ok(alts)
+        queue(start, close)?;
+        Ok(first..prog.seqs.len())
     }
 
-    fn seq(&self, from: usize, to: usize, depth: usize) -> Result<TryVec<Item>> {
-        if depth > MAX_DEPTH {
-            return Err(Errno::EINVAL);
-        }
-        // At most one item per character.
-        let mut items = TryVec::with_capacity(to.saturating_sub(from))?;
+    /// Parse the sequence `from..to` onto `prog.items`, queueing its groups' alternatives.
+    fn seq(&self, from: usize, to: usize, prog: &mut Prog, todo: &mut Todo) -> Result<()> {
+        // The items are pushed onto a local vector (held in registers, not reloaded through
+        // `prog` after every push) and handed back at the end; on an error `prog` is dropped.
+        let mut items = core::mem::replace(&mut prog.items, TryVec::new());
         let mut i = from;
         while i < to {
             let Some(c) = self.at(i) else { break };
@@ -355,8 +417,10 @@ impl Parser<'_> {
                 };
                 if let Some(op) = op {
                     if let Some(close) = self.group_close(i + 2, to)? {
-                        let alts = self.alternatives(i + 2, close, depth)?;
-                        items.push(Item::Group(op, alts))?;
+                        let alts = self.alternatives(i + 2, close, prog, todo)?;
+                        let id = prog.groups;
+                        prog.groups += 1;
+                        items.push(Item::Group { op, alts, id })?;
                         i = close + 1;
                         continue;
                     }
@@ -378,7 +442,8 @@ impl Parser<'_> {
             }
             i += 1;
         }
-        Ok(items)
+        prog.items = items;
+        Ok(())
     }
 }
 
@@ -437,10 +502,68 @@ impl Bits {
         }).take_while(move |&p| p < n)
     }
     fn or(&mut self, o: &Bits) {
-        for (a, b) in self.w_mut().iter_mut().zip(o.w().iter()) {
+        self.or_words(o.w());
+    }
+    fn or_words(&mut self, o: &[u64]) {
+        for (a, b) in self.w_mut().iter_mut().zip(o.iter()) {
             *a |= *b;
         }
     }
+    fn single(n: usize, p: usize) -> Result<Bits> {
+        let mut b = Bits::new(n)?;
+        b.set(p);
+        Ok(b)
+    }
+}
+
+/// What a nested group reaches from each start position, for one match: entry `(id, p)` holds
+/// the positions group `id`'s alternatives reach from position `p` alone. Each is computed once
+/// ([`Matcher::fill`]), so however often the groups around it try a group, it is evaluated at
+/// most once per start position: the work stays polynomial in the lengths of the pattern and
+/// the string whatever the nesting.
+struct Memo {
+    /// Per group (allocated on its first entry), per position: 0 = not computed, else one more
+    /// than the entry's index in `pool`.
+    slots: TryVec<TryVec<usize>>,
+    /// The entries, `words` each.
+    pool: TryVec<u64>,
+}
+
+impl Memo {
+    fn new() -> Memo {
+        Memo { slots: TryVec::new(), pool: TryVec::new() }
+    }
+
+    fn get(&self, id: usize, p: usize, words: usize) -> Option<&[u64]> {
+        let k = self.slots.as_slice().get(id)?.as_slice().get(p)?.checked_sub(1)?;
+        self.pool.as_slice().get(k * words..(k + 1) * words)
+    }
+
+    fn put(&mut self, id: usize, p: usize, n: usize, reach: &Bits) -> Result<()> {
+        while self.slots.len() <= id {
+            self.slots.push(TryVec::new())?;
+        }
+        let k = self.pool.len() / reach.words + 1;
+        self.pool.extend_from_slice(reach.w())?;
+        if let Some(row) = self.slots.as_mut_slice().get_mut(id) {
+            if row.len() <= n {
+                row.resize(n + 1, 0)?;
+            }
+            if let Some(slot) = row.as_mut_slice().get_mut(p) {
+                *slot = k;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A nested group's positions from a set, or the first start position whose entry is missing.
+enum Step {
+    Done(Bits),
+    Need(usize),
+}
+
+impl Bits {
     fn try_clone(&self) -> Result<Bits> {
         Ok(Bits { words: self.words, inline: self.inline, heap: self.heap.try_clone()? })
     }
@@ -520,13 +643,16 @@ impl Matcher<'_> {
         }
     }
 
-    fn run(&self, items: &[Item], from: Bits) -> Result<Bits> {
+    /// The positions `items` reach from `from`. `nested`: the items are a group's alternative
+    /// (their groups are then evaluated through `memo`); otherwise they are the pattern's own
+    /// sequence, run once per match, whose groups are evaluated on whole sets of positions.
+    fn run(&self, prog: &Prog, items: &[Item], from: Bits, memo: &mut Memo, nested: bool) -> Result<Bits> {
         let mut cur = from;
         for it in items {
             if !cur.any() {
                 break;
             }
-            cur = self.item(it, &cur)?;
+            cur = self.item(prog, it, &cur, memo, nested)?;
         }
         Ok(cur)
     }
@@ -583,27 +709,32 @@ impl Matcher<'_> {
                 // A trailing `\`: nothing matches, so no position is reached (WORDEXP-TIMEOUT-2: giving
                 // up here sent `${x%...\}` to one match per suffix, cubic in the value).
                 Item::Never => {}
-                Item::Group(..) => return Ok(None),
+                Item::Group { .. } => return Ok(None),
             }
             cur = out;
         }
         Ok(Some(cur))
     }
 
+    /// The positions the whole of `prog` reaches from `start` (with a memo for this match).
+    fn run_prog(&self, prog: &Prog, start: Bits) -> Result<Bits> {
+        self.run(prog, prog.root(), start, &mut Memo::new(), false)
+    }
+
     /// The positions reached by one of `alts` from the positions `from`.
-    fn one_of(&self, alts: &[TryVec<Item>], from: &Bits) -> Result<Bits> {
+    fn one_of(&self, prog: &Prog, alts: &core::ops::Range<usize>, from: &Bits, memo: &mut Memo) -> Result<Bits> {
         let mut out = Bits::new(self.n())?;
-        for a in alts {
-            let r = self.run(a, from.try_clone()?)?;
+        for k in alts.clone() {
+            let r = self.run(prog, prog.seq(k), from.try_clone()?, memo, true)?;
             out.or(&r);
         }
         Ok(out)
     }
 
-    fn closure(&self, alts: &[TryVec<Item>], from: Bits) -> Result<Bits> {
+    fn closure(&self, prog: &Prog, alts: &core::ops::Range<usize>, from: Bits, memo: &mut Memo) -> Result<Bits> {
         let mut acc = from;
         loop {
-            let mut next = self.one_of(alts, &acc)?;
+            let mut next = self.one_of(prog, alts, &acc, memo)?;
             next.or(&acc);
             if next.same(&acc) {
                 return Ok(acc);
@@ -612,9 +743,134 @@ impl Matcher<'_> {
         }
     }
 
-    fn item(&self, it: &Item, from: &Bits) -> Result<Bits> {
+    fn count(&self, units: usize) {
+        self.work.set(self.work.get().saturating_add(u64::try_from(units).unwrap_or(u64::MAX)));
+    }
+
+    /// The positions the nested group `g` reaches from `from`, out of `memo` (a missing entry:
+    /// [`Step::Need`]). Every position a group reaches lies at or after its start, so one
+    /// ascending sweep closes a set under the group's alternatives (`*(...)`, `+(...)`).
+    fn recall(&self, g: &Item, from: &Bits, memo: &Memo) -> Result<Step> {
+        let Item::Group { op, id, .. } = g else { return Ok(Step::Done(from.try_clone()?)) };
         let n = self.n();
-        self.work.set(self.work.get().saturating_add(u64::try_from(n / 64 + 1).unwrap_or(u64::MAX)));
+        let words = n / 64 + 1;
+        self.count(words);
+        let mut out = Bits::new(n)?;
+        match op {
+            Op::Not => {
+                for p in from.ones(n + 1) {
+                    let Some(r) = memo.get(*id, p, words) else { return Ok(Step::Need(p)) };
+                    self.count(words);
+                    for q in p..=n {
+                        if r.get(q / 64).is_some_and(|x| (x >> (q % 64)) & 1 == 0) {
+                            out.set(q);
+                        }
+                    }
+                }
+                return Ok(Step::Done(out));
+            }
+            Op::Many => out.or(from),
+            Op::One | Op::Optional | Op::Some => {
+                for p in from.ones(n + 1) {
+                    let Some(r) = memo.get(*id, p, words) else { return Ok(Step::Need(p)) };
+                    self.count(words);
+                    out.or_words(r);
+                }
+                if *op == Op::Optional {
+                    out.or(from);
+                }
+            }
+        }
+        if matches!(op, Op::Many | Op::Some) {
+            for q in 0..=n {
+                if out.get(q) {
+                    let Some(r) = memo.get(*id, q, words) else { return Ok(Step::Need(q)) };
+                    self.count(words);
+                    out.or_words(r);
+                }
+            }
+        }
+        Ok(Step::Done(out))
+    }
+
+    /// A group nested in another, from `from`: the entries it needs are computed first.
+    #[inline(never)]
+    fn nested(&self, prog: &Prog, g: &Item, from: &Bits, memo: &mut Memo) -> Result<Bits> {
+        loop {
+            match self.recall(g, from, memo)? {
+                Step::Done(out) => return Ok(out),
+                Step::Need(p) => self.fill(prog, g, p, memo)?,
+            }
+        }
+    }
+
+    /// Compute `memo`'s entry for the nested group `g` from position `p`, and every entry of the
+    /// groups inside it that this needs: one frame per group being computed, on a stack on the
+    /// heap, so a group nested however deep costs memory (bounded by the pattern's length), never
+    /// thread stack. A frame only waits on a group nested inside its own, so it never waits on
+    /// itself. Each entry is computed once; a frame that waited retries the item it stopped at,
+    /// at most once per entry computed.
+    fn fill(&self, prog: &Prog, g: &Item, p: usize, memo: &mut Memo) -> Result<()> {
+        struct Frame<'i> {
+            g: &'i Item,
+            p: usize,
+            /// The alternative being run, its next item and the positions reached so far.
+            alt: usize,
+            next: usize,
+            cur: Bits,
+            out: Bits,
+        }
+        let n = self.n();
+        let mut stack: TryVec<Frame<'_>> = TryVec::new();
+        stack.push(Frame { g, p, alt: 0, next: 0, cur: Bits::single(n, p)?, out: Bits::new(n)? })?;
+        while let Some(f) = stack.as_mut_slice().last_mut() {
+            let Item::Group { alts, id, .. } = f.g else { break };
+            let Some(k) = alts.clone().nth(f.alt) else {
+                memo.put(*id, f.p, n, &f.out)?;
+                stack.pop();
+                continue;
+            };
+            let items = prog.seq(k);
+            let mut need = None;
+            while let Some(it) = items.get(f.next) {
+                if !f.cur.any() {
+                    break;
+                }
+                f.cur = if matches!(it, Item::Group { .. }) {
+                    match self.recall(it, &f.cur, memo)? {
+                        Step::Done(r) => r,
+                        Step::Need(q) => {
+                            need = Some((it, q));
+                            break;
+                        }
+                    }
+                } else {
+                    self.item(prog, it, &f.cur, memo, true)?
+                };
+                f.next += 1;
+            }
+            match need {
+                Some((g, q)) => stack.push(Frame { g, p: q, alt: 0, next: 0, cur: Bits::single(n, q)?, out: Bits::new(n)? })?,
+                None => {
+                    f.out.or(&f.cur);
+                    f.alt += 1;
+                    f.next = 0;
+                    f.cur = Bits::single(n, f.p)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// One item's step. Inlined into its two loops ([`Matcher::run`], [`Matcher::fill`]): a call
+    /// per item costs the plain (group-free) match a frame and a copy of the result each.
+    #[inline(always)]
+    fn item(&self, prog: &Prog, it: &Item, from: &Bits, memo: &mut Memo, nested: bool) -> Result<Bits> {
+        let n = self.n();
+        self.count(n / 64 + 1);
+        if let Item::Group { op, alts, .. } = it {
+            return if nested { self.nested(prog, it, from, memo) } else { self.group(prog, *op, alts, from, memo) };
+        }
         let mut out = Bits::new(n)?;
         match it {
             Item::Lit(x) => {
@@ -654,43 +910,48 @@ impl Matcher<'_> {
                     }
                 }
             }
-            Item::Never => {}
-            Item::Group(op, alts) => {
-                out = match op {
-                    Op::One => self.one_of(alts, from)?,
-                    Op::Optional => {
-                        let mut r = self.one_of(alts, from)?;
-                        r.or(from);
-                        r
-                    }
-                    Op::Many => self.closure(alts, from.try_clone()?)?,
-                    Op::Some => {
-                        let first = self.one_of(alts, from)?;
-                        self.closure(alts, first)?
-                    }
-                    Op::Not => {
-                        for p in (0..=n).filter(|&p| from.get(p)) {
-                            let mut single = Bits::new(n)?;
-                            single.set(p);
-                            let ends = self.one_of(alts, &single)?;
-                            for q in (p..=n).filter(|&q| !ends.get(q)) {
-                                out.set(q);
-                            }
-                        }
-                        out
-                    }
-                };
-            }
+            Item::Never | Item::Group { .. } => {}
         }
         Ok(out)
+    }
+
+    /// A group of the pattern's own sequence, on whole sets of positions. Kept out of
+    /// [`Matcher::item`] so that the per-item step stays small enough to inline into its loops.
+    #[inline(never)]
+    fn group(&self, prog: &Prog, op: Op, alts: &core::ops::Range<usize>, from: &Bits, memo: &mut Memo) -> Result<Bits> {
+        let n = self.n();
+        Ok(match op {
+            Op::One => self.one_of(prog, alts, from, memo)?,
+            Op::Optional => {
+                let mut r = self.one_of(prog, alts, from, memo)?;
+                r.or(from);
+                r
+            }
+            Op::Many => self.closure(prog, alts, from.try_clone()?, memo)?,
+            Op::Some => {
+                let first = self.one_of(prog, alts, from, memo)?;
+                self.closure(prog, alts, first, memo)?
+            }
+            Op::Not => {
+                let mut out = Bits::new(n)?;
+                for p in (0..=n).filter(|&p| from.get(p)) {
+                    let single = Bits::single(n, p)?;
+                    let ends = self.one_of(prog, alts, &single, memo)?;
+                    for q in (p..=n).filter(|&q| !ends.get(q)) {
+                        out.set(q);
+                    }
+                }
+                out
+            }
+        })
     }
 }
 
 /// The compiled items of a pattern: for the locale's characters (when the pattern is valid
 /// text there) and for bytes.
 struct Compiled {
-    multi: Option<TryVec<Item>>,
-    bytes: TryVec<Item>,
+    multi: Option<Prog>,
+    bytes: Prog,
 }
 
 /// A pattern for repeated matching: the text, compiled to items on first need. Matching a
@@ -705,12 +966,12 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    /// Compile `pattern` under `flags` in `loc`. An error only without memory, or for extended
-    /// groups nested deeper than 64.
+    /// Compile `pattern` under `flags` in `loc`. An error only without memory (extended groups
+    /// nest as deep as the pattern's length allows).
     pub fn new(pattern: &[u8], flags: i32, loc: &Locale) -> Result<Pattern> {
         let p = Pattern { flags, mode: Mode::of(loc), raw: TryVec::from_slice(pattern)?, compiled: core::cell::OnceCell::new(), work: core::cell::Cell::new(0) };
-        // Extended groups nested too deeply are an error here, as they were when every
-        // pattern was compiled at once; a plain pattern is compiled only when a match needs it.
+        // A pattern with extended groups is compiled here, so running out of memory for it
+        // is reported by the constructor; a plain pattern is compiled only when a match needs it.
         if flags & EXTMATCH != 0 {
             p.items(loc)?;
         }
@@ -723,15 +984,15 @@ impl Pattern {
             return Ok(c);
         }
         let (pattern, flags, mode) = (self.raw.as_slice(), self.flags, self.mode);
-        let compile = |m: Mode| -> Result<Option<TryVec<Item>>> {
+        let compile = |m: Mode| -> Result<Option<Prog>> {
             let Some(u) = decode(m, pattern, true)? else { return Ok(None) };
             let last_close = u.chars.iter().rposition(|&c| c == ch(b']')).map_or(0, |k| k + 1);
             let p = Parser { bytes: pattern, u: &u, flags, mode: m, loc, last_close };
-            Ok(Some(p.seq(0, u.chars.len(), 0)?))
+            Ok(Some(p.program(u.chars.len())?))
         };
         let multi = if mode.multibyte() { compile(mode)? } else { None };
         // Every byte string is valid text byte by byte.
-        let bytes = compile(Mode::Bytes)?.unwrap_or_else(TryVec::new);
+        let bytes = compile(Mode::Bytes)?.unwrap_or_else(|| Prog { items: TryVec::new(), root: 0, seqs: TryVec::new(), groups: 0 });
         Ok(self.compiled.get_or_init(|| Compiled { multi, bytes }))
     }
 
@@ -763,7 +1024,7 @@ impl Pattern {
         let n = s.chars.len();
         let mut start = Bits::new(n)?;
         start.set(0);
-        let end = mt.run(items, start)?;
+        let end = mt.run_prog(items, start)?;
         if end.get(n) {
             return Ok(true);
         }
@@ -813,7 +1074,7 @@ impl Pattern {
             let mt = Matcher { s: &s.chars, flags: self.flags, mode: Mode::Bytes, loc, work: &self.work };
             let mut start = Bits::new(len)?;
             start.set(0);
-            let end = mt.run(&c.bytes, start)?;
+            let end = mt.run_prog(&c.bytes, start)?;
             for (e, slot) in out.as_mut_slice().iter_mut().enumerate().skip(first_bytes) {
                 *slot = end.get(e);
             }
@@ -824,7 +1085,7 @@ impl Pattern {
                 let mt = Matcher { s: &u.chars, flags: self.flags, mode, loc, work: &self.work };
                 let mut start = Bits::new(u.chars.len())?;
                 start.set(0);
-                let end = mt.run(items, start)?;
+                let end = mt.run_prog(items, start)?;
                 for (i, &off) in u.offs.iter().enumerate() {
                     if let Some(slot) = out.as_mut_slice().get_mut(off) {
                         *slot = end.get(i);
@@ -881,7 +1142,7 @@ impl Pattern {
             let mt = Matcher { s: &s.chars, flags: self.flags, mode: Mode::Bytes, loc, work: &self.work };
             let mut end = Bits::new(len)?;
             end.set(len);
-            let Some(start) = mt.run_back(&c.bytes, end)? else { return Ok(None) };
+            let Some(start) = mt.run_back(c.bytes.root(), end)? else { return Ok(None) };
             for (b, slot) in out.as_mut_slice().iter_mut().enumerate().take(text_from) {
                 *slot = start.get(b);
             }
@@ -892,7 +1153,7 @@ impl Pattern {
                 let mt = Matcher { s: &u.chars, flags: self.flags, mode, loc, work: &self.work };
                 let mut end = Bits::new(u.chars.len())?;
                 end.set(u.chars.len());
-                let Some(start) = mt.run_back(items, end)? else { return Ok(None) };
+                let Some(start) = mt.run_back(items.root(), end)? else { return Ok(None) };
                 for (i, &off) in u.offs.iter().enumerate() {
                     if let Some(slot) = out.as_mut_slice().get_mut(text_from + off) {
                         *slot = start.get(i);
@@ -905,7 +1166,7 @@ impl Pattern {
 }
 
 /// `fnmatch(pattern, string, flags)` in `loc`: `Ok(true)` for a match. Unknown flag bits are
-/// ignored. An error only without memory (or for extended groups nested deeper than 64).
+/// ignored. An error only without memory.
 pub fn fnmatch(pattern: &[u8], string: &[u8], flags: i32, loc: &Locale) -> Result<bool> {
     if let Some(m) = direct(pattern, string, flags, loc) {
         return Ok(m);
@@ -1081,7 +1342,7 @@ fn bracket_has(p: &[u8], i: usize, escapes: bool, mt: &Matcher<'_>, ch: Option<u
                     _ => return Some(None),
                 }
             };
-            let w = ctype::wctype(p.get(j + 2..close)?, mt.loc);
+            let w = ctype::wctype_class(p.get(j + 2..close)?, mt.loc);
             let Some(w) = w else { return Some(None) };
             add(Member::Class(w));
             j = close + 2;

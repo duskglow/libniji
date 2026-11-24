@@ -19,6 +19,10 @@ use niji::locale::file::Category;
 use niji::locale::table3::Table3;
 use niji_locale::{Files, Kind, TryVec};
 
+/// The generated collation root against the reference's en_US (D-31.32).
+#[path = "reference/collate_root.rs"]
+mod collate_root;
+
 const I18N: &str = "/usr/share/i18n";
 /// The decompressed size a charmap may have (the largest installed is under 4 MiB).
 const CHARMAP_LIMIT: usize = 64 << 20;
@@ -280,6 +284,12 @@ fn order_diffs<S: Clone + std::fmt::Debug>(corpus: &[S], theirs: impl Fn(&S, &S)
 /// over [`corpus`], and the collation-sequence order of the alphabet's characters
 /// (bracket-expression ranges). Keys equal byte for byte are counted, not required.
 fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<String>) {
+    diff_collate_of(theirs, ours, utf8, |_| true, out);
+}
+
+/// [`diff_collate`] over the strings of the corpus and the characters of the alphabet that
+/// `keep` accepts.
+fn diff_collate_of(theirs: Category, ours: Category, utf8: bool, keep: fn(char) -> bool, out: &mut Vec<String>) {
     use niji::locale::collate::{compare, key_bytes, Collate, Collation};
     let (t, o) = match (Collate::parse(theirs), Collate::parse(ours)) {
         (Some(Collation::Rules(t)), Some(Collation::Rules(o))) => (t, o),
@@ -295,7 +305,7 @@ fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<Stri
             return;
         }
     };
-    let words = corpus(utf8);
+    let words: Vec<Vec<char>> = corpus(utf8).into_iter().filter(|s| s.iter().all(|&c| keep(c))).collect();
     let mb = |s: &Vec<char>| -> Vec<u8> { if utf8 { s.iter().collect::<String>().into_bytes() } else { s.iter().map(|&c| c as u8).collect() } };
     let bytes: Vec<Vec<u8>> = words.iter().map(mb).collect();
     for d in order_diffs(&bytes, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
@@ -305,7 +315,7 @@ fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<Stri
     for d in order_diffs(&wide, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
         out.push(format!("LC_COLLATE wcscoll: {d}"));
     }
-    let cps: Vec<u32> = alphabet(utf8).iter().map(|&c| c as u32).collect();
+    let cps: Vec<u32> = alphabet(utf8).into_iter().filter(|&c| keep(c)).map(|c| c as u32).collect();
     let seq = |c: &Collate, cp: u32| if utf8 { c.collseq_wide(cp) } else { c.collseq_byte(cp as u8) };
     for d in order_diffs(&cps, |a, b| seq(&t, *a).cmp(&seq(&t, *b)), |a, b| seq(&o, *a).cmp(&seq(&o, *b))) {
         out.push(format!("LC_COLLATE collseq: {d}"));
@@ -448,7 +458,10 @@ fn undefined_categories_get_the_references_defaults() {
             let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(mine.as_slice().to_vec())).unwrap());
             match n {
                 0 => diff_ctype(t, o, &mut out),
-                3 => diff_collate(t, o, charmap == "UTF-8", &mut out),
+                3 => {
+                    diff_collate(t, o, charmap == "UTF-8", &mut out);
+                    diff_items(file, t, o, &[], &mut out);
+                }
                 _ => diff_items(file, t, o, &[], &mut out),
             }
         }
@@ -550,6 +563,78 @@ fn generated_charmaps_compile_like_the_reference() {
     }
 }
 
+/// The generated locale sources (LOCALE-SOURCES-GEN, D-31.27: `cargo xtask so` writes them to
+/// `target/niji/locale-sources`, or `$NIJI_PRODUCTS/locale-sources`) with the generated charmaps:
+/// what localedef reads on a system with libniji's `locales` and no file of the reference's.
+struct Sources(PathBuf);
+
+impl Files for Sources {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        match kind {
+            Kind::Locale => {
+                let data = std::fs::read(self.0.join(String::from_utf8_lossy(name).as_ref())).map_err(|_| niji_locale::Error::missing("no such file"))?;
+                TryVec::from_slice(&data).map_err(Into::into)
+            }
+            Kind::Charmap => Generated.read(kind, name),
+        }
+    }
+}
+
+fn sources() -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root.join("target/niji"), PathBuf::from);
+    let dir = products.join("locale-sources");
+    assert!(dir.join("SUPPORTED").exists(), "the generated locale sources are missing: run `cargo xtask so`");
+    dir
+}
+
+/// s31_8_c_1: the #14 locales compiled from libniji's generated sources (Unicode CLDR, D-31.27)
+/// keep what the comparison with the reference found equal: every `LC_CTYPE` class bit, case
+/// map value and width of every code point, the `LC_NUMERIC` items (en_US, de_DE, fr_FR: the
+/// decimal point, grouping and thousands separator printf uses) and, for the locales the
+/// reference does not tailor (en_US, de_DE, fr_FR), the collation order of the corpus
+/// (CLDR's root collation with UTS #10 shifted variable weighting). The parts that differ by
+/// design (transliteration, dates, the tailored orders) are docs/differences-from-glibc.md rows.
+#[test]
+fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
+    let src = sources();
+    for locale in ["en_US", "de_DE", "fr_FR", "ja_JP", "tr_TR"] {
+        let Some(dir) = reference(locale, "UTF-8") else { continue };
+        let ours = niji_locale::compile(locale.as_bytes(), b"UTF-8", &mut Sources(src.clone())).unwrap_or_else(|e| panic!("{locale}: the generated source does not compile: {e:?}"));
+        let cat = |n: usize, theirs: bool| -> Category {
+            let bytes = if theirs { std::fs::read(dir.join("out").join(FILES[n].unwrap())).unwrap() } else { ours[n].as_ref().unwrap().as_slice().to_vec() };
+            Category::parse(leak(bytes)).unwrap_or_else(|| panic!("{locale}: category {n}: a header the reader refuses"))
+        };
+        let mut out = Vec::new();
+        diff_ctype(cat(0, true), cat(0, false), &mut out);
+        // The POSIX classes and libniji's two combining classes, and the case maps; ja_JP's own
+        // classes and maps of the reference (jkanji, tojhira, ...) are a differences-row item.
+        let standard = |l: &str| {
+            l.strip_prefix("LC_CTYPE class ").and_then(|r| r.split(':').next()).is_some_and(|c| {
+                ["upper", "lower", "alpha", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum", "combining", "combining_level3"].contains(&c.trim())
+            })
+        };
+        let case_map = |l: &str| ["toupper:", "tolower:", "totitle:"].iter().any(|m| l.strip_prefix("LC_CTYPE map ").is_some_and(|r| r.starts_with(m)));
+        out.retain(|l| standard(l) || case_map(l) || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
+        if matches!(locale, "en_US" | "de_DE" | "fr_FR") {
+            diff_items("LC_NUMERIC", cat(1, true), cat(1, false), &[], &mut out);
+            // Left out, each a differences-row item: UCA's implicit weights order every unified
+            // ideograph, where the reference leaves CJK Extension A and the supplementary-plane
+            // ideographs undefined; the reference ties U+013F/U+0140 with L/l and MIDDLE DOT at
+            // every level. The collation-sequence order (bracket ranges) is compared for ASCII
+            // only: beyond it the reference's sequence is its table's line order (Greek, U+0149
+            // and U+00FE before Latin A), which a weight order need not follow.
+            diff_collate_of(cat(3, true), cat(3, false), true, |c| !matches!(c as u32, 0x3400..=0x4DBF | 0x9FA6..=0x9FFF | 0x20000..=0x323AF | 0x13F | 0x140), &mut out);
+            out.retain(|l| {
+                let Some(rest) = l.strip_prefix("LC_COLLATE collseq: ") else { return true };
+                rest.split([' ', ':']).take(2).all(|n| n.parse::<u32>().is_ok_and(|n| n < 0x80))
+            });
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(out.is_empty(), "{locale}: {} differences from the reference:\n{}", out.len(), out.join("\n"));
+    }
+}
+
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).
@@ -637,86 +722,61 @@ fn products_localedef_searches_i18npath_and_the_working_directory() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The root locale source of `niji_collate_root` as the locale file, with the generated charmaps.
-struct Root(Vec<u8>);
+/// The C locale's collation over UTF-8: all of Unicode in code point order, one `..` run (equal-width names).
+const CODE_POINT_ORDER: &str = "LC_COLLATE\norder_start forward\n<U00000000>\n..\n<U0010FFFF>\norder_end\nEND LC_COLLATE\n";
 
-impl Files for Root {
-    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
-        match kind {
-            Kind::Locale => TryVec::from_slice(&self.0).map_err(Into::into),
-            Kind::Charmap => Generated.read(kind, name),
-        }
-    }
-}
-
-/// no spec clause (generated locale data by probe: owner ruling #7791, decision #7958). The
-/// generated root collation (`niji_collate_root`: the DUCET and spec/locale/collate-root.txt)
-/// compiled by libniji's localedef orders as the reference's en_US.UTF-8 does (the root order: 206
-/// of the reference's 327 UTF-8 locales order as en_US; results/locale-collate-2026-11-23.md).
-/// Every code point U+0001-U+10FFFF but the surrogates, in the reference's `strxfrm` order: for
-/// each adjacent pair the order and the level at which the two differ (the filler test of
-/// tools/probe/collate/collorder.c) must be the same; then the corpus and `wcscoll`
-/// as [`diff_collate`] compares them (bracket ranges aside: see the comment there).
+/// s31_8_c_1 (D-31.31): all of Unicode in code point order compiles to the reference's own C.UTF-8 `LC_COLLATE`
+/// (no rules; the collation-sequence values of the bytes and of every code point; the codeset), item for item; the
+/// products' `localedef` compiles it within a 64 MiB address space (it needs under 16 MiB; placing every code point needs far more) to
+/// the library's file, which the reference's `locale` loads without a message. Skips without the reference's
+/// compiled C.UTF-8, the UTF-8 charmap or the products (`cargo xtask so`).
 #[test]
-fn generated_root_collation_is_the_references_en_us() {
-    use niji::locale::collate::{compare, key_bytes, Collate, Collation};
-    use std::cmp::Ordering;
-    let Some(dir) = reference("en_US", "UTF-8") else { return };
-    let theirs = std::fs::read(dir.join("out").join("LC_COLLATE")).expect("the reference's LC_COLLATE");
+fn code_point_order_compiles_like_the_reference_c_utf8() {
+    let theirs = Path::new("/usr/lib/locale/C.utf8/LC_COLLATE");
+    let (Ok(theirs), Ok(_)) = (std::fs::read(theirs), Disk.read(Kind::Charmap, b"UTF-8")) else {
+        println!("skip: needs {} and the UTF-8 charmap", theirs.display());
+        return;
+    };
+    let dir = std::env::temp_dir().join(format!("niji-locale-cpo-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let src = niji_collate_root::source(&repo).expect("the root source");
-    let out = niji_locale::compile_output(b"root", b"UTF-8", &mut Root(src.into_bytes())).expect("compiling the root");
-    assert!(out.errors.is_empty(), "the root source: {:?}", out.errors.first());
-    let ours = out.files[3].as_ref().expect("the root's LC_COLLATE").as_slice().to_vec();
-    let cat = |b: &Vec<u8>| Category::parse(leak(b.clone())).expect("a category header");
-    let (Some(Collation::Rules(t)), Some(Collation::Rules(o))) = (Collate::parse(cat(&theirs)), Collate::parse(cat(&ours))) else {
-        panic!("both collations have rules");
-    };
-    let key = |s: &[u8]| {
-        let mut k = vec![0u8; 4096];
-        let n = key_bytes(&t, s, &mut k).unwrap_or(0);
-        k.truncate(n);
-        k
-    };
-    let strs: Vec<Vec<u8>> = (1u32..0x11_0000).filter_map(char::from_u32).map(|c| c.to_string().into_bytes()).collect();
-    let mut sorted: Vec<(Vec<u8>, usize)> = strs.iter().enumerate().map(|(i, s)| (key(s), i)).collect();
-    sorted.sort();
-    // 0: equal; 1-3: the first level the fillers show; 4: beyond level 3; 9: the other way round.
-    let level = |c: &Collate, a: &[u8], b: &[u8]| -> u8 {
-        match compare(c, a, b) {
-            Ordering::Equal => return 0,
-            Ordering::Greater => return 9,
-            Ordering::Less => {}
-        }
-        for (l, (f1, f2)) in [("a", "b"), ("a", "\u{e1}"), ("a", "A")].into_iter().enumerate() {
-            if compare(c, [a, f2.as_bytes()].concat().as_slice(), [b, f1.as_bytes()].concat().as_slice()) == Ordering::Less {
-                return l as u8 + 1;
-            }
-        }
-        4
-    };
-    let mut diffs = Vec::new();
-    let mut count = 0usize;
-    for w in sorted.windows(2) {
-        let (a, b) = (&strs[w[0].1], &strs[w[1].1]);
-        let (lt, lo) = (level(&t, a, b), level(&o, a, b));
-        if lt != lo {
-            count += 1;
-            if diffs.len() < 12 {
-                diffs.push(format!("{:?} {:?}: ref level {lt}, ours {lo}", String::from_utf8_lossy(a), String::from_utf8_lossy(b)));
-            }
-        }
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("cpo");
+    std::fs::write(&src, CODE_POINT_ORDER).unwrap();
+    let lib = niji_locale::compile_output(src.to_str().unwrap().as_bytes(), b"UTF-8", &mut Disk).unwrap();
+    let ours = lib.files[3].as_ref().expect("LC_COLLATE").as_slice().to_vec();
+    let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(ours.clone())).unwrap());
+    let mut out = Vec::new();
+    diff_collate(t, o, true, &mut out);
+    // Item 17 (the code points' collation-sequence values) is a table whose layout is the writer's own: compared by
+    // value over every code point.
+    diff_items("LC_COLLATE", t, o, &[17], &mut out);
+    let (tt, ot) = (Table3::parse(t.item(17)).expect("their item 17"), Table3::parse(o.item(17)).expect("our item 17"));
+    let bad: Vec<u32> = (0..0x11_0000u32).filter(|&c| tt.value_u32(c) != ot.value_u32(c)).take(8).collect();
+    if !bad.is_empty() {
+        out.push(format!("LC_COLLATE item 17 differs at {bad:x?}"));
     }
-    println!("{} code points compared, {count} adjacent pairs differ", strs.len());
-    let mut corpus = Vec::new();
-    diff_collate(cat(&theirs), cat(&ours), true, &mut corpus);
-    // Bracket-range order (collation sequence numbers) is not part of the probed order: the
-    // reference's differs from its strcoll order (U+03B1 before U+0041). Open, not asserted here
-    // (handoff/LOCALE-COLLATE-TAILORINGS.md).
-    let (collseq, corpus): (Vec<String>, Vec<String>) = corpus.into_iter().partition(|d| d.starts_with("LC_COLLATE collseq"));
-    println!("collseq differences (open): {}", collseq.len());
-    assert!(count == 0 && corpus.is_empty(), "{count} pairs differ from the reference:\n{}\ncorpus:\n{}", diffs.join("\n"), corpus.join("\n"));
+    assert!(out.is_empty(), "{} differences:\n{}", out.len(), out.join("\n"));
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() {
+        println!("skip the program: needs {} (cargo xtask so)", bin.display());
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let run = Command::new("sh")
+        .args(["-c", "ulimit -v 65536 && exec \"$0\" \"$@\"", bin.to_str().unwrap(), "-c", "--quiet", "-i"])
+        .arg(&src)
+        .args(["-f", "UTF-8"])
+        .arg(dir.join("cpo.utf8"))
+        .env_clear()
+        .output()
+        .unwrap();
+    let got = std::fs::read(dir.join("cpo.utf8/LC_COLLATE")).unwrap_or_default();
+    assert!(got == ours, "status {:?}, {} bytes, not the library's: {}", run.status.code(), got.len(), String::from_utf8_lossy(&run.stderr));
+    match Command::new("locale").env_clear().env("LOCPATH", &dir).env("LC_COLLATE", "cpo.utf8").output() {
+        Ok(o) => assert!(o.status.success() && o.stderr.is_empty(), "the reference's locale: {}", String::from_utf8_lossy(&o.stderr)),
+        Err(e) => println!("skip the load: the reference's locale cannot run: {e}"),
+    }
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// Sources by name from one directory (an absolute name as given), charmaps installed.

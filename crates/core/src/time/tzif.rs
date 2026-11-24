@@ -93,7 +93,7 @@ impl<'a> Reader<'a> {
         Ok(i64::from_be_bytes(s.try_into().map_err(|_| Errno::EINVAL)?))
     }
 
-    fn time(&mut self, wide: bool) -> Result<i64> {
+    fn time_value(&mut self, wide: bool) -> Result<i64> {
         if wide { self.i64() } else { self.i32() }
     }
 
@@ -182,7 +182,7 @@ fn block<'a>(r: &mut Reader<'a>, c: &Counts, wide: bool, version: u8) -> Result<
     out.designations = r.take(c.chars)?;
     out.leaps.reserve(c.leap)?;
     for _ in 0..c.leap {
-        let occ = r.time(wide)?;
+        let occ = r.time_value(wide)?;
         let corr = r.i32()?;
         out.leaps.push((occ, corr))?;
     }

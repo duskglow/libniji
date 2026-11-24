@@ -55,7 +55,7 @@ fn s5_1_g_0() {
 
 #[test]
 fn s5_2_c_0() {
-    let alpha = t::wctype(b"alpha", &Locale::C);
+    let alpha = t::wctype_in(b"alpha", &Locale::C);
     assert!(t::iswctype(u32::from('z'), alpha, &Locale::C));
     assert!(!t::iswctype(u32::from('1'), alpha, &Locale::C));
     assert!(!t::iswctype(WEOF, alpha, &Locale::C), "WEOF is in no class");
@@ -83,8 +83,8 @@ fn s5_2_g_0() {
 
 #[test]
 fn s5_2_f_0() {
-    assert_eq!(t::wctype(b"jspace", &Locale::C), 0);
-    assert_eq!(t::wctype(b"", &Locale::C), 0);
+    assert_eq!(t::wctype_in(b"jspace", &Locale::C), 0);
+    assert_eq!(t::wctype_in(b"", &Locale::C), 0);
     assert!(!t::iswctype(u32::from('a'), 0, &Locale::C));
 }
 
