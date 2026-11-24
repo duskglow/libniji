@@ -1,0 +1,9 @@
+{"task": "XTASK-TESTS-TZSELECT-FOLD", "model": "sonnet", "tokens": null,
+ "result": "tzselect, pldd and manifest tests (8) folded into xtask/tests/tz_tools.rs; tzselect_pldd.rs deleted; plants 3/3 caught",
+ "branch": "task/xtask-tests-tzselect-fold", "head": "1d3ef3f69",
+ "gate": {"affected": "693 passed / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": ["Both groups went into tz_tools.rs (not transcripts.rs): they share Run/finish/ours with each other and link()/root() with zic and zdump; transcripts.rs has no shared helper. tz_tools.rs: 18 tests (10 zic/zdump + 8 moved), names unchanged."],
+ "refused": [],
+ "impact": [{"kind": "tooling", "what": "one fewer xtask test binary (tzselect_pldd), shared link()/root() helpers; xtask test lines 1040 -> 1026 for the two files (tz_tools 522 + tzselect_pldd 518 before)", "before": 1040, "after": 1026, "unit": "test lines", "measured": true}],
+ "improvement": "none", "next_step": "land", "report_file": "handoff/UTIL-TZSELECT-PLDD.md"}
