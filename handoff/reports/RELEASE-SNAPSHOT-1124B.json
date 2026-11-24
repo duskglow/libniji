@@ -15,6 +15,7 @@
   "D1 stale: docs/install-packages.md:159 and tools/deb/description/locales still say locale sources are absent / placeholder",
   "D3: docs/RELEASE-NOTES.md Unreleased lacks the B1 fix, #25, #24, #11, locale sources/localedef and the start-up drop",
   "D4: docs/compat-flags.md:33 (COMPAT-12) names crates/boundary/tests/s29_rpc_reply_source.rs, which does not exist",
+  "B1 diagnostic (dlcd, mei) is not in jobs: it exits 1 by design on its 'stock run is not the recorded reference' line; its libniji verdicts are bad total 0 of 300 and bad-find total 0 of 300 for prog and prog-niji",
   "dladdr dli_sname for an address shared by several symbols differs from stock (printf vs _IO_printf; cosf64 vs none), same on 22.3"
  ],
  "refused": [],
@@ -29,5 +30,5 @@
  "improvement": "a release check that waits on another (eetwet after y14r) should be chained under one label or registered at once, so one jobwait over the whole list works; and the .deb relay keke->local->mei could be a single ops tool step instead of hand-run scp",
  "next_step": "coordinator: tag/publish snapshot-2026-11-23.1 from keke ~/release-staging/snapshot-20261123.1/; brief stories for L2 (locale data parity), L3 (description wrap) and D1/D3/D4",
  "report_file": "handoff/RELEASE-SNAPSHOT-1124B.md",
- "jobs": ["keke:release-snapshot-1124b-gate-1", "keke:release-snapshot-1124b-plants-1", "keke:release-snapshot-1124b-debs-1", "keke:release-snapshot-1124b-smoke-keke-1", "keke:release-snapshot-1124b-heapnode-1", "keke:release-snapshot-1124b-gaimass-1", "keke:release-snapshot-1124b-pkgdiff-1", "keke:release-snapshot-1124b-stage-1", "keke:release-snapshot-1124b-install-1", "keke:release-snapshot-1124b-startup-keke-1", "mei:release-snapshot-1124b-smoke-mei-1", "mei:release-snapshot-1124b-roots-1", "mei:release-snapshot-1124b-lint-1", "mei:release-snapshot-1124b-dlc-1", "mei:release-snapshot-1124b-dlcd-1", "mei:release-snapshot-1124b-y25c-1", "mei:release-snapshot-1124b-y25n-1", "mei:release-snapshot-1124b-y2411-1", "mei:release-snapshot-1124b-y14l-1", "mei:release-snapshot-1124b-y21-1", "mei:release-snapshot-1124b-startup-mei-1"]
+ "jobs": ["keke:release-snapshot-1124b-gate-1", "keke:release-snapshot-1124b-plants-1", "keke:release-snapshot-1124b-debs-1", "keke:release-snapshot-1124b-smoke-keke-1", "keke:release-snapshot-1124b-heapnode-1", "keke:release-snapshot-1124b-gaimass-1", "keke:release-snapshot-1124b-pkgdiff-1", "keke:release-snapshot-1124b-stage-1", "keke:release-snapshot-1124b-install-1", "keke:release-snapshot-1124b-startup-keke-1", "mei:release-snapshot-1124b-smoke-mei-1", "mei:release-snapshot-1124b-roots-1", "mei:release-snapshot-1124b-lint-1", "mei:release-snapshot-1124b-dlc-1", "mei:release-snapshot-1124b-y25c-1", "mei:release-snapshot-1124b-y25n-1", "mei:release-snapshot-1124b-y2411-1", "mei:release-snapshot-1124b-y14l-1", "mei:release-snapshot-1124b-y21-1", "mei:release-snapshot-1124b-startup-mei-1"]
 }
