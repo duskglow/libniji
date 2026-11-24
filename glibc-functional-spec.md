@@ -1557,6 +1557,16 @@ characters from `./0-9A-Za-z`, least-significant digit first.
 C23 `<stdckdint.h>` (`ckd_add`, `ckd_sub`, `ckd_mul`) is provided by the compiler, not by glibc.
 glibc's own overflow checks (`reallocarray`, `calloc`) are internal.
 
+### 8.12 `<sys/param.h>` arithmetic macros: `MIN`, `MAX`, `howmany`, `roundup`, `powerof2`, `setbit`, `clrbit`, `isset`, `isclr` (macros)
+
+**Contract.** Function-like macros of `<sys/param.h>` (BSD; man pages MAX(3), roundup(3), powerof2(3)), defined in every accepted feature-test configuration, C and C++. No symbol backs them. The results follow the usual arithmetic conversions of the arguments. Where every argument is an integer constant expression, so is the result of `MIN`, `MAX`, `howmany`, `roundup` and `powerof2`. The recorded probe is `crates/core/tests/oracle/sys_param_diff.c` (spec/behaviour/sys-param.md):
+
+* `MIN(a, b)` is `a` when `a < b`, else `b`; `MAX(a, b)` is `a` when `a > b`, else `b` (so with equal operands, or a NaN operand, the result is `b`). The chosen operand is evaluated twice, the other once. Pointers to one array are accepted.
+* `howmany(x, y)` is `(x + (y - 1)) / y`: `x` evaluated once, `y` twice. A definition of `howmany` that the program made before including the header is kept.
+* `roundup(x, y)` is the least multiple of `y` not below `x` for `x >= 0` and `y > 0` without overflow. With a step that the compiler knows is a power of two (0 included), the result is `x + (y - 1)` with the bits below `y` cleared, in the type of `x + y` (`roundup(-5, 4)` is -4, `roundup(x, 0)` is 0); otherwise it is `(x + (y - 1)) / y * y`, `x` evaluated once and `y` three times (`roundup(-5, 4)` with a run-time step is 0).
+* `powerof2(x)` is the `int` 1 when `x & (x - 1)` is 0 (0 counts as a power of two) and 0 otherwise; `x` is evaluated twice.
+* `setbit(a, i)`, `clrbit(a, i)` set and clear bit `i % NBBY` of element `a[i / NBBY]`, counting in `a`'s own elements, and have the element's new value; `isset(a, i)` is that element's bit masked (`int` from a narrower element: `isset(a, 13)` is 32 when set), `isclr(a, i)` the `int` 1 when it is clear, else 0. `a` is evaluated once, `i` twice.
+
 ---
 
 ## 9. Random numbers

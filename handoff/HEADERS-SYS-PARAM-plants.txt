@@ -1,0 +1,10 @@
+# HEADERS-SYS-PARAM plants: one per macro family of sys/param.h (spec 8.12), on the generated header the s8_12 tests compile.
+hsp-min-tie | libc-include/sys/param.h | lit:#define MIN(a, b) (((a) < (b)) ? (a) : (b)) ==> #define MIN(a, b) (((a) <= (b)) ? (a) : (b)) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_1.*(FAILED|panicked)
+hsp-max-tie | libc-include/sys/param.h | lit:#define MAX(a, b) (((a) > (b)) ? (a) : (b)) ==> #define MAX(a, b) (((a) >= (b)) ? (a) : (b)) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_1.*(FAILED|panicked)
+hsp-howmany-guard | libc-include/sys/param.h | lit:#ifndef howmany ==> #if 1 | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_0.*(FAILED|panicked)
+hsp-howmany-form | libc-include/sys/param.h | lit:# define howmany(x, y) (((x) + ((y) - 1)) / (y)) ==> # define howmany(x, y) ((x) / (y) + ((x) % (y) != 0)) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_2.*(FAILED|panicked)
+hsp-roundup-mask | libc-include/sys/param.h | lit:& ~((0 ? (x) : (y)) - 1)) ==> & ~((y) - 1)) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_3.*(FAILED|panicked)
+hsp-roundup-const | libc-include/sys/param.h | lit:(__builtin_constant_p (y) && powerof2 (y) ==> (0 && powerof2 (y) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_3.*(FAILED|panicked)
+hsp-powerof2 | libc-include/sys/param.h | lit:#define powerof2(x) ((((x) - 1) & (x)) == 0) ==> #define powerof2(x) ((x) != 0 && (((x) - 1) & (x)) == 0) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_4.*(FAILED|panicked)
+hsp-isset-value | libc-include/sys/param.h | lit:#define isset(a, i) ((a)[(i) / NBBY] & (1 << ((i) % NBBY))) ==> #define isset(a, i) (((a)[(i) / NBBY] >> ((i) % NBBY)) & 1) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_5.*(FAILED|panicked)
+hsp-setbit-bytes | libc-include/sys/param.h | lit:#define setbit(a, i) ((a)[(i) / NBBY] |= 1 << ((i) % NBBY)) ==> #define setbit(a, i) (((unsigned char *) (a))[(i) / NBBY] |= 1 << ((i) % NBBY)) | cargo test -p niji --test s08_numeric_clauses s8_12 | msg:s8_12_c_5.*(FAILED|panicked)

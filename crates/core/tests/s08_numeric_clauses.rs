@@ -454,3 +454,145 @@ fn short_path_agrees() {
     assert_eq!(parse_i64_short(b"name", 10, true), Some((0, 0)));
     assert_eq!(parse_i64_short(b"1234567890123456789", 10, true), None);
 }
+
+/// §8.12's macros are header text: these tests compile C against the committed `libc-include/` (kept fresh by
+/// `cargo xtask headers-gen --check` in `cargo xtask static`) with the build host's compiler, linked with the host
+/// C library for `printf` only. `None` (the test prints why and returns) where gcc is absent.
+mod sys_param {
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::sync::OnceLock;
+
+    pub fn root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn cc(lang: &str, flags: &[&str], text: &str, tag: &str, link: bool) -> Result<PathBuf, String> {
+        let gcc = if lang == "c++" { "g++" } else { "gcc" };
+        let dir = std::env::temp_dir().join(format!("niji-sys-param.{}", std::process::id()));
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let src = dir.join(format!("{tag}.{}", if lang == "c++" { "cc" } else { "c" }));
+        std::fs::write(&src, text).map_err(|e| e.to_string())?;
+        let gccinc = Command::new("gcc").arg("-print-file-name=include").output().map_err(|e| e.to_string())?;
+        let exe = dir.join(tag);
+        let mut c = Command::new(gcc);
+        c.args(flags).args(["-nostdinc", "-isystem"]).arg(root().join("libc-include"));
+        c.args(["-isystem", String::from_utf8_lossy(&gccinc.stdout).trim(), "-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"]);
+        if link {
+            c.arg("-o").arg(&exe).arg(&src).arg("-lm");
+        } else {
+            c.arg("-fsyntax-only").arg(&src);
+        }
+        let out = c.output().map_err(|e| e.to_string())?;
+        if out.status.success() { Ok(exe) } else { Err(String::from_utf8_lossy(&out.stderr).lines().take(4).collect::<Vec<_>>().join(" | ")) }
+    }
+
+    /// Whether the compilers are here; prints why not.
+    pub fn have_gcc() -> bool {
+        let ok = ["gcc", "g++"].iter().all(|t| Command::new(t).arg("--version").output().is_ok_and(|o| o.status.success()));
+        if !ok {
+            eprintln!("skipped: needs gcc and g++ (the macros are compiled, not called)");
+        }
+        ok
+    }
+
+    /// The oracle probe built with libniji's headers and run: (its output, the recorded reference output).
+    pub fn probe() -> &'static (String, String) {
+        static P: OnceLock<(String, String)> = OnceLock::new();
+        P.get_or_init(|| {
+            let src = std::fs::read_to_string(root().join("crates/core/tests/oracle/sys_param_diff.c")).unwrap();
+            let exe = cc("c", &["-std=gnu17", "-O1"], &src, "probe", true).unwrap_or_else(|e| panic!("sys_param_diff.c with libniji's headers: {e}"));
+            let out = Command::new(&exe).env_clear().output().expect("run probe");
+            assert!(out.status.success(), "probe: {:?}", out.status);
+            let reference = std::fs::read_to_string(root().join("spec/behaviour/sys-param.glibc.txt")).unwrap();
+            (String::from_utf8(out.stdout).unwrap(), reference)
+        })
+    }
+
+    /// The probe's lines whose item starts with one of `prefixes`, libniji's beside the reference's.
+    pub fn same(prefixes: &[&str]) {
+        let (ours, reference) = probe();
+        let pick = |t: &str| t.lines().filter(|l| prefixes.iter().any(|p| l.starts_with(p))).map(String::from).collect::<Vec<_>>();
+        let (o, r) = (pick(ours), pick(reference));
+        assert!(!r.is_empty(), "no reference line for {prefixes:?}");
+        let diff: Vec<String> = r.iter().zip(o.iter().chain(std::iter::repeat(&String::new()))).filter(|(a, b)| a != b).map(|(a, b)| format!("reference `{a}`, libniji `{b}`")).collect();
+        assert!(diff.is_empty() && o.len() == r.len(), "sys/param.h {prefixes:?}: {diff:#?} ({} lines, reference {})", o.len(), r.len());
+    }
+
+    /// Compiles `text` with `-Wall -Wextra -Werror`; the error lines when it does not.
+    pub fn compiles(lang: &str, flags: &[&str], text: &str, tag: &str) -> Result<(), String> {
+        let mut f = vec!["-Wall", "-Wextra", "-Werror"];
+        f.extend_from_slice(flags);
+        cc(lang, &f, text, tag, false).map(|_| ())
+    }
+}
+
+/// §8.12 Contract: the nine macros are defined in each accepted feature-test configuration (strict C89 and C99, POSIX,
+/// XSI, GNU, C++98 and C++17), the arithmetic ones are integer constant expressions (C `enum`, C++ `constexpr`), the
+/// probe's constant-expression lines match the reference's, a program's own `MIN` defined first is replaced and its
+/// own `howmany` kept, and a mixed-sign `MIN` is silent under `-Wall -Wextra -Werror`.
+#[test]
+fn s8_12_c_0() {
+    if !sys_param::have_gcc() {
+        return;
+    }
+    let names = ["MIN", "MAX", "howmany", "roundup", "powerof2", "setbit", "clrbit", "isset", "isclr"];
+    let shown: String = names.iter().map(|n| format!("#ifndef {n}\n#error \"{n} is not defined\"\n#endif\n")).collect();
+    let unit = format!("#include <sys/param.h>\n{shown}enum {{ e = MIN (1, 2) + MAX (1, 2) + howmany (9, 4) + roundup (9, 4) + roundup (9, 3) + powerof2 (8) }};\n");
+    let configs: [(&str, &[&str]); 7] = [("c", &["-std=c89"]), ("c", &["-std=c99"]), ("c", &["-std=c99", "-D_POSIX_C_SOURCE=200809L"]), ("c", &["-std=c11", "-D_XOPEN_SOURCE=700"]), ("c", &["-std=gnu17", "-D_GNU_SOURCE"]), ("c++", &["-std=c++98"]), ("c++", &["-std=c++17"])];
+    for (i, (lang, flags)) in configs.iter().enumerate() {
+        sys_param::compiles(lang, flags, &unit, &format!("vis{i}")).unwrap_or_else(|e| panic!("{lang} {flags:?}: {e}"));
+    }
+    let cxx = "#include <sys/param.h>\nconstexpr int m = MIN (3, 4) + MAX (1, 2) + howmany (9, 4) + roundup (9, 4) + roundup (9, 3) + powerof2 (8);\nstatic_assert (m == 3 + 2 + 3 + 12 + 9 + 1, \"constexpr\");\n";
+    sys_param::compiles("c++", &["-std=c++17"], cxx, "constexpr").unwrap();
+    let own = "#define MIN(a, b) 42\n#define howmany(a, b) 43\n#include <sys/param.h>\n_Static_assert (MIN (1, 2) == 1 && howmany (1, 2) == 43, \"own\");\nint f (int a, unsigned b) { return (int) MIN (a, b); }\n";
+    sys_param::compiles("c", &["-std=gnu17"], own, "own").unwrap();
+    sys_param::same(&["C_", "sizeof c_array"]);
+}
+
+/// §8.12 `MIN`, `MAX`: values and result types over int, unsigned, mixed sign, narrow, 64-bit, `size_t`, pointers,
+/// floating point with NaN and signed zeros, and how often each operand is evaluated: the probe beside the reference.
+#[test]
+fn s8_12_c_1() {
+    if sys_param::have_gcc() {
+        sys_param::same(&["MIN", "MAX"]);
+    }
+}
+
+/// §8.12 `howmany`: values and types (zero, exact, one over, unsigned, long, mixed, below zero, a negative step,
+/// wrap-around) and evaluation counts.
+#[test]
+fn s8_12_c_2() {
+    if sys_param::have_gcc() {
+        sys_param::same(&["howmany"]);
+    }
+}
+
+/// §8.12 `roundup`: values and types with run-time and compile-time steps (power of two, 0, other), below zero,
+/// wrap-around, evaluation counts; and the mask of a compile-time power-of-two step is in the type of `x + y`.
+#[test]
+fn s8_12_c_3() {
+    if !sys_param::have_gcc() {
+        return;
+    }
+    sys_param::same(&["roundup"]);
+    let wide = "#include <sys/param.h>\n_Static_assert (roundup (0x100000001ul, 8u) == 0x100000008ul, \"64-bit x, 32-bit step\");\n_Static_assert (roundup (0x100000001ull, (unsigned short) 8) == 0x100000008ull, \"narrow step\");\nunsigned long f (unsigned long x) { return roundup (x, 4096u); }\n";
+    sys_param::compiles("c", &["-std=gnu17"], wide, "wide").unwrap();
+}
+
+/// §8.12 `powerof2`: 0, powers, non-powers, negative, 64-bit, unsigned, narrow; `int` 1 or 0; `x` evaluated twice.
+#[test]
+fn s8_12_c_4() {
+    if sys_param::have_gcc() {
+        sys_param::same(&["powerof2"]);
+    }
+}
+
+/// §8.12 `setbit`, `clrbit`, `isset`, `isclr`: bits of unsigned char, int and signed char arrays, index types,
+/// the values and types of all four, evaluation counts.
+#[test]
+fn s8_12_c_5() {
+    if sys_param::have_gcc() {
+        sys_param::same(&["NBBY", "bits[", "ia[", "sc[", "setbit", "clrbit", "isset", "isclr"]);
+    }
+}

@@ -1,0 +1,156 @@
+C_MIN	3	int
+C_MAX	7	int
+C_HOWMANY	4	int
+C_ROUNDUP	12	int
+C_ROUNDUP2	16	int
+C_POWEROF2	1	int
+sizeof c_array	13	unsigned long
+MIN (3, 7)	3	int
+MAX (3, 7)	7	int
+MIN (-3, 7)	-3	int
+MAX (-3, -7)	-3	int
+MIN (3u, 7u)	3	unsigned int
+MAX (3u, UINT_MAX)	4294967295	unsigned int
+MIN (-1, 1u)	1	unsigned int
+MAX (-1, 1u)	4294967295	unsigned int
+MIN (-1, 1L)	-1	long
+MAX (-1L, 1u)	1	long
+MIN (-1L, 1ul)	1	unsigned long
+MIN ((char) 1, (short) 2)	1	int
+MAX ((unsigned char) 200, (signed char) -1)	200	int
+MIN (LLONG_MIN, 0)	-9223372036854775808	long long
+MAX (0ull, ULLONG_MAX)	18446744073709551615	unsigned long long
+MIN ((size_t) 5, (size_t) 9)	5	unsigned long
+MAX ((long) INT_MAX + 1, 0)	2147483648	long
+MIN (buf + 3, buf + 9) - buf	3	long
+MAX (buf + 3, buf + 9) - buf	9	long
+MIN (buf, buf + 1) type	char *
+MIN (1.5, 2)	0x1.8p+0 sign=0	double
+MAX (1.5, 2)	0x1p+1 sign=0	double
+MIN (2.5f, 1)	0x1p+0 sign=0	float
+MAX (1, 0.5L)	0x1p+0 sign=0	long double
+MIN (nan, one)	0x1p+0 sign=0	double
+MIN (one, nan)	nan sign=0	double
+MAX (nan, one)	0x1p+0 sign=0	double
+MAX (one, nan)	nan sign=0	double
+MIN (pz, nz)	-0x0p+0 sign=1	double
+MIN (nz, pz)	0x0p+0 sign=0	double
+MAX (pz, nz)	-0x0p+0 sign=1	double
+MAX (nz, pz)	0x0p+0 sign=0	double
+MIN a<b	evals 2 1
+MIN a>b	evals 1 2
+MIN a==b	evals 1 2
+MAX a<b	evals 1 2
+MAX a>b	evals 2 1
+MAX a==b	evals 1 2
+howmany (0, 8)	0	int
+howmany (1, 8)	1	int
+howmany (8, 8)	1	int
+howmany (9, 8)	2	int
+howmany (10, 3)	4	int
+howmany (9, 3)	3	int
+howmany (10u, 3u)	4	unsigned int
+howmany (10L, 3)	4	long
+howmany (10, 3u)	4	unsigned int
+howmany ((size_t) 4097, (size_t) 4096)	2	unsigned long
+howmany (-5, 3)	-1	int
+howmany (-1, 8)	0	int
+howmany (UINT_MAX, 2u)	0	unsigned int
+howmany (ULLONG_MAX - 1, 2ull)	9223372036854775807	unsigned long long
+howmany ((char) 9, (char) 4)	3	int
+howmany (7, -2)	-2	int
+howmany	evals 1 2
+roundup (0, 8)	0	int
+roundup (1, 8)	8	int
+roundup (8, 8)	8	int
+roundup (9, 8)	16	int
+roundup (10, 3)	12	int
+roundup (9, 3)	9	int
+roundup (10u, 3u)	12	unsigned int
+roundup (10L, 4)	12	long
+roundup (10, 4u)	12	unsigned int
+roundup ((size_t) 4097, (size_t) 4096)	8192	unsigned long
+roundup (-5, 3)	-3	int
+roundup (-5, 4)	-4	int
+roundup (-8, 4)	-8	int
+roundup (UINT_MAX, 2u)	0	unsigned int
+roundup (UINT_MAX - 2u, 3u)	4294967295	unsigned int
+roundup (0x7fffffffu, 0x40000000u)	2147483648	unsigned int
+roundup ((short) 9, (char) 4)	12	int
+roundup (7, -2)	4	int
+roundup step 3	evals 1 3
+roundup step 8	evals 1 3
+roundup step 0x10 int	evals 1 3
+roundup x multiple	evals 1 3
+roundup constant step 8	evals 1 0
+roundup constant step 3	evals 1 0
+roundup (-5, 4) run-time x	-4	long long	evals 1 0
+roundup (-5, 4) run-time step	0	long long	evals 0 3
+roundup (-5, 4) both run-time	0	long long	evals 1 3
+roundup (-5, 3) run-time x	-3	long long	evals 1 0
+roundup (-5, 4) run-time int x	-4	int	evals 1 0
+roundup (-8, 4) run-time int x	-8	int	evals 1 0
+roundup (5, 0)	0	int
+roundup (-1, 0)	0	int
+roundup (13, sizeof (long))	16	unsigned long
+roundup (0x100000001ul, 8)	4294967304	unsigned long
+roundup (0x100000001ul, 3u)	4294967298	unsigned long
+roundup (0x100000001ul, (unsigned char) 8)	4294967304	unsigned long
+howmany (0x100000001ul, 8u)	536870913	unsigned long
+howmany (5, 0 + 1)	5	int
+roundup (9, 4 + 4)	16	int
+roundup (9u, 1u << 3)	16	unsigned int
+powerof2 (0)	1	int
+powerof2 (1)	1	int
+powerof2 (2)	1	int
+powerof2 (3)	0	int
+powerof2 (4)	1	int
+powerof2 (6)	0	int
+powerof2 (96)	0	int
+powerof2 (0x80000000u)	1	int
+powerof2 (UINT_MAX)	0	int
+powerof2 (1L << 40)	1	int
+powerof2 ((1L << 40) + 1)	0	int
+powerof2 (-4)	0	int
+powerof2 (-1)	0	int
+powerof2 (-2)	0	int
+powerof2 ((unsigned char) 128)	1	int
+powerof2 (0ull)	1	int
+powerof2 (2.0 > 1)	1	int
+powerof2 4	evals 2 0
+powerof2 6	evals 2 0
+powerof2 0	evals 2 0
+NBBY	8	int
+bits[0]	1	unsigned char
+bits[1]	32	unsigned char
+bits[7]	128	unsigned char
+isset (bits, 0)	1	int
+isset (bits, 13)	32	int
+isset (bits, 63)	128	int
+isset (bits, 12)	0	int
+isclr (bits, 0)	0	int
+isclr (bits, 12)	1	int
+isclr (bits, 13)	0	int
+setbit (bits, 9)	34	unsigned char
+clrbit (bits, 13)	2	unsigned char
+bits[1]	2	unsigned char
+isset (bits, 13)	0	int
+isclr (bits, 13)	1	int
+bits[0]	15	unsigned char
+bits[0]	12	unsigned char
+isset (bits, 7)	128	int
+bits[0]	140	unsigned char
+ia[0]	0	int
+ia[1]	32	int
+ia[2]	0	int
+ia[3]	0	int
+isset (ia, 13)	32	int
+isclr (ia, 13)	0	int
+sc[0]	-128	signed char
+isset (sc, 7)	128	int
+isclr (sc, 7)	0	int
+sc[0]	0	signed char
+setbit	evals 1 2
+clrbit	evals 1 2
+isset	evals 1 2
+isclr	evals 1 2
