@@ -435,7 +435,7 @@ __signbit	(math-gen)	crates/boundary/src/posix/s10_math.tsv:22	mret::pure
 __signbit	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:161	mret::pure
 __signbitf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:166	mret::pure
 __sigpause	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:208	ret::zero
-__sigsetjmp		csys/src/machine/setjmp.S:124	niji_machine_sigsetjmp
+__sigsetjmp		csys/src/machine/setjmp.S:153	niji_machine_sigsetjmp
 __sigsuspend	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:253	cancel::point
 __snprintf_chk		csys/src/adapter/variadic.c:174	niji_vsnprintf6
 __sprintf_chk		csys/src/adapter/variadic.c:173	niji_vsnprintf6
@@ -582,7 +582,7 @@ _exit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:89	process::exit_now
 _flushlbf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:109	stdio::flushlbf
 _getlong	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:881	resolv::get_be
 _getshort	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:886	resolv::get_be
-_longjmp		csys/src/machine/setjmp.S:145	niji_machine_longjmp_nomask
+_longjmp		csys/src/machine/setjmp.S:174	niji_machine_longjmp_nomask
 _mcleanup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:358	
 _mcount		csys/src/machine/mcount.S:38	niji_mcount_save
 _null_auth	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3921	
@@ -601,7 +601,7 @@ _pthread_cleanup_push	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:327	ca
 _pthread_cleanup_push_defer	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs:339	cancel::push_old_defer
 _rpc_dtablesize	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:382	
 _seterr_reply	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:234	u64::from
-_setjmp		csys/src/machine/setjmp.S:108	niji_machine_sigsetjmp
+_setjmp		csys/src/machine/setjmp.S:137	niji_machine_sigsetjmp
 _start		csys/src/machine/entry.S:256	niji_start_main_static_pie
 _sys_errlist	GLIBC_2.12	csys/src/machine/compat_aliases.S:3496	
 _sys_errlist	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3493	
@@ -1519,7 +1519,7 @@ getc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:161	stdio::getc_c
 getc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:176	stdio::getc_c
 getchar	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:166	stdio::getc_c
 getchar_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:181	stdio::getc_c
-getcontext		csys/src/machine/context.S:166	niji_machine_getcontext
+getcontext		csys/src/machine/context.S:233	niji_machine_getcontext
 getcpu	GLIBC_2.29	crates/boundary/src/posix/s24_system.rs:195	ret::store_both
 getcwd	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:643	ret::null
 getdate	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:367	ret::ptr
@@ -1974,7 +1974,7 @@ logout	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:583	users::logout
 logout	GLIBC_2.34	crates/boundary/src/posix/s17_users.rs:583	users::logout
 logwtmp	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:589	ret::errno_only
 logwtmp	GLIBC_2.34	crates/boundary/src/posix/s17_users.rs:589	ret::errno_only
-longjmp		csys/src/machine/setjmp.S:131	niji_machine_siglongjmp
+longjmp		csys/src/machine/setjmp.S:160	niji_machine_siglongjmp
 lrand48	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:119	prng_global::lrand48
 lrand48_r	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:164	ret::int
 lremovexattr	GLIBC_2.3	crates/boundary/src/posix/s13_filesystem.rs:542	ret::zero
@@ -3398,7 +3398,7 @@ sendto	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:148	cancel::point
 setaliasent	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:458	netdb::setaliasent
 setbuf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:89	ret::unit
 setbuffer	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:94	ret::unit
-setcontext		csys/src/machine/context.S:173	niji_machine_setcontext
+setcontext		csys/src/machine/context.S:240	niji_machine_setcontext
 setdomainname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:352	ret::zero
 setegid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:90	ret::zero
 setenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:165	ret::zero
@@ -3414,7 +3414,7 @@ sethostid	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:299	ret::zero
 sethostname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:346	ret::zero
 setipv4sourcefilter	GLIBC_2.3.4	crates/boundary/src/posix/s15_sockets.rs:453	ret::zero
 setitimer	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:184	ret::store_if
-setjmp		csys/src/machine/setjmp.S:116	niji_machine_sigsetjmp
+setjmp		csys/src/machine/setjmp.S:145	niji_machine_sigsetjmp
 setlinebuf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:99	ret::unit
 setlocale	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:16	ret::ptr
 setlogin	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:432	ret::zero
@@ -3492,7 +3492,7 @@ sigignore	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:95	ret::zero
 siginterrupt	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:75	ret::zero
 sigisemptyset	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:178	ret::int
 sigismember	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:158	ret::int
-siglongjmp		csys/src/machine/setjmp.S:138	niji_machine_siglongjmp
+siglongjmp		csys/src/machine/setjmp.S:167	niji_machine_siglongjmp
 signal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:50	ret::handler
 signalfd	GLIBC_2.7	crates/boundary/src/posix/s20_signals.rs:278	ret::fd
 significand	(math-gen)	crates/boundary/src/posix/s10_math.tsv:52	mret::ret
@@ -3739,7 +3739,7 @@ svcudp_enablecache	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:118
 svcunix_create	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:106	
 svcunixfd_create	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:112	
 swab	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:303	ret::unit
-swapcontext		csys/src/machine/context.S:180	niji_machine_swapcontext
+swapcontext		csys/src/machine/context.S:247	niji_machine_swapcontext
 swapoff	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:635	ret::zero
 swapon	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:629	ret::zero
 swprintf		csys/src/adapter/variadic.c:169	niji_vswprintf6
