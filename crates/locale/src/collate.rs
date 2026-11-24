@@ -30,7 +30,7 @@ use crate::build::{File, MAGIC};
 use crate::charset::Charset;
 use crate::lex::{self, Tok};
 use crate::source::Stmt;
-use crate::{Error, Result, TryVec};
+use crate::{Error, ErrorKind, Result, TryVec};
 
 /// Level rule bits (D.1.4 `_NL_COLLATE_RULESETS`).
 const FORWARD: u8 = 1;
@@ -51,6 +51,8 @@ enum Key {
     Char(u32),
     /// A collating element, by id.
     Elem(u32),
+    /// The characters of a `..` line not yet placed one by one, by id ([`Collation::runs`]).
+    Run(u32),
     /// The undefined characters.
     Undef,
 }
@@ -133,6 +135,46 @@ struct Collation {
     explicit_undef: bool,
     /// The first node placed inside an `order_start` section.
     first_in_section: Option<usize>,
+    /// The `..` lines, by id: the code points strictly between the lines before and after.
+    runs: TryVec<(u32, u32)>,
+    /// The runs still one node each, by their first code point: their characters are not in
+    /// `order.at` until [`expand`] places them (a run of all of Unicode stays one node when the
+    /// order is plain code point order, which is then written without rules).
+    open: BTreeMap<u32, u32>,
+}
+
+/// Place the characters of run `id` one by one where its node is (each with the run's weights,
+/// skipping those the charmap lacks or the order has already, as an eager `..` would have).
+fn expand(c: &mut Collation, cs: &Charset, id: u32) -> Result<()> {
+    let Some(&(lo, hi)) = c.runs.get(usize::try_from(id).unwrap_or(usize::MAX)) else { return Ok(()) };
+    c.open.remove(&lo.saturating_add(1));
+    let Some(node) = c.order.at.remove(&Key::Run(id)) else { return Ok(()) };
+    let ws = c.order.nodes[node].weights.take().ok_or(Error::syntax(0, "a run without weights"))?;
+    let ruleset = c.order.nodes[node].ruleset;
+    let mut after = node;
+    for cp in lo.saturating_add(1)..hi {
+        if !cs.has(cp) || c.order.at.contains_key(&Key::Char(cp)) {
+            continue;
+        }
+        after = c.order.place(Key::Char(cp), Some(clone_weights(&ws)?), ruleset, after)?;
+    }
+    c.order.unlink(node);
+    Ok(())
+}
+
+/// The open run holding `cp`, if any.
+fn run_of(c: &Collation, cp: u32) -> Option<u32> {
+    let (_, &id) = c.open.range(..=cp).next_back()?;
+    let &(_, hi) = c.runs.get(usize::try_from(id).ok()?)?;
+    (cp < hi).then_some(id)
+}
+
+/// Expand the open run holding `cp` (a line is about to name that character).
+fn touch(c: &mut Collation, cs: &Charset, cp: u32) -> Result<()> {
+    match run_of(c, cp) {
+        Some(id) => expand(c, cs, id),
+        None => Ok(()),
+    }
 }
 
 /// Split `toks` at `;`.
@@ -274,6 +316,8 @@ fn parse(stmts: &[Stmt], cs: &Charset) -> Result<Collation> {
         elems: TryVec::new(),
         explicit_undef: false,
         first_in_section: None,
+        runs: TryVec::new(),
+        open: BTreeMap::new(),
     };
     let mut n = Names { syms: BTreeMap::new(), elems: BTreeMap::new() };
     let mut defined: TryVec<TryVec<u8>> = TryVec::new();
@@ -391,6 +435,9 @@ fn parse(stmts: &[Stmt], cs: &Charset) -> Result<Collation> {
             b"reorder-after" => {
                 let [Tok::Sym(a)] = args else { return Err(Error::syntax(no, "reorder-after needs a <name>")) };
                 let k = n.key(a, no)?;
+                if let Key::Char(cp) = k {
+                    touch(&mut c, cs, cp)?;
+                }
                 let &at = c.order.at.get(&k).ok_or(Error::syntax(no, "reorder-after names an item without a place"))?;
                 ruleset = c.order.nodes[at].ruleset;
                 cursor = Some(at);
@@ -421,15 +468,31 @@ fn parse(stmts: &[Stmt], cs: &Charset) -> Result<Collation> {
                         // An item that is no character of the charmap and no declared symbol or
                         // element: its line is skipped, like an undefined name in LC_CTYPE (spec §31.8).
                         let Ok(k) = n.key(name, no) else { continue };
+                        // A run's node is never the tail or the cursor, so `after` outlives this.
+                        if let Key::Char(cp) = k {
+                            touch(&mut c, cs, cp)?;
+                        }
                         let mut after = after;
                         if let Some((from, ws, lo)) = ellipsis.take() {
                             let Key::Char(hi) = k else { return Err(Error::syntax(no, "an ellipsis not before a character")) };
                             after = from;
-                            for cp in lo.saturating_add(1)..hi {
-                                if !cs.has(cp) || c.order.at.contains_key(&Key::Char(cp)) {
-                                    continue;
+                            let first = lo.saturating_add(1);
+                            if first < hi {
+                                // The characters between stay one node (`expand` places them when a
+                                // later line names one, or for the tables). Open runs are disjoint:
+                                // one this overlaps is placed first, so its characters keep their
+                                // places as with an eager `..`.
+                                while let Some((_, &id)) = c.open.range(..hi).next_back() {
+                                    if c.runs.get(usize::try_from(id).unwrap_or(usize::MAX)).is_some_and(|r| r.1 > first) {
+                                        expand(&mut c, cs, id)?;
+                                    } else {
+                                        break;
+                                    }
                                 }
-                                after = c.order.place(Key::Char(cp), Some(clone_weights(&ws)?), ruleset, after)?;
+                                let id = u32::try_from(c.runs.len()).map_err(|_| Error::syntax(no, "too many ellipses"))?;
+                                c.runs.push((lo, hi))?;
+                                c.open.insert(first, id);
+                                after = c.order.place(Key::Run(id), Some(ws), ruleset, after)?;
                             }
                         }
                         let ws = if matches!(k, Key::Sym(_)) && rest.is_empty() { None } else { Some(weights(rest, levels, &n, s.esc, no)?) };
@@ -506,18 +569,33 @@ struct Out {
     weights: TryVec<TryVec<u32>>,
 }
 
-/// Write `LC_COLLATE` for the statements `stmts` (after `copy`) and the charmap `cs`.
-pub fn write(stmts: &[Stmt], cs: &Charset) -> Result<TryVec<u8>> {
+/// What a source without an `order_start` gets: refused, nothing written even with `-c` (probed:
+/// status 1, no file; a section of `collating-symbol` lines alone too). The line is the END line's.
+pub const EMPTY: Error = Error { kind: ErrorKind::Refused, line: 0, what: "LC_COLLATE: empty category description not allowed" };
+
+/// Write `LC_COLLATE` for the statements `stmts` (after `copy`) and the charmap `cs`;
+/// `defaults`: the category the source does not define (no rules, D-31.29).
+pub fn write(stmts: &[Stmt], cs: &Charset, defaults: bool) -> Result<TryVec<u8>> {
     let mut c = parse(stmts, cs)?;
-    let mut f = File::new();
     if c.levels == 0 {
-        // No rules: code point order (D.1.4 `_NL_COLLATE_NRULES` 0).
-        f.word(0)?;
-        for _ in 1..19 {
-            f.raw(true, TryVec::new())?;
+        if !defaults {
+            return Err(EMPTY);
         }
-        return f.finish(MAGIC[3]);
+        // No rules: code point order (D.1.4 `_NL_COLLATE_NRULES` 0), the hash size word (0) and no
+        // tables: the reference's file for an undefined category, item for item (probed).
+        return no_rules(None);
     }
+    if code_point_order(&c, cs) {
+        return no_rules(Some(cs));
+    }
+    let mut ids: TryVec<u32> = TryVec::new();
+    for &id in c.open.values() {
+        ids.push(id)?;
+    }
+    for &id in ids.iter() {
+        expand(&mut c, cs, id)?;
+    }
+    let mut f = File::new();
     let levels = c.levels;
     // The shared undefined element goes before the first character of the sections, wherever
     // an UNDEFINED line stands (ja_JP's last line: its undefined characters sort first).
@@ -609,6 +687,98 @@ pub fn write(stmts: &[Stmt], cs: &Charset) -> Result<TryVec<u8>> {
         outs.push(Out { bytes: ok.then_some(b), cps, ruleset: node.ruleset, weights: resolve(ws, me)? })?;
     }
     write_tables(&mut f, &c, &outs, &collseq, cs)?;
+    f.finish(MAGIC[3])
+}
+
+/// Whether the order is plain code point order: every character of the charmap placed, in
+/// increasing code point order, each weighted by itself at every level, the first level not
+/// backward, no collating element and no `UNDEFINED` line. Such an order compares strings as
+/// their code points do, which a file without rules states in 1.4 KB where the tables for all of
+/// Unicode take megabytes (D-31.31). Open runs are checked as ranges, never expanded.
+fn code_point_order(c: &Collation, cs: &Charset) -> bool {
+    if c.explicit_undef {
+        return false;
+    }
+    let me = |ws: &Option<TryVec<TryVec<Wt>>>, cp: Option<u32>| {
+        ws.as_ref().is_some_and(|ws| ws.iter().all(|l| matches!(l.as_slice(), [Wt::Me]) || cp.is_some_and(|cp| l.as_slice() == [Wt::Of(Key::Char(cp))])))
+    };
+    let forward = |r: u8| c.rulesets.get(usize::from(r)).and_then(|r| r.first()).is_some_and(|&r| r & BACKWARD == 0);
+    // The code points placed, as increasing inclusive ranges.
+    let mut covered: TryVec<(u32, u32)> = TryVec::new();
+    let mut i = c.order.nodes[0].next;
+    while i != usize::MAX {
+        let node = &c.order.nodes[i];
+        i = node.next;
+        let (lo, hi) = match node.key {
+            Key::Head | Key::Sym(_) => continue,
+            Key::Elem(_) | Key::Undef => return false,
+            Key::Char(cp) if !cs.has(cp) => continue,
+            Key::Char(cp) if me(&node.weights, Some(cp)) => (cp, cp),
+            Key::Run(id) if me(&node.weights, None) => {
+                // A character of the run's range placed by its own line is before the run (its code
+                // point at least the run's first) or after it (at most the run's last): out of order.
+                let Some(&(lo, hi)) = c.runs.get(usize::try_from(id).unwrap_or(usize::MAX)) else { return false };
+                (lo + 1, hi - 1)
+            }
+            _ => return false,
+        };
+        if !forward(node.ruleset) {
+            return false;
+        }
+        // Adjacent ranges merge (an order written line by line is one range).
+        match covered.last_mut() {
+            Some(l) if l.1 >= lo => return false,
+            Some(l) if l.1.checked_add(1) == Some(lo) => l.1 = hi,
+            _ => {
+                if covered.push((lo, hi)).is_err() {
+                    return false;
+                }
+            }
+        }
+    }
+    // Every character of the charmap is in a range (a run's range holds every character between
+    // its ends that the charmap has, none being placed elsewhere), and the charmap's byte order
+    // is its code point order: a file without rules compares the bytes (strcoll) and the code
+    // points (wcscoll), which agree only then (UTF-8 and ISO-8859-1 yes, KOI8-R no).
+    let mut last: Option<u32> = None;
+    cs.map().mappings().all(|(cp, _, _)| {
+        let k = covered.partition_point(|r| r.1 < cp);
+        let rising = last.is_none_or(|l| l < cp);
+        last = Some(cp);
+        rising && covered.get(k).is_some_and(|r| r.0 <= cp)
+    })
+}
+
+/// A file without rules (code point order): with `cs`, the collation-sequence values of the
+/// bytes and of the first 256 code points (each its own value) and the codeset name, as in the
+/// reference's compiled C.UTF-8 (probed); without, nothing more (an undefined category).
+fn no_rules(cs: Option<&Charset>) -> Result<TryVec<u8>> {
+    let mut f = File::new();
+    f.word(0)?; // 0 NRULES
+    for _ in 1..13 {
+        f.raw(true, TryVec::new())?;
+    }
+    f.word(0)?; // 13 the collating-symbol hash size
+    f.raw(true, TryVec::new())?;
+    f.raw(true, TryVec::new())?;
+    match cs {
+        None => {
+            for _ in 16..19 {
+                f.raw(true, TryVec::new())?;
+            }
+        }
+        Some(cs) => {
+            let mut seqmb = TryVec::with_capacity(256)?;
+            for b in 0..=255u8 {
+                seqmb.push(b)?;
+            }
+            f.raw(false, seqmb)?; // 16 COLLSEQMB
+            f.raw(true, crate::ctype::table_u32(&|cp| (cp < 256).then_some(cp), u32::MAX)?)?; // 17 COLLSEQWC
+            let mut name = TryVec::from_slice(cs.name())?;
+            name.push(0)?;
+            f.raw(false, name)?; // 18 CODESET
+        }
+    }
     f.finish(MAGIC[3])
 }
 
