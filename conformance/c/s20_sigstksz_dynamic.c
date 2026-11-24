@@ -1,9 +1,8 @@
-/* Spec §20.7 (s20_7_i_0): under _GNU_SOURCE MINSIGSTKSZ and SIGSTKSZ are not constants but
- * sysconf (_SC_MINSIGSTKSZ) and sysconf (_SC_SIGSTKSZ); <signal.h> alone makes the expansion
- * usable (the uses come before any other header). SIGSTKSZ is sysconf's value; MINSIGSTKSZ is at
- * least sysconf (_SC_MINSIGSTKSZ) and at most SIGSTKSZ (which of the two is open: RULING NEEDED in
- * handoff/HEADERS-SMALL-FIXES.md); both are at least the historical constants (2048, 8192), and the
- * kernel accepts an alternate stack of MINSIGSTKSZ bytes.
+/* Spec §20.7 (s20_7_i_0 and its erratum, ERRATA.md E14; D-20.10): under _GNU_SOURCE MINSIGSTKSZ and
+ * SIGSTKSZ are not constants; both are sysconf (_SC_SIGSTKSZ), as with the reference (probed: both 14528 on the
+ * Skylake-SP host, where sysconf (_SC_MINSIGSTKSZ) is 3632; both 8192 on the Zen 1 host, 1776). <signal.h> alone makes the expansion usable (the uses come
+ * before any other header). Both are at least the historical constants (2048, 8192), and the kernel accepts an
+ * alternate stack of MINSIGSTKSZ bytes.
  * Built against libniji's own headers too (run.sh --niji-headers). */
 #define _GNU_SOURCE 1
 #include <signal.h>
@@ -16,7 +15,7 @@ int main(void)
 {
     long min = min_size(), size = stack_size();
     printf("MINSIGSTKSZ %ld SIGSTKSZ %ld\n", min, size);
-    if (min < sysconf(_SC_MINSIGSTKSZ) || size != sysconf(_SC_SIGSTKSZ)) {
+    if (min != sysconf(_SC_SIGSTKSZ) || size != sysconf(_SC_SIGSTKSZ) || min < sysconf(_SC_MINSIGSTKSZ)) {
         fprintf(stderr, "s20_sigstksz_dynamic: not sysconf's values: %ld %ld\n", min, size);
         return 1;
     }
