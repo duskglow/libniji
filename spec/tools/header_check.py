@@ -268,6 +268,8 @@ def main():
         vis=rows("spec/abi/visibility.tsv"), macros={r["name"]: r for r in rows("spec/abi/macros.tsv")},
         typedefs={r["name"]: r for r in rows("spec/abi/typedefs.tsv") if r["kind"] == "typedef"}, layouts=layouts)
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    # The tree and work directory of this run, for a module that compiles units of its own (header_checks/form.py).
+    ctx.inc, ctx.work = inc, work
     mods = slice_checks()
     # A slice check module may name `p1_skip` ((header, name) rows its P1 units leave out) and `must_fail` (headers
     # shipped to fail in every configuration: no P5 TU, and the module's own unit asserts the failure).
