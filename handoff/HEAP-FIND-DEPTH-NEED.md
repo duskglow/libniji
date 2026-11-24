@@ -53,6 +53,8 @@ On mei the test reads 33048 x4, 33304, 33572, 33560, 33304 (worst 33572 at 10240
   The find bound and s03 passed in it. `cargo xtask test` and the full-profile checks did not run in its `&&`
   chain: `heap-find-depth-need-2-startup` (static ok; `cargo xtask test` 7153 passed, the same 4 failed, nothing
   else) and `heap-find-depth-need-2-fullprof` (full-profile `so` + hot_text_products: 33 passed, rc 0).
+- `heap-find-depth-need-2-direct` (final head): `affected --only` heap_meta_products (7 passed) and s03_memory_symbols
+  (198 passed, 3 passes), rc 0. Hand-back JOBS: direct, plants2, fullprof, lint3; gate and startup SUPERSEDED.
 - keke (Zen 1) NOT re-measured this leg (role is mei). Expected to pass: its 16 KiB-grid needs (d3 15296, d200k
   48592 at the default layout) put its exact over-d3 at <= 33312 at that phase, and its d3 is the larger one.
 
