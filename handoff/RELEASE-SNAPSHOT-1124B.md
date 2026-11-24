@@ -1,4 +1,4 @@
-WIP (leg 1 of RELEASE-SNAPSHOT-1124B; refresh at 00:37Z): products checked on both CPU classes, .debs building; no verdict yet
+COMPLETE: snapshot-ready at 80d1f809b (serial 1; niji6 `0.0~snapshot20261123.1+80d1f809b2d1` and system `2.39+niji20261123.1-1` sort above 22.3's): B1 fixed (dlc 300/300 named, `_dl_find_object` bad 0 of 300, both link modes and rounds); #25 niji-g++ rows unwind and equal g++ (3 of 3); #24, #11 and `ld.so --library-path` equal stock; #14 bash's command compiles; no check worse than 22.3; start-up -40% user instructions, +1 fault per start
 
 # RELEASE-SNAPSHOT-1124B: snapshot validation of 80d1f809b (B1 fix, #25 unwinder, #24, #11, #14 sources)
 
@@ -18,32 +18,38 @@ substitution: y14l/post.sh (expects en_US source + UTF-8 charmap present; a, p1,
 LC_IDENTIFICATION of C/POSIX/C.UTF-8 with contact fields as lengths only, `ld.so --library-path`), run-mei.sh (adds
 dlcd, y25c, y2411 to the debs list), run-ref.sh (22.3 sides, done), cmp6.sh (cmp5 mask widened to 23.x / 1124 / p222).
 
-**Running at refresh.** keke `sh run-keke.sh` (sid 779056): debs-1 building; it then writes debs.sha, starts
-plants-1 (cargo xtask plants handoff/RELEASE-SNAPSHOT-1124B-plants.txt, ~27 min), gaimass-1, chain-keke-debs.sh
-(pkgdiff-1, stage-1, install-1). mei `sh run-mei.sh` (sid 4182687): products part done; waits (up to 4 h) for
-`debs/` + `debs.sha` in its work dir, then runs every root check.
+**Done (leg 2, 00:46-01:30Z).** keke's .debs (debs-1, `DEBS bad=0`) relayed keke -> local -> mei, `sha256sum -c` OK
+for all 9 at each hop; every keke and mei job below ended; nothing of this run is left running on either host.
 
 ## Exact next step
 
-1. When keke `~/work/RELEASE-SNAPSHOT-1124B/debs.sha` exists: relay `debs/system/*.deb`, `debs/coexist/*.deb` and
-   `debs.sha` keke -> local scratch -> mei `~/work/RELEASE-SNAPSHOT-1124B/debs/{system,coexist}/` + `debs.sha`;
-   `sha256sum -c` on arrival (run-mei.sh starts by itself).
-2. jobwait (keke) plants-1, gaimass-1, pkgdiff-1, stage-1, install-1; (mei) the debs-part labels (see run-mei.sh and
-   chain-mei-debs.sh). Then `sh ~/work/RELEASE-SNAPSHOT-1124B/cmp6.sh` (+ `cmp6.sh y23p dlc y27 y13 y14 y6c y14r eetwet
-   mint y13s drp y6r y13v`) on mei; read y2411-1, y25c-1, y25n-1, y14l-1, dlc-1, dlcd-1 verdicts (dlcd's "stock run is
-   not the recorded reference" FAIL is by design: its diagnostic line; the B1 metric is "bad total 0 of 300" in both
-   libniji runs). rc 1 by design as on 22.3: roots, yohane, y14, y14r, drp (check 1122D's list).
-3. Write the report here (first line COMPLETE: snapshot-ready at 80d1f809b, or the blocking findings), the reports
-   json with `jobs`, precheck on n1 (`cargo xtask precheck --jobs <labels> --head <sha>`), handback-check, hand back.
+None for this story: the coordinator decides on the tag and publication (nothing to GitHub, no tag from this run).
+Staged assets: keke `~/release-staging/snapshot-20261123.1/` (7 system + 2 coexist .debs with GitHub-safe names
+(`~` -> `.`), SHA256SUMS (`sha256sum -c`: 9 OK), MANIFEST).
 
-## Results so far
+## Results
 
 | check | job(s) | result |
 |---|---|---|
 | build + smoke, Zen 1 / Skylake-SP | keke smoke-keke-1, mei smoke-mei-1 | `SMOKE: RESULT bad=0` both; mei vs 22.3 differs only in layout-verdict cache lines (as 1122D) |
 | gate | keke gate-1 | `GATE bad=0` (clippy all-features, xtask clippy, static, records check, direct tier) |
 | #21 heap products test | keke heapnode-1 | rc 0 |
-| check-symbols | keke debs-1 (running) | PASS (4490 symbol lines, 14 libraries; 22.3/22.4: 4440, 13) |
+| both flavours, check, check-symbols | keke debs-1 | `DEBS bad=0`; check PASS (7 packages; coexist 2); check-symbols PASS (4490 symbol lines, 14 libraries; 22.3/22.4: 4440, 13) |
+| versions | keke (dpkg --compare-versions) | `0.0~snapshot20261123.1+80d1f809b2d1` gt 22.3's `0.0~snapshot20261122.3+2a76723f2ed4`; `2.39+niji20261123.1-1` gt `2.39+niji20261122.3-1` |
+| plants (release checks) | keke plants-1 | 6 plants: 6 CAUGHT, 0 SURVIVED, no WARN (results in handoff/RELEASE-SNAPSHOT-1124B-plants.txt) |
+| package diff vs 22.3 | keke pkgdiff-1 | locales: +287 sources, SUPPORTED, charmaps; niji6 +libthread_db.so.1; niji6-dev +libthread_db.so, +niji-unwinder.o; no package dropped |
+| stage, install steps of docs/install-packages.md | keke stage-1, install-1 | staged 9 + SHA256SUMS + MANIFEST; `inst: RESULT fails=0`, mmdebstrap rc 0, system debs identical 7 / different 0 |
+| getaddrinfo_a (Zen 1) | keke gaimass-1 | `GAIMASS bad=0` |
+| **B1** dlc (both rounds, both link modes) | mei dlc-1 | `RESULT fail=0`: prog and prog-niji print stock's 10 lines (dladdr 300, phdr 301, lmap 301 in both rounds; closed 0/0); 1122D: 299/300 |
+| **B1** diagnostic | mei dlcd-1 | prog and prog-niji: `bad total 0 of 300; bad-find total 0 of 300` (each library's own map and eh_frame); rc 1 only from the by-design "stock run is not the recorded reference" line |
+| **#25** niji-g++ (unwinder) | mei y25c-1 | 3 of 3 rows (pthread_exit dtor; catch abi::__forced_unwind + rethrow; cancelled in pause()) unwind and equal the g++ control (stdout bytes, rc 0); 22.3: exit 0 without destructors |
+| **#25** g++ / -static-libgcc / plain C | mei y25n-1, y25-1, y25s-1 | `RESULT fail=0`: fug rows equal stock; fus rows rc 134 with the FATAL message naming cause and fix (stock rc 134, 8 B stderr); plain-C pthread_exit (pc) equals stock |
+| **#24, #11, --library-path** | mei y2411-1 | `RESULT fail=0`: p24 every object name equals stock (24 lines); p11 reproducer prints `[ISO]`; C.UTF-8 items and C/POSIX non-contact items equal stock (39 lines), contact fields empty (D-7.10); 5 `ld.so --library-path` rows equal stock. 22.3: 6 FAIL |
+| **#14** | mei y14l-1 | `RESULT fail=0`: bash's command compiles (rc 0, stock 0, same file list); p1/p2 compile; status of help/version/missing-source/missing-charmap/no-operand/bad-option as stock; finding L2 below. 22.3: no sources, fails |
+| **#21** | keke heapnode-1; mei y21-1 / y21-ref223-1 | rc 0; masked verdicts equal 22.3's |
+| roots (empty root F1 `ldconfig -p`, swapped trixie root's 47 commands, dynamic C++, apt, dbg) | mei roots-1 | rc 0 (22.3: rc 1). Differs from 22.3 only by: dbg 9/9 (gdb stops at setlocale with source line; 22.3 8/9) and 18 installed objects with libc6-dbg .debug (22.3: 17, + libthread_db) |
+| lintian E/W, trixie and excalibur | mei lint-1 | errors 10 (= 22.3), warnings 43 (22.3: 50). Gone: copyright-without-copyright-notice (9 packages), locales empty-binary-package. New: `W: libc-bin: extended-description-line-too-long line 2` (finding L3) |
+| other root checks | mei yohane, many, dyn22, y10, y19, y26, y26t, y23, c19, y24, y28, y6, yres, y23p, y27, y13, y14, y6c, y14r, eetwet, mint, y13s, drp, y6r, y13v (-1 each; drp/y13s/y6r/y13v also -ref223-1) | masked verdicts equal 22.3's (cmp6.sh), except y13 and y13v: valgrind `lost=0` -> `lost=none` (no leak summary at all; same pass verdict). rc 1 as on 22.3 by design: yohane, y14, y14r (zdbad), drp |
 | sig32, y20, dpo600 | mei -1 | masked verdict lines equal to 22.3's (cmp6.sh) |
 | y2411 on 22.3 | mei y2411-ref223-2 (-1 superseded: C.UTF-8 contact verdict and dli_sname fixed in post.sh) | 22.3: #24 names equal stock; fails #11 (issue prints `[]`) and `ld.so --library-path` (rc 127): 6 FAIL as expected |
 | 22.3 sides | mei y25-ref223-1 (rc 0), y25n-ref223-1 (rc 1 by design, as 1122D), y25c-ref223-1 (rc 1: niji-g++ on 22.3 exits 0 without destructors), y14l-ref223-1 (rc 1: no sources/charmaps in 22.3), dlc-ref223-1 (rc 0), dlcd-ref223-1 (0 misses; rc 1 by design) | |
@@ -74,7 +80,20 @@ classes** (finding, non-blocking; not attributed yet). Movers by their own repor
 LD-SYMBOL-VALIDATE-ONCE (per import 1,525 -> 996), LIBC-INIT-ARRAY-REFS (-7,000, already in 1122D), TLS-DYNAMIC-BLOCKS
 (-750). Kernel-side (kstart/rstart KCOUNT) medians are noisy (min-max ~100k) and not compared.
 
-## Findings so far (non-blocking)
+## Findings (none blocking)
+
+* **L2 (new behaviour difference, #14 area):** a locale compiled from libniji's shipped en_US source formats `%c`
+  (and `%Ec`) as `Sun, Nov 22, 2026, 02:05:09 PM`; the reference glibc 2.39's installed en_US.UTF-8 (black-box:
+  `LC_ALL=en_US.UTF-8 TZ=UTC date +%c` on the host) and the trixie stock both give `Mon 23 Nov 2026 02:05:09 PM UTC`.
+  These are the only y14l read-back lines that differ (8 of 37 lines, stock and libniji sides counted); collation,
+  ctype, mbrtowc and the other strftime rows are equal, and the test's own source reads back equal to stock, so
+  the difference is in the shipped source data (d_t_fmt), not localedef. 22.3 shipped no sources. Recommend a
+  story: compare every shipped locale's LC_TIME/LC_NUMERIC/LC_MONETARY items with the reference's compiled locales
+  (black-box `locale -k`).
+* **L3 (lintian, new):** `W: libc-bin: extended-description-line-too-long line 2` (trixie and excalibur);
+  line 2 of tools/deb/description/libc-bin is "This package holds the programs $programs, the", and the program
+  list it expands to (longer since 22.3) is not wrapped.
+* **Page faults:** +1 per start on every start-up row, both classes (above), not attributed.
 
 * **D1 (stale, still):** docs/install-packages.md:159 and tools/deb/description/locales ("locale support
   (placeholder)", "Locale source data is not part of this build yet") are false now: locales ships 287 sources,
@@ -90,5 +109,7 @@ LD-SYMBOL-VALIDATE-ONCE (per import 1,525 -> 996), LIBC-INIT-ARRAY-REFS (-7,000,
 
 ## Process note
 
-One `sed -i` was used on a local scratch copy (y2411/post.sh: one line, the contact-length INFO grep's pattern, so it
+Leg 2 wrote two small helper scripts to mei's work dir (meiwait.sh: the label list for one jobwait; fulldiff.sh:
+cmp6.sh's mask without the 8-line cut). eetwet-1 starts only after y14r-1, so a jobwait naming it early returns rc 4
+(never queued); waited separately. Leg 1: one `sed -i` was used on a local scratch copy (y2411/post.sh: one line, the contact-length INFO grep's pattern, so it
 matches the new C/POSIX-anchored `$C`) against the rules (Edit tool only); the edit is correct; reported, not repeated.
