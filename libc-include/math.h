@@ -44,6 +44,12 @@ typedef float float_t;
 extern int signgam;
 # endif
 #endif
+#if (__NIJI_MISC && __NIJI_CXX < 2) || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+# ifndef __NIJI_D_isnan
+#  define __NIJI_D_isnan 1
+extern int isnan (double);
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_acos
 #  define __NIJI_D_acos 1
@@ -2259,7 +2265,7 @@ extern float acosf (float) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_acosh
 #  define __NIJI_D_acosh 1
-extern double acosh (double) __NIJI_SIMD;
+extern double acosh (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_acoshf
 #  define __NIJI_D_acoshf 1
@@ -2279,7 +2285,7 @@ extern float asinf (float) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_asinh
 #  define __NIJI_D_asinh 1
-extern double asinh (double) __attribute__ ((__const__)) __NIJI_SIMD;
+extern double asinh (double) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_asinhf
 #  define __NIJI_D_asinhf 1
@@ -2307,7 +2313,7 @@ extern float atanf (float) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_SIM
 # endif
 # ifndef __NIJI_D_atanh
 #  define __NIJI_D_atanh 1
-extern double atanh (double) __NIJI_SIMD;
+extern double atanh (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_atanhf
 #  define __NIJI_D_atanhf 1
@@ -2323,7 +2329,7 @@ extern long double atanl (long double) __NIJI_NOTHROW __attribute__ ((__const__)
 # endif
 # ifndef __NIJI_D_cbrt
 #  define __NIJI_D_cbrt 1
-extern double cbrt (double) __attribute__ ((__const__)) __NIJI_SIMD;
+extern double cbrt (double) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_cbrtf
 #  define __NIJI_D_cbrtf 1
@@ -2343,7 +2349,7 @@ extern long double ceill (long double) __NIJI_NOTHROW __attribute__ ((__const__)
 # endif
 # ifndef __NIJI_D_copysign
 #  define __NIJI_D_copysign 1
-extern double copysign (double, double) __attribute__ ((__const__));
+extern double copysign (double, double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_copysignf
 #  define __NIJI_D_copysignf 1
@@ -2371,11 +2377,11 @@ extern long double cosl (long double) __NIJI_NOTHROW __attribute__ ((__const__))
 # endif
 # ifndef __NIJI_D_erf
 #  define __NIJI_D_erf 1
-extern double erf (double) __attribute__ ((__const__)) __NIJI_SIMD;
+extern double erf (double) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_erfc
 #  define __NIJI_D_erfc 1
-extern double erfc (double) __NIJI_SIMD;
+extern double erfc (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_erfcf
 #  define __NIJI_D_erfcf 1
@@ -2395,7 +2401,7 @@ extern long double erfl (long double) __NIJI_NOTHROW __attribute__ ((__const__))
 # endif
 # ifndef __NIJI_D_exp2
 #  define __NIJI_D_exp2 1
-extern double exp2 (double) __NIJI_SIMD;
+extern double exp2 (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_exp2f
 #  define __NIJI_D_exp2f 1
@@ -2415,7 +2421,7 @@ extern long double expl (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_expm1
 #  define __NIJI_D_expm1 1
-extern double expm1 (double) __NIJI_SIMD;
+extern double expm1 (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_expm1f
 #  define __NIJI_D_expm1f 1
@@ -2435,7 +2441,7 @@ extern long double fabsl (long double) __NIJI_NOTHROW __attribute__ ((__const__)
 # endif
 # ifndef __NIJI_D_fdim
 #  define __NIJI_D_fdim 1
-extern double fdim (double, double);
+extern double fdim (double, double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_fdimf
 #  define __NIJI_D_fdimf 1
@@ -2455,7 +2461,7 @@ extern long double floorl (long double) __NIJI_NOTHROW __attribute__ ((__const__
 # endif
 # ifndef __NIJI_D_fma
 #  define __NIJI_D_fma 1
-extern double fma (double, double, double) __attribute__ ((__const__));
+extern double fma (double, double, double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_fmaf
 #  define __NIJI_D_fmaf 1
@@ -2467,7 +2473,7 @@ extern long double fmal (long double, long double, long double) __NIJI_NOTHROW _
 # endif
 # ifndef __NIJI_D_fmax
 #  define __NIJI_D_fmax 1
-extern double fmax (double, double) __attribute__ ((__const__));
+extern double fmax (double, double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_fmaxf
 #  define __NIJI_D_fmaxf 1
@@ -2479,7 +2485,7 @@ extern long double fmaxl (long double, long double) __NIJI_NOTHROW __attribute__
 # endif
 # ifndef __NIJI_D_fmin
 #  define __NIJI_D_fmin 1
-extern double fmin (double, double) __attribute__ ((__const__));
+extern double fmin (double, double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_fminf
 #  define __NIJI_D_fminf 1
@@ -2507,7 +2513,7 @@ extern long double frexpl (long double, int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_hypot
 #  define __NIJI_D_hypot 1
-extern double hypot (double, double) __NIJI_SIMD;
+extern double hypot (double, double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_hypotf
 #  define __NIJI_D_hypotf 1
@@ -2519,7 +2525,7 @@ extern long double hypotl (long double, long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ilogb
 #  define __NIJI_D_ilogb 1
-extern int ilogb (double);
+extern int ilogb (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ilogbf
 #  define __NIJI_D_ilogbf 1
@@ -2539,7 +2545,7 @@ extern long double ldexpl (long double, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lgamma
 #  define __NIJI_D_lgamma 1
-extern double lgamma (double);
+extern double lgamma (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lgammaf
 #  define __NIJI_D_lgammaf 1
@@ -2551,7 +2557,7 @@ extern long double lgammal (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_llrint
 #  define __NIJI_D_llrint 1
-extern long long int llrint (double);
+extern long long int llrint (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_llrintf
 #  define __NIJI_D_llrintf 1
@@ -2563,7 +2569,7 @@ extern long long int llrintl (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_llround
 #  define __NIJI_D_llround 1
-extern long long int llround (double);
+extern long long int llround (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_llroundf
 #  define __NIJI_D_llroundf 1
@@ -2583,7 +2589,7 @@ extern long double log10l (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_log1p
 #  define __NIJI_D_log1p 1
-extern double log1p (double) __NIJI_SIMD;
+extern double log1p (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_log1pf
 #  define __NIJI_D_log1pf 1
@@ -2595,7 +2601,7 @@ extern long double log1pl (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_log2
 #  define __NIJI_D_log2 1
-extern double log2 (double) __NIJI_SIMD;
+extern double log2 (double) __NIJI_NOTHROW __NIJI_SIMD;
 # endif
 # ifndef __NIJI_D_log2f
 #  define __NIJI_D_log2f 1
@@ -2607,7 +2613,7 @@ extern long double log2l (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_logb
 #  define __NIJI_D_logb 1
-extern double logb (double);
+extern double logb (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_logbf
 #  define __NIJI_D_logbf 1
@@ -2627,7 +2633,7 @@ extern long double logl (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lrint
 #  define __NIJI_D_lrint 1
-extern long int lrint (double);
+extern long int lrint (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lrintf
 #  define __NIJI_D_lrintf 1
@@ -2639,7 +2645,7 @@ extern long int lrintl (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lround
 #  define __NIJI_D_lround 1
-extern long int lround (double);
+extern long int lround (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lroundf
 #  define __NIJI_D_lroundf 1
@@ -2671,7 +2677,7 @@ extern long double nanl (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull_
 # endif
 # ifndef __NIJI_D_nearbyint
 #  define __NIJI_D_nearbyint 1
-extern double nearbyint (double) __attribute__ ((__const__));
+extern double nearbyint (double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_nearbyintf
 #  define __NIJI_D_nearbyintf 1
@@ -2683,7 +2689,7 @@ extern long double nearbyintl (long double) __NIJI_NOTHROW __attribute__ ((__con
 # endif
 # ifndef __NIJI_D_nextafter
 #  define __NIJI_D_nextafter 1
-extern double nextafter (double, double);
+extern double nextafter (double, double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_nextafterf
 #  define __NIJI_D_nextafterf 1
@@ -2695,7 +2701,7 @@ extern long double nextafterl (long double, long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_nexttoward
 #  define __NIJI_D_nexttoward 1
-extern double nexttoward (double, long double);
+extern double nexttoward (double, long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_nexttowardf
 #  define __NIJI_D_nexttowardf 1
@@ -2715,7 +2721,7 @@ extern long double powl (long double, long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_remainder
 #  define __NIJI_D_remainder 1
-extern double remainder (double, double);
+extern double remainder (double, double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_remainderf
 #  define __NIJI_D_remainderf 1
@@ -2727,7 +2733,7 @@ extern long double remainderl (long double, long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_remquo
 #  define __NIJI_D_remquo 1
-extern double remquo (double, double, int *);
+extern double remquo (double, double, int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_remquof
 #  define __NIJI_D_remquof 1
@@ -2739,7 +2745,7 @@ extern long double remquol (long double, long double, int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_rint
 #  define __NIJI_D_rint 1
-extern double rint (double) __attribute__ ((__const__));
+extern double rint (double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_rintf
 #  define __NIJI_D_rintf 1
@@ -2751,7 +2757,7 @@ extern long double rintl (long double) __NIJI_NOTHROW __attribute__ ((__const__)
 # endif
 # ifndef __NIJI_D_round
 #  define __NIJI_D_round 1
-extern double round (double) __attribute__ ((__const__));
+extern double round (double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_roundf
 #  define __NIJI_D_roundf 1
@@ -2763,7 +2769,7 @@ extern long double roundl (long double) __NIJI_NOTHROW __attribute__ ((__const__
 # endif
 # ifndef __NIJI_D_scalbln
 #  define __NIJI_D_scalbln 1
-extern double scalbln (double, long int);
+extern double scalbln (double, long int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_scalblnf
 #  define __NIJI_D_scalblnf 1
@@ -2775,7 +2781,7 @@ extern long double scalblnl (long double, long int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_scalbn
 #  define __NIJI_D_scalbn 1
-extern double scalbn (double, int);
+extern double scalbn (double, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_scalbnf
 #  define __NIJI_D_scalbnf 1
@@ -2827,7 +2833,7 @@ extern long double tanl (long double) __NIJI_NOTHROW __attribute__ ((__const__))
 # endif
 # ifndef __NIJI_D_tgamma
 #  define __NIJI_D_tgamma 1
-extern double tgamma (double);
+extern double tgamma (double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_tgammaf
 #  define __NIJI_D_tgammaf 1
@@ -2839,7 +2845,7 @@ extern long double tgammal (long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_trunc
 #  define __NIJI_D_trunc 1
-extern double trunc (double) __attribute__ ((__const__));
+extern double trunc (double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_truncf
 #  define __NIJI_D_truncf 1
@@ -3252,6 +3258,12 @@ extern float ynf (int, float) __NIJI_NOTHROW;
 # ifndef __NIJI_D_ynl
 #  define __NIJI_D_ynl 1
 extern long double ynl (int, long double) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_MISC && __NIJI_CXX < 2
+# ifndef __NIJI_D_isinf
+#  define __NIJI_D_isinf 1
+extern int isinf (double);
 # endif
 #endif
 #if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
@@ -3799,6 +3811,8 @@ enum { FP_INT_UPWARD = 0 };
 #if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
 # define isnormal(x) __builtin_isnormal (x)
 #endif
+/* isnan and isinf are also the functions of their own name (BSD), declared by @@emit above where
+   visibility.tsv has them, before the macros: `&isinf` and `(isinf) (x)` reach the function. */
 #if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
 # define isnan(x) __builtin_isnan (x)
 #endif
