@@ -26,6 +26,7 @@ use std::process::Command;
 
 use niji_kernel::auxv::Auxv;
 use niji_ld::arch::{Arch, Native, AT_PAGESZ};
+use niji_ld::elf::{Elf, ElfError, Part};
 use niji_ld::map::{self, MapError, Mapper, PROT_EXEC, PROT_READ, PROT_WRITE};
 
 /// The object every build uses: text, read-only data, initialised data and a `.bss` larger than a
@@ -169,13 +170,17 @@ struct Space<'f> {
     stored: BTreeMap<u64, u8>,
     calls: usize,
     fail_at: Option<usize>,
+    /// Calls of [`Mapper::store_file`] (bytes read from the file, not from the caller's slice).
+    file_reads: usize,
     /// Where an anywhere-reservation lands: page-aligned, deliberately not 2 MiB-aligned.
     raw: u64,
+    /// [`Mapper::maps_span`]: the reservation made by mapping the file over the span (the start's mapper).
+    spans: bool,
 }
 
 impl<'f> Space<'f> {
     fn new(file: &'f [u8], page: u64) -> Self {
-        Space { file, page, pages: BTreeMap::new(), stored: BTreeMap::new(), calls: 0, fail_at: None, raw: 0x5555_0000_0000 + 3 * page }
+        Space { file, page, pages: BTreeMap::new(), stored: BTreeMap::new(), calls: 0, fail_at: None, file_reads: 0, raw: 0x5555_0000_0000 + 3 * page, spans: false }
     }
 
     fn call(&mut self) -> Result<(), ()> {
@@ -249,6 +254,13 @@ impl Mapper for Space<'_> {
         }
     }
 
+    fn store_file(&mut self, at: u64, len: u64, offset: u64) -> Result<(), ()> {
+        self.file_reads += 1;
+        let bytes = self.file.get(offset as usize..(offset + len) as usize).ok_or(())?.to_vec();
+        self.store(at, len, Some(&bytes));
+        Ok(())
+    }
+
     fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
         self.call()?;
         assert!(prot & PROT_WRITE == 0 || prot & PROT_EXEC == 0, "protect writable and executable");
@@ -264,6 +276,22 @@ impl Mapper for Space<'_> {
             self.pages.remove(&p);
             self.stored.retain(|&a, _| a < p || a >= p + self.page);
         }
+    }
+
+    fn maps_span(&self) -> bool {
+        self.spans
+    }
+
+    fn map_span(&mut self, len: u64, prot: i32, offset: u64) -> Result<u64, ()> {
+        self.call()?;
+        assert!(self.spans, "map_span on a mapper that reserves apart");
+        assert_eq!(offset % self.page, 0);
+        let start = self.raw;
+        assert!(!self.range(start, len).any(|p| self.pages.contains_key(&p)), "span over an existing mapping");
+        for p in self.range(start, len).collect::<Vec<_>>() {
+            self.pages.insert(p, (prot, Backing::File(offset + p - start)));
+        }
+        Ok(start)
     }
 }
 
@@ -417,6 +445,98 @@ fn map_model_objects_from_the_linker() {
     let o = ph_at(&f, w) + 4;
     f[o..o + 4].copy_from_slice(&4u32.to_le_bytes());
     check_model("pie-readonly-bss", &f, 4096);
+}
+
+/// The bytes a program start reads of a dependency before mapping it (D-27.92): the ELF header and
+/// the program header table.
+fn header_prefix(f: &[u8]) -> &[u8] {
+    let end = u64_at(f, 32) + 56 * u64::from(u16_at(f, 56));
+    &f[..(end.max(64) as usize).min(f.len())]
+}
+
+/// s27_1_c_1 (a start dependency planned and mapped from its headers, D-27.92): `map::plan_headers`
+/// on the ELF header and program header table alone, given the file's length, plans as
+/// `map::plan_file` does on the whole file, for the linker's objects and the malformed corpus; a
+/// `PT_LOAD` whose file range ends one byte past that length is that segment's `OutOfRange`; and
+/// mapping by that plan from the headers alone gives the address space the whole file gives, a
+/// read-only segment's partial last page read from the file (`Mapper::store_file`) and nothing else.
+#[test]
+fn map_from_headers_as_from_the_whole_file() {
+    if !cc_ok() {
+        return eprintln!("SKIP: no cc");
+    }
+    let d = dir("headers");
+    let mut objs = Vec::new();
+    for (name, flags, page) in [("pie", PIE, 4096), ("shared.so", SHARED, 4096), ("align2m", ALIGN_2M, 4096), ("page16k", PAGE_16K, 0x4000)] {
+        let mut f = std::fs::read(build(&d, name, flags, None)).unwrap();
+        f.resize(f.len() + 0x1_0000, 0xaa);
+        objs.push((name, f, page));
+    }
+    // The data segment made read-only: its .bss shares the last file page, whose bytes are copied.
+    let mut f = objs[0].1.clone();
+    let w = *loads(&f).iter().find(|&&i| headers(&f)[i].flags & 2 != 0).unwrap();
+    let o = ph_at(&f, w) + 4;
+    f[o..o + 4].copy_from_slice(&4u32.to_le_bytes());
+    objs.push(("pie-readonly-bss", f, 4096));
+    // The shared object with a one-page gap before its last PT_LOAD (every header from that segment's
+    // address on moved one page up, in the file too): its reservation is made apart, the gap stays
+    // inaccessible.
+    let mut f = objs[1].1.clone();
+    let hs = headers(&f);
+    let from = hs[*loads(&f).last().unwrap()].vaddr;
+    for (i, h) in hs.iter().enumerate().filter(|(_, h)| h.vaddr >= from) {
+        let o = ph_at(&f, i);
+        put64(&mut f, o + 8, h.offset + 4096);
+        put64(&mut f, o + 16, h.vaddr + 4096);
+    }
+    objs.push(("shared-gap", f, 4096));
+    let mut folded = 0usize;
+    for (name, f, page) in &objs {
+        let head = header_prefix(f);
+        let elf = Elf::parse::<Native>(head).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let plan = map::plan_headers::<Native>(&elf, *page, f.len() as u64).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        assert_eq!(Ok(plan), map::plan_file::<Native>(f, *page), "{name}: plan");
+        let (mut whole, mut part) = (Space::new(f, *page), Space::new(f, *page));
+        let a = map::load::<Native, _>(&mut whole, f, *page).unwrap();
+        let b = map::map_planned(&mut part, &elf, &plan, head, *page).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        assert_eq!((a.base, a.bias, a.span), (b.base, b.bias, b.span), "{name}: placement");
+        assert_eq!(part.pages, whole.pages, "{name}: pages");
+        assert_eq!(part.stored, whole.stored, "{name}: stored bytes");
+        assert_eq!(part.file_reads, usize::from(*name == "pie-readonly-bss"), "{name}: reads from the file");
+        // The start's mapper (LD-START-MAPS): the file mapped over the span as the reservation gives the
+        // same address space, one call fewer where the segments leave no gap and the bias needs no
+        // alignment past the page; a 2 MiB-aligned object reserves apart.
+        let mut spanned = Space::new(f, *page);
+        spanned.spans = true;
+        let c = map::map_planned(&mut spanned, &elf, &plan, head, *page).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        assert_eq!((c.base, c.bias, c.span), (b.base, b.bias, b.span), "{name}: placement, spanned");
+        assert_eq!(spanned.pages, whole.pages, "{name}: pages, spanned");
+        assert_eq!(spanned.stored, whole.stored, "{name}: stored bytes, spanned");
+        // No gap: each PT_LOAD's first page is the page after the previous one's last (none of these
+        // objects has a read-only first segment with zero fill).
+        let hs = headers(f);
+        let pages: Vec<(u64, u64)> = loads(f).iter().map(|&i| (hs[i].vaddr / page * page, (hs[i].vaddr + hs[i].memsz).div_ceil(*page) * page)).collect();
+        let gapless = pages.windows(2).all(|w| w[1].0 == w[0].1);
+        let folds = plan.align == *page && gapless;
+        assert!(*name != "shared-gap" || (plan.align == *page && !gapless), "shared-gap: not a page-aligned object with a gap");
+        folded += usize::from(folds);
+        assert_eq!(spanned.calls + usize::from(folds), part.calls, "{name}: calls, spanned (gapless {gapless}, align {:#x})", plan.align);
+    }
+    assert!(folded > 0, "no object here takes the spanned reservation");
+    // The file's length bounds every PT_LOAD's file range, the last byte included.
+    let pie = &objs[0].1;
+    let elf = Elf::parse::<Native>(header_prefix(pie)).unwrap();
+    let hs = headers(pie);
+    let (i, end) = loads(pie).iter().map(|&i| (i, hs[i].offset + hs[i].filesz)).max_by_key(|x| x.1).unwrap();
+    assert!(map::plan_headers::<Native>(&elf, 4096, end).is_ok(), "a file ending with its last segment");
+    assert_eq!(map::plan_headers::<Native>(&elf, 4096, end - 1), Err(MapError::Elf(ElfError::OutOfRange(Part::Segment(u16::try_from(i).unwrap())))), "one byte short");
+    for (name, f, _) in corpus(pie) {
+        let head = header_prefix(&f);
+        match (Elf::parse::<Native>(&f), Elf::parse::<Native>(head)) {
+            (Ok(_), Ok(elf)) => assert_eq!(map::plan_headers::<Native>(&elf, 4096, f.len() as u64), map::plan_file::<Native>(&f, 4096), "{name}"),
+            (whole, part) => assert_eq!(whole.err(), part.err(), "{name}: the headers alone parse as the whole file"),
+        }
+    }
 }
 
 /// no spec clause: the page size comes from `AT_PAGESZ` through the arch seam (design §0a, D-27.15).

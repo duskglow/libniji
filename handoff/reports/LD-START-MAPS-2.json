@@ -1,0 +1,27 @@
+{"task": "LD-START-MAPS-2", "model": "opus", "tokens": null,
+ "result": "merged next (CI red gone: hot_text_products 37/37); `ld.so PROGRAM` maps the program from its headers too; held-pages krp vs next: kernel -113k empty, -113k true, -240k ls, -269k sed per start; total user+kernel -111k/-109k/-237k/-262k; still +87k/+127k/+422k/+545k over glibc 2.39 (target not reached)",
+ "branch": "task/ld-start-maps-2", "head": "9e0b3ed92",
+ "gate": {"affected": "direct tier: all steps ok (ld-start-maps-2-gate); plants 16/16 CAUGHT, no WARN; cargo xtask test ok (7265 + 4850 + 129 + 46 passed); hot_text_products 37/37", "peak": "3.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The explicit-run part of the gain (38k to 63k kernel per start) shows in krp, whose every program starts through `ld.so PROGRAM`; an exec'd program (Yohane's rows) gets the dependency part only (68k / 191k / 224k for true / ls / sed on this host)",
+   "Remaining mapping-side calls (ls): the heap's first area as a 32 MiB aligned reservation plus two trims, two sub-page anonymous mappings made and unmapped at start, libc's 770 KiB .bss; the empty main's mapping calls are at parity, its remaining kernel gap is page faults (+9.5)",
+   "krp.py --products needs the dynamic product layout (wl_dyn_layout), not target/niji"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "empty main, kernel instructions per start (krp shared, held, explicit loader), next -> head", "before": 726038, "after": 613188, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "true, kernel instructions per start (krp shared, held)", "before": 750621, "after": 637810, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "ls /, kernel instructions per start (krp shared, held)", "before": 1979165, "after": 1738962, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "sed, kernel instructions per start (krp shared, held)", "before": 2174671, "after": 1905736, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "sed, user+kernel instructions per start (krp shared, held)", "before": 3315463, "after": 3053260, "unit": "instr/start", "measured": true},
+   {"kind": "faults", "what": "ls /, page faults per start (held)", "before": 172.5, "after": 163, "unit": "faults/start", "measured": true},
+   {"kind": "perf", "what": "true, mmap+munmap calls per start", "before": 22, "after": 13, "unit": "syscalls/start", "measured": true},
+   {"kind": "cost", "what": "user instructions per start (image-mode reading of the dependencies); fix-forward: cache the image tables per object", "before": 1140792, "after": 1147524, "unit": "instr/start (sed)", "measured": true},
+   {"kind": "coverage", "what": "test init_explicit_run_maps_the_program_without_a_whole_file_view; plants (3 new, 13 rerun)", "before": 13, "after": 16, "unit": "plants", "measured": true}
+ ],
+ "improvement": "krp.py could take target/niji directly (build the dynamic layout itself) and print user instructions in --only shared; two jobs here were spent on layout and a summariser",
+ "next_step": "land if the jobs are green; next stories: written pages at start (faults), the heap's first area by reservation and trims, sub-page anonymous mappings at start",
+ "report_file": "handoff/LD-START-MAPS.md",
+ "jobs": ["shiki:ld-start-maps-2-gate", "shiki:ld-start-maps-2-plants", "shiki:ld-start-maps-2-startup2", "shiki:ld-start-maps-2-krp3", "shiki:ld-start-maps-2-xtask-test", "shiki:ld-start-maps-2-lint1"]}

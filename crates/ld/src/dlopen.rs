@@ -333,8 +333,13 @@ pub fn loadable(elf: &Elf<'_>) -> Result<(), Refusal> {
     loadable_dynamic(elf).map(|_| ())
 }
 
-/// [`loadable`], giving the dynamic section it read.
-fn loadable_dynamic<'a>(elf: &Elf<'a>) -> Result<Dynamic<'a>, Refusal> {
+/// [`loadable`], giving the dynamic section it read (also the program start's verdict on a
+/// dependency read from its mapped image, LD-START-MAPS).
+///
+/// # Errors
+///
+/// The [`Refusal`].
+pub fn loadable_dynamic<'a>(elf: &Elf<'a>) -> Result<Dynamic<'a>, Refusal> {
     if elf.header().e_type == et::EXEC {
         return Err(Refusal::Executable);
     }
