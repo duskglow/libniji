@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "merged origin/next (tls.rs conflict: next's on-demand/released slot store kept, superset of this branch's), added a test for the store this branch's reused-mapping change depends on; Skylake-SP: create+join 36,022 -> 1,205 static, 36,109 -> 1,345 dynamic (reference 2,285)",
  "branch": "task/thread-create-cost-2",
- "head": "cdd01ce70",
+ "head": "ea4a96b5b (code as cdd01ce70)",
  "gate": {
   "affected": "11034 passed / 0 failed (direct tier, 17 suites; conformance 50 passed)",
   "peak": null
@@ -14,7 +14,8 @@
  "informational": [
   "the empty-slot plant (fill_static's store of 0 into an on-demand or released ID's dtv slot) survived every existing test on the merged head (job thread-create-cost-2-plants); the new test dl_tls_threads::a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id covers it",
   "validation/wl_percall.sh's header says static binaries, but WL_LINK defaults to dynamic (wl_lock.sh): a static count needs WL_LINK=static",
-  "dynamic pthread_exit remains 3.2x the reference (31,034 vs 9,558 on Skylake-SP): the unwinder walk, ruling #7877, story UNWIND-EXIT-COST"
+  "dynamic pthread_exit remains 3.2x the reference (31,034 vs 9,558 on Skylake-SP): the unwinder walk, ruling #7877, story UNWIND-EXIT-COST",
+  "superseded: thread-create-cost-2-gate and -gate3 (green, but started from a script file: no tested-content record), -gate2 (clippy red, fixed), -plants (empty-slot survived: new test), -plants2 (stopped, older head), -counts and -counts-static (content before the test)"
  ],
  "refused": [],
  "impact": [
@@ -95,10 +96,8 @@
  "next_step": "land; the dynamic pthread_exit gap is UNWIND-EXIT-COST's",
  "report_file": "handoff/THREAD-CREATE-COST.md",
  "jobs": [
-  "mei:thread-create-cost-2-gate3",
+  "mei:thread-create-cost-2-gate4",
   "mei:thread-create-cost-2-plants3",
-  "mei:thread-create-cost-2-gate",
-  "mei:thread-create-cost-2-counts",
-  "mei:thread-create-cost-2-counts-static"
+  "mei:thread-create-cost-2-counts2"
  ]
 }

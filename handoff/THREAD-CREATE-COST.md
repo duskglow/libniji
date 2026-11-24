@@ -53,7 +53,11 @@ code before the merge): static join 36,014 -> 1,197, dynamic join 39,973 -> 1,33
   passed, 0 failed, 1,387 ignored; conformance 50 passed.
 - thread-create-cost-2-plants3 (cdd01ce70): 4 CAUGHT (span-zero, span-short, reuse-skips-block, empty-slot),
   0 SURVIVED, 0 EQUIVALENT, 0 WARN.
-- Counts and the start-up checks ran on 14e08e0f4. Later commits change only a test and handoff/.
+- Counts and the start-up checks first ran on 14e08e0f4 (gate, counts, counts-static). precheck could not judge
+  them on the final head: gate/gate3 ran from a script file, so jobrun saw no role and wrote no tested-content
+  record, and the counts predate the test. So on ea4a96b5b: thread-create-cost-2-gate4 (clippy, static, direct
+  tier, `cargo xtask test`, NIJI_FULL_PROFILE=1 `xtask so` + `hot_text_products`) and thread-create-cost-2-counts2
+  (dynamic then WL_LINK=static).
 
 ## Not done / next
 - dynamic pthread_exit: the unwinder walk, story UNWIND-EXIT-COST (ruling #7877).
