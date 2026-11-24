@@ -1,8 +1,17 @@
 # HEADERS-TABLES-NET: handoff and report
 
-**State.** Branch `task/headers-tables-net` from origin/next 0495c4684; code head afe915972 (the report commit follows
-it). Role keke:~/w/n2 (the reference system: Ubuntu GLIBC 2.39-0ubuntu8.9, GCC 13.3). Leg 1 probed visibility, leg 2
-did the rest.
+**State.** Now on branch `task/headers-tables-net-2` (story HEADERS-TABLES-NET-2), which is `task/headers-tables-net`
+(code head afe915972, from origin/next 0495c4684) plus merge 3e9197a82 of origin/next 80d1f809b. Role of the -2 run:
+shiki:~/w/sh1 (also the reference system: Ubuntu GLIBC 2.39-0ubuntu8.9, GCC 13.3). Legs 1-3 (HEADERS-TABLES-NET):
+leg 1 probed visibility, legs 2-3 did the rest. HEADERS-TABLES-NET-2: the merge (see "Merge" below).
+
+**Merge (HEADERS-TABLES-NET-2).** CI stopped on a conflict in spec/abi/macros.tsv: one hunk, where this branch's
+arpa/telnet.h SLC_* and net/if_slip.h SL_* rows sit next to the math.h SNAN* rows whose value next changed (`nan` ->
+`snan`). Resolved by key (name, header): both sides' rows kept, the SNAN* rows with next's value; the table stays
+sorted with no duplicate rows. Every other file merged cleanly; libc-include/netinet/ip_icmp.h was changed on both
+sides, and next also changed the headers generator (headers.rs, rows.rs, values.rs, functions.rs), so
+`cargo xtask headers-gen` and `cargo xtask abi-gen` were rerun on the merged tree: they reproduce every committed
+file under libc-include/ and crates/abi byte for byte (no regeneration commit needed).
 
 **What landed on the branch.**
 * Candidates: `spec/tools/header_probe.py` `net_names()` (names and tags from RFCs, man pages and kernel UAPI headers,
@@ -35,8 +44,15 @@ it is now `equivalent:` with that reason. htn-plants2 (final tree, keke, rc 0): 
 no WARN-RC-ONLY / WARN-NO-MSG (one WARN-DEV-SHM: the copy is under /dev/shm; no plant here mounts its own /dev).
 Direct gate htn-gate1 (keke, rc 0): `affected: ok`, every direct suite ok (niji native and interposed, niji-abi,
 niji-boundary, niji-legacy, niji-math, niji-rt, conformance 97 programs, fuzz-check, static); peak 12G, oom_kill=0.
-**Check gap (INFORMATIONAL):** header_check/P1 and appendix_c_layouts cannot see the alignment of a nested member;
-an over-packed nested aggregate whose offsets happen not to move passes every check.
+**Check gap (INFORMATIONAL, narrowed by the merge):** header_check/P1 and appendix_c_layouts cannot see the alignment
+of a nested member. After the merge with next, header_check's uapi pairing checks catch the over-packing plant anyway
+(struct in6_addr's packed union makes the kernel's packed struct ipv6_destopt_hao fail -Werror=packed-not-aligned),
+so the plant is now a `msg:` plant (`handoff/HEADERS-TABLES-NET-2-plants.txt`); an over-packed nested aggregate no
+kernel header embeds would still pass every check.
+
+**Proof on the merge (HEADERS-TABLES-NET-2, shiki).** clippy and static green on the inherited head and on the merge.
+header_check htn2-hcheck1: 0 failed of 16499. Direct gate htn2-gate1 (rc 0): `affected: ok`, 18 suites ok, 11643
+tests passed, 0 failed; conformance 98 passed; peak 15G, oom_kill=0. Plants: see Status.
 
 **Brief step 3: spec names the reference does not define** (probe negatives: in no header in any configuration).
 99 of 598 macro candidates: AUTHTYPE_RSA/SRA/SSL, AUTH_ENCRYPT_MASK/OFF, COMP_PROTO_LEN, ENV_VALUE, ENV_VAR, EOPTNEG,
@@ -62,7 +78,11 @@ hand-respelled Elf*_Phdr p_type rows): left as they are; only the new types' row
 **Not to redo.** The probes and splices (all additions verified). Scratch scripts: `~/w/.scratch/HEADERS-TABLES-NET/`
 (tpdiff.py, splice_lay.py, dropvis.py, negatives.py).
 
-**Status (leg 3, done).** Code head afe915972; later commits are handoff/ only. JOBS: keke:htn-gate1,
-keke:htn-plants2 (both rc 0). SUPERSEDED: htn-plants1 (the plants file changed after it: one plant marked
-equivalent). The plants results are committed in `handoff/HEADERS-TABLES-NET-plants.txt`. Nothing left running.
+**Status (HEADERS-TABLES-NET-2, done).** Code head = merge 3e9197a82; later commits are handoff/ only. JOBS (shiki,
+all rc 0): htn2-gate1 (direct gate), htn2-plants3 (`handoff/HEADERS-TABLES-NET-2-plants.txt`: 7 CAUGHT, 0 SURVIVED,
+0 EQUIVALENT, no WARN lines; results committed in that file), htn2-hcheck1 (header_check). SUPERSEDED: htn2-plants1
+(refused before any plant: my header_check job, started the same second in the role, wrote `__pycache__` files during
+the plants copy; rerun with nothing else writing to the role), htn2-plants2 (rc 0, 7 CAUGHT, but on the predecessor's
+plants file whose `equivalent:` plant was caught; the plants file changed after it). The predecessor's
+keke:htn-gate1/htn-plants2 proved the pre-merge head only. Nothing left running.
 **Next step:** landing (coordinator); then a follow-up story for the template definitions listed under Open gaps.
