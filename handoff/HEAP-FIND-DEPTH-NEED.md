@@ -44,8 +44,14 @@ On mei the test reads 33048 x4, 33304, 33572, 33560, 33304 (worst 33572 at 10240
 - `heap-find-depth-need-2-plants` (plants-1): blockers-8 CAUGHT (s03 layout test); blockers-8-find failed the
   bound's assertion at every phase (mutant 34340..34852 over 3 entries) but WARN-NO-MSG (regex used `\d`).
   Superseded by `heap-find-depth-need-2-plants2` (regex `[0-9]+`): see the report json.
-- `heap-find-depth-need-2-gate`: `affected --run` (direct tier), `cargo xtask test`, full-profile `so` +
-  hot_text_products: see the report json.
+- `heap-find-depth-need-2-plants2`: 2 of 2 CAUGHT (blockers-8-find by the find bound at every phase).
+- `heap-find-depth-need-2-gate` (`affected --run`, direct tier, on aa2ca2ff7): 10450 passed, 8 failed = 4 locale /
+  reference tests in both passes (s7_2_f_0 accepts `zh_HK.big5hkscs`; locale_products 3 lines; printf corpus 4;
+  catalogs reload). Host environment, not this branch: mei's /usr/lib/locale gained 511 compiled locale dirs on
+  11-23 (06:32 / 18:10); `ctype-objects-setlocale-2-gate` (role s4, 18:44) failed the same 4; CI on mei passed
+  them all evening, including the train with this code (ba4f67797). The only library change is EXACT_BLOCKERS.
+  The find bound and s03 passed in it. `cargo xtask test` and the full-profile checks did not run in its `&&`
+  chain: they ran in `heap-find-depth-need-2-startup` (with static) on the final head; result in the report json.
 - keke (Zen 1) NOT re-measured this leg (role is mei). Expected to pass: its 16 KiB-grid needs (d3 15296, d200k
   48592 at the default layout) put its exact over-d3 at <= 33312 at that phase, and its d3 is the larger one.
 
