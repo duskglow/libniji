@@ -29,6 +29,8 @@ struct Disk<'s> {
     defaultcharset: Option<&'static [u8]>,
     /// `PATH`'s value, when the environment has it (`validlocale` names itself by it).
     path: Option<&'static [u8]>,
+    /// The directories whose lock this process holds.
+    locked: Vec<Vec<u8>>,
 }
 
 impl Host for Disk<'_> {
@@ -61,9 +63,17 @@ impl Host for Disk<'_> {
     }
     fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
         let p = KPathBuf::new(dir).map_err(|e| e.get())?;
+        // A flock lock belongs to its open file description: locking the directory again through a second
+        // descriptor would wait for this process's own lock (locale-gen runs the localedef command once per
+        // locale in one process, D-31.36). A directory already locked is held already.
+        if self.locked.iter().any(|d| d.as_slice() == dir) {
+            return Ok(());
+        }
         let fd = CSys.openat(Fd::CWD, p.as_kstr(), O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0).map_err(|e| e.get())?;
         // The descriptor stays open, and the lock held, until the program exits.
-        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())
+        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())?;
+        self.locked.push(dir.to_vec());
+        Ok(())
     }
     fn i18npath(&self) -> Option<&[u8]> {
         self.i18npath
@@ -136,7 +146,7 @@ pub extern "C" fn niji_localedef_start(sp: usize, ehdr: usize) -> ! {
         }
         at = at.wrapping_add(8);
     }
-    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath, defaultcharset, path };
+    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath, defaultcharset, path, locked: Vec::new() };
     // argv[0] chooses the command: locale-gen, update-locale and validlocale are this program (D-31.36).
     let argv0 = args.as_slice().first().copied().unwrap_or_default();
     let r = match niji_locale::cmds::by_name(argv0, rest, &mut disk) {
