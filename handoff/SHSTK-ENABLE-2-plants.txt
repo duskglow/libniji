@@ -1,0 +1,4 @@
+# SHSTK-ENABLE-2 (D-21.7 (5)): makecontext's shadow-stack registry. A reused stack must find its record; a new key past half is not recorded; doubling keeps every record.
+registry-key-ignored | crates/boundary/src/context.rs | lit:            if k == key || k == 0 { ==>             if k == 0 { | cargo test -p niji-boundary --lib makecontext_shadow_stack_registry | msg:makecontext_shadow_stack_registry.*FAILED|panicked
+registry-past-half | crates/boundary/src/context.rs | lit:        if (n + 1) * 2 > cap { ==>         if n + 1 > cap { | cargo test -p niji-boundary --lib makecontext_shadow_stack_registry | msg:makecontext_shadow_stack_registry.*FAILED|panicked
+rehash-drops-length | crates/boundary/src/context.rs | lit:                put(new, i + 2, get(old, s * SLOT + 2)); ==>                 put(new, i + 2, 0); | cargo test -p niji-boundary --lib makecontext_shadow_stack_registry | msg:makecontext_shadow_stack_registry.*FAILED|panicked
