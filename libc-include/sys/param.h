@@ -104,6 +104,31 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 
+/* Spec 8.12 (sys/param.h, BSD; MAX(3), roundup(3), powerof2(3)): in every configuration, C and C++. Each is an
+   integer constant expression where its arguments are. MIN and MAX evaluate the operand they choose twice and the
+   other once, and choose the second operand when neither compares below (above) the other. */
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+/* The units of y that hold x; a program's own howmany defined first is kept. */
+#ifndef howmany
+# define howmany(x, y) (((x) + ((y) - 1)) / (y))
+#endif
+/* The least multiple of y not below x. A power-of-two step (0 included) that the compiler knows is applied as a mask
+   of the low bits, in the type of x + y (the false arm of `0 ? (x) : ...` gives that type and evaluates no x). */
+#if defined __GNUC__ || defined __clang__
+# define roundup(x, y) (__builtin_constant_p (y) && powerof2 (y) \
+                        ? (((x) + ((y) - 1)) & ~((0 ? (x) : (y)) - 1)) \
+                        : ((((x) + ((y) - 1)) / (y)) * (y)))
+#else
+# define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
+#endif
+#define powerof2(x) ((((x) - 1) & (x)) == 0)
+/* Bit i of an array a of NBBY-bit units counted in a's own elements. */
+#define setbit(a, i) ((a)[(i) / NBBY] |= 1 << ((i) % NBBY))
+#define clrbit(a, i) ((a)[(i) / NBBY] &= ~(1 << ((i) % NBBY)))
+#define isset(a, i) ((a)[(i) / NBBY] & (1 << ((i) % NBBY)))
+#define isclr(a, i) (((a)[(i) / NBBY] & (1 << ((i) % NBBY))) == 0)
+
 __NIJI_END_C
 
 #endif

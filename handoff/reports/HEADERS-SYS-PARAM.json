@@ -1,0 +1,16 @@
+{"task": "HEADERS-SYS-PARAM", "model": "opus", "tokens": null,
+ "result": "sys/param.h defines MIN, MAX, howmany, roundup, powerof2, setbit, clrbit, isset and isclr from new spec 8.12, probe-matched to the reference",
+ "branch": "task/headers-sys-param", "head": "e62c8a0ed",
+ "gate": {"affected": "795 passed / 0 failed (9 suites, Direct tier)", "peak": "3.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["roundup with a negative x gives different results with a compile-time and a run-time power-of-two step (probed; libniji matches; outside the man page's domain)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "programs using MIN, MAX, howmany, roundup, powerof2, setbit, clrbit, isset, isclr from <sys/param.h> now compile against libniji's headers", "before": 0, "after": 9, "unit": "macros defined", "measured": true},
+  {"kind": "coverage", "what": "spec clauses s8_12_c_0..5 with tests, and plants", "before": 0, "after": 6, "unit": "clauses/tests (9 plants caught)", "measured": true}
+ ],
+ "jobs": ["headers-sys-param-gate", "headers-sys-param-plants"],
+ "improvement": "the workspace clippy lints (no panic!/expect, unreachable_pub) fire on test helper modules; leg 1 ran its tests without clippy and the proof leg found it. Running clippy before the first test job would have caught it",
+ "next_step": "land (coordinator)",
+ "report_file": "handoff/HEADERS-SYS-PARAM.md"}
