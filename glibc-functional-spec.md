@@ -5371,6 +5371,15 @@ decided differently from the reference; each has a row in `docs/differences-from
   `--replace`; a missing DIR is `stat of "DIR" failed: ...: ignored`, exit 0. `--delete-from-archive NAME...`
   removes exact names; a name not stored is `locale "NAME" not in archive`, exit 0. `--no-archive` writes the
   directory `<prefix>/usr/lib/locale/NAME` with NAME's codeset normalized (probe `localedef-archive`).
+* A string of a category other than `LC_CTYPE` and `LC_COLLATE` with a character the charmap lacks takes, for
+  that character, the locale's `LC_CTYPE` transliteration (`translit_start` ... `translit_end`, wherever the
+  category stands in the source): the entry of the locale's own (the later of two for one character), else of its
+  `include`s in order (the first that has one), an included file resolved the same way; of that entry's
+  alternatives, the first that is not empty and that the charmap encodes whole. An alternative is not
+  transliterated again, `default_missing` is not used, and nothing applies without such an entry. A string
+  with a character neither encoded nor so transliterated is written empty, whole, with `<file>:<line>:
+  <CATEGORY>: unknown character in field `<keyword>'` (one line per string, also under `--quiet`) and exit 1,
+  output written without `-c` (probe `localedef-translit`).
 
 **Failure.**
 
@@ -5380,6 +5389,10 @@ decided differently from the reference; each has a row in `docs/differences-from
   line skipped, output written, exit 1. An error inside a category: `<file>:<line>: <CATEGORY>: syntax error`;
   without `-c` exit 4 and no output; with `-c` output written (that category with its default) and exit 1 (POSIX
   `localedef` exit status 1: warnings or errors, output created) (probe `localedef-syntax`).
+* An `LC_COLLATE` section without an `order_start` (empty, or `collating-symbol` lines only):
+  `<file>:<END line>: LC_COLLATE: empty category description not allowed`, then `[error] too many errors; giving
+  up`, exit 1 with or without `-c`; the output directory is made and no category file is written. A section with
+  `order_start` and `order_end` and nothing between compiles (probe `localedef-empty-collate`).
 
 ### 31.9 zic
 
@@ -5729,7 +5742,7 @@ compatibility needs and that the body of this spec does not record.*
 | Not used | glibc source code. No function bodies, code sizes or dispatch mechanisms are recorded: a function's size and whether it is an IFUNC are implementation details and are excluded. |
 | Excluded | `GLIBC_PRIVATE` symbols (311 names): private interfaces between glibc's own libraries, which a replacement that ships its own `ld.so` and `libc.so.6` does not need to reproduce. |
 | Reproduce | `python3 spec/tools/abi_extract.py && python3 spec/tools/appendix_c.py` on the reference system. |
-| Additions | Owner ruling R3: `sched_getattr` and `sched_setattr` at `GLIBC_2.41` (two rows in `versions.tsv` and in `versions-aarch64.tsv`, two in `prototypes.tsv`), added by hand; the node, binding and type are those of the x86_64 dynamic symbol table of Devuan excalibur's `libc6` 2.41-12+deb13u4. A rerun of the tools on the 2.39 reference system drops them. |
+| Additions | Owner ruling R3: `sched_getattr` and `sched_setattr` at `GLIBC_2.41` (two rows in `versions.tsv` and in `versions-aarch64.tsv`, two in `prototypes.tsv`); the node, binding and type are those of the x86_64 dynamic symbol table of Devuan excalibur's `libc6` 2.41-12+deb13u4. Every export beyond the reference is a row of `spec/abi/versions-additions.tsv` naming the decision that adds it; `abi_extract.py` merges those rows into the versions tables (each after the last row of its library) and records the reference rows' sha256 in `versions.sha256` and `versions-aarch64.sha256`, and `cargo xtask static` (abi-versions) fails on a versions table that differs from that merge. The two `prototypes.tsv` rows are still added by hand: a rerun of the tools on the 2.39 reference system drops them. |
 
 ### C.1 Machine-readable tables (normative)
 
@@ -6876,12 +6889,17 @@ both forms.
 * **Directory form:** `<dir>/<name>/LC_CTYPE`, `LC_NUMERIC`, `LC_TIME`, `LC_COLLATE`,
   `LC_MONETARY`, `LC_PAPER`, `LC_NAME`, `LC_ADDRESS`, `LC_TELEPHONE`, `LC_MEASUREMENT`,
   `LC_IDENTIFICATION`, and `LC_MESSAGES/SYS_LC_MESSAGES`. `<dir>` is each directory of
-  `LOCPATH` (colon-separated, ignored in secure mode), or `/usr/lib/locale` when `LOCPATH` is
-  unset.
-* **Archive form:** `/usr/lib/locale/locale-archive` (D.1.6). The reference system used for
-  this inspection has no archive, so the precedence between archive and directories could not
-  be observed; libniji consults the archive only when `LOCPATH` is unset, and then before
-  `/usr/lib/locale` directories (implementation-plan.md D-7.7).
+  `LOCPATH` (colon-separated, ignored in secure mode), then `/usr/lib/locale`, which is
+  searched whether or not `LOCPATH` is set.
+* **Archive form:** `/usr/lib/locale/locale-archive` (D.1.6), consulted only when `LOCPATH` is
+  unset, and then first, under the name's archive form only (the codeset normalized, every
+  component kept: `en_US.UTF-8@zz` does not find an archived `en_US.utf8`). Observed on the
+  reference (D-7.21, 2026-11-23).
+* **Order** (observed, D-7.21): each candidate (below) is tried in every directory before the
+  next candidate. The first place that holds a category's file decides that category: when its
+  codeset is not the requested one, the category is not found and no later candidate is tried
+  (`de_DE.UTF-8@euro` is not found where `de_DE@euro` is installed in ISO-8859-15, even with
+  `de_DE.utf8` installed). A directory without the category's file is passed over.
 
 **Name resolution** (observed). A name has the form
 `language[_territory][.codeset][@modifier]`.
@@ -6902,7 +6920,7 @@ both forms.
   `kk_KK.UTF-8` to `kk_KK.utf8`. `aa_AA` does not find `aa_AA.utf8`, and `cc_CC.utf8` does not
   find `cc_CC.UTF-8`.
 * When the name carries a codeset, the found locale's own codeset (`LC_CTYPE` item
-  `CODESET`), normalized, must equal it; otherwise the candidate is rejected.
+  `CODESET`), normalized, must equal it; otherwise the category is not found (Order, above).
 * The name `setlocale` reports is the name as requested, even when a less specific candidate
   supplied the data.
 * Names containing `/` are rejected.

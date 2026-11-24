@@ -1,0 +1,11 @@
+name: --h is ambiguous between --header and --help
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --h
+status: exit 64
+stdout:
+stderr:
+| gencat: option '--h' is ambiguous; possibilities: '--header' '--help'
+| Try `gencat --help' or `gencat --usage' for more information.

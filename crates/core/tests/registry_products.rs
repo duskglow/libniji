@@ -9,13 +9,10 @@ mod skip_note;
 
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 fn ensure_locale(dir: &Path, name: &str) -> bool {
     if dir.join(name).join("LC_COLLATE").exists() {
@@ -26,15 +23,7 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
 }
 
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/registry_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/registry_diff.c").build(out, niji)
 }
 
 /// Lines that differ from the reference by decision: text the line starts with, the locale it

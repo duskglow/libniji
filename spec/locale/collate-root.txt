@@ -1,0 +1,228 @@
+# The shared root of libniji's generated LC_COLLATE (LOCALE-COLLATE-TAILORINGS-2; coordinator
+# decisions #7890, #7958; owner ruling #7791: locale data by black-box probe). Input of
+# crates/collate-root (niji-collate-root), which builds the root from the DUCET
+# (spec/unicode/15.1.0/allkeys.txt, UTS #10) and this file:
+#
+#   * levels 1-3: the DUCET's weights with variable weighting "shifted" (UTS #10 section 4: a
+#     variable collation element and the ignorables after it weigh nothing at levels 1-3);
+#   * level 4: the character itself, characters equal at levels 1-3 in code point order;
+#   * the class rules and the placements below, each with the probe that shows it.
+#
+# Every rule was derived from, and is checked against, one probe of the reference:
+# probe: tools/probe/collate/collorder.c over U+0001-U+D7FF and U+E000-U+10FFFF in the reference's en_US.UTF-8 (Zen 1 host, 2026-11-23; results/locale-collate-2026-11-23.md section 7).
+# tools/probe/collate/root_rules.py derives the undefined ranges and placements from that output.
+#
+# Formats:
+#   class <name>                 a class rule the generator implements (described above it)
+#   undefined <lo> <hi>          code points the DUCET or Unified_Ideograph covers that the root
+#                                leaves undefined (they collate as UNDEFINED: first)
+#   after <cp> <anchor> <level>  <cp> sorts directly after <anchor>, differing from it at
+#                                <level> (1-3: a weight of its own just after the anchor's at that
+#                                level, the anchor's below it; 4: the anchor's weights at 1-3)
+#   same <cp> <anchor> <n>       <cp> has the anchor's weights at levels 1 to <n>
+#   expand <cp> <cp1> <cp2>...   <cp> has the weights of the string <cp1><cp2>... at levels 1-3
+#   contract <cp1> <cp2> <as>    the string <cp1><cp2> is one element weighing as <as> at all
+#                                four levels
+#
+# The expand, same and contract lines were settled by the generated_root test (strings and
+# fillers against the reference's compiled en_US: U+0675, U+0676 and U+0678 weigh as the letter
+# and U+0621; U+017F, U+1DE5 and U+A785 are equal at levels 1-3 and U+A784 differs from them at
+# level 3 only), not by the single code point order alone.
+
+# Class han-variant-block. Evidence: the probe orders every CJK radical, Kangxi radical, CJK
+# compatibility ideograph (U+F900-U+FAFF, U+2F800-U+2FA1F), parenthesized, circled, squared and
+# kanbun ideograph after all other scripts and before U+4E00, in the DUCET's order among
+# themselves (1,508 code points, no exception). Rule: a code point whose first DUCET primary is
+# an implicit Han primary (UTS #10 section 10.1) and that is not in U+4E00-U+9FFF takes a
+# primary before every implicit Han primary, then its DUCET primaries.
+class han-variant-block
+
+# Class format-first. Evidence: in the probe, the code points with all-zero DUCET weights that
+# are controls (Cc), format characters (Cf) or variation selectors (PropList Variation_Selector)
+# come first at level 4, in code point order, before the variable characters (467 code points;
+# the exceptions are the `after` lines of the format group below).
+class format-first
+
+# Undefined. Evidence: the probe puts these code points with the undefined characters (they sort
+# first, equal to each other within a UTF-8 length): the reference's table does not define them.
+undefined 0001 0001
+undefined 0560 0560
+undefined 0588 0588
+undefined 05EF 05EF
+undefined 061D 061D
+undefined 07FD 07FF
+undefined 0860 089F
+undefined 08B5 08B5
+undefined 08BE 08D3
+undefined 09FC 09FE
+undefined 0A76 0A76
+undefined 0AFA 0AFF
+undefined 0B55 0B55
+undefined 0C04 0C04
+undefined 0C3C 0C3C
+undefined 0C5D 0C5D
+undefined 0C77 0C77
+undefined 0C84 0C84
+undefined 0CDD 0CDD
+undefined 0CF3 0D00
+undefined 0D04 0D04
+undefined 0D3B 0D3C
+undefined 0D81 0D81
+undefined 0E86 0E86
+undefined 0E89 0E89
+undefined 0E8C 0E8C
+undefined 0E8E 0E93
+undefined 0E98 0E98
+undefined 0EA0 0EA0
+undefined 0EA8 0EA9
+undefined 0EAC 0EAC
+undefined 0EBA 0EBA
+undefined 0ECE 0ECE
+undefined 170D 170D
+undefined 1715 171F
+undefined 180F 180F
+undefined 1878 1878
+undefined 1ABF 1ACE
+undefined 1B4C 1B4C
+undefined 1B7D 1B7E
+undefined 1C90 1CBF
+undefined 1CF7 1CF7
+undefined 1CFA 1CFA
+undefined 1DF6 1DFA
+undefined 20BF 20C0
+undefined 23FF 23FF
+undefined 2B97 2B97
+undefined 2BBA 2BBC
+undefined 2BC9 2BC9
+undefined 2BD2 2BEB
+undefined 2BF0 2BFF
+undefined 2C2F 2C2F
+undefined 2C5F 2C5F
+undefined 2E45 2E5D
+undefined 2FFC 2FFF
+undefined 312E 312F
+undefined 31BB 31BF
+undefined 31EF 31EF
+undefined 32FF 32FF
+undefined 3400 4DBF
+undefined 9FA6 9FFF
+undefined A7AF A7AF
+undefined A7B8 A7F6
+undefined A82C A82C
+undefined A8FE A8FF
+undefined AB66 AB6B
+undefined FBC2 FBC2
+undefined FD40 FD4F
+undefined FDCF FDCF
+undefined FDFE FDFF
+undefined 1019C 1019C
+undefined 1032D 1032F
+undefined 10570 105BC
+undefined 10780 107BA
+undefined 10A34 10A35
+undefined 10A48 10A48
+undefined 10D00 10D39
+undefined 10E80 10FF6
+undefined 11070 11075
+undefined 110C2 110CD
+undefined 11144 11147
+undefined 111CE 111CF
+undefined 1123F 11241
+undefined 1133B 1133B
+undefined 1145A 1145A
+undefined 1145E 11461
+undefined 116B8 116B9
+undefined 1171A 1171A
+undefined 11740 1183B
+undefined 11900 11ABF
+undefined 11B00 11B09
+undefined 11D00 11FFF
+undefined 12F90 12FF2
+undefined 1342F 13455
+undefined 16A70 16AC9
+undefined 16E40 16E9A
+undefined 16F45 16F4F
+undefined 16F7F 16F87
+undefined 16FE1 1AFFE
+undefined 1B002 1B167
+undefined 1CF00 1CFC3
+undefined 1D1E9 1D1EA
+undefined 1D2C0 1D2F3
+undefined 1D372 1D378
+undefined 1DF00 1DF2A
+undefined 1E030 1E7FE
+undefined 1E94B 1E94B
+undefined 1EC71 1ED3D
+undefined 1F10D 1F10F
+undefined 1F12F 1F12F
+undefined 1F16C 1F16F
+undefined 1F1AD 1F1AD
+undefined 1F260 1F265
+undefined 1F6D3 1F6DF
+undefined 1F6F7 1F6FC
+undefined 1F774 1F77F
+undefined 1F7D5 1F7F0
+undefined 1F8B0 1F90F
+undefined 1F91F 1F91F
+undefined 1F928 1F92F
+undefined 1F931 1F932
+undefined 1F93F 1F93F
+undefined 1F94C 1F94F
+undefined 1F95F 1F97F
+undefined 1F992 1F9BF
+undefined 1F9C1 2EE5D
+undefined 30000 323AF
+
+# Placements: U+FFFD sorts after the last CJK variant and before the unified ideographs (level 1). Evidence: the probe's order and level for each line.
+after FFFD 2FA1D 1
+
+# Placements: Arabic letters with a high hamza and their presentation forms: one letter each, after the letter named (DUCET 15.1 expands them). Evidence: the probe's order and level for each line.
+expand 0675 0627 0621
+expand 0676 0648 0621
+after 0677 FBD7 1
+after FBDD 0677 3
+expand 0678 064A 0621
+
+# Placements: Latin letters and the peseta sign whose DUCET 15.1 weights differ from the reference's (r rotunda, insular s, long s with dot, r with palatal hook, peseta sign as one currency symbol). Evidence: the probe's order and level for each line.
+after 20A7 20A6 1
+after A75B AB46 1
+after 1DE3 A75B 3
+after A75A 1DE3 3
+after 1D89 027A 1
+after 1E9B A784 2
+after 1D98 0285 1
+after A785 1DE5 4
+same A784 A785 2
+
+# Contractions. Evidence: the generated_root test: the reference compares l+U+00B7 and L+U+00B7
+# equal to U+0140 and U+013F (strcoll 0), and orders them so in words.
+contract 006C 00B7 0140
+contract 004C 00B7 013F
+
+# Placements: Combining marks the reference weights differently from DUCET 15.1 (level 4: same weights as the anchor; level 2: a secondary of their own). Evidence: the probe's order and level for each line.
+after 0F82 0F3F 4
+after 0F83 0F82 4
+after 111C9 111C8 4
+after 101FD 20E9 2
+
+# Placements: Prepended concatenation marks and invisible operators: Cf with all-zero DUCET weights that the reference orders by code point among the variable characters, not with class format-first. Evidence: the probe's order and level for each line.
+after 0600 05F4 4
+after 0601 0600 4
+after 0602 0601 4
+after 0603 0602 4
+after 0604 0603 4
+after 0605 0604 4
+after 06DD 06DC 4
+after 2061 205F 4
+after 2062 2061 4
+after 2063 2062 4
+after 2064 2063 4
+after 110BD 110BC 4
+
+# Placements: Letters of other scripts placed after the letter named (Phaistos, Kharoshthi, Myanmar, Javanese, Hentaigana, Bopomofo). Evidence: the probe's order and level for each line.
+after 10A32 10A31 1
+after 10A33 10A32 1
+after 1086 A9E5 1
+after A9B5 A9BB 1
+after 1B001 3350 1
+after 31AC 31B1 1

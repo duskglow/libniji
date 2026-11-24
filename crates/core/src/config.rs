@@ -69,6 +69,9 @@ pub struct Tunables {
     pub shstk: Option<bool>,
     /// `glibc.cpu.x86_shstk`: how the shadow stack, once asked for, treats unmarked objects.
     pub x86_shstk: ShstkMode,
+    /// `glibc.rtld.optional_static_tls`: bytes of static TLS room for objects loaded by `dlopen`
+    /// that need it (D-27.94). The loader's surplus is this plus 1200 bytes (default 512 + 1200).
+    pub optional_static_tls: Option<u64>,
 }
 
 /// The values of `glibc.cpu.x86_shstk` (D-21.6, probe-settled: exact lower-case spellings; any
@@ -105,6 +108,7 @@ enum Key {
     Perturb,
     NoClassedSwap,
     ExecStack,
+    OptionalStaticTls,
 }
 
 /// The tunable `name` stands for, or `None` for names that mean nothing in this design.
@@ -118,6 +122,7 @@ fn key_of(name: &[u8]) -> Option<Key> {
         b"niji.malloc.perturb" | b"glibc.malloc.perturb" => Key::Perturb,
         b"niji.compat.no_classed_swap" => Key::NoClassedSwap,
         b"niji.compat.execstack" => Key::ExecStack,
+        b"glibc.rtld.optional_static_tls" => Key::OptionalStaticTls,
         _ => return None,
     })
 }
@@ -338,6 +343,7 @@ impl Tunables {
                         _ => ShstkMode::Default,
                     }
                 }
+                Key::OptionalStaticTls => t.optional_static_tls = number(value).or(t.optional_static_tls),
             }
         }
         t

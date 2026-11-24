@@ -14,10 +14,9 @@ dir = "target/nextest"
 # tests: one at a time, as `cargo test` ran them. dns_products also starts DNS servers with
 # timed waits the probes print (its own `ONE_AT_A_TIME` lock says load stretches them).
 privileged = { max-threads = 1 }
-# GATE-SPEED-3: aio_products is six tests (engine x cache mode), each with its own build outputs, scratch
-# directories and private /dev/shm mount namespace, no ports and no shared files: up to 3 at once.
-# They are not in `privileged` (the other binaries stay one at a time).
-privileged-aio = { max-threads = 3 }
+# aio_products is one test (AIO-ONE-REFERENCE) whose libniji runs each start in their own private
+# /dev/shm mount namespace, no ports and no shared files: it is in no group, so it runs beside the
+# `privileged` chain, not in it.
 
 [profile.default]
 # The CPUs this process may use (affinity mask, cgroup quota): a gate pinned to a 12-CPU slot runs 12
@@ -38,10 +37,6 @@ slow-timeout = { period = "180s", terminate-after = 10 }
 [[profile.default.overrides]]
 filter = "binary(=admin_products) | binary(=catalogs_products) | binary(=dns_products) | binary(=fstree_products) | binary(=mntent_products) | binary(=netdb_products) | binary(=noproc_products) | binary(=nscache_products) | binary(=patterns_products) | binary(=posixipc_products) | binary(=process_products) | binary(=syslog_products) | binary(=terminals_products) | binary(=users_products)"
 test-group = "privileged"
-
-[[profile.default.overrides]]
-filter = "binary(=aio_products)"
-test-group = "privileged-aio"
 
 # GATE-SPEED: the privileged group is the longest chain of a pass (17 tests one at a time,
 # ~635 s of a ~645 s pass on Zen 1 host, aio_products alone ~290 s): its tests start first, so the chain

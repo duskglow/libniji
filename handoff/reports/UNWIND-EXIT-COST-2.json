@@ -1,0 +1,25 @@
+{"task": "UNWIND-EXIT-COST-2", "model": "opus", "tokens": null,
+ "result": "COMPLETE: next merged in (unwind.rs conflict resolved keeping next's remembered-row spill and this branch's lazy rows), re-gated and re-measured: dynamic pthread_exit depth 0 59,558 -> 32,074 instr vs origin/next (reference 8,802); target not reached",
+ "branch": "task/unwind-exit-cost-2", "head": null,
+ "gate": {"affected": "13 suites, 916 passed / 0 failed (direct tier)", "peak": "2.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "next carries a doubled doc line above `struct Stack` in crates/rt/src/unwind.rs (\"A DWARF expression's stack.\" twice); left as next has it",
+   "No bound covers dynamic pthread_exit/pthread_cancel: nothing to tighten; recommend a percall row at the new level",
+   "Candidate (b) (skip the walk when no frame can have a handler) still not started; estimated ~25k per plain-C exit, unmeasured"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "dynamic plain-C pthread_exit depth 0, exit's own cost (Skylake-SP, release-dyn, vs origin/next)", "before": 59558, "after": 32074, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "dynamic plain-C pthread_exit depth 10", "before": 101326, "after": 54290, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "pthread_exit depth 10 with pthread_cleanup_push per frame", "before": 127365, "after": 80329, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "pthread_cancel depth 3", "before": 72860, "after": 39627, "unit": "instr/op", "measured": true},
+   {"kind": "perf", "what": "C++ throw 10 frames (libgcc unwinder; unchanged, spread <= 12)", "before": 99079, "after": 99079, "unit": "instr/op", "measured": true},
+   {"kind": "correctness", "what": "an .eh_frame_hdr table count running past its segment finds nothing (tested)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants (7, all caught on the merged code) and one test case", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "the release-dyn base/head comparison through wl_prep.sh (both products built the same way, outside the role) gave a same-profile before/after in one job without a second role build; a documented 'measure base vs head products' recipe would save the next perf story working it out",
+ "next_step": "land; follow-ups: candidate (b) as its own story, a pthread_exit percall bound, thread::finish (~19.5k)",
+ "report_file": "handoff/UNWIND-EXIT-COST.md",
+ "jobs": ["unwind-exit-cost-2-gate1", "unwind-exit-cost-2-plants1", "unwind-exit-cost-2-chk1", "unwind-exit-cost-2-counts1"]}

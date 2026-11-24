@@ -5,7 +5,7 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use niji::names::nss::{self, Config, Database, LookupError, Spec};
+use niji::names::nss::{self, Config, Database, LookupError, Spec, Step};
 use niji_fuzz::Input;
 
 fuzz_target!(|data: &[u8]| {
@@ -17,9 +17,10 @@ fuzz_target!(|data: &[u8]| {
     let config = Config::parse(conf);
     for db in Database::ALL {
         let (spec, _) = config.resolve(db);
-        // The encoded form round-trips.
-        let decoded = Spec::decode(&spec.encode());
-        assert_eq!(decoded, Some(spec), "encode/decode of {db:?}");
+        // Each source's encoded form (kept in atomics) round-trips.
+        for s in spec.steps() {
+            assert_eq!(Step::decode(&s.encode()), Some(*s), "encode/decode of {db:?}");
+        }
         // The action engine, with answers from the input.
         let mut k = 0usize;
         let mut next = || {
@@ -43,12 +44,12 @@ fuzz_target!(|data: &[u8]| {
             },
         );
         let _ = r;
-        nss::gather(&spec, db == Database::Initgroups, |_| if next() & 1 == 0 { Ok(()) } else { Err(LookupError::NotFound) });
+        nss::gather(spec, db == Database::Initgroups, |_| if next() & 1 == 0 { Ok(()) } else { Err(LookupError::NotFound) });
     }
     // Each line on its own, as `__nss_configure_lookup` passes a source list.
     for line in conf.split(|&c| c == b'\n') {
         if let Some(spec) = Spec::parse(line) {
-            assert_eq!(Spec::decode(&spec.encode()), Some(spec));
+            assert!(spec.steps().iter().all(|s| Step::decode(&s.encode()) == Some(*s)));
         }
     }
     let _ = niji_legacy::nss::multi_of(host_conf);

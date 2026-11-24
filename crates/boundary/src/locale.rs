@@ -480,6 +480,52 @@ fn publish_global() {
             store_words(b, view_of(GLOBAL));
         }
     });
+    crate::ffi::compat_ctype_store(&compat_ctype_objects(), &compat_ctype_words(view_of(GLOBAL).locale()));
+}
+
+/// The six legacy ctype objects' versioned names (`CTYPE_STORE_ORDER` of
+/// `xtask/src/compat_objects.rs`), NUL-terminated for the loader.
+const COMPAT_CTYPE_NAMES: [&core::ffi::CStr; 6] = [c"__ctype_b", c"__ctype_tolower", c"__ctype_toupper", c"__ctype32_b", c"__ctype32_tolower", c"__ctype32_toupper"];
+
+/// The addresses [`compat_ctype_objects`] found (written once, before `COMPAT_CTYPE_FOUND`).
+static COMPAT_CTYPE_AT: [AtomicUsize; 6] = [const { AtomicUsize::new(0) }; 6];
+/// Whether [`COMPAT_CTYPE_AT`] holds the loader's answers.
+static COMPAT_CTYPE_FOUND: AtomicUsize = AtomicUsize::new(0);
+
+/// The addresses of the six legacy ctype objects as the loader resolves `<name>@GLIBC_2.2.5` from
+/// the program's scope (an old binary's COPY of an object, else libc.so.6's own), looked up on the
+/// first `setlocale` that changes the global `LC_CTYPE`, never at start-up: libc.so.6 holds no
+/// symbol relocation for them, which the loader would resolve in every program's start-up. All 0
+/// in a program `ld.so` did not start (libc.a has no such objects). The lookup leaves the calling
+/// thread's dlerror state as it was ([`crate::dlerr::keeping`]).
+#[cold]
+#[inline(never)]
+fn compat_ctype_objects() -> [usize; 6] {
+    if COMPAT_CTYPE_FOUND.load(Acquire) == 0 {
+        if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+            return [0; 6];
+        }
+        for (slot, name) in COMPAT_CTYPE_AT.iter().zip(COMPAT_CTYPE_NAMES) {
+            let at = crate::dlerr::keeping(|| crate::posix::s27_dynlink::niji_dl_sym(core::ptr::null_mut(), name.as_ptr(), c"GLIBC_2.2.5".as_ptr(), 0));
+            slot.store(at.expose_provenance(), Relaxed);
+        }
+        COMPAT_CTYPE_FOUND.store(1, Release);
+    }
+    COMPAT_CTYPE_AT.each_ref().map(|a| a.load(Relaxed))
+}
+
+/// The six words of the legacy ctype objects for the global locale `l` (CTYPE-OBJECTS-SETLOCALE,
+/// spec/behaviour/ctype-objects.md): the 16-bit tables [`tables`] gives (`*__ctype_*_loc()`'s),
+/// then the 32-bit class, `tolower` and `toupper` tables of code points U+0000…U+00FF, which for
+/// a locale file are its own items and otherwise the `"C"` tables (D-5.13: the built-in
+/// `"C.UTF-8"` has no 32-bit items). The order is `xtask/src/compat_objects.rs`' `CTYPE_STORE_ORDER`.
+fn compat_ctype_words(l: &Locale) -> [usize; 6] {
+    let [class, lower, upper] = tables(l);
+    let [class32, lower32, upper32] = match l.ctype() {
+        Ctype::C | Ctype::CUtf8 => [ctype_tables::C_CLASS32.as_ptr().wrapping_add(ZERO).expose_provenance(), lower, upper],
+        Ctype::File(f) => [f.class32_table(), f.tolower32_table(), f.toupper32_table()].map(|t| t.as_ptr().expose_provenance()),
+    };
+    [class, lower, upper, class32, lower32, upper32]
 }
 
 /// The address of the calling thread's pointer `slot` (0 `__ctype_b`, 1 `__ctype_tolower`,
@@ -782,7 +828,7 @@ pub fn uselocale(loc: usize) -> usize {
     if prev == 0 { GLOBAL } else { prev }
 }
 
-/// The variables `setlocale(cat, "")` reads (`global_locale::setlocale`: `LC_ALL`, the
+/// The variables `setlocale(cat, "")` reads (`global_locale::global_setlocale_request`: `LC_ALL`, the
 /// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS). Their order is
 /// `gl::ENV_LC_ALL`'s numbering: `LC_ALL`, the categories in `Cat::ALL` order, `LANG`.
 const ENV_KEYS: [&[u8]; 14] = {
@@ -794,11 +840,11 @@ const ENV_KEYS: [&[u8]; 14] = {
 };
 
 /// `setlocale(category, name)`: the name (`'static`, NUL-terminated), or `None`.
-pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
+pub fn locale_set_name(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let cat = if category == 6 { None } else { Some(Cat::from_number(category)?) };
     // NO-ROW: a query changes nothing, so it skips the environment table and the change check.
     let Some(name) = name else {
-        return gl::setlocale(&CSys, &Glue, cat, gl::Request::Query);
+        return gl::global_setlocale_request(&CSys, &Glue, cat, gl::Request::Query);
     };
     // `""` is out of line (SETLOCALE-CTYPE-ENV): its lookups would otherwise set up a frame and
     // locals on every named call too (+7 per call on the "C" and "POSIX" rows when inline).
@@ -806,7 +852,7 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
         return setlocale_env(cat);
     }
     let before = gl::global_handle();
-    let r = gl::setlocale(&CSys, &Glue, cat, gl::Request::Name(name));
+    let r = gl::global_setlocale_request(&CSys, &Glue, cat, gl::Request::Name(name));
     // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
     if gl::global_handle() != before {
         publish_global();
@@ -995,7 +1041,7 @@ fn lconv_words(l: &Locale) -> [usize; 12] {
 /// `setlocale` for C: the name's address, or 0.
 pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> usize {
     match name {
-        Ok(n) => setlocale(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
+        Ok(n) => locale_set_name(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
         Err(_) => 0,
     }
 }

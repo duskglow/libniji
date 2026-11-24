@@ -26,25 +26,14 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 use std::collections::HashMap;
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, ExitStatus};
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(probe: &str, out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle").join(probe);
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-w", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1", "-w"]).arg(&src).args(["-lresolv", "-lpthread"]);
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair(&format!("crates/core/tests/oracle/{probe}")).flags(&["-w"]).host_libs(&["-lresolv", "-lpthread"]).build(out, niji)
 }
 
 /// A recorded difference: the section, the reference's line, its occurrence (from 0) among the

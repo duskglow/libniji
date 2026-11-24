@@ -2,8 +2,9 @@
 //! `tests/oracle/catalogs_diff.c` built against the host C library and statically against
 //! libniji's products, each run by `tests/oracle/catalogs_run.sh` (fixture catalogs built with
 //! `msgfmt` and `gencat`, every other catalog written by the probe below a scratch directory under
-//! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on and
-//! off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
+//! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`); every run, the reference's included, with the system's locale
+//! directory hidden but for `C.utf8`, so the host's installed locales never decide a case
+//! (`setlocale` searches that directory after `LOCPATH`; D-7.23). The outputs must be identical line by line, except the
 //! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
 //! [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to: the
 //! text of the last `== ` or `-- ` header line before it starts with the entry's first string, so a
@@ -23,12 +24,11 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+#[path = "support/scratch.rs"]
+mod scratch;
+use oracle::{root, with_headers, without};
+use std::path::Path;
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 fn ensure_locale(dir: &Path, name: &str) -> bool {
     if dir.join(name).join("LC_COLLATE").exists() {
@@ -39,15 +39,7 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
 }
 
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/catalogs_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build_quiet(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/catalogs_diff.c").quiet().build(out, niji)
 }
 
 const REPLACED: &str = "D-7.5 (caching; owner ruling 2026-10-05): a loaded catalog is checked against its file at most once per second and at once after a setting changes, so a replaced catalog is loaded again; the reference never re-reads a file whose binding string is unchanged";
@@ -123,42 +115,50 @@ const ADDED: [(&str, &str, &str); 6] = [
 /// Lines only the reference prints: as [`ADDED`].
 const DROPPED: [(&str, &str, &str); 0] = [];
 
-/// Each line of `text` with the header line (`== ` or `-- `) it falls under.
-fn with_headers(text: &str) -> Vec<(String, String)> {
-    let mut header = String::new();
-    text.lines()
-        .map(|l| {
-            if l.starts_with("== ") || l.starts_with("-- ") {
-                header = format!("{l}\n");
-            }
-            (header.clone(), l.to_string())
-        })
-        .collect()
-}
-
-/// `lines` without the lines recorded in `list` (each entry is taken once, by the first line
-/// of its case that starts with its text and has not been taken).
-fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)], who: &str) -> Vec<(String, String)> {
-    let mut seen = vec![false; list.len()];
-    let mut out = Vec::new();
-    for (h, l) in lines {
-        match list.iter().enumerate().position(|(i, (case, needle, _))| !seen[i] && h.starts_with(case) && l.starts_with(needle)) {
-            Some(i) => {
-                seen[i] = true;
-                eprintln!("recorded line only {who} prints ({}):\n  {l}", list[i].2);
-            }
-            None => out.push((h, l)),
-        }
-    }
-    for (i, s) in seen.iter().enumerate() {
-        assert!(s, "recorded line no longer printed by {who}: {:?}", list[i]);
-    }
-    out
-}
+/// The header lines a recorded entry's case is matched against (`oracle::with_headers`).
+const HEADERS: &[&str] = &["== ", "-- "];
 
 /// A line diff of `want` (glibc) and `got` (libniji) by longest common subsequence: each run of
 /// differing lines under the header of its case, `-` for glibc and `+` for libniji, at most 200 lines.
+/// A run that only replaces lines recorded in [`KNOWN`] is marked `(recorded)` and comes after the
+/// others: a log that keeps only the start of the message shows a difference nobody recorded.
 fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
+    struct Run {
+        header: String,
+        at: usize,
+        lines: Vec<String>,
+        dropped: Vec<(String, String)>,
+        added: usize,
+    }
+    let mut runs: Vec<Run> = Vec::new();
+    let shown = lcs_walk(want, got, |h, line, at, dropped| {
+        if runs.last().is_none_or(|r| r.header != h) {
+            runs.push(Run { header: h.to_string(), at, lines: Vec::new(), dropped: Vec::new(), added: 0 });
+        }
+        let r = runs.last_mut().unwrap();
+        r.lines.push(line);
+        match dropped {
+            Some(d) => r.dropped.push(d.clone()),
+            None => r.added += 1,
+        }
+    });
+    let known = |(h, w): &(String, String)| KNOWN.iter().any(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle));
+    let recorded = |r: &Run| !r.dropped.is_empty() && r.dropped.len() == r.added && r.dropped.iter().all(known);
+    let mut out = Vec::new();
+    for r in runs.iter().filter(|r| !recorded(r)).chain(runs.iter().filter(|r| recorded(r))) {
+        out.push(format!("@ line {} in {}{}", r.at + 1, r.header.trim_end(), if recorded(r) { " (recorded)" } else { "" }));
+        out.extend(r.lines.iter().cloned());
+    }
+    if shown == 200 {
+        out.push("(diff cut at 200 lines)".to_string());
+    }
+    out.join("\n")
+}
+
+/// Walk `want` and `got` by longest common subsequence, calling `emit` with the header, the
+/// `+`/`-` line, the line number in `want` and (for a `-` line) the reference line, for at most
+/// 200 differing lines; returns how many were emitted.
+fn lcs_walk(want: &[(String, String)], got: &[(String, String)], mut emit: impl FnMut(&str, String, usize, Option<&(String, String)>)) -> usize {
     let (n, m) = (want.len(), got.len());
     // lcs[i][j]: the common subsequence length of want[i..] and got[j..].
     let mut lcs = vec![vec![0u32; m + 1]; n + 1];
@@ -167,32 +167,22 @@ fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
             lcs[i][j] = if want[i].1 == got[j].1 { lcs[i + 1][j + 1] + 1 } else { lcs[i + 1][j].max(lcs[i][j + 1]) };
         }
     }
-    let (mut i, mut j, mut out, mut shown, mut last) = (0, 0, Vec::new(), 0usize, None);
-    let mut emit = |out: &mut Vec<String>, h: &str, line: String, at: usize| {
-        if last != Some(h.to_string()) {
-            out.push(format!("@ line {} in {}", at + 1, h.trim_end()));
-            last = Some(h.to_string());
-        }
-        out.push(line);
-    };
+    let (mut i, mut j, mut shown) = (0, 0, 0usize);
     while (i < n || j < m) && shown < 200 {
         if i < n && j < m && want[i].1 == got[j].1 {
             i += 1;
             j += 1;
         } else if j < m && (i == n || lcs[i][j + 1] >= lcs[i + 1][j]) {
-            emit(&mut out, &got[j].0, format!("+ {}", got[j].1), i);
+            emit(&got[j].0, format!("+ {}", got[j].1), i, None);
             j += 1;
             shown += 1;
         } else {
-            emit(&mut out, &want[i].0, format!("- {}", want[i].1), i);
+            emit(&want[i].0, format!("- {}", want[i].1), i, Some(&want[i]));
             i += 1;
             shown += 1;
         }
     }
-    if shown == 200 {
-        out.push("(diff cut at 200 lines)".to_string());
-    }
-    out.join("\n")
+    shown
 }
 
 /// The damaged catalogs the record leaves out (offsets and sizes outside the file;
@@ -238,7 +228,7 @@ fn damaged_catalogs_outside_the_record_are_safe() {
     assert!(out.lines().last() == Some("done"), "the run ends");
     assert!(!out.contains("child killed"), "no case is killed");
     let mut cases = 0;
-    for (h, l) in with_headers(&out) {
+    for (h, l) in with_headers(&out, HEADERS) {
         if !h.starts_with("-- ~") || l.starts_with("-- ") || l == "done" {
             continue;
         }
@@ -289,12 +279,14 @@ fn catalogs_equal_the_reference() {
     assert!(build(&ours, true), "catalogs_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/catalogs_run.sh");
     let wrap = r.join("crates/core/tests/oracle/nscache_mode.sh");
-    let run = |exe: &Path, scratch: &str, mode: Option<&str>| -> String {
+    // Every run, the reference's included, sees only C.utf8 (installed with the C library) in the
+    // system locale directory: setlocale searches it after LOCPATH, so otherwise the host's
+    // installed locales decide cases such as `LC_ALL=de_DE.UTF-8@euro` (catalogs_run.sh refuses
+    // to run without it).
+    let run = |exe: &Path, scratch: &str, mode: &str| -> String {
         let mut cmd = Command::new("timeout");
         cmd.arg(timeout::secs(1200));
-        if let Some(m) = mode {
-            cmd.arg("sh").arg(&wrap).arg(m);
-        }
+        cmd.arg("sh").arg(&wrap).arg("--hide-system-locales").arg(mode);
         // nscache_mode.sh clears the environment: LOCPATH is passed on through `env`.
         cmd.arg("env").arg(format!("LOCPATH={}", locales.display()));
         let start = std::time::Instant::now();
@@ -317,55 +309,202 @@ fn catalogs_equal_the_reference() {
         }
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
-    let reference = run(&host, "catalogs-host", None);
+    let reference = run(&host, "catalogs-host", "plain");
     let record = std::fs::read_to_string(r.join("spec/behaviour/catalogs.glibc.txt")).unwrap();
     if reference == record {
         eprintln!("the reference equals the record");
     } else {
         eprintln!("note: the reference differs from the record");
     }
-    for mode in ["on", "off"] {
-        eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("catalogs-niji-{mode}"), Some(mode));
-        let want = without(with_headers(&reference), &DROPPED, "the reference");
-        let got = without(with_headers(&got), &ADDED, "libniji");
-        let mut diffs = 0;
-        let mut seen = [false; KNOWN.len()];
-        for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
-            if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
-                if w != g {
-                    seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
-                }
-                continue;
-            }
+    // One mode (D-16.18): the program reaches no name-service cache lookup (tests/nscache_reach.rs).
+    let mode = "on";
+    eprintln!("name-service cache {mode}");
+    let got = run(&ours, &format!("catalogs-niji-{mode}"), mode);
+    let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
+    let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
+    let mut diffs = 0;
+    let mut seen = [false; KNOWN.len()];
+    for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
+        if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
             if w != g {
-                diffs += 1;
-                if diffs <= 400 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
+                seen[i] = true;
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
+            }
+            continue;
+        }
+        if w != g {
+            diffs += 1;
+            if diffs <= 400 {
+                eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
+            }
+        }
+    }
+    let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+    if want.len() != got.len() {
+        // The diff comes first: a log that keeps only the start of a long message still shows it.
+        let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-niji-{mode}.txt")));
+        let _ = std::fs::write(&wf, text(&want));
+        let _ = std::fs::write(&gf, text(&got));
+        panic!(
+            "line counts differ (glibc {}, niji {}; name-service cache {mode}); line diff (- glibc, + niji):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- niji\n{}",
+            want.len(),
+            got.len(),
+            line_diff(&want, &got),
+            wf.display(),
+            gf.display(),
+            text(&want),
+            text(&got)
+        );
+    }
+    assert_eq!(diffs, 0, "lines that differ from the reference");
+    for (i, s) in seen.iter().enumerate() {
+        assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);
+    }
+}
+
+/// `gencat` (UTIL-14, spec §31.12, Appendix D.2.2): libniji's program (`target/niji-test/gencat`, run on this
+/// tree's loader and library) and the reference's compile one generated source; the two catalogs must be the
+/// same bytes, and `catgets` (§7.8) must return every message of the source, and the default for keys the source
+/// does not define, from libniji's catalog both on libniji (`tests/oracle/gencat_lookup.c` linked statically
+/// against the products) and on the reference (the same probe built against the host C library), and from the
+/// reference's catalog on libniji: catalogs built either way are interchangeable.
+///
+/// Needs the products (`cargo xtask so`) and a C compiler; the reference's `gencat` is optional (without it the
+/// byte comparison and the reference's catalog are skipped, and the test says so).
+mod gencat {
+    use super::{oracle, root, scratch, skip_note, timeout};
+    use std::fmt::Write as _;
+    use std::path::Path;
+    use std::process::{Command, Stdio};
+
+    /// The source and, for every key it defines, the text `catgets` must return (in the probe's escaped form).
+    /// Sets are named out of order, the default set 1 in the middle, with gaps, a symbolic set and symbolic
+    /// messages, escapes, a quoted text and a continued line: the pool order, the plane search and the slot
+    /// collisions all matter for the bytes, and every key must still be found.
+    fn source() -> (String, Vec<(u32, u32, String)>) {
+        let mut src = String::from("$ generated by catalogs_products.rs\n");
+        let mut want = Vec::new();
+        let mut x: u32 = 12345;
+        let mut next = |m: u32| {
+            x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
+            (x >> 8) % m
+        };
+        for &set in &[7u32, 3, 1, 250, 12] {
+            writeln!(src, "$set {set}").unwrap();
+            let mut used = std::collections::BTreeSet::new();
+            while used.len() < 60 {
+                used.insert(1 + next(500));
+            }
+            for &m in &used {
+                let pad = "z".repeat(usize::try_from(next(12)).unwrap());
+                match m % 7 {
+                    0 => {
+                        writeln!(src, "{m} tab\\there\\101 {pad}").unwrap();
+                        want.push((set, m, format!("tab\\011hereA {pad}")));
+                    }
+                    1 => {
+                        writeln!(src, "{m} cont\\\nnued {set}/{m}").unwrap();
+                        want.push((set, m, format!("contnued {set}/{m}"))); // a trailing backslash joins the lines
+                    }
+                    _ => {
+                        writeln!(src, "{m} set {set} message {m} {pad}").unwrap();
+                        want.push((set, m, format!("set {set} message {m} {pad}")));
+                    }
                 }
             }
         }
-        let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        if want.len() != got.len() {
-            // The diff comes first: a log that keeps only the start of a long message still shows it.
-            let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-niji-{mode}.txt")));
-            let _ = std::fs::write(&wf, text(&want));
-            let _ = std::fs::write(&gf, text(&got));
-            panic!(
-                "line counts differ (glibc {}, niji {}; name-service cache {mode}); line diff (- glibc, + niji):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- niji\n{}",
-                want.len(),
-                got.len(),
-                line_diff(&want, &got),
-                wf.display(),
-                gf.display(),
-                text(&want),
-                text(&got)
-            );
+        // A symbolic set takes the next number (251); its symbolic messages are numbered 1, 2, after none.
+        src.push_str("$set Named\nFirst one\nSecond \u{e9}t\u{e9}\n$quote \"\n9 \"quoted\" rest\n");
+        want.push((251, 1, "one".into()));
+        want.push((251, 2, "\\303\\251t\\303\\251".into()));
+        want.push((251, 9, "quoted".into()));
+        (src, want)
+    }
+
+    fn run(cmd: &mut Command, what: &str) -> Vec<u8> {
+        let o = cmd.stdin(Stdio::null()).output().unwrap_or_else(|e| panic!("{what}: {e}"));
+        assert!(o.status.success(), "{what}: {:?}\n{}", o.status, String::from_utf8_lossy(&o.stderr));
+        o.stdout
+    }
+
+    fn gencat(prog: &Path, src: &Path, out: &Path) {
+        let mut cmd = Command::new("timeout");
+        cmd.arg(timeout::secs(60)).arg(prog).args(["--new", "-o"]).arg(out).arg(src).env_clear().env("LC_ALL", "C.UTF-8");
+        run(&mut cmd, &format!("{} {}", prog.display(), src.display()));
+    }
+
+    fn lookup(probe: &Path, cat: &Path, keys: &str) -> String {
+        use std::io::Write as _;
+        let mut child = Command::new("timeout")
+            .arg(timeout::secs(60))
+            .arg(probe)
+            .arg(cat)
+            .env_clear()
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(keys.as_bytes()).unwrap();
+        let o = child.wait_with_output().unwrap();
+        assert!(o.status.success(), "{} {}: {:?}\n{}", probe.display(), cat.display(), o.status, String::from_utf8_lossy(&o.stderr));
+        String::from_utf8(o.stdout).unwrap()
+    }
+
+    #[test]
+    fn catalogs_from_both_gencats_are_interchangeable() {
+        // Clauses: s31_12_c_1, s31_12_g_1, s31_1_c_r3, s7_8_c_0.
+        let r = root();
+        let ours = r.join("target/niji-test/gencat");
+        assert!(ours.exists() && r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+        if skip_note::missing("cc") {
+            skip_note::skipped("no cc (the catgets probe needs it)");
+            return;
         }
-        assert_eq!(diffs, 0, "lines that differ from the reference");
-        for (i, s) in seen.iter().enumerate() {
-            assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);
+        let dir = scratch::Scratch::dir("gencat");
+        let d: &Path = &dir;
+        let (src, want) = source();
+        let msg = d.join("i.msg");
+        std::fs::write(&msg, &src).unwrap();
+        // Every defined key, then keys the source does not define: a missing message in a set, sets never named,
+        // the empty set 0 and message 0, and a key whose plane slot is taken by another (set 2 is never named).
+        let mut keys = String::new();
+        let mut expect = String::new();
+        for (s, m, t) in &want {
+            writeln!(keys, "{s} {m}").unwrap();
+            writeln!(expect, "{s} {m} {t}").unwrap();
         }
+        let defined: std::collections::BTreeSet<(u32, u32)> = want.iter().map(|(s, m, _)| (*s, *m)).collect();
+        for k in [(7, 0), (0, 1), (2, 1), (4, 4), (252, 1), (251, 3)].into_iter().chain((1..40).map(|m| (1, m))).filter(|k| !defined.contains(k)) {
+            writeln!(keys, "{} {}", k.0, k.1).unwrap();
+            writeln!(expect, "{} {} (default)", k.0, k.1).unwrap();
+        }
+
+        let src_c = r.join("crates/core/tests/oracle/gencat_lookup.c");
+        let niji_probe = d.join("lookup_niji");
+        let mut cmd = Command::new("cc");
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src_c).arg(r.join("target/niji/libc.a")).arg("-lgcc");
+        assert!(oracle::build_quiet(cmd, &niji_probe), "gencat_lookup.c does not link against the products");
+        let ref_probe = d.join("lookup_ref");
+        let mut cmd = Command::new("cc");
+        cmd.args(["-std=gnu17", "-O1"]).arg(&src_c);
+        assert!(oracle::build_quiet(cmd, &ref_probe), "gencat_lookup.c does not build against the host C library");
+
+        let ours_cat = d.join("niji.cat");
+        gencat(&ours, &msg, &ours_cat);
+        assert_eq!(lookup(&niji_probe, &ours_cat, &keys), expect, "catgets on libniji over libniji's catalog");
+        assert_eq!(lookup(&ref_probe, &ours_cat, &keys), expect, "catgets on the host C library over libniji's catalog");
+
+        let reference = Path::new("/usr/bin/gencat");
+        if !reference.exists() {
+            skip_note::skipped("no /usr/bin/gencat: the byte comparison with the reference's catalog is skipped");
+            return;
+        }
+        let ref_cat = d.join("ref.cat");
+        gencat(reference, &msg, &ref_cat);
+        assert_eq!(lookup(&niji_probe, &ref_cat, &keys), expect, "catgets on libniji over the reference's catalog");
+        let (a, b) = (std::fs::read(&ours_cat).unwrap(), std::fs::read(&ref_cat).unwrap());
+        let first = a.iter().zip(&b).position(|(x, y)| x != y);
+        assert!(a == b, "libniji's catalog ({} bytes) differs from the reference's ({} bytes), first at byte {first:?}", a.len(), b.len());
     }
 }

@@ -1,0 +1,68 @@
+{
+ "task": "LIMITS-CONFIG-SMALL",
+ "model": "opus",
+ "tokens": null,
+ "result": "HL-18 (error_at_line remembered name) and HL-19 (getpass default 1 MiB bound) removed with growth and clean ENOMEM; HL-16/HL-17 handed back as a design (challenge #7807 accepted)",
+ "branch": "task/limits-config-small",
+ "head": null,
+ "gate": {
+  "affected": "direct tier: 16 suites, 5761 passed / 0 failed, 632 ignored; conformance 32 passed / 0 failed (limits-config-small-gate2)",
+  "peak": "2.1G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "D-17.10: niji_getpass_set_limit stays as an opt-in bound; NIJI_GETPASS_DEFAULT_LIMIT = 0 = no bound (the default)",
+   "recommendation": "keep as implemented (D-17.9 delegated the choice; NIJI_NATIVE_1 still open)"
+  }
+ ],
+ "informational": [
+  "HL-16/HL-17 not done: Copy value types stored in fixed atomic Buf encodings; legacy has no Pages/unsafe; design in handoff/LIMITS-CONFIG-SMALL.md (follow-up owed)",
+  "extra cap: core/src/names/nss.rs rules() [0u8; 256] per [...] action group",
+  "getpass stream path: ENOMEM used to leave the rest of the line unread; now drained and zeroed",
+  "4 MiB getpass test goes through stdin: canonical-mode terminals pass at most 4095 bytes per line"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "error_one_per_line suppresses a repeated file name longer than 4096 bytes (8 KiB tested)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "getpass returns a line over 1 MiB whole (4 MiB tested); ENOMEM drains the line",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added or extended (s2_3_c_3 long name, sym_getpass_bound 4 MiB + ENOMEM) and plants (4, all caught)",
+   "before": 0,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": ".bss of libc: Chunks directory for the name spill",
+   "before": 0,
+   "after": 384,
+   "unit": "bytes",
+   "measured": false
+  }
+ ],
+ "improvement": "the native demo's expected transcript lives in xtask/src/native_examples.rs, far from the demo; affected --list could name it when crates/native/examples changes, so a story sees it before the gate",
+ "next_step": "follow-up story for HL-16/HL-17 per the design in handoff/LIMITS-CONFIG-SMALL.md",
+ "report_file": "handoff/LIMITS-CONFIG-SMALL-report.md",
+ "jobs": [
+  "keke:limits-config-small-gate2",
+  "keke:limits-config-small-plants2",
+  "keke:limits-config-small-refprobe2"
+ ]
+}

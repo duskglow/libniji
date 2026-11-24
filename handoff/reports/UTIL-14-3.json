@@ -1,0 +1,37 @@
+{
+ "task": "UTIL-14-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged origin/next (RELEASE-NOTES.md conflict: kept the gencat entry under Unreleased; the execstack entry is already in its snapshot section); gate and 7 gencat plants green",
+ "branch": "task/util-14-3",
+ "head": "536f465af",
+ "gate": {
+  "affected": "util-14-3-gate: 15 suites ok, 1853 passed, 0 failed (direct tier)",
+  "peak": "6.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Plants file repointed from the removed gencat_products test to catalogs_products (mod gencat); plants2 of UTIL-14-2 had been pending",
+  "WARN-DEV-SHM from cargo xtask plants (RAM dir under /dev/shm on a Zen 1 host)",
+  "Premise: UTIL-14-2 work is complete; only the merge conflict kept it red"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "gencat plants re-proved on the final head",
+   "before": null,
+   "after": 7,
+   "unit": "plants caught",
+   "measured": true
+  }
+ ],
+ "improvement": "A story that folds a test into another binary should re-point its plants file in the same commit.",
+ "next_step": "land",
+ "report_file": "handoff/UTIL-14.md",
+ "jobs": [
+  "shiki:util-14-3-gate",
+  "shiki:util-14-3-plants"
+ ]
+}

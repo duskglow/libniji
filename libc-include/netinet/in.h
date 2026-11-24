@@ -9,6 +9,31 @@
 
 __NIJI_BEGIN_C
 
+/* The kernel's UAPI protocol (linux/libc-compat.h). Included after this header, the kernel's headers see
+   _NETINET_IN_H and leave these definitions to it. Included before it, linux/in6.h has already defined those its
+   __UAPI_DEF_* markers selected, and the markers keep the rest for the kernel (linux/ipv6.h defines struct in6_pktinfo
+   and struct ip6_mtuinfo when included later): this header skips each of them, the kernel's definition is the one in
+   force (members in6_u and ipv6mr_ifindex), and s6_addr, s6_addr16 and s6_addr32 are the kernel's. libc-compat.h alone
+   (linux/if.h) defines no structure, so the test is on linux/in6.h's guard. */
+#if defined _LINUX_IN6_H && defined __UAPI_DEF_IN6_ADDR
+# if __UAPI_DEF_IN6_ADDR
+#  define __NIJI_D_struct_in6_addr 1
+#  define __NIJI_UAPI_IN6_ADDR 1
+# endif
+# if __UAPI_DEF_SOCKADDR_IN6
+#  define __NIJI_D_struct_sockaddr_in6 1
+# endif
+# if __UAPI_DEF_IPV6_MREQ
+#  define __NIJI_D_struct_ipv6_mreq 1
+# endif
+# if __UAPI_DEF_IN6_PKTINFO
+#  define __NIJI_D_struct_in6_pktinfo 1
+# endif
+# if __UAPI_DEF_IP6_MTUINFO
+#  define __NIJI_D_struct_ip6_mtuinfo 1
+# endif
+#endif
+
 #if 1
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
@@ -1169,12 +1194,15 @@ enum { IPPROTO_UDPLITE = 136 };
 # define IPV6_RECVORIGDSTADDR IPV6_ORIGDSTADDR
 #endif
 
-/* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). */
+/* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). With the
+   kernel's struct in6_addr in force (above), its own s6_addr names stand. */
+#ifndef __NIJI_UAPI_IN6_ADDR
 # define s6_addr __in6_u.__u6_addr8
 # if __NIJI_MISC
 #  define s6_addr16 __in6_u.__u6_addr16
 #  define s6_addr32 __in6_u.__u6_addr32
 # endif
+#endif
 # define IN6_ARE_ADDR_EQUAL(a, b) (((const uint32_t *) (a))[0] == ((const uint32_t *) (b))[0] && ((const uint32_t *) (a))[1] == ((const uint32_t *) (b))[1] && ((const uint32_t *) (a))[2] == ((const uint32_t *) (b))[2] && ((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[3])
 
 #if __NIJI_FORTIFY >= 1

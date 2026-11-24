@@ -1,0 +1,12 @@
+id = "D-22.24"
+section = "s22"
+spec = "§22.1, §22.3"
+ann = "HIST"
+status = "active"
+amends = ["D-22.23"]
+story = "NIJI-GXX-UNWINDER"
+date = "2026-11-23"
+tests = ["crates/core/tests/deb_manifest.rs::coexist_niji_gcc_threads_unwind_with_the_programs_own_unwinder"]
+body = '''
+**A program linked by niji-gcc or niji-g++ unwinds an exiting or cancelled thread with the unwinder it links** (amends D-22.23 for those programs; RELEASE-SNAPSHOT-1122D finding F1, ruling #7744). niji-g++ links libstdc++ and libgcc_eh statically (the program's library search stays in the sysroot), so its copy of `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` is hidden and D-22.19's `dlsym` finds none: since D-22.23 such a thread aborted with the FATAL message, whose fix (link `libgcc_s` dynamically) the wrapper offers no way to apply. **Design:** the wrapper's dynamic links add `niji-unwinder.o` (csys/start/unwinder.S, shipped in niji6-dev) and export its one function, `__niji_program_unwinder(which)` (`--export-dynamic-symbol`), which returns the address of `_Unwind_ForcedUnwind` (0) or `_Unwind_GetCFA` (1) as the program links them, through weak hidden references (0 when the program links no unwinder; a plain C program links none because of it). When the loader's lookup finds no unwinder and D-22.23's walk finds unwind work, the exit looks the entry up with the loader's `dlsym` and unwinds with it; the FATAL message stays for a program with neither. A later step (after a cleanup buffer's handler) looks it up again only when this exit already started an unwind (the exception's class word is the exit's), so a thread with nothing to unwind costs what it did. One unwinder per unwind: the program's personality routines and landing pads (`_Unwind_Resume`) use that copy, and so does the exit. **Weighed:** linking `libgcc_s.so.1` dynamically from niji-g++ needs the system directory on the program's run-time search (or a link from the sysroot), which the wrapper keeps out; loading `libgcc_s.so.1` on first need (the reference's approach) puts a second unwinder beside the program's own static copy, and the reference's own `-static-libgcc -static-libstdc++` builds end with SIGABRT under that arrangement (black box, glibc 2.39). **Cost:** nothing at start-up or thread creation; two dynamic symbols and 32 bytes of text per niji-gcc program; at an exit with unwind work and no shared unwinder, one more `dlsym`. Programs built by other drivers are unchanged (no entry: D-22.23).
+'''

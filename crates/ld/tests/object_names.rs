@@ -225,3 +225,149 @@ fn origin_without_proc_is_ld_origin_path() {
     let (rc, out) = hidden(&[], &["./link/runpath", "-"]);
     assert!(rc == 127 && out.contains("libnames-a.so"), "no origin: rc {rc}\n{out}");
 }
+
+/// Every object of the process, one line each: `object|dlpi_name|dli_fname|_r_debug's
+/// l_name|dlinfo chain's l_name|map` (`map`: `dladdr1`'s `RTLD_DL_LINKMAP` is `_r_debug`'s node),
+/// after `dlopen` of each argument; then the vDSO's symbol check (DL-OBJECT-PATHS).
+const ALL: &str = r#"
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <elf.h>
+#include <link.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/auxv.h>
+extern int all_search(void), all_slash(void);
+struct row { unsigned long addr, first; const char *name; };
+static struct row rows[64];
+static int nrows;
+static int cb(struct dl_phdr_info *i, size_t s, void *d) {
+    (void)s; (void)d;
+    if (nrows == 64) return 1;
+    rows[nrows].addr = i->dlpi_addr; rows[nrows].name = i->dlpi_name; rows[nrows].first = 0;
+    for (int k = 0; k < i->dlpi_phnum; k++)
+        if (i->dlpi_phdr[k].p_type == PT_LOAD) { rows[nrows].first = i->dlpi_addr + i->dlpi_phdr[k].p_vaddr; break; }
+    nrows++;
+    return 0;
+}
+static struct link_map *by_addr(struct link_map *m, unsigned long a) {
+    for (; m; m = m->l_next) if (m->l_addr == a) return m;
+    return 0;
+}
+static int usable(const ElfW(Sym) *s) {
+    return s->st_shndx && s->st_shndx != SHN_ABS && ELF64_ST_TYPE(s->st_info) != STT_TLS;
+}
+/* An address inside a vDSO function: its symbol is the usable one holding it with the highest
+   start, at equal starts the lowest index. 0, or the failed check. */
+static int vdso_symbol(struct link_map *map) {
+    unsigned long base = map->l_addr, n = 0;
+    ElfW(Sym) *sym = 0; const char *str = 0;
+    for (ElfW(Dyn) *d = map->l_ld; d->d_tag != DT_NULL; d++) {
+        if (d->d_tag == DT_SYMTAB) sym = (void *)(base + d->d_un.d_ptr);
+        if (d->d_tag == DT_STRTAB) str = (void *)(base + d->d_un.d_ptr);
+        if (d->d_tag == DT_HASH) n = ((unsigned int *)(base + d->d_un.d_ptr))[1];
+    }
+    for (unsigned long k = 1; sym && str && k < n; k++) {
+        if (!usable(&sym[k]) || sym[k].st_size < 2) continue;
+        unsigned long a = base + sym[k].st_value + 1, best = 0, bk = 0;
+        for (unsigned long j = 1; j < n; j++) {
+            unsigned long lo = base + sym[j].st_value;
+            if (usable(&sym[j]) && lo <= a && a < lo + sym[j].st_size && (!bk || lo > best)) { best = lo; bk = j; }
+        }
+        Dl_info di; const ElfW(Sym) *se = 0;
+        if (!dladdr1((void *)a, &di, (void **)&se, RTLD_DL_SYMENT)) return 60;
+        printf("vdso %s+1: [%s] [%s]\n", str + sym[k].st_name, di.dli_fname, di.dli_sname ? di.dli_sname : "(null)");
+        if (strcmp(di.dli_fname, "linux-vdso.so.1") || (unsigned long)di.dli_fbase != base) return 61;
+        if (!di.dli_sname || strcmp(di.dli_sname, str + sym[bk].st_name) || (unsigned long)di.dli_saddr != best || se != &sym[bk]) return 62;
+        return 0;
+    }
+    puts("vdso: no DT_HASH function symbol (symbol not checked)");
+    return 0;
+}
+int main(int argc, char **argv) {
+    if (all_search() + all_slash() != 3) return 99;
+    for (int k = 1; k < argc; k++)
+        if (!dlopen(argv[k], RTLD_NOW)) { printf("dlopen %s: %s\n", argv[k], dlerror()); return 30; }
+    struct link_map *head = 0, *vdso = 0;
+    if (dlinfo(dlopen(0, RTLD_NOW), RTLD_DI_LINKMAP, &head)) return 31;
+    dl_iterate_phdr(cb, 0);
+    for (int k = 0; k < nrows; k++) {
+        Dl_info di; struct link_map *lm = 0;
+        const char *fn = "-";
+        if (rows[k].first && dladdr1((void *)rows[k].first, &di, (void **)&lm, RTLD_DL_LINKMAP)) fn = di.dli_fname;
+        struct link_map *r = by_addr(_r_debug.r_map, rows[k].addr), *l = by_addr(head, rows[k].addr);
+        printf("object|%s|%s|%s|%s|%s\n", rows[k].name, fn, r ? r->l_name : "-", l ? l->l_name : "-", r && lm == r ? "map" : "other");
+        if (!strcmp(rows[k].name, "linux-vdso.so.1")) vdso = r;
+    }
+    if (getauxval(AT_SYSINFO_EHDR)) {
+        if (!vdso) return 50;
+        int rc = vdso_symbol(vdso);
+        if (rc) return rc;
+    }
+    puts("names ok");
+    return 0;
+}
+"#;
+
+// Spec s27_1_c_6, s27_1_c_7, s27_1_c_8, s27_4_c_0, s27_1_c_1 (probed, handoff/DL-OBJECT-PATHS.md):
+// every object is named alike by `dl_iterate_phdr`, `dladdr`, `_r_debug` and `dlinfo`, and
+// `dladdr1`'s link map is its node. The name is the path it was opened by: a bare name the search
+// found (DT_NEEDED, LD_PRELOAD, `dlopen`) as the directory searched plus the name, a name with `/`
+// (DT_NEEDED, LD_PRELOAD, `dlopen`) as given, `ld.so` as the program's PT_INTERP, the vDSO
+// `linux-vdso.so.1` (also for `dladdr` of an address in it, with its symbol); the program `""`,
+// `dladdr`'s `argv[0]`.
+#[test]
+fn every_object_is_named_by_the_path_it_was_opened_by() {
+    if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        eprintln!("SKIP: no system C compiler to build the corpus");
+        return;
+    }
+    let lib = target().join("niji");
+    if !lib.join(Native::INTERP).exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
+        return;
+    }
+    let lib = std::fs::canonicalize(lib).unwrap();
+    let ld = lib.join(Native::INTERP);
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-names-all");
+    let p = |rel: &str| format!("{}/{rel}", d.display());
+    for sub in ["libs", "slash", "pre", "dl", "bin"] {
+        std::fs::create_dir_all(d.join(sub)).unwrap();
+    }
+    let cc = |out: &str, src: &str, flags: &[&str]| {
+        let c = d.join(format!("{}.c", out.replace('/', "_")));
+        std::fs::write(&c, src).unwrap();
+        let r = Command::new("cc").current_dir(&d).args(["-O1", "-fno-stack-protector", "-fcf-protection=none"]).arg(&c).args(flags).arg("-o").arg(out).output().unwrap();
+        assert!(r.status.success(), "{out}: {}", String::from_utf8_lossy(&r.stderr));
+    };
+    let shared = ["-nostdlib", "-fPIC", "-shared"];
+    cc("libs/liball-search.so", "int all_search(void) { return 1; }\n", &shared);
+    cc("slash/liball-slash.so", "int all_slash(void) { return 2; }\n", &shared);
+    for so in ["pre/libpa.so", "pre/libpb.so", "libs/libpc.so", "dl/libdl1.so", "dl/libdl2.so", "dl/libdl3.so"] {
+        cc(so, "int all_other(void) { return 3; }\n", &shared);
+    }
+    // DT_NEEDED: `liball-search.so` (bare), `slash/liball-slash.so` (no DT_SONAME: the path as
+    // linked), `libc.so.6` and `ld.so`'s DT_SONAME (bare); PT_INTERP the loader's path.
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let crt1 = lib.join("niji-crt1.o");
+    let libdir = lib.to_str().unwrap();
+    cc("bin/all", ALL, &["-nostdlib", "-fPIC", "-pie", "-Wl,--no-as-needed", &interp, crt1.to_str().unwrap(), "-L", "libs", "-lall-search", "slash/liball-slash.so", "-L", libdir, "-l:libc.so.6", ld.to_str().unwrap(), "-lgcc"]);
+    // The variables are set inside the shell, which would load libniji's libc.so.6 itself.
+    let script = "export LD_LIBRARY_PATH=\"$1\" LD_PRELOAD=\"$2\"; shift 2; exec \"$@\"";
+    let (lp, pre) = (format!("{}:{}:{libdir}", p("libs"), p("dl")), format!("{} pre/libpb.so libpc.so", p("pre/libpa.so")));
+    let o = Command::new("sh").current_dir(&d).args(["-c", script, "sh", &lp, &pre, "./bin/all", "libdl1.so", "./dl/libdl2.so", &p("dl/libdl3.so")]).output().unwrap();
+    let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    assert!(o.status.code() == Some(0) && out.contains("names ok"), "rc {:?}\n{out}", o.status.code());
+    let rows: Vec<Vec<&str>> = out.lines().filter_map(|l| l.strip_prefix("object|")).map(|l| l.split('|').collect()).collect();
+    // The program: `""` in the lists, `argv[0]` from `dladdr`.
+    assert!(rows.first().is_some_and(|r| r[..] == ["", "./bin/all", "", "", "map"]), "program row\n{out}");
+    for r in &rows[1..] {
+        assert!(r.len() == 5 && r[1..4].iter().all(|n| *n == r[0]) && r[4] == "map", "an object named differently by the interfaces: {r:?}\n{out}");
+    }
+    let mut want = vec![p("pre/libpa.so"), "pre/libpb.so".into(), p("libs/libpc.so"), p("libs/liball-search.so"), "slash/liball-slash.so".into()];
+    want.extend([format!("{libdir}/libc.so.6"), ld.display().to_string(), p("dl/libdl1.so"), "./dl/libdl2.so".into(), p("dl/libdl3.so")]);
+    // The vDSO's row (the program fails without one when the kernel gave one) agrees like any other.
+    for w in &want {
+        assert!(rows.iter().any(|r| r[0] == w.as_str()), "no object named {w}\n{out}");
+    }
+}

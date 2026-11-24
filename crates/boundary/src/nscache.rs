@@ -42,6 +42,9 @@ impl nscache::Memory for Memory {
     fn words(&self, addr: usize, n: usize) -> &[AtomicU64] {
         conv::shared_words(addr, n)
     }
+    fn pages(&self) -> &dyn niji_rt::chunks::ChunkPages {
+        &crate::heap::KernelPages
+    }
 }
 
 /// At process start (`crate::runtime`): `NIJI_NSCACHE=0` disables the cache, except in
@@ -85,7 +88,7 @@ pub(crate) fn status() -> nscache::Status {
 
 /// The process's lookup context with the cache (it serves only the system's files).
 pub fn ctx() -> Ctx<'static, CSys> {
-    Ctx::system(&CSys).cached(&MEMORY)
+    Ctx::system(&CSys, &crate::heap::KernelPages).cached(&MEMORY)
 }
 
 // ------------------------------------------------------------------------------ namespaces

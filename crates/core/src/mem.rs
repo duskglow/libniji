@@ -218,6 +218,20 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
         self.extend_spill(items)
     }
 
+    /// Append `items` if they fit inline, never allocating: whether they were appended (nothing
+    /// is appended otherwise).
+    #[inline]
+    pub fn extend_inline(&mut self, items: &[T]) -> bool {
+        if self.heap.is_none() {
+            if let Some(dst) = self.len.checked_add(items.len()).and_then(|end| self.inline.get_mut(self.len..end)) {
+                copy_inline(dst, items);
+                self.len = self.len.wrapping_add(items.len());
+                return true;
+            }
+        }
+        false
+    }
+
     /// [`Self::extend_from_slice`] onto the heap: the elements are there already, or do not fit
     /// inline any more.
     #[inline(never)]
@@ -243,6 +257,27 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
         self.len = 0;
         if let Some(h) = &mut self.heap {
             h.clear();
+        }
+    }
+
+    /// Keep the first `len` elements (all of them when there are fewer); an allocation is kept.
+    pub fn truncate(&mut self, len: usize) {
+        match &mut self.heap {
+            Some(h) => h.truncate(len),
+            None => self.len = self.len.min(len),
+        }
+    }
+
+    /// Remove the last element and return it (`None` when empty).
+    #[inline]
+    pub fn pop(&mut self) -> Option<T> {
+        match &mut self.heap {
+            Some(h) => h.pop(),
+            None => {
+                let n = self.len.checked_sub(1)?;
+                self.len = n;
+                self.inline.get(n).copied()
+            }
         }
     }
 
@@ -273,6 +308,92 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
             Some(h) => h.as_mut_slice(),
             None => self.inline.get_mut(..self.len).unwrap_or(&mut []),
         }
+    }
+}
+
+/// An [`InlineVec`] whose inline storage is made (filled with `T::default()`, as safe code must)
+/// on the first push, not when the vector is made: for a buffer that most calls never use (the
+/// nesting stacks of a parser), so that those calls write nothing but an empty marker.
+#[derive(Debug)]
+pub struct LazyInlineVec<T: Copy + Default, const N: usize> {
+    v: Option<InlineVec<T, N>>,
+}
+
+impl<T: Copy + Default, const N: usize> LazyInlineVec<T, N> {
+    /// An empty vector: no storage yet.
+    #[inline(always)]
+    pub fn new() -> Self {
+        LazyInlineVec { v: None }
+    }
+
+    /// Whether the storage has been made (a push has happened).
+    pub fn is_made(&self) -> bool {
+        self.v.is_some()
+    }
+
+    /// The vector itself, its storage made now if it was not.
+    #[inline]
+    pub fn force(&mut self) -> &mut InlineVec<T, N> {
+        self.v.get_or_insert_with(InlineVec::new)
+    }
+
+    /// Append `value`.
+    #[inline]
+    pub fn push(&mut self, value: T) -> Result<()> {
+        self.force().push(value)
+    }
+
+    /// Append `items`.
+    #[inline]
+    pub fn extend_from_slice(&mut self, items: &[T]) -> Result<()> {
+        self.force().extend_from_slice(items)
+    }
+
+    /// Remove the last element.
+    #[inline]
+    pub fn pop(&mut self) -> Option<T> {
+        self.v.as_mut()?.pop()
+    }
+
+    /// Keep the first `len` elements.
+    #[inline]
+    pub fn truncate(&mut self, len: usize) {
+        if let Some(v) = &mut self.v {
+            v.truncate(len);
+        }
+    }
+
+    /// The elements.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        self.v.as_ref().map_or(&[], InlineVec::as_slice)
+    }
+
+    /// The elements, mutably.
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        match &mut self.v {
+            Some(v) => v.as_mut_slice(),
+            None => &mut [],
+        }
+    }
+
+    /// The number of elements.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.v.as_ref().map_or(0, InlineVec::len)
+    }
+
+    /// Whether there are none.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl<T: Copy + Default, const N: usize> Default for LazyInlineVec<T, N> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

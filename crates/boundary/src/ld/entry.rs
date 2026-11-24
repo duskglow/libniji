@@ -224,6 +224,10 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
         };
         SHSTK_WANTED.store(niji_ld::shstk::code(m), Relaxed);
     }
+    // D-27.39: a larger static surplus asked (raise-only), before the TLS layout.
+    if let Some(bytes) = tunables.and_then(|t| t.optional_static_tls) {
+        super::tls::ask_surplus(bytes);
+    }
     REPORT_NONSHARED.store(ld.report_nonshared && !secure, Relaxed);
     let features = Native::features(&Auxv::from_words(copy.get(..words).unwrap_or(&[])), &crate::sys::CSys);
     // 6. The program: the kernel's (started for its PT_INTERP) or, run as a program, the one named.

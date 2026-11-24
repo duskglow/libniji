@@ -44,7 +44,7 @@ use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::cache::Cache;
 use niji_ld::dlopen::{self as dl, Mode, Refusal};
-use niji_ld::elf::{pt, Elf, STB_GNU_UNIQUE};
+use niji_ld::elf::{dt, pt, STB_GNU_UNIQUE};
 use niji_ld::reloc::{self, Obj, Objects, RelocError, VersionError};
 use niji_ld::search::{self, Ctx, PathBuf, Scope};
 use niji_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, UniqueRegistry, Want};
@@ -1250,8 +1250,7 @@ fn adopt_start(l: &mut Loader) -> bool {
         } else {
             let at = |v: u64| usize::try_from(v).unwrap_or(0);
             let prog = start::Program { phdr: at(w[0]), phnum: at(w[1]), entry: 0 };
-            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views, true);
-            let Ok(elf) = Elf::from_image::<Native>(head, view) else { return false };
+            let elf = image_view(&prog, at(w[2]), b"", &mut views, true);
             let Ok(Some(dynm)) = elf.dynamic() else { return false };
             // Its static block, so a `dlopen`ed object's TLS relocation against one of its
             // symbols finds the place (DL-16d).
@@ -1316,7 +1315,7 @@ fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
             mods[k] = o.elf.find(pt::TLS).map(|ph| Module::of(&ph));
         }
     }
-    if ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).is_err() {
+    if ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, super::tls::surplus_bytes()).is_err() {
         return false;
     }
     for (k, p) in placed[..n].iter().enumerate() {
@@ -1929,7 +1928,13 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         (nd.dev, nd.ino) = (u64::MAX, u64::MAX.wrapping_sub(1));
     }
     let p = tls?;
-    let _ = l.surplus.free(p.tp_offset);
+    if p.tp_offset == ltls::NO_STATIC {
+        // On-demand blocks (DL-19): each thread's is freed by the release walk; the descriptor
+        // records of the module go now.
+        super::tls::desc_release(p.module);
+    } else {
+        let _ = l.surplus.free(p.tp_offset);
+    }
     Some(p.module)
 }
 
@@ -2474,6 +2479,9 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
     super::readers::count_unmapped(k.saturating_sub(base));
     for i in (base..k).rev() {
         if let Some(p) = l.objs_upto(k).get(i).and_then(|o| o.tls) {
+            if p.tp_offset == ltls::NO_STATIC {
+                super::tls::desc_release(p.module);
+            }
             l.ids.put_back(p.module, l.ids_more.all_mut());
         }
     }
@@ -2622,14 +2630,33 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
         if (l.surplus.is_full() || l.ids.top(floor) >= MODS_IN_PLACE) && !tls_room_past(l, floor) {
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
-        let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
+        // Only an object marked `DF_STATIC_TLS` (initial-exec accesses) needs a place in every
+        // thread's static area; any other gets its block per thread on demand (DL-19), so the
+        // surplus stays for the objects that need it.
+        let static_tls = o.dynm.get(dt::FLAGS).is_some_and(|f| f & dt::DF_STATIC_TLS != 0);
+        let off = if static_tls {
+            let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
+            off
+        } else {
+            let align = m.align.max(1);
+            if !align.is_power_of_two() || align >= ltls::DYNAMIC {
+                return Err(fail_parts(&[l_path_static(l, i), b": ", Refusal::Malformed.text()]));
+            }
+            ltls::NO_STATIC
+        };
+        let free = |l: &mut Loader| {
+            if static_tls {
+                let _ = l.surplus.free(off);
+            }
+        };
         let Some(id) = l.ids.take(floor, l.ids_more.all_mut()) else {
-            let _ = l.surplus.free(off);
+            free(l);
             return Err(refused(l));
         };
-        if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, u64::from_ne_bytes(off.to_ne_bytes())]).is_err() {
+        let word = if static_tls { u64::from_ne_bytes(off.to_ne_bytes()) } else { ltls::DYNAMIC | m.align.max(1) };
+        if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, word]).is_err() {
             l.ids.put_back(id, l.ids_more.all_mut());
-            let _ = l.surplus.free(off);
+            free(l);
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
         o.tls = Some(Placed { module: id, tp_offset: off });

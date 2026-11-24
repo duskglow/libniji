@@ -1,0 +1,9 @@
+# LOCALE-C-UTF8-SOURCE plants: the generated C (C.UTF-8) source. The reference.rs test reads the sources from
+# $NIJI_PRODUCTS/locale-sources, so each command regenerates them from the planted generator first.
+# NIJI_PRODUCTS must be absolute: cargo test runs the test binary in the crate's directory. The products
+# directory is removed first: locale-sources does not clear it, so a file from the copy's previous plant would stay.
+# c-no-ctype copies tr_TR's LC_CTYPE (compiles; differs in the dotted/dotless i maps).
+c-run-width | xtask/src/locales.rs | lit:<U{:08X}>\n..\n<U{:08X}> ==> <U{:04X}>\n..\n<U{:04X}> | cargo test -p xtask locales:: | msg:c_source_orders_every_code_point_in_one_equal_width_run.*FAILED|panicked
+c-no-run | xtask/src/locales.rs | lit:order_start forward\n<U{:08X}>\n..\n<U{:08X}>\norder_end ==> order_start forward\n<U{:08X}>\n<U{:08X}>\norder_end | rm -rf target/plant-p && cargo xtask locale-sources target/plant-p/locale-sources && NIJI_PRODUCTS="$PWD/target/plant-p" cargo test -p niji-locale --test reference generated_c_source | msg:LC_COLLATE is not the no-rules code point order|panicked
+c-no-ctype | xtask/src/locales.rs | lit:"LC_CTYPE\ncopy {}\nEND LC_CTYPE\n", quote("i18n")) ==> "LC_CTYPE\ncopy {}\nEND LC_CTYPE\n", quote("tr_TR")) | rm -rf target/plant-p && cargo xtask locale-sources target/plant-p/locale-sources && NIJI_PRODUCTS="$PWD/target/plant-p" cargo test -p niji-locale --test reference generated_c_source | msg:differences from the built-in C.UTF-8
+c-not-written | xtask/src/locales.rs | lit:if src == "C" { Some(c_source()) } ==> if src == "C." { Some(c_source()) } | rm -rf target/plant-p && cargo xtask locale-sources target/plant-p/locale-sources && NIJI_PRODUCTS="$PWD/target/plant-p" cargo test -p niji-locale --test reference generated_c_source | msg:the generated source does not compile

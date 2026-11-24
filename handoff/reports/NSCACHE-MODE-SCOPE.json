@@ -1,0 +1,18 @@
+{"task": "NSCACHE-MODE-SCOPE", "model": "opus", "tokens": null,
+ "result": "D-16.18 amends D-16.10: aio drops uring_on/eperm_on, six products tests run once (cache on); static test nscache_reach pins the cache's callers, lookup families and one-mode programs",
+ "branch": "task/nscache-mode-scope", "head": "ff685180c",
+ "gate": {"affected": "663 passed / 0 failed (7 suites, direct tier)", "peak": "3.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["cargo xtask affected selects nscache_reach when the test changes, not when an oracle/*_diff.c program changes (path built with format!); the train's FULL gate runs it on every landing"],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "aio_products pass 1 test-seconds (two 47.6 s shards dropped)", "before": 286, "after": 191, "unit": "test-s", "measured": false},
+  {"kind": "tooling", "what": "six products tests, one libniji run instead of two", "before": null, "after": null, "unit": "test-s (~-45 est.)", "measured": false},
+  {"kind": "coverage", "what": "static tests added (nscache_reach) and plants", "before": 0, "after": 5, "unit": "tests", "measured": true},
+  {"kind": "cost", "what": "gate coverage: the cache-on runs of aio and cache-off runs of six programs that make no lookup (owner ruling 2026-11-23)", "before": null, "after": null, "unit": "runs", "measured": false}
+ ],
+ "jobs": ["keke:nscache-mode-scope-gate", "keke:nscache-mode-scope-plants"],
+ "improvement": "cargo xtask plants rebuilt the products for every plant of a pure-source static test (~95 s each); a command naming a test that reads no products could reuse the baseline",
+ "next_step": "after landing, read the train's nextest times for aio_products and the six tests and record the measured saving",
+ "report_file": "handoff/NSCACHE-MODE-SCOPE.md"}

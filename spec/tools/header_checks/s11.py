@@ -5,8 +5,8 @@ neither floating macros nor unions, and a header the C++ standard library wraps 
 by its C configurations only. Per (header, configuration) one unit includes the header and asserts, for what the
 header makes visible there, the integer and floating macro values of macros.tsv, the typedef sizes and alignments and
 the structure and union sizes and alignments of layouts.tsv. A false condition is a negative array size (C89 and C++98
-have no static assertion); a floating comparison is not an integer constant expression and uses static assertions
-where the language has them.
+have no static assertion); a floating comparison is no integer constant expression in ISO C, but gcc and g++ fold it
+in an array bound in every mode and reject a false one (probe, HEADERS-TABLES-COMPLETE-2).
 Loaded by spec/tools/header_check.py, which lists this directory (plan/headers.md section 4, "Adding a slice").
 """
 import decimal
@@ -72,11 +72,20 @@ def p1(ctx):
             # The most negative value has no literal (its magnitude is unsigned): (-max - 1).
             lit = "(%d%s)" % (v, sfx) if v > -(1 << 31) or (v != -(1 << 31) and v != -(1 << 63)) else "(%d%s-1)" % (v + 1, sfx)
             tests.append(f"(({n}) == {lit})")
-        elif r["kind"] == "macro" and m and m["type"] in FLOAT_SUFFIX and m["header"] == h and m["value"].startswith("0x"):
-            # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant.
+        elif r["kind"] == "macro" and m and m["type"] in FLOAT_SUFFIX and m["header"] == h:
+            # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant, a
+            # signaling or quiet NaN, or an infinity of the probed sign. gcc and g++ fold a floating comparison in an
+            # array bound in every mode (probe, HEADERS-TABLES-COMPLETE-2), so each value is checked in every
+            # configuration that shows the macro, C89 and C++98 included.
             suffix, size = FLOAT_SUFFIX[m["type"]]
-            tests.append(f"H:sizeof({n}) == {size}")
-            tests.append(f"F:(({n}) == {decimal_literal(m['value'])}{suffix})")
+            v = m["value"]
+            tests.append(f"sizeof({n}) == {size}")
+            if v.lstrip("-").startswith("0x"):
+                tests.append(f"F:(({n}) == {decimal_literal(v)}{suffix})")
+            elif v in ("nan", "snan"):
+                tests.append(f"F:(({n}) != ({n}) && __builtin_issignaling({n}) == {int(v == 'snan')})")
+            elif v in ("inf", "-inf"):
+                tests.append(f"F:(__builtin_isinf_sign({n}) == {-1 if v == '-inf' else 1})")
         elif r["kind"] == "typedef" and n in ctx.typedefs and ctx.typedefs[n]["size"]:
             t = ctx.typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
@@ -90,20 +99,13 @@ def p1(ctx):
     units = []
     for (h, cid), tests in sorted(out.items()):
         if tests:
-            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if t[:2] not in ("F:", "H:"))
-            # A floating macro the generator spells as a hexadecimal constant is a token only where the language has
-            # hexadecimal floating constants (C99 on, C++17 on): earlier modes cannot use it (RULING NEEDED,
-            # HEADERS-TABLES-COMPLETE: a decimal spelling there), so the unit names it only where the use can compile.
-            ht = [(i, t[2:]) for i, t in enumerate(tests) if t.startswith("H:")]
-            if ht:
-                body += "#if (defined __cplusplus && __cplusplus >= 201703L) || (!defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L)\n"
-                body += "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in ht) + "#endif\n"
-            ft = [t[2:] for t in tests if t.startswith("F:")]
+            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if not t.startswith("F:"))
+            # A floating test: an array bound in C++ (every mode); in C a folded non-integer bound is a "variably
+            # modified" diagnostic, so `_Static_assert`, which gcc takes in every C mode (probe).
+            ft = [(i, t[2:]) for i, t in enumerate(tests) if t.startswith("F:")]
             if ft:
-                body += "#if defined __cplusplus && __cplusplus >= 201703L\n"
-                body += "".join(f"static_assert({t}, \"niji_p1_float\");\n" for t in ft)
-                body += "#elif !defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L\n"
-                body += "".join(f"_Static_assert({t}, \"niji_p1_float\");\n" for t in ft) + "#endif\n"
+                body += "#ifdef __cplusplus\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in ft)
+                body += "#else\n" + "".join(f"_Static_assert({t}, \"niji_p1_{i}\");\n" for i, t in ft) + "#endif\n"
             units.append((cid, f"P1 {h}", body))
     return units
 

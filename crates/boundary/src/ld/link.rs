@@ -19,7 +19,7 @@ use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, d
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_ORIGIN, START_PAGE, START_SPILL};
-use super::tls::{INITIAL_TAIL, install_tls, map_area};
+use super::tls::{INITIAL_TAIL, install_tls, map_area, surplus_bytes};
 
 /// Load the program's dependencies, check their versions, relocate everything and protect the RELRO
 /// pages (DL-10, design §6, D-27.17). A `DT_NEEDED` name with `/` is opened as given; one without is
@@ -50,12 +50,11 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
     let (prog_views, own_views) = views.split_at_mut(3);
-    let (head, view) = image_view(prog, bias, name, prog_views, false);
+    let image = image_view(prog, bias, name, prog_views, false);
     // The program's own file is not known (no file is read): (dev, ino) that no file has.
     let mut ids: Table<FileId, INLINE> = Table::new((u64::MAX, u64::MAX));
     // Each object's run-time program header table (address, count), for `dlopen` (DL-16a).
     let mut phdrs: Table<(usize, usize), INLINE> = Table::new((prog.phdr, prog.phnum));
-    let image = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
     let dynm = image.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     let first = Obj { elf: image, dynm, bias: u64::try_from(bias).unwrap_or(0), name, tls: None };
     let mut objs: Table<Obj<'static>, INLINE> = Table::new(first);
@@ -283,7 +282,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             fail_with(&[o.name, b": the TLS image lies outside the object's segments\n"], program::FAILURE);
         }
     }
-    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).unwrap_or_else(|e| {
+    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, surplus_bytes()).unwrap_or_else(|e| {
         let at = match e {
             ltls::TlsError::Align(k) | ltls::TlsError::Size(k) => k,
             _ => 0,

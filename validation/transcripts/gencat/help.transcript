@@ -1,0 +1,30 @@
+name: --help prints the option list, exit 0
+clause: s31_1_c_2
+clause: s31_12_i_1
+command: gencat
+namespace: none
+# The bug-reporting lines name the distribution: an identity string (Q3 of plan/utilities.md).
+env: LC_ALL=C.UTF-8
+normalise: standard output.\n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => standard output.\n
+arg: --help
+status: exit 0
+stdout:
+| Usage: gencat [OPTION...] -o OUTPUT-FILE [INPUT-FILE]...
+| \x20 or:  gencat [OPTION...] [OUTPUT-FILE [INPUT-FILE]...]
+| Generate message catalog.
+|
+| \x20 -H, --header=NAME          Create C header file NAME containing symbol
+| \x20                            definitions
+| \x20     --new                  Do not use existing catalog, force new output file
+| \x20                          \x20
+| \x20 -o, --output=NAME          Write output to file NAME
+| \x20 -?, --help                 Give this help list
+| \x20     --usage                Give a short usage message
+| \x20 -V, --version              Print program version
+|
+| Mandatory or optional arguments to long options are also mandatory or optional
+| for any corresponding short options.
+|
+| If INPUT-FILE is -, input is read from standard input.  If OUTPUT-FILE
+| is -, output is written to standard output.
+stderr:

@@ -1,0 +1,22 @@
+{"task": "INTERNAL-ALLOC-ROUTING-3", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: option 1b measured: -16 instr per allocation (42 vs base 58), -8 per release (76 vs 84), start-up c +1 vs base and (a) (one lock decq opens the fast path), other start rows -15..-28 vs base; option 2 (DO NOT LAND) 61 per allocation, 76 per release, start-up up to +135; static probe GOT fixed with a test; #7724's start-up condition needs a ruling",
+ "branch": "task/internal-alloc-routing-3", "head": "7d62b9016",
+ "gate": {"affected": "keke:internal-alloc-routing-3-gate4 green: clippy, static, direct tier (test -p niji, niji-boundary, native, exports interposed, 51 conformance programs incl. x_internal_alloc), affected: ok", "peak": "12G (page cache included), oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "option 1b: startup_instr_c 2106 vs 2105 (base and run 2's (a)): one instruction per process opens the library's own allocation fast path; zero needs a word written only at start-up to carry the open, but the routing decision (early_init) precedes init_initial; the other zero route (a routed bit in the malloc DEBUG word) sends the C malloc entries onto their general path in routed processes", "recommendation": "accept +1 instruction once per process for -16 per allocation and -8 per release (and -15..-28 on the other start rows vs base) and land 1b; do not land option 2"}
+ ],
+ "informational": ["option 2 evidence: keke:internal-alloc-routing-3-o2bench3 on task/internal-alloc-routing-3-opt2 ab2286af6 (Release bench + disassembly; not this head)", "option 1b's open is `lock decq` (fetch_sub); an unlocked `decq` (plain read + store) has the same instruction count, not measured", "no plant on RESERVE_OPEN's value: a value that keeps the fast path closed is perf-only, one that cuts the reserve's last 8-byte slot needs an exhausted heap", "`cargo xtask affected` with no mode exits 2 (usage): gate3 died on that; gate4 uses --list for the plan"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "rust_alloc small-class hit path, Release, vs base 279a24ee4 (disassembly)", "before": 58, "after": 42, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "rust_dealloc small-class hit path, Release, vs base (disassembly)", "before": 84, "after": 76, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "cbench_startup startup_instr_setloc, Zen 1 host, user instructions (wctype 62547 -> 62519, printf 65627 -> 65612)", "before": 62056, "after": 62028, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "cbench_startup startup_instr_c, Zen 1 host, user instructions (the fast path's open)", "before": 2105, "after": 2106, "unit": "instr", "measured": true},
+  {"kind": "correctness", "what": "static programs linked with libc.a: no .got from niji_link_alloc_family (init_static_probe_has_no_got_at_any_relro_size)", "before": 1, "after": 0, "unit": "GOT inputs", "measured": true},
+  {"kind": "coverage", "what": "plants on the routing gate, release bound, routed allocation and the static probe GOT", "before": 0, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["keke:internal-alloc-routing-3-gate4", "keke:internal-alloc-routing-3-plants2", "keke:internal-alloc-routing-3-o1bbench", "keke:internal-alloc-routing-3-startup3"],
+ "improvement": "hit-path counts need Release dumps (bench --compare builds Release; a plain `cargo xtask so` is the fast profile): a profile tag in the disasm output would have saved leg 2 a wrong comparison",
+ "next_step": "owner/coordinator ruling on option 1b's +1 start-up instruction; if accepted, land 1b as is",
+ "report_file": "handoff/INTERNAL-ALLOC-ROUTING-3.md"}

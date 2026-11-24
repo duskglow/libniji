@@ -1,0 +1,12 @@
+name: --usage prints the short usage, exit 0
+clause: s31_1_c_2
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --usage
+status: exit 0
+stdout:
+| Usage: gencat [-?V] [-H NAME] [-o NAME] [--header=NAME] [--new] [--output=NAME]
+| \x20           [--help] [--usage] [--version] -o OUTPUT-FILE [INPUT-FILE]...
+| \x20 or:  gencat [OPTION...] [OUTPUT-FILE [INPUT-FILE]...]
+stderr:

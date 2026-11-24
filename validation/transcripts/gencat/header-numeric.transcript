@@ -1,0 +1,18 @@
+name: a source with no symbols gives a header of one newline
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 1
+| 1 a
+arg: --new
+arg: --header=o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 2febbc74aa0398b361641429afd3b173c529d6b1483e9a08c7be33c312b6045a size 38
+written-file: o.h

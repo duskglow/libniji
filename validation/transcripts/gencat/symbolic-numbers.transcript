@@ -1,0 +1,35 @@
+name: symbolic set and message numbers: the next after the signed maximum of the sets named by $set
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| 1 x
+| 4294967295 y
+| M z
+| $set 2147483648
+| 1 a
+| $set A
+| 2 b
+| $set B
+| N c
+| $set 3
+| 2147483648 d
+| 1 e
+arg: --new
+arg: -H
+arg: o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 7c43b7a46812a358aca19667a8458149634c0d4c67d440659f19640c9fa055fc size 316
+written-file: o.h
+|
+| #define BSet 0x2\t/* i.msg:8 */
+| #define BN 0x1\t/* i.msg:9 */
+|
+| #define ASet 0x1\t/* i.msg:6 */
+| #define AM 0x3\t/* i.msg:3 */

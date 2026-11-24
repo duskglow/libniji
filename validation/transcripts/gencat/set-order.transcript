@@ -1,0 +1,23 @@
+name: sets named out of order (pool in the reverse of the naming order)
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 4
+| 2 four-two
+| 1 four-one
+| $set 2
+| 1 two
+| $set 9
+| 3 nine
+| $set 4
+| 3 four-three
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 71aefd620dfb3e5defc04f3fdea13b4a2fcb0f7e00fbe33a60e2fb3b4d210a42 size 194

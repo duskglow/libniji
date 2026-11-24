@@ -12,8 +12,8 @@
  * Exit 0, or 1 after a conversion error (the output up to the error is written), an unknown charset, an
  * input file that cannot be opened (the other files are still converted) or a write error; 64 for an option
  * error. `-c` omits what cannot be converted (exit 0); an incomplete sequence at the end of a file is
- * still an error. `-s` changes nothing the probes could see. `-l` lists the built-in names and the
- * installed charmaps that iconv_open accepts.
+ * still an error. `-s` changes nothing the probes could see. `-l` lists the built-in names, the
+ * installed charmaps that iconv_open accepts and the names their headers give (plain or gzip).
  */
 #define _GNU_SOURCE
 #include <dirent.h>
@@ -31,6 +31,9 @@
 #include "iconv-aliases.h"
 
 #define CHARMAP_DIR "/usr/share/i18n/charmaps"
+
+/* The charmap header reader and its inflater, shared with locale -m. */
+#include "charmap-header.h"
 
 static const char *prog_full = "iconv";
 static const char *prog_short = "iconv";
@@ -255,20 +258,131 @@ static int by_name(const void *a, const void *b) {
     return strcasecmp(*(const char *const *)a, *(const char *const *)b);
 }
 
-/* `-l`: the built-in names, every installed charmap iconv_open accepts and the listed names that stand
- * for one of those charmaps, sorted, each once, as `NAME//`
+/* The names `-l` collects (unsorted, may repeat). */
+struct listing {
+    const char **v;
+    size_t n, cap;
+};
+
+static void keep(struct listing *l, const char *name) {
+    if (l->n == l->cap) {
+        l->cap = l->cap ? l->cap * 2 : 512;
+        const char **p = realloc(l->v, l->cap * sizeof *p);
+        if (p == NULL)
+            fail_memory();
+        l->v = p;
+    }
+    l->v[l->n++] = name;
+}
+
+/* How much of each charmap file iconv_open's header scan reads when no loaded charmap and no file carries a
+ * name (crates/legacy/src/global_locale.rs `find_charmap`): the file's first 4096 bytes, and of a gzip file at
+ * most 8192 bytes of its text. `-l` reads the same, so a name it lists opens in a fresh process too. */
+#define SCAN_FILE 4096
+#define SCAN_TEXT 8192
+
+static int name_byte(unsigned char c) {
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ',' || c == '-' ||
+           c == '.' || c == '/' || c == ':' || c == '_';
+}
+
+static int space_byte(unsigned char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
+}
+
+/* Keep one header name, spelled as iconv_open matches names (spec/encoding/iconv-names.md steps 2 and 3: only
+ * letters, digits and `, - . / : _` count, letters uppercased), when iconv_open accepts that spelling. A name
+ * with more than one `/` or ending in `/` is left out: `-l` prints it with a trailing `/`, which would read as
+ * suffixes. */
+static void keep_header_name(struct listing *l, const unsigned char *s, size_t len) {
+    char name[129];
+    size_t k = 0, slashes = 0;
+    for (size_t i = 0; i < len; i++) {
+        if (!name_byte(s[i]))
+            continue;
+        if (k == sizeof name - 1)
+            return;
+        slashes += s[i] == '/';
+        name[k++] = (char)(s[i] >= 'a' && s[i] <= 'z' ? s[i] - 'a' + 'A' : s[i]);
+    }
+    name[k] = '\0';
+    if (k == 0 || slashes > 1 || name[k - 1] == '/')
+        return;
+    iconv_t cd = iconv_open("UTF-8", name);
+    if (cd == (iconv_t)-1)
+        return;
+    iconv_close(cd);
+    char *copy = strdup(name);
+    if (copy == NULL)
+        fail_memory();
+    keep(l, copy);
+}
+
+/* The names a charmap's header gives, as iconv_open reads them: the `<code_set_name>` and each comment line
+ * `alias NAME` (the comment character is `<comment_char>`'s, `#` until one is given), each line trimmed of
+ * ASCII white space, up to the `CHARMAP` line. Kept in l, or with l NULL only looked for. Returns 1 when a
+ * whole `CHARMAP` line (its newline included) ends the header within text. */
+static int header_names(struct listing *l, const unsigned char *text, size_t len) {
+    unsigned char comment = '#';
+    for (size_t at = 0; at < len;) {
+        const unsigned char *nl = memchr(text + at, '\n', len - at);
+        size_t end = nl != NULL ? (size_t)(nl - text) : len, b = at, e = end;
+        at = end + 1;
+        while (b < e && space_byte(text[b]))
+            b++;
+        while (e > b && space_byte(text[e - 1]))
+            e--;
+        const unsigned char *s = text + b;
+        size_t n = e - b;
+        if (n == 7 && memcmp(s, "CHARMAP", 7) == 0)
+            return nl != NULL;
+        if (l == NULL)
+            continue;
+        if (n >= 15 && memcmp(s, "<code_set_name>", 15) == 0) {
+            keep_header_name(l, s + 15, n - 15);
+        } else if (n >= 14 && memcmp(s, "<comment_char>", 14) == 0) {
+            size_t c = 14;
+            while (c < n && space_byte(s[c]))
+                c++;
+            if (c < n)
+                comment = s[c];
+        } else if (n > 0 && s[0] == comment) {
+            size_t c = 1;
+            while (c < n && space_byte(s[c]))
+                c++;
+            if (n - c >= 5 && memcmp(s + c, "alias", 5) == 0)
+                keep_header_name(l, s + c + 5, n - c - 5);
+        }
+    }
+    return 0;
+}
+
+/* The header text of a charmap file as iconv_open's scan reads it, into text (HEADER_MAX bytes). A gzip file is
+ * decoded to its first SCAN_HEAD bytes, and on to SCAN_TEXT only when its `CHARMAP` line is not among them: no
+ * name comes after that line, and most headers end well before SCAN_HEAD. */
+#define SCAN_HEAD 2048
+static size_t scan_header(const char *file, int gz, unsigned char *text) {
+    if (!gz)
+        return charmap_header(file, gz, text, SCAN_FILE, SCAN_FILE);
+    size_t n = charmap_header(file, gz, text, SCAN_FILE, SCAN_HEAD);
+    if (n < SCAN_HEAD || header_names(NULL, text, n))
+        return n;
+    return charmap_header(file, gz, text, SCAN_FILE, SCAN_TEXT);
+}
+
+/* `-l`: the built-in names, every installed charmap iconv_open accepts with the names its header gives, and
+ * the listed names that stand for one of those charmaps, sorted, each once, as `NAME//`
  * (a name that holds a `/` ends in one `/`, as the reference lists `ISO-10646/UCS4/`). */
 static _Noreturn void list(void) {
-    size_t n = 0, cap = 512;
-    const char **names = malloc(cap * sizeof *names);
-    if (names == NULL)
-        fail_memory();
+    struct listing l = {0};
     for (size_t k = 0; k < sizeof BUILTIN_NAMES / sizeof BUILTIN_NAMES[0]; k++)
-        names[n++] = BUILTIN_NAMES[k];
+        keep(&l, BUILTIN_NAMES[k]);
+    static unsigned char text[HEADER_MAX];
     DIR *dir = opendir(CHARMAP_DIR);
     for (struct dirent *e; dir != NULL && (e = readdir(dir)) != NULL;) {
         size_t len = strlen(e->d_name);
-        if (len > 3 && strcmp(e->d_name + len - 3, ".gz") == 0)
+        int gz = len > 3 && strcmp(e->d_name + len - 3, ".gz") == 0;
+        if (gz)
             len -= 3;
         if (len == 0 || e->d_name[0] == '.')
             continue;
@@ -281,14 +395,9 @@ static _Noreturn void list(void) {
             continue;
         }
         iconv_close(cd);
-        if (n == cap) {
-            cap *= 2;
-            const char **p = realloc(names, cap * sizeof *names);
-            if (p == NULL)
-                fail_memory();
-            names = p;
-        }
-        names[n++] = name;
+        keep(&l, name);
+        /* The charmap is loaded now, so iconv_open finds its header names without a scan. */
+        header_names(&l, text, scan_header(e->d_name, gz, text));
     }
     if (dir != NULL)
         closedir(dir);
@@ -300,12 +409,12 @@ static _Noreturn void list(void) {
     enum { ROWS = sizeof ALIAS_ROWS / sizeof ALIAS_ROWS[0] };
     static const char *tried[ROWS];
     static int opened[ROWS];
-    size_t stems = n, ntried = 0;
+    size_t stems = l.n, ntried = 0;
     for (size_t k = 0; k < ROWS; k++) {
         const char *target = ALIAS_ROWS[k][1];
         int installed = 0;
         for (size_t s = sizeof BUILTIN_NAMES / sizeof BUILTIN_NAMES[0]; s < stems && !installed; s++)
-            installed = strcasecmp(names[s], target) == 0;
+            installed = strcasecmp(l.v[s], target) == 0;
         for (size_t t = 0; t < ntried && !installed; t++)
             if (strcmp(tried[t], target) == 0)
                 installed = opened[t] ? 1 : -1;
@@ -316,16 +425,8 @@ static _Noreturn void list(void) {
                 iconv_close(tcd);
             tried[ntried] = target;
             opened[ntried++] = installed > 0;
-            if (installed > 0) {
-                if (n == cap) {
-                    cap *= 2;
-                    const char **p = realloc(names, cap * sizeof *names);
-                    if (p == NULL)
-                        fail_memory();
-                    names = p;
-                }
-                names[n++] = target;
-            }
+            if (installed > 0)
+                keep(&l, target);
         }
         if (installed < 0)
             continue;
@@ -333,20 +434,13 @@ static _Noreturn void list(void) {
         if (cd == (iconv_t)-1)
             continue;
         iconv_close(cd);
-        if (n == cap) {
-            cap *= 2;
-            const char **p = realloc(names, cap * sizeof *names);
-            if (p == NULL)
-                fail_memory();
-            names = p;
-        }
-        names[n++] = ALIAS_ROWS[k][0];
+        keep(&l, ALIAS_ROWS[k][0]);
     }
-    qsort(names, n, sizeof *names, by_name);
-    for (size_t k = 0; k < n; k++) {
-        if (k > 0 && strcasecmp(names[k], names[k - 1]) == 0)
+    qsort(l.v, l.n, sizeof *l.v, by_name);
+    for (size_t k = 0; k < l.n; k++) {
+        if (k > 0 && strcasecmp(l.v[k], l.v[k - 1]) == 0)
             continue;
-        printf("%s%s\n", names[k], strchr(names[k], '/') != NULL ? "/" : "//");
+        printf("%s%s\n", l.v[k], strchr(l.v[k], '/') != NULL ? "/" : "//");
     }
     if (fclose(stdout) != 0)
         exit(1);

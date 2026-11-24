@@ -1,0 +1,11 @@
+id = "D-29.7"
+section = "s26-29"
+spec = "§29.4"
+ann = "COMPAT"
+status = "active"
+story = "LIBC-FREERES"
+date = "2026-11-23"
+tests = ["crates/core/tests/s29_legacy_clauses.rs", "crates/boundary/tests/s03_memory_symbols.rs"]
+body = '''
+**`__libc_freeres` releases what the library allocated for itself through the C `malloc` family** (LIBC-FREERES; replaces the inert design of coordinator ruling #1317, which COMPAT-11 registered, now withdrawn). Memory checkers call it as their last act: valgrind's preload calls `__libc_freeres` at exit when the C library exports it (valgrind manual, `--run-libc-freeres`), and every block still held there showed up in each memcheck run of every program that writes to stdout (the 4,104-byte stdout buffer; `getpwuid`'s result tables). In order: (1) every stream gives back the buffer the library allocated for it (`ensure_buffer`; a buffer the program supplied with `setvbuf` is never touched), under the list lock and the stream's own lock: pending output is written first and a stream whose output cannot be written keeps its buffer; a reading stream with nothing read ahead goes idle and releases (EOF and error flags stay); one with bytes read ahead or pushed back keeps its buffer, so no input is lost; (2) the calling thread's getpw*/netdb result table, resolver state and dlerror record, as at a thread's exit. Streams come first because writing their output may still use the per-thread state. Each part is unhooked before it is freed and is left as before its first use (the next use allocates again), so a second call finds nothing to release and a call mid-run loses no data; only the calling thread's getpw*/netdb results become invalid, as the contract of those functions already allows at the next call. The library's internal caches (locale, iconv plans, loader tables) come from the internal allocator, which the checker does not see, and are not released.
+'''

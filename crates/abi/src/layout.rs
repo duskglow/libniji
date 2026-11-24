@@ -2925,17 +2925,10 @@ pub struct struct_icmp__icmp_dun__id_ip {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct struct_icmp__icmp_dun__id_radv {
-    pub ira_addr: u32,
-    pub ira_preference: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
 pub union struct_icmp__icmp_dun {
     pub id_ts: struct_icmp__icmp_dun__id_ts,
     pub id_ip: struct_icmp__icmp_dun__id_ip,
-    pub id_radv: struct_icmp__icmp_dun__id_radv,
+    pub id_radv: struct_icmp_ra_addr,
     pub id_mask: u32,
     pub id_data: [u8; 1],
 }
@@ -3025,6 +3018,279 @@ pub struct struct_in_pktinfo {
 pub struct struct_in6_pktinfo {
     pub ipi6_addr: struct_in6_addr,
     pub ipi6_ifindex: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ip_timestamp {
+    pub ipt_code: u8,
+    pub ipt_len: u8,
+    pub ipt_ptr: u8,
+    pub ipt_flg: [u8; 1],
+    pub data: [u32; 9],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_rtentry {
+    pub rt_pad1: u64,
+    pub rt_dst: struct_sockaddr,
+    pub rt_gateway: struct_sockaddr,
+    pub rt_genmask: struct_sockaddr,
+    pub rt_flags: u16,
+    pub rt_pad2: i16,
+    pub rt_pad3: u64,
+    pub rt_tos: u8,
+    pub rt_class: u8,
+    pub rt_pad4: [i16; 3],
+    pub rt_metric: i16,
+    pub rt_dev: usize,
+    pub rt_mtu: u64,
+    pub rt_window: u64,
+    pub rt_irtt: u16,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_in6_rtmsg {
+    pub rtmsg_dst: struct_in6_addr,
+    pub rtmsg_src: struct_in6_addr,
+    pub rtmsg_gateway: struct_in6_addr,
+    pub rtmsg_type: u32,
+    pub rtmsg_dst_len: u16,
+    pub rtmsg_src_len: u16,
+    pub rtmsg_metric: u32,
+    pub rtmsg_info: u64,
+    pub rtmsg_flags: u32,
+    pub rtmsg_ifindex: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_arpreq {
+    pub arp_pa: struct_sockaddr,
+    pub arp_ha: struct_sockaddr,
+    pub arp_flags: i32,
+    pub arp_netmask: struct_sockaddr,
+    pub arp_dev: [i8; 16],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_arpreq_old {
+    pub arp_pa: struct_sockaddr,
+    pub arp_ha: struct_sockaddr,
+    pub arp_flags: i32,
+    pub arp_netmask: struct_sockaddr,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_arpd_request {
+    pub req: u16,
+    pub ip: u32,
+    pub dev: u64,
+    pub stamp: u64,
+    pub updated: u64,
+    pub ha: [u8; 7],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_ether_arp {
+    pub ea_hdr: struct_arphdr,
+    pub arp_sha: [u8; 6],
+    pub arp_spa: [u8; 4],
+    pub arp_tha: [u8; 6],
+    pub arp_tpa: [u8; 4],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmp_ra_addr {
+    pub ira_addr: u32,
+    pub ira_preference: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmp6_filter {
+    pub icmp6_filt: [u32; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_router_solicit {
+    pub nd_rs_hdr: struct_icmp6_hdr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_router_advert {
+    pub nd_ra_hdr: struct_icmp6_hdr,
+    pub nd_ra_reachable: u32,
+    pub nd_ra_retransmit: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_neighbor_solicit {
+    pub nd_ns_hdr: struct_icmp6_hdr,
+    pub nd_ns_target: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_neighbor_advert {
+    pub nd_na_hdr: struct_icmp6_hdr,
+    pub nd_na_target: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_redirect {
+    pub nd_rd_hdr: struct_icmp6_hdr,
+    pub nd_rd_target: struct_in6_addr,
+    pub nd_rd_dst: struct_in6_addr,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_hdr {
+    pub nd_opt_type: u8,
+    pub nd_opt_len: u8,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_prefix_info {
+    pub nd_opt_pi_type: u8,
+    pub nd_opt_pi_len: u8,
+    pub nd_opt_pi_prefix_len: u8,
+    pub nd_opt_pi_flags_reserved: u8,
+    pub nd_opt_pi_valid_time: u32,
+    pub nd_opt_pi_preferred_time: u32,
+    pub nd_opt_pi_reserved2: u32,
+    pub nd_opt_pi_prefix: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_rd_hdr {
+    pub nd_opt_rh_type: u8,
+    pub nd_opt_rh_len: u8,
+    pub nd_opt_rh_reserved1: u16,
+    pub nd_opt_rh_reserved2: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_mtu {
+    pub nd_opt_mtu_type: u8,
+    pub nd_opt_mtu_len: u8,
+    pub nd_opt_mtu_reserved: u16,
+    pub nd_opt_mtu_mtu: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_adv_interval {
+    pub nd_opt_adv_interval_type: u8,
+    pub nd_opt_adv_interval_len: u8,
+    pub nd_opt_adv_interval_reserved: u16,
+    pub nd_opt_adv_interval_ival: u32,
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_nd_opt_home_agent_info {
+    pub nd_opt_home_agent_info_type: u8,
+    pub nd_opt_home_agent_info_len: u8,
+    pub nd_opt_home_agent_info_reserved: u16,
+    pub nd_opt_home_agent_info_preference: u16,
+    pub nd_opt_home_agent_info_lifetime: u16,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_mld_hdr {
+    pub mld_icmp6_hdr: struct_icmp6_hdr,
+    pub mld_addr: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmp6_router_renum {
+    pub rr_hdr: struct_icmp6_hdr,
+    pub rr_segnum: u8,
+    pub rr_flags: u8,
+    pub rr_maxdelay: u16,
+    pub rr_reserved: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_rr_pco_match {
+    pub rpm_code: u8,
+    pub rpm_len: u8,
+    pub rpm_ordinal: u8,
+    pub rpm_matchlen: u8,
+    pub rpm_minlen: u8,
+    pub rpm_maxlen: u8,
+    pub rpm_reserved: u16,
+    pub rpm_prefix: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_rr_pco_use {
+    pub rpu_uselen: u8,
+    pub rpu_keeplen: u8,
+    pub rpu_ramask: u8,
+    pub rpu_raflags: u8,
+    pub rpu_vltime: u32,
+    pub rpu_pltime: u32,
+    pub rpu_flags: u32,
+    pub rpu_prefix: struct_in6_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_rr_result {
+    pub rrr_flags: u16,
+    pub rrr_ordinal: u8,
+    pub rrr_matchedlen: u8,
+    pub rrr_ifid: u32,
+    pub rrr_prefix: struct_in6_addr,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_tftphdr__th_u1__th_u2__th_u3 {
+    pub tu_block: u16,
+    pub tu_code: i16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_tftphdr__th_u1__th_u2 {
+    pub th_u3: struct_tftphdr__th_u1__th_u2__th_u3,
+    pub tu_data: [i8; 0],
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub union struct_tftphdr__th_u1 {
+    pub tu_padding: [i8; 3],
+    pub th_u2: struct_tftphdr__th_u1__th_u2,
+    pub tu_stuff: [i8; 0],
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct struct_tftphdr {
+    pub th_opcode: i16,
+    pub th_u1: struct_tftphdr__th_u1,
 }
 
 #[repr(C, align(4))]

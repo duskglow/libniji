@@ -30,10 +30,10 @@ __NIJI_BEGIN_C
 #  define HIBITS (-32768)
 # endif
 # ifndef MAXDOUBLE
-#  define MAXDOUBLE (0x1.fffffffffffffp+1023)
+#  define MAXDOUBLE (1.7976931348623157e+308)
 # endif
 # ifndef MAXFLOAT
-#  define MAXFLOAT (0x1.fffffep+127f)
+#  define MAXFLOAT (3.40282347e+38f)
 # endif
 # ifndef MAXINT
 #  define MAXINT 2147483647
@@ -45,10 +45,10 @@ __NIJI_BEGIN_C
 #  define MAXSHORT 32767
 # endif
 # ifndef MINDOUBLE
-#  define MINDOUBLE (0x1p-1022)
+#  define MINDOUBLE (2.2250738585072014e-308)
 # endif
 # ifndef MINFLOAT
-#  define MINFLOAT (0x1p-126f)
+#  define MINFLOAT (1.17549435e-38f)
 # endif
 # ifndef MININT
 #  define MININT (-2147483647-1)

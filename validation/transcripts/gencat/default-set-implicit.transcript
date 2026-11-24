@@ -1,0 +1,26 @@
+name: messages before any $set go to set 1; a named set then takes the next number
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| M x
+| $set A
+| N y
+| $set 2
+| 1 z
+arg: --new
+arg: -H
+arg: o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 0e00e26dd3202d172eb5b9ebeed462513fb3c841da66314c90fdba01084eb2f3 size 90
+written-file: o.h
+|
+| #define ASet 0x1\t/* i.msg:2 */
+| #define AM 0x1\t/* i.msg:1 */
+| #define AN 0x2\t/* i.msg:3 */

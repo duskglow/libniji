@@ -432,9 +432,7 @@ pub fn printf_size<U: Unit>(env: &dyn pf::Env, info: &Info, x: Float, kind: Form
 
 /// Append `text` to `body` in the destination's units.
 fn push_text<U: Unit>(env: &dyn pf::Env, text: &[u8], body: &mut TryVec<U>) -> KResult<()> {
-    let mut field = pf::Field::<U>::new();
-    U::from_text(env, text, None, &mut field)?;
-    body.extend_from_slice(&field)
+    U::from_text(env, text, None, body)
 }
 
 /// `__printf_fp`: `x` (of `kind`) as the conversion `info.spec`, as the destination's units:

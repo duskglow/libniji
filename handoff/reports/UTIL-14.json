@@ -1,0 +1,18 @@
+{"task": "UTIL-14", "model": "opus", "tokens": null,
+ "result": "gencat in libc-dev-bin: catalogs byte-identical to the reference's on 39 transcripts and the catgets equality test; plants util-14-plants3 pending at hand-back",
+ "branch": "task/util-14", "head": "4809e2d1f",
+ "gate": {"affected": "FULL (escalated: csys/, xtask) is the train's; changed crates' tests util-14-tests2: all passed, 0 failed", "peak": "1.6G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "Spec App. D.2.2 'gencat output' bullet says the pool holds the sets in descending order; transcripts show the reverse of the order they were first named (default set 1 counting as named first), messages ascending signed 32-bit", "recommendation": "correct the bullet to the transcript-settled rule (with or after UTIL-SPEC-3)"}],
+ "informational": ["Leg 2 issued one Bash call with a here-string (git commit -F /dev/stdin <<< \"\"); it committed nothing", "util-14-plants2 (cd937d5ad): octal-limit SURVIVED -> transcript octal-range added (4809e2d1f); util-14-plants and util-14-plants2 stopped early, superseded by util-14-plants3", "Not probed: the name gencat uses for stdin in parse diagnostics", "WARN-DEV-SHM from cargo xtask plants (RAM dir under /dev/shm per the brief, Zen 1 host)"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "/usr/bin/gencat shipped in the system flavour's libc-dev-bin (GitHub issue #12): packages that build message catalogs at build time keep working on Yohane", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "gencat transcripts compared byte for byte with the reference", "before": 0, "after": 39, "unit": "transcripts", "measured": true},
+   {"kind": "coverage", "what": "catgets equality test over catalogs of both gencats (300 keys)", "before": 0, "after": 1, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants on csys/util/gencat.c", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A plants run started before the lint/records checks cost one rerun: run clippy, static and records check on the role before starting plants (the developer flow says so; leg 2 skipped it for want of local cargo)",
+ "next_step": "coordinator: collect util-14-plants3 (expect 7/7 CAUGHT); owner/spec: rule on the D.2.2 pool-order bullet",
+ "report_file": "handoff/UTIL-14-report.md",
+ "jobs": ["keke:util-14-tests2", "keke:util-14-plants3", "keke:util-14-pkg2"]}

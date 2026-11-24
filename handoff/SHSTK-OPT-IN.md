@@ -1,5 +1,82 @@
 # SHSTK-OPT-IN handoff (part 1: marking + shadow-stack-correct asm)
 
+## Run 4 (SHSTK-OPT-IN-4, branch `task/shstk-opt-in-4`, role keke:~/w/n1, Zen 1 host)
+
+**CI conflict (train merge of `1c9d5af83`): `crates/boundary/src/ld/dlopen.rs`.** One import line: next's loader
+work added `dt` to the `niji_ld::elf` import, this branch had dropped `Elf` from it (D-27.97: `image_view` returns
+the checked reader, so dlopen builds none). Merged origin/next (`deead7890`) in `26e3b8ca9`, import = `{dt, pt,
+STB_GNU_UNIQUE}`; nothing else in dlopen.rs names `Elf`. No other conflict; image.rs, link.rs, elf.rs, reloc.rs,
+so.rs merged cleanly.
+
+**Results (keke, code head `26e3b8ca9`; later commits are handoff only):** clippy + static green on the
+inherited head (`shstk-opt-in-4-lint0`) and the merge (`shstk-opt-in-4-lint1`; `affected` = direct bounded set,
+not FULL). Gate `shstk-opt-in-4-gate1` (direct tier, `--base origin/next`): 20 suites, 11721 passed, 0 failed,
+conformance 46/46, hot_text_products in it (Zen 1 bounds). `cargo xtask test` (`shstk-opt-in-4-test1`): 29 suites,
+12655 passed, 0 failed, conformance 150/150, "so: 45 shipped ELF files and archives carry the SHSTK property" (45:
+next added manifest rows). Full profile (`shstk-opt-in-4-hottext1`): hot_text_products 36 passed. Plants re-run on
+the merge: `shstk-opt-in-4-plants1` (run 3's file) 2/2 CAUGHT, `shstk-opt-in-4-plants2` (run 2's file) 3/3
+CAUGHT, 0 WARN (`handoff/SHSTK-OPT-IN-4-plants.txt`). The Skylake-SP start-up count is the train's to confirm
+(run 3 expected about -245 from 173794). Job scripts: `~/work/shstk-opt-in-4/` on keke.
+
+**Next step.** Land with the train; then run 3's fix-forward and SHSTK-ENABLE (below).
+
+## Run 3 (SHSTK-OPT-IN-3, branch `task/shstk-opt-in-3`, role keke:~/w/n3, Zen 1 host)
+
+**CI red (train on 90fdd8142): hot_text_products dynamic empty main 173794 > 173600 (Skylake-SP).** This branch
+is a measured cause, not only one of the train's "several": on the Zen 1 host (fast profile, the test's own count,
+3 runs each, identical) the marked head counts 170825, the same tree with `-z shstk` and the check turned off
+170464: **+361**. The marking adds a second `PT_NOTE` (8-aligned, beside the 4-aligned build-id note) and
+`PT_GNU_PROPERTY` to ld.so and libc.so.6 (9 -> 11 headers each). A gdb single-step split by function (scratch probe,
+libniji only) put +123 in `Elf::check_table` and the rest in eight header walks (relocate_self +48, open_candidate
++36, publish_dynamic +36, find +28, protect_relro +26, map_planned +24, boot::tables +16, Loads::of +12). The
+property readers in reloc.rs are cold (not reached).
+
+**Fix (D-27.97, `25297497e`).** `image_view` checked its private copy of the table as a probe; each caller then
+checked the same bytes again with `from_image`. It now returns the probe with the spans attached
+(`Elf::with_spans`, `None` for a file reader). Count: **170580** (-245 against the marked head, +116 over
+unmarked). Test: `reloc_image_reader_slices_only_unchanging_segments` also builds the reader that way and refuses a
+file reader. Plants `handoff/plants/SHSTK-OPT-IN-3.plants` (2).
+
+**Remaining cost (accepted, fix-forward):** +116 instructions on a dynamic start against an unmarked build. The
+next saving: `find` and the `PT_LOAD` filters could use what `check_table` sees in its one pass (first index per
+type, last `PT_LOAD`). Not done here (budget).
+
+**Results (keke, head 25297497e):** clippy + static green on the inherited head (`shstk-opt-in-3-lint0`) and on
+the fix (`shstk-opt-in-3-lc1`, with the count above). Plants `shstk-opt-in-3-plants1`: 2/2 CAUGHT, 0 WARN
+(`handoff/SHSTK-OPT-IN-3-plants.txt`). `cargo xtask test` (`shstk-opt-in-3-test1`): rc 0, 7190 + 4878 + 129 + 46
+passed, "43 shipped ELF files and archives carry the SHSTK property". Full profile (`shstk-opt-in-3-hottext1`):
+33 passed, release dynamic empty main 159407 (bound 162300). FULL: the train's (xtask, csys header). Diagnostics
+(not proofs): dyn-a / dyn-b (marked / unmarked counts), so-c, trace1 (gdb picked up libniji through
+LD_LIBRARY_PATH: probe fixed), trace2 (the per-function split). Scratch scripts: `~/work/shstk-opt-in-3/` on keke.
+
+**Next step.** Land with the train (the Skylake-SP count should drop by about 245 from 173794). Then the
+fix-forward above, and SHSTK-ENABLE as in run 1's notes below.
+
+## Run 2 (SHSTK-OPT-IN-2, branch `task/shstk-opt-in-2`, role shiki:~/w/sh1)
+
+**Cause of train 950's red.** `cetnote::check_release` walked all of `target/niji`. `cargo xtask test` puts
+unshipped products there (`cargo xtask rust-dylib`'s `rust/lr1/` and `rust-test/` rlibs, dylibs and programs;
+`native/libc-by-path.so`), so the train's `so` after those steps found 17 unmarked objects. None of them is in a
+package: the shipped set is the `file` rows of `tools/deb/manifest.tsv` (PKG-MANIFEST; build.sh/check.sh install and
+verify exactly those). **Fix:** the check reads that manifest (`cetnote::shipped_products`), checks each listed
+product that is ELF or an archive, and fails on a listed product the build did not make. D-X.164 point (4) updated.
+The shipped set did not change, so the N100 run was not repeated (coordinator's note). Plants:
+`handoff/plants/SHSTK-OPT-IN-2.plants` (3, on the new code); part 1's libm-unmarked plant still covers the
+`so` integration (libm.so.6 is a manifest row).
+
+**Results (shiki role, Haswell host).** clippy + static green on the inherited head (`shstk-opt-in-2-lint0`) and on
+the fix (`shstk-opt-in-2-lint1`, with the cetnote unit tests: 3 passed). Plants `shstk-opt-in-2-plants1`: 3/3 CAUGHT,
+0 WARN (`handoff/SHSTK-OPT-IN-2-plants.txt`). `cargo xtask test` (`shstk-opt-in-2-test1`): rc 0, 7190 tests passed,
+native examples and rust-dylib green; "so: 43 shipped ELF files and archives carry the SHSTK property". Then
+`cargo xtask so` with `rust/` and `rust-test/` present in `target/niji` (the train's failing situation):
+`shstk-opt-in-2-so2`. 43, not part 1's 44: the one ELF file under `target/niji` outside the manifest (the
+unshipped Rust dirs aside) is the link stub `niji-owner/libc-owner.so` (docs/install-packages.md, opt-in, linked from
+the build tree, in no package); it is still linked with `-z shstk`, only no longer checked.
+
+**Not covered by D-X.164 (INFORMATIONAL):** `libniji_rust.so.lr1` and its rlibs (docs/toolchain.md tells third
+parties how to build them) carry no SHSTK; they ship in no package today. If they ever do, they need a manifest
+row and marking (rustc emits no note: the rlib members would need `mark_archive`, the dylib `-z shstk`).
+
 **Scope (coordinator, accepted challenge #7946).** This story lands part 1 only: every shipped object marked SHSTK, the
 build check, setjmp/longjmp + context functions + vfork shadow-stack-correct, in-process tests on the N100 class that
 skip elsewhere. No behaviour change while nothing enables the shadow stack. Tunables, loader decision, dlopen policy and
@@ -54,5 +131,5 @@ D-X.164 (marking + check), both written as records. No differences row (nothing 
 **Do not redo.** SHSTK-SCOPE's probes and asm survey; the N100 run and its controls (scripts:
 `~/work/shstk-opt-in/{build.sh,run.sh}` on mei).
 
-**Next step.** Land part 1 (train FULL gate); then brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios, costs).
+**Next step.** Land part 1 + run 2's check fix (train FULL gate); then brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios, costs).
 Plan rows: D-21.5, D-X.164, D-X.144, owner ruling #7728.
