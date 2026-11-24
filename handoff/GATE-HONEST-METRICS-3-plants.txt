@@ -1,0 +1,3 @@
+sections-name-cut | tools/hottext/keys.py | lit:name = function_of(m.group(1)) ==> name = function_of(m.group(1)[:256]) | cargo test -p xtask a_cold_renamed_function_reenters_the_list_by_trace | msg:keys.py --sections and function_of disagree|long section name is cut
+sections-name-cut-products | tools/hottext/keys.py | lit:name = function_of(m.group(1)) ==> name = function_of(m.group(1)[:256]) | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:runs outside the hot group
+sections-objdump-error-ignored | tools/hottext/keys.py | lit:if out.returncode != 0: ==> if False: | cargo test -p xtask a_cold_renamed_function_reenters_the_list_by_trace | msg:on a C source
