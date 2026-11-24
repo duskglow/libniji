@@ -1,0 +1,11 @@
+id = "D-31.34"
+section = "s31"
+spec = "§31.11"
+ann = "—"
+status = "active"
+story = "UTIL-TZSELECT-PLDD"
+date = "2026-11-24"
+tests = ["xtask/tests/tz_tools.rs"]
+body = '''
+**tzselect is a C front end beside zic and zdump (`csys/util/tzselect.c`, dynamic, libc only); its `-c` list is in increasing great-circle distance, and `-n` takes a positive number only** (GitHub #14). Prompts, menus, menu layout, accepted answers, country order, transliteration, the information block, accepted TZ strings and exit statuses come from black-box transcripts of the reference (handoff/UTIL-TZSELECT-PLDD.md); the zone tables are `iso3166.tab` and `zone1970.tab` of `$TZDIR` (default `/usr/share/zoneinfo`), the two the reference was probed to need. **`-c` order:** tzselect(1) promises the zones "roughly in increasing order of distance"; the reference's order was not reproduced by the haversine, law-of-cosines, chord, weighted Euclidean or L1 metrics, in degrees or radians, nor by misreadings of DDMM as decimal degrees, so libniji orders by the haversine of the central angle (monotone in the great-circle distance, computed with a 13-term sine series so the program needs no libm), ties in table order: the list holds the same zones as the reference's when LIMIT covers them all, in an order a user can check. **`-n`:** a LIMIT that is not a positive decimal number is a usage error (`-n <v>: LIMIT must be a positive number`, status 1). **Missing tables:** the message names the file without a script line number. No compat option for these: the reference's `-c` order follows no documented rule to restore, and its results for a non-numeric or zero LIMIT and its line number carry no information a caller can use (differences rows "tzselect -c order", "tzselect -n", "tzselect without its tables"). The `-c` labels name each country by its `iso3166.tab` name except the code `US`, which stays as is (probed). End of input at any prompt exits 1 (s31_11_f_1), after a newline on standard output when it came at a menu (probed).
+'''

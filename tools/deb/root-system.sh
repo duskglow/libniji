@@ -17,6 +17,10 @@
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
 #   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
 #     (configure; the ldconfig trigger after later library installs);
+#   - libc-bin's /usr/bin/ld.so link runs the loader (--version as through /lib64, --library-path
+#     with hello); tzselect -c picks Europe/Paris from the build system's zone tables (TZDIR); pldd
+#     lists a waiting tzselect's libc.so.6 (a PID namespace with its own /proc; skipped with an INFO
+#     line when the build system has no zone tables);
 #   - the smoke programs hello, threads, devlinks (C; devlinks with -lanl -lBrokenLocale -lmcheck
 #     -lg through libc6-dev's development links: SYS-DEV-LINKS) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
@@ -199,6 +203,48 @@ case $out in
     *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "libc-bin's postinst wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
+# /usr/bin/ld.so (UTIL-TZSELECT-PLDD): libc-bin's link to the loader runs it as a command, as the
+# loader's own path does.
+a=$(in_root /usr/bin/ld.so --version 2>&1) && b=$(in_root /lib64/ld-linux-x86-64.so.2 --version 2>&1) &&
+    [ -n "$a" ] && [ "$a" = "$b" ] && pass "/usr/bin/ld.so --version prints what the loader's path prints: $(echo "$a" | head -1)" ||
+    fail "/usr/bin/ld.so --version: '$(echo "$a" | head -2 | tr '\n' ' ')', the loader's path: '$(echo "$b" | head -2 | tr '\n' ' ')'"
+out=$(in_root /usr/bin/ld.so --library-path "/usr/lib/$ma" /tmp/hello 2>&1) && rc=0 || rc=$?
+case $rc:$out in
+    0:*"hello from niji"*) pass "/usr/bin/ld.so --library-path /usr/lib/$ma /tmp/hello runs it: $out" ;;
+    *) fail "/usr/bin/ld.so --library-path /usr/lib/$ma /tmp/hello exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
+esac
+# tzselect and pldd (D-31.34, D-31.35): the empty root has no tzdata, so tzselect reads the build
+# system's zone tables (and Europe/Paris, for the clock lines) copied under /tmp/zi through TZDIR.
+zi=/usr/share/zoneinfo
+if [ -r "$zi/zone1970.tab" ] && [ -r "$zi/iso3166.tab" ] && [ -r "$zi/Europe/Paris" ]; then
+    mkdir -p "$r/tmp/zi/Europe"
+    cp "$zi/zone1970.tab" "$zi/iso3166.tab" "$r/tmp/zi/" && cp "$zi/Europe/Paris" "$r/tmp/zi/Europe/"
+    out=$(printf '1\n1\n' | TZDIR=/tmp/zi in_root /usr/bin/tzselect -c +4852+00220 2>/dev/null) && rc=0 || rc=$?
+    [ "$rc:$out" = "0:Europe/Paris" ] && pass "tzselect -c +4852+00220 in the root, first zone, confirmed: $out" ||
+        fail "tzselect -c +4852+00220 in the root exits $rc: '$(echo "$out" | head -3 | tr '\n' ' ')', not 'Europe/Paris'"
+    # pldd: the target is a tzselect waiting on its input (its prompt on stderr shows that its start is
+    # done), in a new PID namespace whose /proc is mounted on the root's /proc (made here and removed
+    # before the purge); pldd runs in the root as the namespace's root, which may trace the target.
+    # The namespace's init is the sh: when it exits, the target and the sleep feeding it end.
+    mkdir "$r/proc"
+    out=$(unshare -r -m -p --fork --mount-proc="$r/proc" timeout 60 sh -c '
+        r=$1; : > "$r/tmp/target.err"
+        sleep 30 | TZDIR=/tmp/zi chroot "$r" /usr/bin/tzselect > /dev/null 2> "$r/tmp/target.err" &
+        pid=$!; n=0
+        while [ ! -s "$r/tmp/target.err" ] && [ $n -lt 300 ]; do sleep 0.1; n=$((n + 1)); done
+        echo "target $pid"; chroot "$r" /usr/bin/pldd "$pid"; echo "rc $?"' sh "$r" 2>&1) || true
+    rmdir "$r/proc" 2> /dev/null || fail "the root's /proc does not go away after the pldd check"
+    pid=$(echo "$out" | sed -n 's/^target //p')
+    case $out in
+        *"rc 0"*) case $(echo "$out" | sed -n 2p):$out in
+            "$pid:	/usr/bin/tzselect":*"/$ma/libc.so.6"*) pass "pldd in the root lists the target's libc.so.6: $(echo "$out" | sed -n '2,$p' | grep -v '^rc ' | tr '\n' ' ')" ;;
+            *) fail "pldd in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
+        esac ;;
+        *) fail "pldd in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
+    esac
+else
+    info "no zone tables in $zi on the build system: tzselect and pldd not run in the root"
+fi
 # The seven dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
 # libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2,
 # libanl.so.1, libBrokenLocale.so.1) by soname at start (DL-START-SEARCH), and prints its line.

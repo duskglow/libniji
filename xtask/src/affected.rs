@@ -3864,14 +3864,19 @@ fn conformance_failures(build: &Path, own: &str) -> String {
     for (name, why) in failed {
         let how: Vec<String> = details.get(name).into_iter().flatten().cloned().collect();
         out.push_str(&format!("conformance FAILED: {name}: {}\n", if how.is_empty() { why.to_string() } else { how.join("; ") }));
-        // The run's stderr file, as run.sh names it (`<name>.log.stderr`, or `<name>.log.<run>.stderr` for one run of a
-        // dynamic-link program); its stdout sits beside it.
-        let stderr = why.split_once("stderr: conformance/build/").map(|(_, f)| f.split(')').next().unwrap_or(f));
-        if let Some(file) = stderr.and_then(|f| f.strip_suffix(".stderr")).filter(|f| !f.is_empty() && !f.contains('/')) {
+        // The run's stderr file, as run.sh names it in the FAIL line (`<name>.log.stderr`, `<name>.log.<run>.stderr` for
+        // one run of a dynamic-link program, `<name>.lh.log...` under --niji-headers); its stdout sits beside it.
+        let in_build = |key: &str| {
+            why.split_once(key).map(|(_, f)| f.split(')').next().unwrap_or(f)).filter(|f| !f.is_empty() && !f.contains('/'))
+        };
+        // A build failure's log, as the FAIL line names it (`see conformance/build/<name>[.lh].log`); a line naming
+        // none (older formats, helper failures) falls back to `<name>.log`.
+        let build_log = in_build("see conformance/build/").map_or_else(|| format!("{name}.log"), str::to_string);
+        if let Some(file) = in_build("stderr: conformance/build/").and_then(|f| f.strip_suffix(".stderr")).filter(|f| !f.is_empty()) {
             out.push_str(&conf_tail("stdout", &build.join(format!("{file}.stdout"))));
             out.push_str(&conf_tail("stderr", &build.join(format!("{file}.stderr"))));
-        } else if build.join(format!("{name}.log")).exists() && (why.contains("does not build") || why.contains("helper")) {
-            out.push_str(&conf_tail("build log", &build.join(format!("{name}.log"))));
+        } else if build.join(&build_log).exists() && (why.contains("does not build") || why.contains("helper")) {
+            out.push_str(&conf_tail("build log", &build.join(&build_log)));
         }
     }
     out
@@ -5073,6 +5078,11 @@ for n in "$@"; do
   nobuild) echo STALE-STDOUT > $b/nobuild.log.stdout; echo STALE-STDERR > $b/nobuild.log.stderr
        echo "x.c:1: error: boom" > $b/nobuild.log
        echo "conformance: FAIL nobuild (does not build; see conformance/build/nobuild.log)"; fail=$((fail + 1)) ;;
+  lhbad) echo STALE-LH-OUT > $b/lhbad.log.stdout; echo STALE-LH-ERR > $b/lhbad.log.stderr
+       echo "lh-out" > $b/lhbad.lh.log.stdout; echo "lh-err" > $b/lhbad.lh.log.stderr
+       echo "conformance: FAIL lhbad (stderr: conformance/build/lhbad.lh.log.stderr)"; fail=$((fail + 1)) ;;
+  lhnobuild) echo "STALE-LH-BUILD" > $b/lhnobuild.log; echo "lh.c:1: error: lh boom" > $b/lhnobuild.lh.log
+       echo "conformance: FAIL lhnobuild (does not build against libniji; see conformance/build/lhnobuild.lh.log)"; fail=$((fail + 1)) ;;
   dyn) echo STALE-DYN-OUT > $b/dyn.log.stdout; echo STALE-DYN-ERR > $b/dyn.log.stderr
        echo "dyn-ref-out" > $b/dyn.log.ref.stdout; echo "dyn-niji-out" > $b/dyn.log.niji.stdout
        echo "dyn-niji-err" > $b/dyn.log.niji.stderr
@@ -5116,6 +5126,24 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let _ = fs::remove_dir_all(&root);
     }
 
+    // Trace: no spec clause (test-harness reporting, D-X.27): under --niji-headers run.sh writes `<name>.lh.log*` and
+    // names those files in its FAIL lines; the report shows them, not a default-mode run's files of the same program.
+    #[test]
+    fn a_failed_niji_headers_conformance_program_reports_its_own_files() {
+        let root = fake_conformance_root("lh");
+        let log = root.join("target").join("affected.log");
+        let (ok, report) = run_conformance(&root, &log, &["good", "lhbad", "lhnobuild"]);
+        assert!(!ok, "{report}");
+        for want in [
+            "  stdout (1 lines):\n    | lh-out\n  stderr (1 lines):\n    | lh-err\n",
+            "conformance FAILED: lhnobuild: does not build against libniji; see conformance/build/lhnobuild.lh.log\n  build log (1 lines):\n    | lh.c:1: error: lh boom\n",
+        ] {
+            assert!(report.contains(want), "missing {want:?} in:\n{report}");
+        }
+        assert!(!report.contains("STALE-"), "a default-mode file was shown:\n{report}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
     // Trace: no spec clause (test-harness reporting, D-X.27, CONF-DYN-HELPERS): a dynamic-link program failing on libniji
     // reports libniji's end with the run named and the tails of libniji's own stdout and stderr, not the reference's run
     // or the static-mode files of an earlier build.
@@ -5148,19 +5176,24 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn the_conformance_report_matches_the_runner_formats() {
         let run = fs::read_to_string(root().join("conformance").join("run.sh")).unwrap();
         for want in [
+            // The FAIL lines print `${log#"$root/"}`: `conformance/build/<name>.log` (or `<name>.lh.log` under
+            // --niji-headers), the paths conformance_failures takes the file names from.
+            r#"root=$(cd "$here/.." && pwd)"#,
             r#"log="$here/build/$name.log""#,
+            r#"[ -z "$lh" ] || log="$here/build/$name.lh.log""#,
             r#"2>"$log.stderr" >"$log.stdout""#,
             r#"echo "conformance: $1: status $rc, expected $want_exit""#,
             r#"echo "conformance: $1: stderr lacks: $text""#,
             r#"verdict "$name" "$log.stderr""#,
-            r#"echo "conformance: FAIL $name (stderr: conformance/build/$name.log.stderr)""#,
-            r#"echo "conformance: FAIL $name (does not build; see conformance/build/$name.log)""#,
+            r#"echo "conformance: FAIL $name (stderr: ${log#"$root/"}.stderr)""#,
+            r#"echo "conformance: FAIL $name (does not build; see ${log#"$root/"})""#,
+            r#"echo "conformance: FAIL $name ($hbad; see ${log#"$root/"})""#,
             r#"run_dyn "$exe" "$hdir" ref"#,
             r#"verdict "$name (reference)" "$log.ref.stderr""#,
-            r#"echo "conformance: FAIL $name on the reference (stderr: conformance/build/$name.log.ref.stderr)""#,
+            r#"echo "conformance: FAIL $name on the reference (stderr: ${log#"$root/"}.ref.stderr)""#,
             r#"run_dyn "$exe-niji" "$ldir" niji"#,
             r#"verdict "$name (libniji)" "$log.niji.stderr""#,
-            r#"echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.log.niji.stderr)""#,
+            r#"echo "conformance: FAIL $name on libniji (stderr: ${log#"$root/"}.niji.stderr)""#,
             r#"2>"$log.$3.stderr" >"$log.$3.stdout""#,
         ] {
             assert!(run.contains(want), "conformance/run.sh no longer has {want:?}: update conformance_failures");

@@ -1,0 +1,11 @@
+id = "D-31.35"
+section = "s31"
+spec = "§31.13"
+ann = "—"
+status = "active"
+story = "UTIL-TZSELECT-PLDD"
+date = "2026-11-24"
+tests = ["xtask/tests/tz_tools.rs"]
+body = '''
+**pldd reads the debugger rendezvous of a stopped target through `/proc/PID/mem`** (GitHub #14; `csys/util/pldd.c`, dynamic, libc only). Weighed: (a) `/proc/PID/maps` lists mapped files, not loaded objects: it misses the vDSO's name, shows realpaths instead of the names the loader recorded, and lists any file the program mapped itself; (b) `dl_iterate_phdr` runs only inside the process; (c) the rendezvous (`DT_DEBUG` of the program's `PT_DYNAMIC` holds the address of `struct r_debug`, `<link.h>`, whose `r_map` starts the `link_map` list; the System V ABI and every debugger use it) gives exactly the objects the loader has, dlopen'd ones included, in load order, with their recorded names. Chosen: (c). Steps: `PTRACE_SEIZE` and `PTRACE_INTERRUPT` every task of `/proc/PID/task` (rescanned until a scan finds no new task), which applies the kernel's tracing permission (Yama's `ptrace_scope` included; refused: `cannot attach to process <pid>: <strerror>`, status 1) and stops the loader from changing the list while it is read; `AT_PHDR`/`AT_PHNUM` from `/proc/PID/auxv`; the load bias from `PT_PHDR` (else `AT_ENTRY` less the program's `e_entry`); `DT_DEBUG`; the list after its first entry (the program) printed by `l_name`; every task detached with the signal it was stopped with, if any. The pointer size follows the program's ELF class. The target's memory is untrusted: each read can fail and ends the walk, at most 65536 entries are printed and a name is cut at `PATH_MAX` bytes, so a corrupt or cyclic list cannot hang or crash pldd. A process without the rendezvous (a static program) prints nothing, status 1, as the reference (probed). Options, messages and statuses as probed (s31_13_*); `--help` without the bug-report lines and `-V` in the house form (D-31.4).
+'''

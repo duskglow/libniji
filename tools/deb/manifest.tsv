@@ -308,6 +308,7 @@ both	libc6-dev	usr/lib/x86_64-linux-gnu/libutil.a	file	libutil.a	0644	archive	em
 both	libc6-dev	usr/lib/x86_64-linux-gnu/rcrt1.o	file	niji-rcrt1.o	0644	archive	the start file of -static-pie links
 coexist	niji6	usr/lib/niji/lib	link	usr/lib	-	none	the sysroot's merged-/usr link
 coexist	niji6	usr/lib/niji/lib64	link	usr/lib64	-	none	the sysroot's merged-/usr link (the program interpreter's path)
+coexist	niji6	usr/lib/niji/usr/bin/ld.so	link	../lib64/ld-linux-x86-64.so.2	-	none	the loader run as a command, as the system flavour's /usr/bin/ld.so
 coexist	niji6	usr/share/doc/niji6/changelog.gz	changelog	-	0644	none	-
 coexist	niji6	usr/share/doc/niji6/copyright	text	copyright	0644	none	-
 coexist	niji6-dev	usr/bin/niji-g++	link	niji-gcc	-	none	the C++ driver: the wrapper reads its own name
@@ -337,9 +338,12 @@ system	libc-bin	etc/ld.so.conf.d/libc.conf	text	system/libc.conf	0644	none	conff
 system	libc-bin	usr/bin/getconf	file	getconf	0755	debug	static, over libc.a (UTIL-5)
 system	libc-bin	usr/bin/getent	file	getent	0755	debug	dynamic, over libc6's name services (UTIL-6)
 system	libc-bin	usr/bin/iconv	file	iconv	0755	debug	dynamic, over libc6's iconv(3) (UTIL-7)
+system	libc-bin	usr/bin/ld.so	link	../lib64/ld-linux-x86-64.so.2	-	none	the loader run as a command (ld.so --help); libc6 ships its target
 system	libc-bin	usr/bin/ldd	file	ldd	0755	debug	static, runs the loader in trace mode (UTIL-4)
 system	libc-bin	usr/bin/locale	file	locale	0755	debug	dynamic, over libc6's locale data (UTIL-8)
 system	libc-bin	usr/bin/localedef	file	localedef	0755	debug	static, no interpreter; compiles locale sources (UTIL-12)
+system	libc-bin	usr/bin/pldd	file	pldd	0755	debug	dynamic, lists the objects loaded into a running process (UTIL-TZSELECT-PLDD, D-31.35)
+system	libc-bin	usr/bin/tzselect	file	tzselect	0755	debug	dynamic, asks for a location and prints its TZ value (UTIL-TZSELECT-PLDD)
 system	libc-bin	usr/bin/zdump	file	zdump	0755	debug	dynamic, over libc6's localtime (TZ-TOOLS)
 system	libc-bin	usr/sbin/ldconfig	file	ldconfig	0755	debug	static, no interpreter (D-31.2)
 system	libc-bin	usr/sbin/zic	file	zic	0755	debug	dynamic, compiles time-zone source into TZif files (TZ-TOOLS)

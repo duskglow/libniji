@@ -427,6 +427,20 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         }
         c.put(&mut a, i, lines);
     }
+    // Enumerations without a tag that a typedef names (enumerators.tsv `typedef NAME`, ruling #7643): every member has
+    // its value and, in C++, the typedef's type, so the typedef names an enumeration (not an opaque structure of its
+    // size) and that enumeration has exactly these members.
+    for (tag, members) in t.enums.iter().filter(|(k, _)| k.strip_prefix("typedef ").is_some_and(|n| wanted(n) && t.typedefs.contains_key(&("typedef".to_string(), n.to_string())))) {
+        let td = &tag["typedef ".len()..];
+        let i = c.row("typedefs", &format!("typedef {td}"));
+        let mut lines = Vec::new();
+        for (n, v) in members {
+            let e = int128(v).ok_or(format!("enumerators.tsv {tag} {n}: value {v:?} is not an integer"))?;
+            lines.push(format!("NIJI_A ((__int128) ({n}) == {e}, \"enumerators {tag} {n}\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), {td}>::v, \"enumerators {n} is {td}\");"));
+        }
+        c.put(&mut a, i, lines);
+    }
     // Enumerators.
     for n in &enumerators {
         let i = c.row("visibility", &format!("enumerator {n}"));

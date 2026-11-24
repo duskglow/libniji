@@ -28,7 +28,10 @@ struct qelem {
 #if 1
 # ifndef __NIJI_D_ACTION
 #  define __NIJI_D_ACTION 1
-typedef struct { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); } ACTION;
+typedef enum {
+  FIND = 0,
+  ENTER = 1,
+} ACTION;
 # endif
 # ifndef __NIJI_D_struct_entry
 #  define __NIJI_D_struct_entry 1
@@ -43,7 +46,12 @@ typedef struct entry ENTRY;
 # endif
 # ifndef __NIJI_D_VISIT
 #  define __NIJI_D_VISIT 1
-typedef struct { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); } VISIT;
+typedef enum {
+  preorder = 0,
+  postorder = 1,
+  endorder = 2,
+  leaf = 3,
+} VISIT;
 # endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
@@ -103,7 +111,12 @@ extern void *tsearch (const void *, void **, __compar_fn_t);
 # endif
 # ifndef __NIJI_D_VISIT
 #  define __NIJI_D_VISIT 1
-typedef struct { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); } VISIT;
+typedef enum {
+  preorder = 0,
+  postorder = 1,
+  endorder = 2,
+  leaf = 3,
+} VISIT;
 # endif
 # ifndef __NIJI_D___action_fn_t
 #  define __NIJI_D___action_fn_t 1
@@ -151,32 +164,6 @@ extern void insque (void *, void *) __NIJI_NOTHROW;
 # ifndef __NIJI_D_remque
 #  define __NIJI_D_remque 1
 extern void remque (void *) __NIJI_NOTHROW;
-# endif
-#endif
-#if 1
-# ifndef __NIJI_D_enum_endorder
-#  define __NIJI_D_enum_endorder 1
-#  ifndef endorder
-enum { endorder = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_leaf
-#  define __NIJI_D_enum_leaf 1
-#  ifndef leaf
-enum { leaf = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_postorder
-#  define __NIJI_D_enum_postorder 1
-#  ifndef postorder
-enum { postorder = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_preorder
-#  define __NIJI_D_enum_preorder 1
-#  ifndef preorder
-enum { preorder = 0 };
-#  endif
 # endif
 #endif
 

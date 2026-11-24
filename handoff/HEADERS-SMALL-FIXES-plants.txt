@@ -1,0 +1,4 @@
+# HEADERS-SMALL-FIXES plants (cargo xtask plants; docs/plants.md). Header plants regenerate, then run the checks.
+hsf-no-sysconf-decl | headers/signal.h.in | lit:extern long int __sysconf (int) __NIJI_NOTHROW; ==> /* none */ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL MINSIGSTKSZ/SIGSTKSZ used in signal.h
+hsf-sc-swap | headers/signal.h.in | lit:#  define SIGSTKSZ __sysconf (@@value(_SC_SIGSTKSZ)) ==> #  define SIGSTKSZ __sysconf (@@value(_SC_MINSIGSTKSZ)) | sh -c 'cargo xtask headers-gen && cargo xtask so && sh conformance/run.sh --niji-headers s20_sigstksz_dynamic' | msg:not sysconf's values
+hsf-lh-name | conformance/run.sh | lit:exe="$here/build/${lh:+lh/}$name" ==> exe="$here/build/$name${lh:+.lh}" | sh -c 'cargo xtask so && sh conformance/run.sh --niji-headers s02_assert' | msg:stderr lacks: s02_assert:
