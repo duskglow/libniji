@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S07-TAIL-3", "model": "opus", "tokens": null,
+ "result": "Merged next (diagattrs.tsv: spawn.h rows kept, pow rows dropped per errno veto); spawn.h/sys/param.h/sys/wait.h templates spell NULL with @@null; headers-gen clean and byte-identical; header_check 0 failed of 17084; direct gate green",
+ "branch": "task/sl-headers-s07-tail-3", "head": "9ff179900",
+ "gate": {"affected": "685 passed / 0 failed (6 suites, 0 SKIPPED)", "peak": "2.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["xtask/src/headers.rs headers-gen message says 'use @@value(NULL)' for a null-type macros.tsv row; the working spelling is '@@null NULL'"],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "clears the train-923 headers-gen-check red and the diagattrs.tsv conflict; unblocks the SL-HEADERS-S20 header slice", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "headers-gen's ownership error should name the directive that fixes it (@@null for null-type rows); a job chained with ';' hid a failed headers-gen behind rc 0",
+ "next_step": "land via the CI train",
+ "report_file": "handoff/SL-HEADERS-S07-TAIL-3.md",
+ "jobs": ["sl-headers-s07-tail-3-gate", "sl-headers-s07-tail-3-hc", "sl-headers-s07-tail-3-hgen2"]}
