@@ -70,8 +70,13 @@ def main():
         print("P4: FAIL the compiler lists no C++ library directory")
         return 1
     # A compiler older than the name c++26 (GCC 13) knows the draft as c++2c.
+    # A compiler that knows neither name (GCC 13 has neither) says so once, instead of 145 "n/a" lines.
     if compile_one([cxx, "-std=c++26"], "int main() { return 0; }\n")[0] != 0:
-        STDS[STDS.index("c++26")] = "c++2c"
+        if compile_one([cxx, "-std=c++2c"], "int main() { return 0; }\n")[0] == 0:
+            STDS[STDS.index("c++26")] = "c++2c"
+        else:
+            STDS.remove("c++26")
+            print("P4 c++26: not supported by this compiler (neither -std=c++26 nor -std=c++2c)")
     niji = ["-nostdinc"] + [w for d in dirs for w in ("-isystem", d)] + ["-isystem", inc, "-isystem", gccinc, "-isystem", uapi]
     jobs = {}
     fails = 0

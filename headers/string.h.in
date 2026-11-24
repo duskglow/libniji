@@ -18,8 +18,12 @@ __NIJI_BEGIN_C
 # endif
 #endif
 
+@@owns __CORRECT_ISO_CPP_STRING_H_PROTO
 @@if strchr
 # ifdef __cplusplus
+/* Tells the C++ library's <cstring> that these overloads are declared here, so it declares none of its own in std
+   (R-H2, D-X.169). */
+#  define __CORRECT_ISO_CPP_STRING_H_PROTO 1
 extern "C++" {
 extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr") @@attrs(strchr);
 extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr") @@attrs(strrchr);

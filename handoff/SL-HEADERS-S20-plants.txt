@@ -7,3 +7,6 @@ s20-cc-uapi | scripts/niji-cc | perl:s/ -isystem "\$products\/uapi"// | cargo te
 s20-gcc-inc | tools/deb/niji-gcc | perl:s/-isystem "\$inc" -isystem "\$gccinc"/-isystem "\$gccinc"/ | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-gcc -c p.c failed
 s20-gcc-cxxdirs | tools/deb/niji-gcc | perl:s/(for d in .*?\n\s*)set -- "\$\@" -isystem "\$d"/$1:/s | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-g\+\+ -c p.cc failed
 s20-gcc-optout | tools/deb/niji-gcc | perl:s/\[ -n "\$\{NIJI_SYSTEM_HEADERS:-\}" \] && hdr=no/true/ | cargo test -p niji-boundary --test niji_cc_headers | msg:NIJI_SYSTEM_HEADERS=1 niji-gcc -c s.c failed
+# Run 2 (SL-HEADERS-S20-2): the two names the C++ library needs from the C headers (D-X.169).
+s20-cxx-locale_t | libc-include/locale.h | perl:s/typedef struct __locale_struct \* __locale_t;\n// | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -x c\+\+ -c p.cc failed|niji-g\+\+ -c p.cc failed
+s20-cxx-cwchar | libc-include/wchar.h | perl:s/#  define __CORRECT_ISO_CPP_WCHAR_H_PROTO 1\n// | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -x c\+\+ -c p.cc failed|niji-g\+\+ -c p.cc failed

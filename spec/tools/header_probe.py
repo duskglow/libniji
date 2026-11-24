@@ -354,6 +354,12 @@ def candidates():
     names.update(net)
     tags.update(net_tags)
     tags.update(["exception", "ieee754_float", "ieee754_double", "ieee754_long_double", "ieee854_long_double"])
+    # The reserved names headers-gen emits by policy (headers/reserved.tsv `emit`, rulings R-H2, R-H3): the generator
+    # declares them only where this table shows them, so they are probed whether or not another table spells them
+    # (slice 20: `__locale_t`, which the C++ library's locale support names, appears in no prototype).
+    with open(os.path.join(ROOT, "headers", "reserved.tsv"), newline="") as f:
+        names.update(r["name"] for r in csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t")
+                     if r["policy"] == "emit")
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)
