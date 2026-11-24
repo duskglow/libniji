@@ -258,7 +258,7 @@ def probe_one(side, header, cfg, names, work, values):
     # only through an implicit declaration of a function its header does not declare is not usable.
     # No -w: it silences a warning that -Werror= promotes. Warnings never fail a unit; only error lines are read.
     diag = ["-fdiagnostics-plain-output", "-fno-diagnostics-show-caret"] + (
-        [] if cxx else ["-Werror=implicit-function-declaration", "-Werror=implicit-int"])
+        [] if cxx else ["-Wsystem-headers", "-Werror=implicit-function-declaration", "-Werror=implicit-int"])
     tests = [(i, n, fact) for i, n in enumerate(names) for fact in FACTS if fact not in (C_ONLY if cxx else CXX_ONLY)]
     passed, ok = compile_dropping(side.compiler(lang) + cflags + side.flags() + diag + ["-fsyntax-only"], f"{stem}.{ext}",
                                   lambda xs: tu_tests(header, xs, cxx), tests)
