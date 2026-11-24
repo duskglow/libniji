@@ -31,7 +31,7 @@ import sys
 
 BOUND = 1.10
 GEO_BOUND = 1.00
-METRICS = {"instructions:u": "instr", "page-faults": "pf"}
+METRICS = {"instructions:u": "instr", "page-faults": "pf", "instructions:k": "kinstr"}
 FIELDS = ("cpu", "workload", "metric", "glibc", "libniji", "level", "recorded", "cause")
 
 
@@ -181,6 +181,17 @@ def check(args):
         fails.append("geomean instructions:u %.4f over %.2f" % (geo["instr"], GEO_BOUND))
     print("wl_verdict: geomean over %d workloads: instructions:u %.4f%s, page faults %.4f (advisory)"
           % (len(data), geo["instr"], "" if full else " (advisory: not every workload ran)", geo["pf"]))
+    # GATE-HONEST-METRICS (#8144, D-X.165): the kernel's instructions (instructions:k, the same perf stat run) are
+    # reported beside the user count and never gate: their run-to-run spread is over 1% (dynamic empty main, 20
+    # runs: up to 10-15% on every measured host class). User + kernel is what a process costs in instructions.
+    kr = [(w, m["kinstr"][0] / m["kinstr"][2], (m["instr"][0] + m["kinstr"][0]) / (m["instr"][2] + m["kinstr"][2]))
+          for w, m in data.items() if m.get("kinstr") and m.get("instr") and m["kinstr"][2] > 0]
+    if kr:
+        gk = math.exp(sum(math.log(x[1]) for x in kr) / len(kr))
+        gt = math.exp(sum(math.log(x[2]) for x in kr) / len(kr))
+        top = max(kr, key=lambda x: x[1])
+        print("wl_verdict: kernel (reported, not gated: spread over 1%%): instructions:k geomean %.4f x glibc over %d"
+              " workloads, highest %s %.4f; user + kernel geomean %.4f" % (gk, len(kr), top[0], top[1], gt))
     for n in notes:
         print("wl_verdict: " + n)
     for f in fails:

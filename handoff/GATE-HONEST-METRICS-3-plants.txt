@@ -1,0 +1,11 @@
+sections-name-cut | tools/hottext/keys.py | lit:name = function_of(m.group(1)) ==> name = function_of(m.group(1)[:256]) | cargo test -p xtask a_cold_renamed_function_reenters_the_list_by_trace | msg:keys.py --sections and function_of disagree|long section name is cut
+sections-name-cut-products | tools/hottext/keys.py | lit:name = function_of(m.group(1)) ==> name = function_of(m.group(1)[:256]) | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:missing from the section listing|runs outside the hot group
+sections-objdump-error-ignored | tools/hottext/keys.py | lit:if out.returncode != 0: ==> if False: | cargo test -p xtask a_cold_renamed_function_reenters_the_list_by_trace | msg:on a C source
+unlisted-never-named | tools/hottext/keys.py | lit:if any(s not in lib for s in sec_of.get(k, ())): ==> if False: | cargo test -p xtask a_traced_function_with_an_unlisted_section_is_named | msg:keys.py --unlisted
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# sections-name-cut: CAUGHT, caught by xtask hottext::tests::a_cold_renamed_function_reenters_the_list_by_trace
+# sections-name-cut-products: CAUGHT, caught by no test the log names
+# sections-objdump-error-ignored: CAUGHT, caught by xtask hottext::tests::a_cold_renamed_function_reenters_the_list_by_trace
+# unlisted-never-named: CAUGHT, caught by xtask hottext::tests::a_traced_function_with_an_unlisted_section_is_named
+# (sections-name-cut-products: the mutant's `cargo xtask so` failed in regen.sh with "traced library functions whose
+# section is missing from the section listing", matched by its msg; the test was not run. Job gate-honest-metrics-3-plants2.)

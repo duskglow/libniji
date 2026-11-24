@@ -8,7 +8,11 @@
  * count starts at the exec and nothing of this harness is in it. The program's environment is the
  * `-e` options only.
  * Prints `instr MIN MEDIAN` on stdout. Exit 0; 2 when no counter can be opened here (the message
- * names why); 3 when a run fails (the program exits other than 0 or the counter cannot be read). */
+ * names why); 3 when a run fails (the program exits other than 0 or the counter cannot be read).
+ * GATE-HONEST-METRICS (#8144): a second counter, the same event with exclude_user (the kernel's
+ * instructions on the program's behalf: exec's tail, page faults, system calls, exit), opened the same
+ * way; a second line `kinstr MIN MEDIAN MAX`, or `kinstr none <reason>` where the host does not let this
+ * user count kernel events (perf_event_paranoid 2 or more). */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -45,8 +49,10 @@ int main(int argc, char **argv) {
     if (first >= argc)
         return 64;
     uint64_t *seen = calloc((size_t)runs, sizeof *seen);
-    if (seen == NULL)
+    uint64_t *kseen = calloc((size_t)runs, sizeof *kseen);
+    if (seen == NULL || kseen == NULL)
         return 3;
+    int kerr = 0;
     for (long i = 0; i < runs; i++) {
         int go[2];
         if (pipe2(go, O_CLOEXEC) != 0)
@@ -74,6 +80,11 @@ int main(int argc, char **argv) {
         a.exclude_hv = 1;
         int fd = (int)syscall(SYS_perf_event_open, &a, p, -1, -1, PERF_FLAG_FD_CLOEXEC);
         int err = errno;
+        a.exclude_kernel = 0;
+        a.exclude_user = 1;
+        int kfd = (int)syscall(SYS_perf_event_open, &a, p, -1, -1, PERF_FLAG_FD_CLOEXEC);
+        if (kfd < 0 && kerr == 0)
+            kerr = errno;
         if (write(go[1], "g", 1) != 1)
             return 3;
         close(go[1]);
@@ -91,8 +102,19 @@ int main(int argc, char **argv) {
         if (read(fd, &seen[i], sizeof seen[i]) != (ssize_t)sizeof seen[i])
             return 3;
         close(fd);
+        if (kfd >= 0) {
+            if (read(kfd, &kseen[i], sizeof kseen[i]) != (ssize_t)sizeof kseen[i])
+                return 3;
+            close(kfd);
+        }
     }
     qsort(seen, (size_t)runs, sizeof *seen, cmp);
     printf("instr %llu %llu\n", (unsigned long long)seen[0], (unsigned long long)seen[runs / 2]);
+    if (kerr != 0) {
+        printf("kinstr none %s\n", strerror(kerr));
+    } else {
+        qsort(kseen, (size_t)runs, sizeof *kseen, cmp);
+        printf("kinstr %llu %llu %llu\n", (unsigned long long)kseen[0], (unsigned long long)kseen[runs / 2], (unsigned long long)kseen[runs - 1]);
+    }
     return 0;
 }

@@ -1,0 +1,20 @@
+{"task": "GATE-HONEST-METRICS-2", "model": "opus", "tokens": null,
+ "result": "COMPLETE: next merged (#8197); #8200 settled (host gained a locale-archive; the cause check now traces both locale load forms, the perdir plant is CAUGHT); reference_probe race under plain cargo test fixed; gate, plants, cargo xtask test and the release hot_text_products run green",
+ "branch": "task/gate-honest-metrics-2", "head": "12f1f42ee",
+ "gate": {"affected": "7 suites, 660 passed / 0 failed (gate-honest-metrics-2-gate2)", "peak": "gate: peak memory 2.0G oom_kill=0 rc=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["xtest second-pass build warns niji_machine_running_on_valgrind is never used (crates/boundary/src/ffi.rs:77): next's code",
+                   "the whole test on Haswell-EP / Zen 1 not run (no role there); follow-up story for #8198/#8199 measures kernel min-of-N and release ratios"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "init_data_clusters_hold_at_every_text_phase checks both locale load forms on any host: the per-locale-directory functions left out of the hot group are named on a host that has a locale-archive (plant perdir-trace-dropped: SURVIVED before, CAUGHT now)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "reference_probe link race under plain cargo test (2 of 33 hot_text_products tests failed with ENOENT on rename in the release run)", "before": 2, "after": 0, "unit": "failed tests", "measured": true},
+   {"kind": "coverage", "what": "plants in handoff/GATE-HONEST-METRICS-2-plants.txt, all CAUGHT", "before": 2, "after": 3, "unit": "plants", "measured": true},
+   {"kind": "cost", "what": "init_data_clusters_hold_at_every_text_phase wall time (4 more traces + canon data), Skylake-SP host; fix-forward: none planned", "before": 48, "after": 78, "unit": "s", "measured": true},
+   {"kind": "tooling", "what": "start-up layout gates on the cause and fault/instruction bounds as ratios to the reference (first leg, D-X.165): unblocks landings held by init_data_clusters_hold_at_every_text_phase's 58/59 flip", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "a test that checks a host-dependent code path should pin the inputs that pick the path (here the locale layout); the plant only survived because a host changed under it, so a plant result should be read together with the host state it ran on",
+ "next_step": "follow-up story (#8198/#8199): kernel instruction min-of-N stability on more programs and the workload kit; release-profile ratios on the three host classes, then tighten",
+ "report_file": "handoff/GATE-HONEST-METRICS-2-report.md",
+ "jobs": ["gate-honest-metrics-2-gate2", "gate-honest-metrics-2-plants2", "gate-honest-metrics-2-xtest2", "gate-honest-metrics-2-htp-release2", "gate-honest-metrics-2-lint2"]}
