@@ -974,8 +974,10 @@ pub(crate) fn after_fork_child() {
 
 // ------------------------------------------------------------------------------ creation
 
-/// Map (or reuse) the memory for a thread with `lay`'s layout: its base.
-fn take_mapping(lay: &Layout) -> KResult<usize> {
+/// Map (or reuse) the memory for a thread with `lay`'s layout: its base. `loaders`: the static
+/// TLS area below the thread pointer is libniji's `ld.so`'s (its `tls_init` writes every byte
+/// anything reads there: each block in full and the dtv), so a reused mapping leaves it as it is.
+fn take_mapping(lay: &Layout, loaders: bool) -> KResult<usize> {
     {
         let _g = RECYCLE.lock(&CSys);
         sweep_locked();
@@ -992,11 +994,13 @@ fn take_mapping(lay: &Layout) -> KResult<usize> {
                 }
                 CACHE_BYTES.fetch_sub(lay.len, Relaxed);
                 let base = d.map_base.load(Relaxed);
-                // The parts above the stack start clean; the stack itself need not.
+                // The parts above the stack start clean; the stack itself need not. Under
+                // libniji's `ld.so` the area below the thread pointer is its own: its `tls_init`
+                // clears the dtv and writes each block (image and zeros); the free surplus (64 KiB)
+                // is written by the `dlopen` that places a block there, before any read.
                 let span = KEYS.span();
-                // Under libniji's `ld.so` this clears its whole area too (the surplus as in a fresh
-                // mapping), before its `tls_init` rewrites the blocks and the dtv.
-                conv::zero_mapped(base + lay.tls, lay.keys - lay.tls);
+                let from = if loaders { lay.tp } else { lay.tls };
+                conv::zero_mapped(base + from, lay.keys - from);
                 conv::zero_mapped(base + lay.keys, (span * 16).min(KEY_AREA));
                 return Ok(base);
             }
@@ -1110,7 +1114,8 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
     let (lay, base, sp) = match a.stack {
         None => {
             let lay = Layout::new(stack_size, guard, img.as_ref()).ok_or(Errno::EINVAL)?;
-            let base = take_mapping(&lay)?;
+            let loaders = img.as_ref().is_some_and(|t| t.addr == 0) && LOADER_INIT.load(Acquire) != 0;
+            let base = take_mapping(&lay, loaders)?;
             (lay, base, base + lay.sp)
         }
         Some((lo, size)) => {

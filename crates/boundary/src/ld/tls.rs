@@ -318,9 +318,11 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
     for i in 0..n {
         let [src, filesz, memsz, module, off] = module_words(i)?;
         if module == 0 || ltls::dynamic_align(off).is_some() {
-            // A released ID (DL-17) has no block until it is reused; an on-demand block (DL-19) is
-            // made at the thread's first access ([`tls_slow`]). Either way the slot starts empty
-            // (the C library may reuse an exited thread's mapping).
+            // A released ID (DL-17) has no block until it is reused (entry `i` is ID `i + 1`); an
+            // on-demand block (DL-19) is made at the thread's first access ([`tls_slow`]). Either way
+            // the slot reads 0, as in a fresh mapping: a reused one holds an earlier thread's vector
+            // here (the C library leaves this area to the loader). The slots past the count are
+            // never read before a `dlopen` or `tls_slow` writes them.
             let id = if module == 0 { u64::try_from(i).ok()?.wrapping_add(1) } else { module };
             if let Some(w) = dtv_slot(id).and_then(|s| dtv.get(s)) {
                 w.store(0, Relaxed);
@@ -640,7 +642,9 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
 
 /// `StartInfo::tls_init` (DL-15 `DL-TLS-THREADS`, design §7): the static area of a thread the C
 /// library is about to start, below its thread pointer `tp`. Every block gets its image and zeros to
-/// `p_memsz` (the C library may reuse an exited thread's mapping), the dtv goes in the lowest words
+/// `p_memsz`, and every dtv word up to the count it sets is written (the C library may reuse an
+/// exited thread's mapping, and it does not clear this area; the rest of it, the free surplus, is
+/// written by the `dlopen` that places a block there, [`tls_visit`], before anything reads it), the dtv goes in the lowest words
 /// of the area (`tls_size` bytes below `tp`), and the thread block's dtv word points at it. Called
 /// by the creating thread, concurrently with other creations: it reads only the recorded table.
 pub(super) extern "C" fn thread_tls_init(tp: usize) -> usize {

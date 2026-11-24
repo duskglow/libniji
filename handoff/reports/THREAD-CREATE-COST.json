@@ -1,0 +1,114 @@
+{
+ "task": "THREAD-CREATE-COST",
+ "model": "opus",
+ "tokens": null,
+ "result": "thread create + return + join 36,014 -> 1,197 user instructions static, 39,973 -> 1,332 dynamic (reference 2,291), Zen 1; dynamic pthread_exit 93,824 -> 55,183 (reference 9,584, gap = libniji's unwinder walk)",
+ "branch": "task/thread-create-cost",
+ "head": "6c59ccf45",
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "dynamic pthread_exit still costs 55k user instructions vs the reference's 9.6k: ~50k is libniji's own unwinder walk (FDE search, LEB decoding, a 6.3k move), not the lookup ruling #6904 kept uncached",
+   "recommendation": "a follow-up story: index each object's frame table once, or skip the handler search when no frame on the thread's stack has a handler"
+  }
+ ],
+ "informational": [
+  "Skylake-SP not measured in this run (role on the Zen 1 host only); the change removes code paths, not CPU-specific work: the static span scan was 34.8k of the N100's 40.2k as well by construction (not measured there)",
+  "the strace -c syscall split printed no rows (my filter); kernel instructions per thread are measured instead"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "thread_create_join static (create + return + join), Zen 1",
+   "before": 36014,
+   "after": 1197,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join dynamic, Zen 1",
+   "before": 39973,
+   "after": 1332,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_exit static (pthread_exit), Zen 1",
+   "before": 36101,
+   "after": 1284,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_exit dynamic, Zen 1",
+   "before": 93824,
+   "after": 55183,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_exit_deep dynamic, Zen 1",
+   "before": 112999,
+   "after": 74358,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join8 static per thread, Zen 1",
+   "before": 27172,
+   "after": 1064,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_create_join8 dynamic per thread, Zen 1",
+   "before": 29218,
+   "after": 1193,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic pthread_create: 64 KiB loader-area clear of a reused mapping removed",
+   "before": 3886,
+   "after": 0,
+   "unit": "instr/call (gdb trace)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "unit test the_exit_scan_reaches_the_highest_key_ever_created; 4 percall cases; 4 plants (3 caught, 1 equivalent)",
+   "before": null,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "wl_trace.py traces a function whose thread ends (entry, exit sequence)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "wl_trace could not trace a thread's entry/exit path (died when the thread ended): fixed; a dynamic trace still cannot break on a libc.so-internal symbol before the library loads (needs a pending breakpoint)",
+ "next_step": "the train lands it; follow-up story for the dynamic pthread_exit unwinder walk (~50k instructions)",
+ "report_file": "handoff/THREAD-CREATE-COST.md",
+ "jobs": [
+  "keke:thread-create-cost-gate",
+  "keke:thread-create-cost-plants",
+  "keke:thread-create-cost-counts"
+ ]
+}

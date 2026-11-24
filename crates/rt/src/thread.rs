@@ -415,6 +415,10 @@ impl Layout {
 pub struct KeyTable {
     seq: [AtomicU32; KEYS],
     dtor: [AtomicUsize; KEYS],
+    /// One past the highest slot a `create` ever tried to claim (never lower than one past the
+    /// highest slot whose number is not 0): the exit-time scan's bound, read in O(1) instead of
+    /// a scan of all `KEYS` numbers on every thread exit.
+    hi: AtomicUsize,
 }
 
 impl Default for KeyTable {
@@ -426,7 +430,7 @@ impl Default for KeyTable {
 impl KeyTable {
     /// No keys (all zero).
     pub const fn new() -> KeyTable {
-        KeyTable { seq: [const { AtomicU32::new(0) }; KEYS], dtor: [const { AtomicUsize::new(0) }; KEYS] }
+        KeyTable { seq: [const { AtomicU32::new(0) }; KEYS], dtor: [const { AtomicUsize::new(0) }; KEYS], hi: AtomicUsize::new(0) }
     }
 
     /// `pthread_key_create`: a free key with destructor `dtor` (0 for none), or `None` when all
@@ -434,9 +438,14 @@ impl KeyTable {
     pub fn create(&self, dtor: usize) -> Option<usize> {
         for (k, (s, d)) in self.seq.iter().zip(&self.dtor).enumerate() {
             let v = s.load(Relaxed);
-            if v % 2 == 0 && s.compare_exchange(v, v.wrapping_add(1), AcqRel, Relaxed).is_ok() {
-                d.store(dtor, Release);
-                return Some(k);
+            if v % 2 == 0 {
+                // The bound first: whoever sees the slot live (its number, released by the
+                // exchange) also sees a bound that covers it.
+                self.hi.fetch_max(k + 1, AcqRel);
+                if s.compare_exchange(v, v.wrapping_add(1), AcqRel, Relaxed).is_ok() {
+                    d.store(dtor, Release);
+                    return Some(k);
+                }
             }
         }
         None
@@ -459,9 +468,11 @@ impl KeyTable {
         self.dtor.get(k).map_or(0, |d| d.load(Acquire))
     }
 
-    /// One past the highest key ever created (bounds the exit-time scan).
+    /// One past the highest key ever created (bounds the exit-time scan; at most `KEYS`). A
+    /// `create` racing with this call may be counted early, never late for a key the caller
+    /// can already see live.
     pub fn span(&self) -> usize {
-        self.seq.iter().rposition(|s| s.load(Relaxed) != 0).map_or(0, |i| i + 1)
+        self.hi.load(Acquire).min(KEYS)
     }
 }
 
@@ -699,6 +710,30 @@ mod tests {
         sp.run_destructors(&t, |_, _| more += 1);
         assert_eq!(more, 0, "NULL values get no call");
 
+    }
+
+    // s22_6_c_2: destructors run at exit for every non-NULL value, the highest key's included,
+    // whatever the scan bound (THREAD-CREATE-COST: the bound is kept, not scanned for).
+    #[test]
+    fn the_exit_scan_reaches_the_highest_key_ever_created() {
+        let t = KeyTable::new();
+        assert_eq!(t.span(), 0, "no key: nothing to scan");
+        let keys: Vec<usize> = (0..300).map(|_| t.create(0x222).unwrap()).collect();
+        let top = *keys.last().unwrap();
+        assert_eq!(t.span(), top + 1);
+        for &k in &keys[..keys.len() - 1] {
+            assert!(t.delete(k));
+        }
+        assert_eq!(t.span(), top + 1, "deleting lower keys keeps the bound");
+        let words: Vec<AtomicUsize> = (0..2 * KEYS).map(|_| AtomicUsize::new(0)).collect();
+        let sp = Specific::new(&words);
+        assert!(sp.set(&t, top, 5));
+        let mut seen = Vec::new();
+        sp.run_destructors(&t, |d, v| seen.push((d, v)));
+        assert_eq!(seen, [(0x222, 5)], "the highest key's destructor runs");
+        assert!(t.delete(top));
+        assert_eq!(t.create(0).unwrap(), 0, "the lowest free slot is taken again");
+        assert_eq!(t.span(), top + 1, "the bound never shrinks");
     }
 
     #[test]
