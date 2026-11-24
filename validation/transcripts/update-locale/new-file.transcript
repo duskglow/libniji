@@ -1,0 +1,7 @@
+name: update-locale creates a missing locale file with its header line
+clause: s31_14_c_2
+command: update-locale
+dir: etc
+arg: --locale-file
+arg: @ROOT@/etc/locale.conf
+arg: LANG=C

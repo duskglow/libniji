@@ -1,0 +1,15 @@
+name: update-locale edits a hand-written file in place
+clause: s31_14_c_2
+command: update-locale
+# A set variable replaces its line, commented or not; a bare name comments its line out; an empty line becomes
+# `#`; an `export` line is not a variable; leading blanks are kept.
+file: conf
+|   LC_PAPER=C
+|
+| #LANG=POSIX
+| export LC_TIME=C
+| LC_NAME=C
+arg: --locale-file
+arg: @ROOT@/conf
+arg: LANG=C
+arg: LC_PAPER

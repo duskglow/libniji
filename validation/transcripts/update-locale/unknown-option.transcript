@@ -1,0 +1,9 @@
+name: update-locale reports an unknown option and goes on
+clause: s31_14_c_2
+command: update-locale
+file: conf
+| LANG=C
+arg: --bogus
+arg: --locale-file
+arg: @ROOT@/conf
+arg: LC_TIME=C

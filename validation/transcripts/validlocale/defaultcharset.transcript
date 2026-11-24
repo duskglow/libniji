@@ -1,0 +1,5 @@
+name: validlocale takes the suggested charset from DEFAULTCHARSET
+clause: s31_14_c_2
+command: validlocale
+env: DEFAULTCHARSET=UTF-8
+arg: xx_XX

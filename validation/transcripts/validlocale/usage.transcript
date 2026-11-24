@@ -1,0 +1,3 @@
+name: validlocale without an operand prints its usage
+clause: s31_14_c_2
+command: validlocale

@@ -1,0 +1,4 @@
+name: validlocale on a locale no system has suggests its locale.gen line with the default charset
+clause: s31_14_c_2
+command: validlocale
+arg: xx_XX
