@@ -3,3 +3,4 @@ hfb-xpg-basename-undeclared | headers/reserved.tsv | lit:__xpg_basename	emit	 ==
 hfb-stack-min-constant-gnu | headers/pthread.h.in | lit:#  define PTHREAD_STACK_MIN __sysconf (@@value(_SC_THREAD_STACK_MIN)) ==> #  define PTHREAD_STACK_MIN @@value(PTHREAD_STACK_MIN) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL form PTHREAD_STACK_MIN <pthread.h> (gnu|dynstack|cxx17)
 hfb-vlimit-float | headers/sys/vlimit.h.in | lit:@@if INFINITY ==> #if 0 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL form INFINITY <sys/vlimit.h>
 hfb-nouser-kernel | headers/sys/mount.h.in | lit:@@if MS_NOUSER ==> #if 0 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL form MS_NOUSER <sys/mount.h>
+# cargo xtask plants results (job headers-form-breaks-plants, keke, head d888fb901): 4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT
