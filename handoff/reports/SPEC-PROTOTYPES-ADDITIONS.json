@@ -1,0 +1,48 @@
+{
+ "task": "SPEC-PROTOTYPES-ADDITIONS",
+ "model": "opus",
+ "tokens": null,
+ "result": "prototypes.tsv's rows beyond the reference (sched_getattr/sched_setattr, D-24.12) moved to spec/abi/prototypes-additions.tsv, merged by abi_extract.py with a reference digest, checked by cargo xtask abi-prototypes (in static); one extractor run reproduces the table byte for byte",
+ "branch": "task/spec-prototypes-additions",
+ "head": "32a1e8af9",
+ "gate": {
+  "affected": "7 suites ok, 678 passed / 0 failed (direct tier)",
+  "peak": "3.0G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "layouts.tsv is not a simple additions case: 2 reference rows were renamed by hand (Elf32/64_Phdr __p_type -> p_type), 13 reference rows are missing (_fpstate, _libc_fpstate, __sigset_t, La_x86_64_regs members), and struct res_sym sits in a different place; a fresh run differs by 25 lines. Listed, not touched; it needs a correction mechanism, not an additions file",
+  "constants.tsv: 445 diff lines on a fresh run (ERRATA E10, #6187), out of scope, not touched",
+  "a fresh native run reproduces versions.tsv, initializers.tsv, enumerators.tsv, empty-versions.tsv and chk-prototypes.tsv byte for byte; the aarch64 tables were not rerun (that needs the arm64 sysroot)",
+  "--prototypes-missing used to edit the committed table in place as a second step; the full run and --prototypes-only now include those rows (gets, bsd_signal), and the flag is an alias",
+  "SUPERSEDED for the record: spec-prototypes-additions-fresh2 (the reproduction evidence: the extractor at this head's code wrote the committed prototypes.tsv and prototypes.sha256; it ran before they were committed) and spec-prototypes-additions-lint1 (clippy and xtask unit tests before the generated files were committed; clippy and static were rerun on the final head)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "a regeneration of prototypes.tsv no longer drops the sched_getattr/sched_setattr prototypes (or gets/bsd_signal after a full run)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "static check abi-prototypes plus 8 unit tests; plants added",
+   "before": 0,
+   "after": 11,
+   "unit": "plants (all caught)",
+   "measured": true
+  }
+ ],
+ "improvement": "the extractor writes some spec/abi tables in several partial steps (--prototypes-missing, --layouts-only splices); every table that has hand-edited or spliced rows needs a one-run reproduction check like this one before the next table drifts",
+ "next_step": "land; possible follow-ups: a correction mechanism for layouts.tsv (p_type respelling, 13 omitted rows) and an aarch64 rerun for exports-diff-aarch64.tsv",
+ "report_file": "handoff/SPEC-PROTOTYPES-ADDITIONS.md",
+ "jobs": [
+  "spec-prototypes-additions-gate1",
+  "spec-prototypes-additions-plants1",
+  "spec-prototypes-additions-static1"
+ ]
+}

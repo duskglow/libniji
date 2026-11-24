@@ -47,7 +47,7 @@ fn key(row: &str) -> String {
     row.split('\t').take(3).collect::<Vec<_>>().join("\t")
 }
 
-fn is_decision_id(s: &str) -> bool {
+pub(crate) fn is_decision_id(s: &str) -> bool {
     let Some(rest) = s.strip_prefix("D-") else { return false };
     let Some((sec, n)) = rest.split_once('.') else { return false };
     !sec.is_empty() && sec.bytes().all(|b| b.is_ascii_digit() || b.is_ascii_uppercase()) && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
