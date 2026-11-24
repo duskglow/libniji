@@ -36,6 +36,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FLAVOURS = ("both", "coexist", "system")
@@ -279,6 +280,12 @@ def control(flavour, pkg, version, abi, maint, size, provides):
     lines += ["%s: %s" % (k, expand(fs[k], subst)) for k in ORDER if k in fs]
     with open(os.path.join(HERE, "description", pkg), encoding="utf-8") as f:
         desc = expand(f.read(), subst)
+    # An expanded placeholder ($programs) can make a line longer than lintian's 80 columns
+    # (extended-description-line-too-long): rewrap such a line, each new line one space in.
+    desc = "\n".join(
+        l if len(l) <= 80 else "\n".join(textwrap.wrap(l, 79, initial_indent="", subsequent_indent=" ",
+                                                       break_long_words=False, break_on_hyphens=False))
+        for l in desc.split("\n"))
     return "\n".join(lines) + "\nDescription: " + desc
 
 
