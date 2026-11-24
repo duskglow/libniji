@@ -1,0 +1,8 @@
+# AIO-ONE-REFERENCE plants: a difference planted in one configuration's libniji run (an extra
+# stdout line from the seccomp wrapper, only for that configuration's filter) must fail the one
+# test, name that configuration (tag, engine, cache mode) and only it ("1 of 4"), so the other
+# configurations were still compared after it. The third plant breaks the per-configuration
+# check of the recorded differences: every configuration must fail, all four named.
+enosys-only | crates/core/tests/oracle/aio_noring.c | lit:execvp(argv[2], argv + 2); ==> if (strcmp(argv[1], "ENOSYS") == 0) { puts("planted"); fflush(stdout); } execvp(argv[2], argv + 2); | cargo test -p niji --test aio_products | msg:1 of 4 configurations failed: enosys-off \(workers \(io_uring_setup refused with ENOSYS\); name-service cache off\)
+allow-only | crates/core/tests/oracle/aio_noring.c | lit:execvp(argv[2], argv + 2); ==> if (strcmp(argv[1], "ALLOW") == 0) { puts("planted"); fflush(stdout); } execvp(argv[2], argv + 2); | cargo test -p niji --test aio_products | msg:1 of 4 configurations failed: allow-off \(workers \(a seccomp filter allowing every system call, D-11.11\); name-service cache off\)
+known-not-marked | crates/core/tests/aio_products.rs | lit:seen[i] = true; ==> | cargo test -p niji --test aio_products | msg:4 of 4 configurations failed: uring-off \(io_uring; name-service cache off\), eperm-off .*, enosys-off .*, allow-off

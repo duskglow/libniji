@@ -1,0 +1,20 @@
+{"task": "AIO-ONE-REFERENCE", "model": "opus", "tokens": null,
+ "result": "aio_products is one test: build once, reference once (55% of each old test), four libniji configurations compared in turn, each failure named; 204.0 -> 105.6 test-s",
+ "branch": "task/aio-one-reference", "head": "c88bb26e7",
+ "gate": {"affected": "2 suites, 10 passed / 0 failed (direct tier, --base origin/next)", "peak": "1.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Premise moved: NSCACHE-MODE-SCOPE had already cut six variants to four (204.0 test-s in CI gate 9139a21d9, not 286).",
+   "Split, one variant, Skylake-SP host, load ~13: builds 0.72 s, reference 25.3 s (55%), libniji 19.7 s (43%).",
+   "Not done: running the four libniji configurations at the same time inside the test (~26 s wall instead of ~106 s); a load-profile choice, not measured."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "aio_products pass-1 test-s (4 tests in CI gate 9139a21d9 -> one test on the role)", "before": 204.0, "after": 105.6, "unit": "test-s", "measured": true},
+   {"kind": "coverage", "what": "plants added (one configuration's difference named; per-configuration recorded-difference check)", "before": 0, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "The audit counted variants before NSCACHE-MODE-SCOPE landed; briefs drawn from one audit could carry a 'depends on/overlaps' line so a saving is not counted twice.",
+ "next_step": "Confirm the saving from the first CI gates after landing (aio_equals_the_reference PASS line vs 204.0 test-s).",
+ "report_file": "handoff/AIO-ONE-REFERENCE.md",
+ "jobs": ["aio-one-reference-gate", "aio-one-reference-plants"]}
