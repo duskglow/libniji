@@ -34,6 +34,11 @@ pub trait Host {
     fn lock(&mut self, dir: &[u8]) -> core::result::Result<(), i32>;
     /// The description of `errno` (`strerror`'s text).
     fn error_text(&self, errno: i32) -> &'static [u8];
+    /// The value of the environment variable `I18NPATH`, when set: the directories searched
+    /// for `-i`, `-f` and `copy` names after the working directory (spec §31.8).
+    fn i18npath(&self) -> Option<&[u8]> {
+        None
+    }
 }
 
 /// What a run printed and its exit status.
@@ -381,19 +386,52 @@ impl Files for Inputs<'_> {
     fn read(&mut self, kind: Kind, name: &[u8]) -> crate::Result<TryVec<u8>> {
         let missing = |e: i32| if e == ENOMEM { Error::from(niji::error::Errno::ENOMEM) } else { Error::missing("an input file cannot be read") };
         let has_slash = name.contains(&b'/');
-        match kind {
-            Kind::Locale if has_slash => self.read_path(kind, &[name]).map_err(missing),
-            Kind::Locale => self.read_path(kind, &[LOCALES, b"/", name]).map_err(missing),
-            Kind::Charmap if has_slash => self.read_path(kind, &[name]).map_err(missing),
-            Kind::Charmap => match self.read_path(kind, &[CHARMAPS, b"/", name]) {
-                Ok(t) => Ok(t),
-                Err(first) => {
-                    let gz = self.read_path(kind, &[CHARMAPS, b"/", name, b".gz"]).map_err(|_| missing(first))?;
-                    self.failed = None;
-                    niji::charmap::inflate::gunzip(&gz, MAX_INPUT).map_err(|_| Error::syntax(0, "the compressed charmap is damaged"))
-                }
-            },
+        // An absolute name, or a charmap name with a slash, is the file's path (localedef(1)).
+        if name.first() == Some(&b'/') || (kind == Kind::Charmap && has_slash) {
+            return self.read_path(kind, &[name]).map_err(missing);
         }
+        // The search (spec §31.8): the name from the working directory, then for each
+        // non-empty `I18NPATH` entry `<entry>/locales/<name>` (`charmaps/` for a charmap) and
+        // `<entry>/<name>`, then the default directory (only for a name without a slash).
+        // In I18NPATH and the default directory a charmap may also be `<name>.gz`.
+        let (sub, default): (&[u8], &[u8]) = match kind {
+            Kind::Locale => (b"/locales/", LOCALES),
+            Kind::Charmap => (b"/charmaps/", CHARMAPS),
+        };
+        let first = match self.read_path(kind, &[name]) {
+            Ok(t) => return Ok(t),
+            Err(e) => missing(e),
+        };
+        if first.kind == ErrorKind::NoMemory {
+            return Err(first);
+        }
+        let mut dirs: TryVec<TryVec<u8>> = TryVec::new();
+        if let Some(path) = self.host.i18npath() {
+            for entry in path.split(|&c| c == b':').filter(|e| !e.is_empty()) {
+                dirs.push(join(&[entry, sub]).map_err(|_| missing(ENOMEM))?)?;
+                dirs.push(join(&[entry, b"/"]).map_err(|_| missing(ENOMEM))?)?;
+            }
+        }
+        if !has_slash {
+            dirs.push(join(&[default, b"/"]).map_err(|_| missing(ENOMEM))?)?;
+        }
+        for dir in dirs.iter() {
+            match self.read_path(kind, &[dir, name]) {
+                Ok(t) => {
+                    self.failed = None;
+                    return Ok(t);
+                }
+                Err(ENOMEM) => return Err(missing(ENOMEM)),
+                Err(_) if kind == Kind::Charmap => {
+                    if let Ok(gz) = self.read_path(kind, &[dir, name, b".gz"]) {
+                        self.failed = None;
+                        return niji::charmap::inflate::gunzip(&gz, MAX_INPUT).map_err(|_| Error::syntax(0, "the compressed charmap is damaged"));
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+        Err(first)
     }
 }
 
@@ -514,6 +552,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         Err(e) => {
             match (e.kind, inputs.failed) {
                 (ErrorKind::NoMemory, _) => return Err(NoMem),
+                // An empty LC_COLLATE (probed): no file even with -c, and status 1, not 4.
+                (ErrorKind::Refused, _) => {
+                    put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+                    put(&mut o.err, &[b"[error] too many errors; giving up\n"])?;
+                    o.status = 1;
+                    return Ok(());
+                }
                 (ErrorKind::Missing, Some((Kind::Locale, errno))) => {
                     put(&mut o.err, &[b"[error] cannot open a locale definition file the source names (copy or include): ", inputs.host.error_text(errno), b"\n"])?;
                 }
@@ -539,6 +584,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": "])?;
         put(&mut o.err, cat)?;
         put(&mut o.err, &[e.what.as_bytes(), b"\n"])?;
+        o.status = 1;
+    }
+    // A value written empty because a character is neither in the charmap nor transliterable
+    // (probed, LOCALEDEF-TRANSLIT): one line per value, also under --quiet; a warning (status 1,
+    // the locale written without -c).
+    for (no, n, kw) in out.unknown.iter() {
+        put(&mut o.err, &[shown, b":", decimal(*no, &mut line), b": ", NAMES.get(*n).copied().unwrap_or_default(), b": unknown character in field `", kw, b"'\n"])?;
         o.status = 1;
     }
     let category_errors = out.errors.len() > out.outside;

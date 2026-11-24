@@ -1,0 +1,23 @@
+{
+ "task": "LOCALE-SOURCES-GEN-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "NOT MINE (host change, #7846): merged origin/next cleanly into LOCALE-SOURCES-GEN's head; no code change; direct gate green (700 passed / 0 failed) and plants 7 CAUGHT + 1 EQUIVALENT on the merged head",
+ "branch": "task/locale-sources-gen-2",
+ "head": null,
+ "gate": {"affected": "8 suites, 700 passed / 0 failed (direct tier, shiki locale-sources-gen-2-gate, head 1121a870c)", "peak": "5.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Train 946's 7 locale reds are the CI host's locale archive change (coordinator #7846, LOCALE-PER-DIR-LOAD fixes it); not investigated here, as the coordinator directed",
+  "Leg-2 next steps remain open: compact code point order in localedef for the C source; CLDR collation tailorings; comparison over all 281 names"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "re-verification only: merge of origin/next, no code change; LOCALE-SOURCES-GEN's impact is in its own report", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "A coordinator note settling a train red by host change could ask the dispatcher to re-queue the branch directly; this run spent ~20 calls only to merge and re-gate unchanged code",
+ "next_step": "Land via the train once LOCALE-PER-DIR-LOAD is on next; then leg 3 per handoff/LOCALE-SOURCES-GEN.md (C source after a compact localedef code point order; CLDR tailorings)",
+ "report_file": "handoff/LOCALE-SOURCES-GEN.md",
+ "jobs": ["shiki:locale-sources-gen-2-gate", "shiki:locale-sources-gen-2-plants"]
+}

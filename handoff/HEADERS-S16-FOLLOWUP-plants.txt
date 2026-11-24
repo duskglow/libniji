@@ -1,0 +1,10 @@
+# HEADERS-S16-FOLLOWUP plants: `cargo xtask plants handoff/HEADERS-S16-FOLLOWUP-plants.txt --dir <RAM dir>`.
+# s16f-vector-unaligned: the generator drops the aligned-vector form; the rows check of the generator's own test
+#   (an aligned row of 32 bytes aligned to 16) must see alignment 32.
+s16f-vector-unaligned | xtask/src/headers/typedefs.rs | lit:let aligned = if r["align"] != r["size"] { ==> let aligned = if false && r["align"] != r["size"] { | cargo test -p xtask a_vector_typedef_is_emitted_as_a_vector | msg:a_vector_typedef_is_emitted_as_a_vector.*FAILED|panicked
+# s16f-vector-stale: the same mutation, caught on the shipped link.h by the generated-header check.
+s16f-vector-stale | xtask/src/headers/typedefs.rs | lit:let aligned = if r["align"] != r["size"] { ==> let aligned = if false && r["align"] != r["size"] { | cargo xtask headers-gen --check | msg:stale under libc-include
+# s16f-elf-not-must-fail: sys/elf.h leaves the must_fail list; its P5 unit then fails to compile.
+s16f-elf-not-must-fail | spec/tools/header_checks/s16.py | lit:must_fail = ["sys/elf.h"] ==> must_fail = [] | python3 -I spec/tools/header_check.py | msg:FAIL P5 sys/elf.h
+# s16f-elf-error-text: the #error no longer says "is not provided"; the must-fail unit must reject that failure.
+s16f-elf-error-text | headers/sys/elf.h.in | lit:is not provided: it declares nothing ==> declares nothing | cargo xtask headers-gen && python3 -I spec/tools/header_check.py | msg:FAIL P5 sys/elf.h must fail

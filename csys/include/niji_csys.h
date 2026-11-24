@@ -17,6 +17,7 @@
 
 /* Phase 0: proves the layer builds, links and is reachable from Rust. */
 uint32_t niji_csys_abi_version(void);
+void niji_csys_compat_ctype_store(const uintptr_t at[6], const uintptr_t words[6]);
 
 /* Class machine (src/machine, assembly; owner decisions: approved set plus OD-C1). */
 uintptr_t niji_machine_tp(void);

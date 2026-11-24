@@ -241,13 +241,13 @@ pub extern "C" fn fpathconf(fd: c_int, name: c_int) -> c_long {
 export! { "GLIBC_2.2.5";
 pub extern "C" fn confstr(name: c_int, buf: *mut c_char, len: size_t) -> size_t {
     // UNSAFE(slice) SAFETY: buf is NULL or holds len bytes (§24.4).
-    ret::size0(unsafe { conv::opt_buf_mut(buf, len) }.and_then(|b| sys_compat::confstr(name, b.unwrap_or_default())))
+    ret::size0(unsafe { conv::opt_buf_mut(buf, len) }.and_then(|b| sys_compat::confstr_into(name, b.unwrap_or_default())))
 }}
 
 export! { "GLIBC_2.4";
 pub extern "C" fn __confstr_chk(name: c_int, buf: *mut c_char, len: size_t, buflen: size_t) -> size_t {
     // UNSAFE(slice) SAFETY: as confstr, after the fortify check.
-    ret::size0(unsafe { conv::opt_buf_mut(buf, conv::chk(len, buflen)) }.and_then(|b| sys_compat::confstr(name, b.unwrap_or_default())))
+    ret::size0(unsafe { conv::opt_buf_mut(buf, conv::chk(len, buflen)) }.and_then(|b| sys_compat::confstr_into(name, b.unwrap_or_default())))
 }}
 
 export! { "GLIBC_2.2.5";

@@ -1,0 +1,11 @@
+id = "D-17.10"
+section = "s17"
+spec = "§17.5, §17.5a"
+ann = "ARB"
+status = "active"
+amends = ["D-17.8", "D-17.9"]
+story = "LIMITS-CONFIG-SMALL"
+date = "2026-11-23"
+body = '''
+**`getpass` has no default bound; `niji_getpass_set_limit` stays as an opt-in bound** (the choice D-17.9 left to the story that removes the cap; recommended to the owner in LIMITS-CONFIG-SMALL's hand-back). The line grows with use, memory permitting. `NIJI_GETPASS_DEFAULT_LIMIT` is 0, which means no bound. `niji_getpass_set_limit(0)` still means "the default", which is now no bound, and the call returns 0 when no bound was in force, so saving and restoring the previous value round-trips. A process that sets a bound keeps D-17.8's behaviour: a longer line is read to its end, discarded, zeroed, and fails with `EOVERFLOW`. A line that memory cannot hold is handled the same way and fails with `ENOMEM`, so the rest of a password is never left unread on the input. Keeping the function costs one export in the still-open `NIJI_NATIVE_1`; removing it would break programs that already call it. Tests: `sym_getpass_bound` (a 4 MiB line whole on standard input, `ENOMEM` under an address-space limit, the set bound on a pipe and on a terminal) and `getpass_set_limit_follows_the_conventions`.
+'''

@@ -1,0 +1,54 @@
+{
+ "task": "HEADERS-TABLES-NET",
+ "model": "opus",
+ "tokens": null,
+ "result": "slice 13 network headers gain 490 probed macros, 25 structs (+icmp_ra_addr layout), arpa/ftp.h, arpa/telnet.h, net/if_slip.h, net/ppp-comp.h rows; two generator fixes (packed nested aggregates, bit-field byte order in abi-gen)",
+ "branch": "task/headers-tables-net",
+ "head": "afe915972",
+ "gate": {
+  "affected": "affected: ok (htn-gate1 on keke: every direct suite ok, conformance 97 programs, fuzz-check, static)",
+  "peak": "12G (oom_kill=0)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "abi_extract.py --layouts-only does not reproduce the committed layouts.tsv outside the new types (_fpstate, _libc_fpstate, __sigset_t, La_x86_64_regs members, struct res_sym order, hand-respelled p_type); left unchanged",
+  "function-like and member-access macros of these headers, ICMP_TSLEN and six SIOC* names of net/if_slip.h need template definitions: follow-up story",
+  "99 of 598 spec candidate macros and 4 of 30 tags are not defined by the reference (handoff/HEADERS-TABLES-NET.md)",
+  "header_check P1 and appendix_c_layouts cannot see the alignment of a nested member: an over-packing mutant of the new rule survived (htn-plants1), marked equivalent with that reason; htn-plants2: 6 CAUGHT, 1 EQUIVALENT, 0 SURVIVED"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "spec/abi rows added (visibility 617, macros 490, constants 490, typedefs 25, layouts 275)",
+   "before": 0,
+   "after": 1897,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "generated headers define the macros and structs of 11 slice 13 network headers (header_check 0 failed of 16348)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the generator changes and table cross-check",
+   "before": 0,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "type_probe.py could flag visible-but-valueless names itself (it prints only counts); a --report-missing list would have saved a diff step",
+ "next_step": "follow-up story for template definitions of the function-like/member macros, ICMP_TSLEN and the if_slip SIOC* names",
+ "report_file": "handoff/HEADERS-TABLES-NET.md",
+ "jobs": [
+  "keke:htn-gate1",
+  "keke:htn-plants2"
+ ]
+}

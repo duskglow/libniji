@@ -4111,4 +4111,48 @@ niji_compat___ctype_tolower_GLIBC_2_2_5:
 niji_compat___ctype_toupper_GLIBC_2_2_5:
 	.quad .Lniji_compat_ctype_toupper+512
 	.symver niji_compat___ctype_toupper_GLIBC_2_2_5, __ctype_toupper@GLIBC_2.2.5
+	.section .text.niji_compat_ctype_store,"ax",@progbits
+	.globl niji_compat_ctype_store
+	.hidden niji_compat_ctype_store
+	.type niji_compat_ctype_store, @function
+	.p2align 4
+niji_compat_ctype_store:
+	movq 0(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_0
+	movq 0(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_0:
+	movq 8(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_1
+	movq 8(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_1:
+	movq 16(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_2
+	movq 16(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_2:
+	movq 24(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_3
+	movq 24(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_3:
+	movq 32(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_4
+	movq 32(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_4:
+	movq 40(%rdi), %rcx
+	testq %rcx, %rcx
+	jz .Lniji_compat_ctype_store_5
+	movq 40(%rsi), %rax
+	movq %rax, (%rcx)
+.Lniji_compat_ctype_store_5:
+	ret
+	.size niji_compat_ctype_store, .-niji_compat_ctype_store
 	.section .note.GNU-stack,"",@progbits

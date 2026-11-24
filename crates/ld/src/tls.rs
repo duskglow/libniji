@@ -16,12 +16,39 @@
 use crate::arch::{Arch, TlsVariant};
 use crate::elf::ProgramHeader;
 
-/// The static TLS surplus (R14-4): 64 KiB of address space after the initial modules' blocks, for
-/// objects loaded later that need static TLS. Anonymous memory: no page is touched until used.
-pub const SURPLUS: u64 = 64 * 1024;
+/// The fixed part of the static TLS surplus (D-27.94): the surplus is this plus the
+/// `glibc.rtld.optional_static_tls` value, as on the reference (black-box probe
+/// `results/tls-surplus/`).
+pub const SURPLUS_FIXED: u64 = 1200;
+
+/// The `glibc.rtld.optional_static_tls` value when `GLIBC_TUNABLES` does not name it (the
+/// reference's `--list-tunables` default, 0x200).
+pub const OPTIONAL_STATIC_TLS: u64 = 512;
+
+/// The static TLS surplus by default (R14-4, D-27.94): 1712 bytes after the initial modules'
+/// blocks, for objects loaded later that need static TLS (`DF_STATIC_TLS`, initial-exec). Objects
+/// without that flag take none: their blocks are made per thread on first access (DL-19).
+pub const SURPLUS: u64 = SURPLUS_FIXED + OPTIONAL_STATIC_TLS;
 
 /// The dtv words before the first module slot (generation, slot count).
 pub const DTV_HEADER: u64 = 2;
+
+/// [`Placed::tp_offset`] of a module that has no place in the static area (DL-19 `DL-TLS-DLOPEN`,
+/// D-27.39): a `dlopen`ed object without `DF_STATIC_TLS`, whose block each thread gets on demand at
+/// its first access. No static block lies at this offset (blocks are below the thread pointer).
+pub const NO_STATIC: i64 = i64::MAX;
+
+/// The module table's offset word for a block placed per thread on demand (DL-19): `DYNAMIC` with
+/// the block's alignment in the low bits. A static offset is never positive, so bits 63..62 tell
+/// the two apart ([`dynamic_align`]).
+pub const DYNAMIC: u64 = 1 << 62;
+
+/// The alignment a module table offset word asks of an on-demand block ([`DYNAMIC`]), or `None`
+/// for a static offset.
+#[must_use]
+pub fn dynamic_align(word: u64) -> Option<u64> {
+    (word >> 62 == 1).then_some((word & !DYNAMIC).max(1))
+}
 
 /// One module's `PT_TLS` segment (link-time values).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

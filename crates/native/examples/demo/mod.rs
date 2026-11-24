@@ -262,11 +262,11 @@ fn aio_engine() -> Result<String, String> {
 
 /// `getpass`'s bound (`niji_getpass_set_limit`): the default, a new bound, the default again.
 fn pass_bound() -> Result<String, String> {
-    check(getpass::set_limit(4096) == Ok(getpass::DEFAULT_LIMIT), "the default bound was not in force")?;
+    check(getpass::set_limit(4096) == Ok(getpass::DEFAULT_LIMIT), "the default (no bound) was not in force")?;
     check(getpass::set_limit(0) == Ok(4096), "the new bound was not in force")?;
     check(getpass::set_limit(0) == Ok(getpass::DEFAULT_LIMIT), "0 did not restore the default")?;
     check(getpass::set_limit(usize::MAX) == Err(Errno::EINVAL), "a bound above isize::MAX was accepted")?;
-    Ok(format!("default {} bytes; set to 4096 and back", getpass::DEFAULT_LIMIT))
+    Ok(String::from("default: no bound; set to 4096 and back"))
 }
 
 /// The steps of both examples.

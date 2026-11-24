@@ -49,7 +49,8 @@ pub fn key(name: &str) -> String {
     s
 }
 
-fn strip_llvm(s: &str) -> String {
+/// `s` without ThinLTO's `.llvm.<digits>` suffixes; a `.llvm.` not followed by a digit stays.
+pub(crate) fn strip_llvm(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(i) = rest.find(".llvm.") {

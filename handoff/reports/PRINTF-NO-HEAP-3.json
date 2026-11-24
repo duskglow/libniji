@@ -1,0 +1,23 @@
+{"task": "PRINTF-NO-HEAP-3", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: HOST-CHANGE: printf_no_heap.rs folded into s12_stdio_symbols (one test binary fewer) with a registered-conversion case that now catches the planned-path plant; plants 3/3; gate-4 and hot-text-4 red only through mei's #7846 (no locale archive), as in leg 3; every printf row at or below base (cbench-3, printf code unchanged since)",
+ "branch": "task/printf-no-heap-3", "head": "eb197a9be",
+ "gate": {"affected": "11863 passed / 12 failed (the six #7846 locale-dependent tests in both passes: catalogs_products, locale_data x2, locale_products, s7_2_f_0, printf_corpus_products)", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "mei lost its locale archive (locales-all, 2026-11-23 06:32Z, #7846; flag #7860): hot_text and locale tests assume one", "recommendation": "restore the archive on the build hosts (or rule their locale set), then rerun hot-text and cargo xtask test on eb197a9be"},
+  {"item": "layout tracer never records niji::locale::name::candidates::<Data, in_dir>, run by tool/locale when there is no archive; its placement is chance", "recommendation": "layout story: trace with the measured modes' locale source or key start-up generic instances"},
+  {"item": "LOCPATH naming a directory without the locale: the reference loads it from /usr/lib/locale/<name>/, libniji returns NULL (ENOENT)", "recommendation": "story to settle the spec and match (probe mei ~/work/printf-no-heap-3/loc.c)"},
+  {"item": "layout planner head-bin tail (leg 1)", "recommendation": "layout story: end the head bin with a section every mode runs, or keep measured-phase sections out of it"}],
+ "informational": ["leg 3's printf-no-heap-3-xtask-test-3 ended rc 124 under kill-label, but its inner cargo xtask test (parent 1) kept running in role s2 until leg 4 ended it with kill-mine s2 --kill"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "snprintf_f_large (%f of 1e300) per call vs base", "before": 18478.1, "after": 17813.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_s_path (bare %s) per call vs base", "before": 229.2, "after": 201.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_chk_ls_nlink per call vs base", "before": 761.5, "after": 698.6, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fprintf_d per call vs base", "before": 633.7, "after": 630.5, "unit": "instr/call", "measured": true},
+  {"kind": "coverage", "what": "test binaries in crates/boundary/tests (printf_no_heap folded into s12_stdio_symbols)", "before": 1, "after": 0, "unit": "separate no-heap test binaries", "measured": true},
+  {"kind": "coverage", "what": "plant nh3-planned-skips-hooks caught by a Rust test (no_heap::registered_conversion_is_written_by_its_handler), before only by conformance s12_registry; 3/3 plants caught", "before": null, "after": 3, "unit": "plants", "measured": true}],
+ "improvement": "kill-label ended the jobrun row (rc 124) but not the job's inner command once it held its slot; it ran on as an orphan of PID 1 in the role and blocked the next sync: kill the job's whole scope or cgroup",
+ "next_step": "coordinator: restore mei's locale archive (#7846) or rule the build hosts' locale set, then rerun gate, hot-text and cargo xtask test on eb197a9be; printf-no-heap-3-xtask-test-4 was still running at hand-back",
+ "report_file": "handoff/PRINTF-NO-HEAP-3.md",
+ "jobs": ["printf-no-heap-3-lint-4", "printf-no-heap-3-plants-4", "printf-no-heap-3-gate-4", "printf-no-heap-3-hot-text-4", "printf-no-heap-3-xtask-test-4"]}

@@ -72,9 +72,55 @@ pub struct Ctype {
     outdigits: Option<TryVec<u32>>,
     translit: TryVec<Translit>,
     default_missing: Option<TryVec<u32>>,
+    /// For each character with a one-character entry, the entry a value of another category uses
+    /// when the charmap lacks the character (see [`Pick`]).
+    pick: BTreeMap<u32, usize>,
+}
+
+/// The compile-time choice among a file's transliteration entries, probed (LOCALEDEF-TRANSLIT):
+/// the file's own entries first, the later of two for one character winning, then its
+/// `include`s in order, the first that has the character winning, each resolved the same way.
+/// The runtime table ([`write_translit`]) keeps its own order; only a one-character from-string
+/// is looked up (the reference does not accept a longer one in this form).
+#[derive(Default)]
+struct Pick {
+    own: BTreeMap<u32, usize>,
+    incs: TryVec<BTreeMap<u32, usize>>,
+}
+
+impl Pick {
+    fn finish(self) -> BTreeMap<u32, usize> {
+        let mut m = self.own;
+        for inc in self.incs.into_inner() {
+            for (k, v) in inc {
+                m.entry(k).or_insert(v);
+            }
+        }
+        m
+    }
 }
 
 impl Ctype {
+    /// Append to `out` the bytes for `ch`, a character the charmap `cs` lacks, through the entry
+    /// [`Pick`] chose: its first alternative that is not empty and that `cs` encodes whole (an
+    /// alternative is not transliterated again; `default_missing` is not used here). `false`
+    /// (and `out` unchanged): no such alternative. Probed (LOCALEDEF-TRANSLIT).
+    pub fn transliterate(&self, cs: &Charset, ch: u32, out: &mut TryVec<u8>) -> Result<bool> {
+        let Some(e) = self.pick.get(&ch).and_then(|&i| self.translit.get(i)) else { return Ok(false) };
+        let mut one = TryVec::new();
+        'alts: for alt in e.to.iter().filter(|a| !a.is_empty()) {
+            one.clear();
+            for &c in alt.iter() {
+                if !cs.encode(c, &mut one)? {
+                    continue 'alts;
+                }
+            }
+            out.extend_from_slice(&one)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     fn class_index(&mut self, name: &[u8]) -> Result<usize> {
         if let Some(i) = self.classes.iter().position(|(n, _)| n.as_slice() == name) {
             return Ok(i);
@@ -94,7 +140,8 @@ impl Ctype {
 
 /// Parse the statements of `LC_CTYPE`, loading `include`d transliteration files through `files`.
 pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
-    let mut c = Ctype { classes: TryVec::new(), maps: TryVec::new(), outdigits: None, translit: TryVec::new(), default_missing: None };
+    let mut c = Ctype { classes: TryVec::new(), maps: TryVec::new(), outdigits: None, translit: TryVec::new(), default_missing: None, pick: BTreeMap::new() };
+    let mut pick = Pick::default();
     for name in STANDARD_CLASSES {
         c.class_index(name)?;
     }
@@ -110,7 +157,7 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
             if kw == b"translit_end" {
                 in_translit = false;
             } else {
-                translit_stmt(&mut c, s, files, 0)?;
+                translit_stmt(&mut c, s, files, 0, &mut pick)?;
             }
             continue;
         }
@@ -169,6 +216,7 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
     both.union(&c.classes[alpha].1);
     both.union(&c.classes[digit].1);
     c.classes[alnum].1.union(&both);
+    c.pick = pick.finish();
     Ok(c)
 }
 
@@ -188,11 +236,16 @@ fn for_each_char(toks: &[Tok], no: u32, f: &mut dyn FnMut(u32) -> Result<()>) ->
         match &toks[i] {
             Tok::Semi => i += 1,
             Tok::Sym(a) => {
-                let a = lex::ucs_name(a).ok_or(Error::syntax(no, "unknown symbolic name"))?;
+                // A name the charmap does not define (left unresolved by `resolve_names`) is
+                // no character of this locale: skipped, alone or as a range's end (spec §31.8).
+                let a = lex::ucs_name(a);
                 let dots = toks.get(i + 1).and_then(Tok::word).is_some_and(|w| w == b".." || w == b"...");
                 if dots {
                     let Some(Tok::Sym(b)) = toks.get(i + 2) else { return Err(Error::syntax(no, "a range needs an end")) };
-                    let b = lex::ucs_name(b).ok_or(Error::syntax(no, "unknown symbolic name"))?;
+                    let (Some(a), Some(b)) = (a, lex::ucs_name(b)) else {
+                        i += 3;
+                        continue;
+                    };
                     if b < a {
                         return Err(Error::syntax(no, "a range ends before it starts"));
                     }
@@ -201,7 +254,9 @@ fn for_each_char(toks: &[Tok], no: u32, f: &mut dyn FnMut(u32) -> Result<()>) ->
                     }
                     i += 3;
                 } else {
-                    f(a)?;
+                    if let Some(a) = a {
+                        f(a)?;
+                    }
                     i += 1;
                 }
             }
@@ -233,9 +288,10 @@ fn add_pairs(map: &mut BTreeMap<u32, u32>, toks: &[Tok], no: u32) -> Result<()> 
         match (&toks[i], toks.get(i + 1), toks.get(i + 2), toks.get(i + 3), toks.get(i + 4)) {
             (Tok::Semi, ..) => i += 1,
             (Tok::Open, Some(Tok::Sym(a)), Some(Tok::Comma), Some(Tok::Sym(b)), Some(Tok::Close)) => {
-                let a = lex::ucs_name(a).ok_or(Error::syntax(no, "unknown symbolic name"))?;
-                let b = lex::ucs_name(b).ok_or(Error::syntax(no, "unknown symbolic name"))?;
-                map.insert(a, b);
+                // A pair naming a character the charmap does not define is skipped.
+                if let (Some(a), Some(b)) = (lex::ucs_name(a), lex::ucs_name(b)) {
+                    map.insert(a, b);
+                }
                 i += 5;
             }
             _ => return Err(Error::syntax(no, "a map entry is not (<a>,<b>)")),
@@ -254,7 +310,7 @@ fn side(t: &Tok, esc: u8, no: u32) -> Result<TryVec<u32>> {
     }
 }
 
-fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> Result<()> {
+fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32, pick: &mut Pick) -> Result<()> {
     match s.keyword() {
         b"include" => {
             let Some(Tok::Str(raw)) = s.args().first() else { return Err(Error::syntax(s.no, "include needs a file name")) };
@@ -266,14 +322,16 @@ fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> 
             let mut other = source::parse(&text, files)?;
             let stmts = other.cats[0].take().ok_or(Error::syntax(s.no, "an included file has no LC_CTYPE"))?;
             let mut inside = false;
+            let mut sub = Pick::default();
             for t in stmts.iter() {
                 match t.keyword() {
                     b"translit_start" => inside = true,
                     b"translit_end" => inside = false,
-                    _ if inside => translit_stmt(c, t, files, depth + 1)?,
+                    _ if inside => translit_stmt(c, t, files, depth + 1, &mut sub)?,
                     _ => {}
                 }
             }
+            pick.incs.push(sub.finish())?;
             Ok(())
         }
         b"default_missing" => {
@@ -297,6 +355,9 @@ fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> 
                     text.push(!matches!(t, Tok::Sym(_)))?;
                 }
             }
+            if let [one] = from.as_slice() {
+                pick.own.insert(*one, c.translit.len());
+            }
             c.translit.push(Translit { from, to, text })?;
             Ok(())
         }
@@ -308,8 +369,8 @@ const fn isbit(k: u32) -> u16 {
     if k < 8 { (1 << k) << 8 } else { (1 << k) >> 8 }
 }
 
-/// Write `LC_CTYPE`.
-pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
+/// Write `LC_CTYPE` (`defaults`: the built-in defaults of an undefined `LC_CTYPE`, D-31.24).
+pub fn write(c: &Ctype, cs: &Charset, defaults: bool) -> Result<TryVec<u8>> {
     let mut f = File::new();
     let upper = |cp: u32| c.maps[0].1.get(&cp).copied().unwrap_or(cp);
     let lower = |cp: u32| c.maps[1].1.get(&cp).copied().unwrap_or(cp);
@@ -386,10 +447,18 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     for d in 0..10u32 {
         f.string(&mb(cs, &[u32::from(b'0') + d])?)?;
     }
-    f.word(1)?; // 30 INDIGITS_WC_LEN
-    // 31..40: one wide character each, no terminator.
-    for d in 0..10u32 {
-        f.word(u32::from(b'0') + d)?;
+    if defaults {
+        // The defaults have no wide input digits: length 0, ten empty items (D-31.24).
+        f.word(0)?; // 30
+        for _ in 0..10 {
+            f.raw(true, TryVec::new())?;
+        }
+    } else {
+        f.word(1)?; // 30 INDIGITS_WC_LEN
+        // 31..40: one wide character each, no terminator.
+        for d in 0..10u32 {
+            f.word(u32::from(b'0') + d)?;
+        }
     }
     let out: [u32; 10] = core::array::from_fn(|d| c.outdigits.as_ref().and_then(|o| o.get(d).copied()).unwrap_or(u32::from(b'0') + u32::try_from(d).unwrap_or(0)));
     for &d in &out {

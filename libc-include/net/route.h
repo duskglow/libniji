@@ -10,6 +10,82 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_rtmsg
+#  define __NIJI_D_struct_in6_rtmsg 1
+struct in6_rtmsg {
+  struct in6_addr rtmsg_dst;
+  struct in6_addr rtmsg_src;
+  struct in6_addr rtmsg_gateway;
+  unsigned int rtmsg_type;
+  unsigned short rtmsg_dst_len;
+  unsigned short rtmsg_src_len;
+  unsigned int rtmsg_metric;
+  unsigned long rtmsg_info;
+  unsigned int rtmsg_flags;
+  int rtmsg_ifindex;
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_rtentry
+#  define __NIJI_D_struct_rtentry 1
+struct rtentry {
+  unsigned long rt_pad1;
+  struct sockaddr rt_dst;
+  struct sockaddr rt_gateway;
+  struct sockaddr rt_genmask;
+  unsigned short rt_flags;
+  short rt_pad2;
+  unsigned long rt_pad3;
+  unsigned char rt_tos;
+  unsigned char rt_class;
+  short rt_pad4[3];
+  short rt_metric;
+  char * rt_dev;
+  unsigned long rt_mtu;
+  unsigned long rt_window;
+  unsigned short rt_irtt;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -18,6 +94,122 @@ union pthread_attr_t {
   long __align;
 };
 typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
+# ifndef RTCF_DIRECTSRC
+#  define RTCF_DIRECTSRC 67108864
+# endif
+# ifndef RTCF_DOREDIRECT
+#  define RTCF_DOREDIRECT 16777216
+# endif
+# ifndef RTCF_MASQ
+#  define RTCF_MASQ 4194304
+# endif
+# ifndef RTCF_NAT
+#  define RTCF_NAT 8388608
+# endif
+# ifndef RTF_ADDRCLASSMASK
+#  define RTF_ADDRCLASSMASK 4160749568U
+# endif
+# ifndef RTF_ADDRCONF
+#  define RTF_ADDRCONF 262144
+# endif
+# ifndef RTF_ALLONLINK
+#  define RTF_ALLONLINK 131072
+# endif
+# ifndef RTF_BROADCAST
+#  define RTF_BROADCAST 268435456
+# endif
+# ifndef RTF_CACHE
+#  define RTF_CACHE 16777216
+# endif
+# ifndef RTF_DEFAULT
+#  define RTF_DEFAULT 65536
+# endif
+# ifndef RTF_DYNAMIC
+#  define RTF_DYNAMIC 16
+# endif
+# ifndef RTF_FLOW
+#  define RTF_FLOW 33554432
+# endif
+# ifndef RTF_GATEWAY
+#  define RTF_GATEWAY 2
+# endif
+# ifndef RTF_HOST
+#  define RTF_HOST 4
+# endif
+# ifndef RTF_INTERFACE
+#  define RTF_INTERFACE 1073741824
+# endif
+# ifndef RTF_IRTT
+#  define RTF_IRTT 256
+# endif
+# ifndef RTF_LINKRT
+#  define RTF_LINKRT 1048576
+# endif
+# ifndef RTF_LOCAL
+#  define RTF_LOCAL 2147483648U
+# endif
+# ifndef RTF_MODIFIED
+#  define RTF_MODIFIED 32
+# endif
+# ifndef RTF_MSS
+#  define RTF_MSS 64
+# endif
+# ifndef RTF_MTU
+#  define RTF_MTU 64
+# endif
+# ifndef RTF_MULTICAST
+#  define RTF_MULTICAST 536870912
+# endif
+# ifndef RTF_NAT
+#  define RTF_NAT 134217728
+# endif
+# ifndef RTF_NOFORWARD
+#  define RTF_NOFORWARD 4096
+# endif
+# ifndef RTF_NONEXTHOP
+#  define RTF_NONEXTHOP 2097152
+# endif
+# ifndef RTF_NOPMTUDISC
+#  define RTF_NOPMTUDISC 16384
+# endif
+# ifndef RTF_POLICY
+#  define RTF_POLICY 67108864
+# endif
+# ifndef RTF_REINSTATE
+#  define RTF_REINSTATE 8
+# endif
+# ifndef RTF_REJECT
+#  define RTF_REJECT 512
+# endif
+# ifndef RTF_STATIC
+#  define RTF_STATIC 1024
+# endif
+# ifndef RTF_THROW
+#  define RTF_THROW 8192
+# endif
+# ifndef RTF_UP
+#  define RTF_UP 1
+# endif
+# ifndef RTF_WINDOW
+#  define RTF_WINDOW 128
+# endif
+# ifndef RTF_XRESOLVE
+#  define RTF_XRESOLVE 2048
+# endif
+# ifndef RTMSG_DELDEVICE
+#  define RTMSG_DELDEVICE 18
+# endif
+# ifndef RTMSG_DELROUTE
+#  define RTMSG_DELROUTE 34
+# endif
+# ifndef RTMSG_NEWDEVICE
+#  define RTMSG_NEWDEVICE 17
+# endif
+# ifndef RTMSG_NEWROUTE
+#  define RTMSG_NEWROUTE 33
 # endif
 #endif
 

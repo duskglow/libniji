@@ -23,6 +23,8 @@ use crate::sys::CSys;
 /// the working directory), directories with `mkdirat`.
 struct Disk<'s> {
     fs: SysFs<'s, CSys>,
+    /// `I18NPATH`'s value, when the environment has it.
+    i18npath: Option<&'static [u8]>,
 }
 
 impl Host for Disk<'_> {
@@ -59,6 +61,10 @@ impl Host for Disk<'_> {
         // The descriptor stays open, and the lock held, until the program exits.
         CSys.flock(fd, LOCK_EX).map_err(|e| e.get())
     }
+    fn i18npath(&self) -> Option<&[u8]> {
+        self.i18npath
+    }
+
     fn error_text(&self, errno: i32) -> &'static [u8] {
         niji::diag::description(errno).map_or(&b"Unknown error"[..], |t| t.trim_end_matches('\0').as_bytes())
     }
@@ -88,7 +94,20 @@ pub extern "C" fn niji_localedef_start(sp: usize, ehdr: usize) -> ! {
         }
     }
     let rest = args.as_slice().get(1..).unwrap_or_default();
-    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description) };
+    // The environment follows argv's terminating null word; the last I18NPATH entry wins.
+    let mut i18npath = None;
+    let mut at = sp.wrapping_add(16).wrapping_add(argc.wrapping_mul(8));
+    loop {
+        let p = usize::try_from(stack_word(at)).unwrap_or(0);
+        if p == 0 {
+            break;
+        }
+        if let Some(v) = c_string(p).strip_prefix(b"I18NPATH=") {
+            i18npath = Some(v);
+        }
+        at = at.wrapping_add(8);
+    }
+    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath };
     let r = prog::run(rest, &mut disk);
     drop(disk);
     write_all(1, r.out.as_slice());

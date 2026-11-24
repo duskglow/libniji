@@ -141,7 +141,7 @@ impl Fx {
     }
 
     fn ctx(&self, conf: &str) -> Ctx<'_, CSys> {
-        Ctx { sys: &CSys, paths: &self.paths, config: Config::parse(conf.as_bytes()), multi: false, hconf: None, dns: None, locale: None, cache: None }
+        Ctx { sys: &CSys, pages: &niji_boundary::heap::KernelPages, paths: &self.paths, config: Config::parse(conf.as_bytes()), multi: false, hconf: None, dns: None, locale: None, cache: None }
     }
 }
 

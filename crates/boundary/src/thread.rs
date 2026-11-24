@@ -41,10 +41,10 @@ use crate::data::__libc_single_threaded as SINGLE_THREADED;
 
 static LIST: RawMutex = RawMutex::new();
 /// The newest listed descriptor (linked through `next`/`prev`).
-static HEAD: AtomicUsize = AtomicUsize::new(0);
+pub(crate) static HEAD: AtomicUsize = AtomicUsize::new(0);
 /// Threads running. In a process libniji started the initial thread counts, and the last one to
 /// exit ends the process with status 0 (§22.1).
-static LIVE: AtomicUsize = AtomicUsize::new(0);
+pub(crate) static LIVE: AtomicUsize = AtomicUsize::new(0);
 /// Whether the runtime started this process: a byte the cancellation-point entries read too
 /// (machine/points.S, D-X.58).
 use crate::ffi::niji_machine_owned as OWNED;
@@ -70,7 +70,7 @@ static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
 /// D-3.21).
 static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
-static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
+pub(crate) static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 /// Process-wide defaults (`pthread_setattr_default_np`): 0 means "not decided yet".
 pub(crate) static DEFAULT_STACK: AtomicUsize = AtomicUsize::new(0);
 /// The default guard size.
@@ -1410,7 +1410,17 @@ pub(crate) fn join(tp: usize, how: JoinWait<'_>) -> KResult<usize> {
         JoinWait::Try => {
             if b.tid.load(Acquire) == 0 { Ok(()) } else { Err(Errno::EBUSY) }
         }
-        JoinWait::Until(c, t) => wait_tid(b, Some((c, t)), true),
+        // A thread that has ended is joined whatever the deadline; one that still runs makes
+        // an invalid tv_nsec EINVAL, whatever tv_sec (§22.1; D-22.26).
+        JoinWait::Until(c, t) => {
+            if b.tid.load(Acquire) == 0 {
+                Ok(())
+            } else if !(0..1_000_000_000).contains(&t.nsec) {
+                Err(Errno::EINVAL)
+            } else {
+                wait_tid(b, Some((c, t)), true)
+            }
+        }
     };
     me.joining.store(0, Release);
     if let Err(e) = waited {

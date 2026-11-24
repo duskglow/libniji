@@ -1,0 +1,54 @@
+{
+ "task": "STARTUP-RELAY-EXEC-SHIKI",
+ "model": "opus",
+ "tokens": null,
+ "result": "hot_text_products' 9-of-10 127/99 on shiki was the rotating call-dir race (fixed on next by ad8438b75, after the 81bdd4b45 base); relay now names a failed exec and its errno; 10/10 green on shiki",
+ "branch": "task/startup-relay-exec-shiki",
+ "head": "d1ad284cf",
+ "gate": {
+  "affected": "36 passed / 0 failed",
+  "peak": "3.2G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Cause of #8228: call_dir's `% 10` slots (81bdd4b45); reinstated in a diagnostic copy on shiki it failed 5/5 runs (race in 4) with 127 'sh: exec: page_faults: not found', 127 'page_faults relay: execve ... errno 2', 99 'special device .../locale does not exist'; current next 10/10 green. shiki needs no host change.",
+  "Release step 127/99 on mei: the same mechanism gives exactly both exits and is the only known one; consistent, not proven there (mei measured at most 5 overlapping calls); removed on next by ad8438b75, and any recurrence now names its step and errno.",
+  "#8228's 'do not admit start-up stories to shiki' can be lifted: next has been free of the cause since ad8438b75."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "start-up check (hot_text_products) green on shiki for any branch based on next after ad8438b75: 10/10 runs",
+   "before": 1,
+   "after": 10,
+   "unit": "green runs of 10",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "the page_faults relay's failed exec (exit 127) now prints the path and errno instead of nothing",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (harness_relay_names_a_failed_exec_and_its_errno; errno naming case in harness_failed_run_reports_its_stderr) and plants added",
+   "before": 0,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A hot_text_products repeat on a base older than the latest harness fix spent a story's runs on an already-fixed race: a repeat/flake verdict should first check whether a later harness commit on next touches the failing path.",
+ "next_step": "Land (train = FULL gate); lift #8228's no-start-up-on-shiki advice.",
+ "report_file": "handoff/STARTUP-RELAY-EXEC-SHIKI.md",
+ "jobs": [
+  "shiki:startup-relay-exec-shiki-gate-1",
+  "shiki:startup-relay-exec-shiki-plants-2",
+  "shiki:startup-relay-exec-shiki-rep-2"
+ ]
+}

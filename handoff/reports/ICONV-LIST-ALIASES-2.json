@@ -1,0 +1,21 @@
+{"task": "ICONV-LIST-ALIASES-2", "model": "opus", "tokens": null,
+ "result": "iconv -l lists the charmaps' header names (code_set_name and alias lines, plain and gzip) through the shared in-binary inflater: 982 -> 1028 names, every listed name round-trips; test fix for sets without A",
+ "branch": "task/iconv-list-aliases-2", "head": "ea1b5ee87",
+ "gate": {"affected": "1837 passed / 0 failed (15 suites; shiki iconv-list-aliases-2-gate2)", "peak": "3.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libc iconv_open does not match a charmap's alias comment lines after loading that charmap, so iconv -l's check of BIG5-CP950 (BIG5's header alias) costs one header scan of the whole charmap directory (about 140 M of the +250 M instructions, from the profile split); a fresh `iconv -f BIG5-CP950` pays the same scan. Fix-forward: match a loaded charmap's header aliases before scanning.",
+   "Run 1 (ICONV-LIST-ALIASES) ended on an API 529 before writing a handoff; this run reconstructed the record from the branch's commits and its own measurements."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "iconv -l lists the 46 header names (aliases) of the installed charmaps that iconv_open accepts and that were missing, e.g. BIG5-CP950, ISO-IR-13, CYRILLIC-ASIAN", "before": 982, "after": 1028, "unit": "names listed", "measured": true},
+   {"kind": "cost", "what": "iconv -l instructions:u (233 gzip charmaps; fix-forward: libc alias match on loaded charmaps, table-driven header inflate)", "before": 1052960050, "after": 1302453716, "unit": "instructions", "measured": true},
+   {"kind": "size", "what": "iconv binary file size", "before": 78904, "after": 83856, "unit": "bytes", "measured": true},
+   {"kind": "coverage", "what": "tests: one new products test (private charmaps), every_name_iconv_lists_converts now round-trips a character; 8 plants", "before": null, "after": 8, "unit": "plants caught", "measured": true}
+ ],
+ "improvement": "A run that dies before writing its handoff leaves only commit bodies; writing the handoff skeleton right after the first commit would have saved this run its reconstruction.",
+ "next_step": "Land; optional fix-forward story for the libc alias match on loaded charmaps (iconv -l and iconv -f <alias> cost).",
+ "report_file": "handoff/ICONV-LIST-ALIASES.md",
+ "jobs": ["shiki:iconv-list-aliases-2-gate2", "shiki:iconv-list-aliases-2-plants2"]}
