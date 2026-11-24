@@ -1,3 +1,5 @@
 # LDSO-PROGRAM-MODE-SPACE plants (cargo xtask plants; the product tests rebuild target/niji).
 # The program `ld.so PROGRAM` maps goes back to the start's mapper: the aligned reservation's slack is kept again.
 program-slack-kept | crates/boundary/src/ld/image.rs | lit:map::map_planned(&mut ProgramMapper(StartMapper { fd }), &elf, &plan, head, page).ok() ==> map::map_planned(&mut StartMapper { fd }, &elf, &plan, head, page).ok() | cargo test -p niji-ld --test ldso_program_options ldso_program_mode_maps_no_more_than_an_exec_beyond_the_reference | msg:ldso_program_mode_maps_no_more_than_an_exec_beyond_the_reference.*FAILED|ld.so PROGRAM maps \d+ KiB more than an exec
+# cargo xtask plants results (1 plants: 1 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# program-slack-kept: CAUGHT, caught by ldso_program_options ldso_program_mode_maps_no_more_than_an_exec_beyond_the_reference

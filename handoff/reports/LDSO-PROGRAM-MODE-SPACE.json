@@ -1,0 +1,62 @@
+{
+ "task": "LDSO-PROGRAM-MODE-SPACE",
+ "model": "opus",
+ "tokens": null,
+ "result": "ld.so program mode trims the program's aligned-reservation slack: program mode now maps no more than an exec beyond the reference's own difference (0/+240/+8176 KiB at 4 KiB/64 KiB/2 MiB alignment, equal to the reference); Yohane's find premise does not reproduce on the Zen 1 host (page-aligned find)",
+ "branch": "task/ldso-program-mode-space",
+ "head": null,
+ "gate": {
+  "affected": "806 passed / 0 failed (11 suites)",
+  "peak": "2.1G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Start dependencies keep their aligned-reservation slack in both modes (D-27.92 / DYN-START-RING): a 2 MiB-aligned library keeps up to 2 MiB - 4 KiB reserved per object; not measured against the reference here.",
+  "The program's inter-segment gaps stay reserved in program mode (the reference does the same; the kernel's exec leaves them unmapped); trimming them for the program would give kernel parity, up to (segments-1) x (align - tail); not done.",
+  "Yohane's ~9 MiB find gap does not reproduce on the Zen 1 host: at 522ef9f30 libniji exec and ld.so PROGRAM both need 36704..36960 KiB (the rise vs 88c0518f6 is the 3-entry baseline falling with LD-START-MAPS-3, both modes alike); the coordinator asked Yohane for kernel version and maps at the peak."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "faults",
+   "what": "VmSize of a 2 MiB-aligned program run as ld.so PROGRAM, minus a normal exec",
+   "before": 10220,
+   "after": 8176,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "VmSize of a 64 KiB-aligned program run as ld.so PROGRAM, minus a normal exec",
+   "before": 300,
+   "after": 240,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "ld.so .text (ProgramMapper instances of map_planned/load; program mode only); the text segment crosses a page, so every process maps 4 KiB more of ld.so (VmSize at entry 7364 -> 7368 KiB)",
+   "before": 453991,
+   "after": 457575,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "same-run program-mode vs exec address-space test (both loaders, three alignments) and its plant",
+   "before": 0,
+   "after": 2,
+   "unit": "tests+plants",
+   "measured": true
+  }
+ ],
+ "improvement": "the start-up checks (cargo xtask test + full-profile so + hot_text_products) wait for the gate and then rebuild serially on the same role, adding ~40 min after a green gate; a tier that reuses the gate build products would shorten the tail",
+ "next_step": "land; if Yohane's kernel/maps show another source, a follow-up story on that",
+ "report_file": "handoff/LDSO-PROGRAM-MODE-SPACE.md",
+ "jobs": [
+  "keke:ldso-program-mode-space-gate",
+  "keke:ldso-program-mode-space-plants",
+  "keke:ldso-program-mode-space-startup"
+ ]
+}
