@@ -57,3 +57,55 @@ fn operator_spellings_and_refusals() {
         assert_eq!(eval(bad), Err(WordError::Syntax), "{bad}");
     }
 }
+
+#[test]
+fn precedence_conditionals_and_short_circuit() {
+    // Clauses: s14_10_c_1 (the evaluator, PATTERN-NESTING-3: operators wait on a stack by
+    // precedence; binary operators group to the left, `?:` to the right, the side not taken is
+    // parsed but not evaluated).
+    let cases: &[(&str, i64)] = &[
+        ("1+2*3", 7),
+        ("2*3+1", 7),
+        ("1-2-3", -4),
+        ("100/10/5", 2),
+        ("7-1*2-3", 2),
+        ("1+2<<1", 6),
+        ("1|2^3&4", 3),
+        ("2+3*4==14&&1", 1),
+        ("-2*3", -6),
+        ("!0+1", 2),
+        ("~1+1", -1),
+        ("-(1+2)*2", -6),
+        ("-x", -7),
+        ("1?0:1?2:3", 0),
+        ("0?1:0?2:3", 3),
+        ("1?0?4:5:6", 5),
+        ("1?2?3:4?5:6:7", 3),
+        ("1?2:3+4", 2),
+        ("0?2:3+4", 7),
+        ("1+1?5:6", 5),
+        ("(0?1:2)*3", 6),
+        ("0&&1/0", 0),
+        ("1||1/0", 1),
+        ("0?1/0:2", 2),
+        ("1?2:1/0", 2),
+        ("0&&1?1/0:4", 4),
+        ("0?(1?1/0:1/0):5", 5),
+        ("0&&(1/0+(2?1/0:3))", 0),
+        ("0&&9223372036854775807+1", 0),
+    ];
+    for &(text, v) in cases {
+        assert_eq!(eval(text), Ok(v), "{text}");
+    }
+    for bad in ["1&&1/0", "0||1/0", "0?1/0:1/0", "1&&9223372036854775807+1", "1?2", "1:2", "(1:2)", "1?2:", "()", ")", "(1?2:3", "1?(2:3)", "1+", "*1", "1 2"] {
+        assert_eq!(eval(bad), Err(WordError::Syntax), "{bad}");
+    }
+    // Deeper than the stack's inline part: parentheses and operators, nested conditionals.
+    let n = 40i64;
+    let text = (1..n).map(|k| format!("{k}-(")).collect::<String>() + &n.to_string() + &")".repeat(39);
+    let want = (1..n).rev().fold(n, |acc, k| k - acc);
+    assert_eq!(eval(&text), Ok(want), "{text}");
+    assert_eq!(eval(&("1?".repeat(40) + "7" + &":0".repeat(40))), Ok(7));
+    assert_eq!(eval(&("0?0:".repeat(40) + "7")), Ok(7));
+    assert_eq!(eval(&("1?0:".repeat(40) + "7")), Ok(0));
+}

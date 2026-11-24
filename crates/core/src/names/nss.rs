@@ -27,7 +27,8 @@
 //! keeps it and asks the next source, whose success is merged into it; after a merge, later
 //! failures are ignored and the merged result is returned (the manual).
 
-use crate::error::Errno;
+use crate::error::{Errno, Result};
+use crate::mem::TryVec;
 
 use super::is_space;
 
@@ -271,6 +272,9 @@ pub struct Step {
     pub on: [Action; 4],
 }
 
+/// The bytes of an encoded [`Step`] ([`Step::encode`]).
+pub const STEP_BYTES: usize = 5;
+
 impl Step {
     /// `service` with the default actions.
     pub const fn new(service: Service) -> Step {
@@ -281,28 +285,76 @@ impl Step {
     pub fn action(&self, status: Status) -> Action {
         self.on.get(status.index()).copied().unwrap_or(Action::Continue)
     }
+
+    /// The bytes of the step, for process-wide storage in atomics.
+    pub fn encode(&self) -> [u8; STEP_BYTES] {
+        let [a, b, c, d] = self.on.map(Action::code);
+        [self.service.code(), a, b, c, d]
+    }
+
+    /// The step [`Step::encode`] gave `bytes` (`None`: not such bytes).
+    pub fn decode(bytes: &[u8]) -> Option<Step> {
+        let on = [Action::from_code(*bytes.get(1)?)?, Action::from_code(*bytes.get(2)?)?, Action::from_code(*bytes.get(3)?)?, Action::from_code(*bytes.get(4)?)?];
+        Some(Step { service: Service::from_code(*bytes.first()?)?, on })
+    }
 }
 
-/// The most sources one database line may name (a line naming more does not parse).
-pub const MAX_STEPS: usize = 16;
-
-/// The bytes of an encoded [`Spec`] ([`Spec::encode`]).
-pub const SPEC_BYTES: usize = 1 + MAX_STEPS * 5;
+/// The sources a [`Spec`] holds without an allocation (a line naming more takes one: no limit
+/// but memory, CONFIG-TABLES-GROWTH).
+pub const INLINE_STEPS: usize = 16;
 
 /// A database's sources, in order.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub struct Spec {
-    steps: [Step; MAX_STEPS],
+    /// The sources while there are at most [`INLINE_STEPS`] (then `more` is empty).
+    inline: [Step; INLINE_STEPS],
     len: usize,
+    /// Every source, once there are more than [`INLINE_STEPS`] (then `inline` is unused).
+    more: TryVec<Step>,
 }
+
+impl PartialEq for Spec {
+    fn eq(&self, other: &Spec) -> bool {
+        self.steps() == other.steps()
+    }
+}
+
+impl Eq for Spec {}
 
 impl Spec {
     /// No source: every lookup is unavailable.
-    pub const EMPTY: Spec = Spec { steps: [Step::new(Service::Module); MAX_STEPS], len: 0 };
+    pub const EMPTY: Spec = Spec::fixed(&[]);
+
+    /// Sources from `names` with the default actions, for a constant (at most
+    /// [`INLINE_STEPS`]; any more are dropped).
+    // A `const fn` loop: `i` stays below both lengths.
+    #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+    const fn fixed(names: &[Service]) -> Spec {
+        let mut inline = [Step::new(Service::Module); INLINE_STEPS];
+        let mut i = 0;
+        while i < names.len() && i < INLINE_STEPS {
+            inline[i] = Step::new(names[i]);
+            i += 1;
+        }
+        Spec { inline, len: i, more: TryVec::new() }
+    }
 
     /// The sources.
     pub fn steps(&self) -> &[Step] {
-        self.steps.get(..self.len).unwrap_or(&[])
+        if self.more.is_empty() {
+            self.inline.get(..self.len).unwrap_or(&[])
+        } else {
+            self.more.as_slice()
+        }
+    }
+
+    /// The sources, mutably.
+    fn steps_mut(&mut self) -> &mut [Step] {
+        if self.more.is_empty() {
+            self.inline.get_mut(..self.len).unwrap_or(&mut [])
+        } else {
+            self.more.as_mut_slice()
+        }
     }
 
     /// Whether `service` is among the sources.
@@ -320,119 +372,137 @@ impl Spec {
         self.steps().iter().any(|s| s.on.contains(&Action::Merge))
     }
 
-    fn push(&mut self, s: Step) -> Option<()> {
-        *self.steps.get_mut(self.len)? = s;
-        self.len = self.len.checked_add(1)?;
-        Some(())
+    /// Append `s`: in place while there is room, else ([`Spec::spill`]) in an allocation.
+    /// `ENOMEM` without memory (the spec is unchanged then).
+    pub fn push(&mut self, s: Step) -> Result<()> {
+        if self.more.is_empty() {
+            if let Some(slot) = self.inline.get_mut(self.len) {
+                *slot = s;
+                self.len = self.len.saturating_add(1);
+                return Ok(());
+            }
+        }
+        self.spill(s)
     }
 
-    /// Sources from `names` with the default actions.
-    pub fn of(names: &[Service]) -> Spec {
-        let mut s = Spec::EMPTY;
-        for &n in names {
-            let _ = s.push(Step::new(n));
+    /// [`Spec::push`] past the inline sources: rare (a line naming more than [`INLINE_STEPS`]).
+    #[cold]
+    #[inline(never)]
+    fn spill(&mut self, s: Step) -> Result<()> {
+        if self.more.is_empty() {
+            let mut all = TryVec::with_capacity(INLINE_STEPS.saturating_mul(2))?;
+            all.extend_from_slice(self.inline.get(..self.len).unwrap_or(&[]))?;
+            all.push(s)?;
+            self.more = all;
+            return Ok(());
         }
-        s
+        self.more.push(s)
+    }
+
+    /// A copy (`ENOMEM`: a spec past the inline sources, and no memory).
+    pub fn try_clone(&self) -> Result<Spec> {
+        let mut c = Spec::EMPTY;
+        for &s in self.steps() {
+            c.push(s)?;
+        }
+        Ok(c)
     }
 
     /// The source list of an `nsswitch.conf` line (after the colon), `None` when it does not
-    /// parse.
+    /// parse or cannot be held ([`Spec::try_parse`]).
     pub fn parse(text: &[u8]) -> Option<Spec> {
-        let text = text.get(..text.iter().position(|&c| c == b'#').unwrap_or(text.len()))?;
+        Spec::try_parse(text).ok()
+    }
+
+    /// The source list of an `nsswitch.conf` line (after the colon): `EINVAL` when it does not
+    /// parse, `ENOMEM` when it names more than [`INLINE_STEPS`] sources and memory is out.
+    pub fn try_parse(text: &[u8]) -> Result<Spec> {
+        let bad = Errno::EINVAL;
+        let text = text.get(..text.iter().position(|&c| c == b'#').unwrap_or(text.len())).ok_or(bad)?;
         let mut spec = Spec::EMPTY;
         let mut i = 0usize;
         loop {
             while text.get(i).copied().is_some_and(is_space) {
-                i = i.checked_add(1)?;
+                i = i.checked_add(1).ok_or(bad)?;
             }
-            let Some(&c) = text.get(i) else { return Some(spec) };
+            let Some(&c) = text.get(i) else { return Ok(spec) };
             if c == b'[' {
-                let close = text.get(i..)?.iter().position(|&c| c == b']')?;
-                let body = text.get(i.checked_add(1)?..i.checked_add(close)?)?;
-                let last = spec.len.checked_sub(1)?;
-                let step = spec.steps.get_mut(last)?;
-                rules(body, step)?;
-                i = i.checked_add(close)?.checked_add(1)?;
+                let close = text.get(i..).ok_or(bad)?.iter().position(|&c| c == b']').ok_or(bad)?;
+                let body = text.get(i.checked_add(1).ok_or(bad)?..i.checked_add(close).ok_or(bad)?).ok_or(bad)?;
+                let step = spec.steps_mut().last_mut().ok_or(bad)?;
+                rules(body, step).ok_or(bad)?;
+                i = i.checked_add(close).and_then(|j| j.checked_add(1)).ok_or(bad)?;
             } else {
-                let len = text.get(i..)?.iter().position(|&c| is_space(c) || c == b'[').unwrap_or(text.len().saturating_sub(i));
-                let name = text.get(i..i.checked_add(len)?)?;
-                spec.push(Step::new(Service::from_name(name)))?;
-                i = i.checked_add(len)?;
+                let len = text.get(i..).ok_or(bad)?.iter().position(|&c| is_space(c) || c == b'[').unwrap_or(text.len().saturating_sub(i));
+                let end = i.checked_add(len).ok_or(bad)?;
+                spec.push(Step::new(Service::from_name(text.get(i..end).ok_or(bad)?)))?;
+                i = end;
             }
         }
-    }
-
-    /// The bytes of the spec, for process-wide storage in atomics.
-    pub fn encode(&self) -> [u8; SPEC_BYTES] {
-        let mut out = [0u8; SPEC_BYTES];
-        if let Some(n) = out.first_mut() {
-            *n = u8::try_from(self.len).unwrap_or(0);
-        }
-        for (chunk, s) in out.get_mut(1..).unwrap_or(&mut []).chunks_exact_mut(5).zip(self.steps()) {
-            let [a, b, c, d] = s.on.map(Action::code);
-            chunk.copy_from_slice(&[s.service.code(), a, b, c, d]);
-        }
-        out
-    }
-
-    /// The spec [`Spec::encode`] gave `bytes`.
-    pub fn decode(bytes: &[u8]) -> Option<Spec> {
-        let n = usize::from(*bytes.first()?);
-        let mut spec = Spec::EMPTY;
-        for chunk in bytes.get(1..)?.chunks_exact(5).take(n) {
-            let on = [Action::from_code(*chunk.get(1)?)?, Action::from_code(*chunk.get(2)?)?, Action::from_code(*chunk.get(3)?)?, Action::from_code(*chunk.get(4)?)?];
-            spec.push(Step { service: Service::from_code(*chunk.first()?)?, on })?;
-        }
-        (spec.len == n).then_some(spec)
     }
 }
 
-/// Apply the rules of one `[...]` group to `step`.
+/// The longest `STATUS=ACTION` item that can parse: `!`, a keyword, `=`, a keyword (each
+/// keyword at most 16 bytes, [`lower`]). A longer word cannot be one.
+const ITEM_MAX: usize = 1 + 16 + 1 + 16;
+
+/// Apply the rules of one `[...]` group to `step`. White space next to an `=` is dropped; then
+/// each word is one `STATUS=ACTION` item. The words are taken one at a time, so a group has no
+/// length limit (CONFIG-TABLES-GROWTH); only a word longer than [`ITEM_MAX`], which cannot be
+/// an item, is refused at that length.
 fn rules(body: &[u8], step: &mut Step) -> Option<()> {
-    // White space next to an `=` is dropped; then each word is one `STATUS=ACTION` item.
-    let mut norm = [0u8; 256];
-    let mut len = 0usize;
-    for (k, &c) in body.iter().enumerate() {
-        if is_space(c) {
-            let before = len.checked_sub(1).and_then(|p| norm.get(p)).copied();
-            let after = body.get(k.saturating_add(1)..).unwrap_or(&[]).iter().copied().find(|&x| !is_space(x));
-            if before == Some(b'=') || after == Some(b'=') {
-                continue;
-            }
-        }
-        *norm.get_mut(len)? = c;
-        len = len.checked_add(1)?;
-    }
+    let mut word = KeyBuf::<ITEM_MAX> { buf: [0; ITEM_MAX], len: 0 };
     let mut any = false;
-    for text in norm.get(..len)?.split(|&c| is_space(c)).filter(|w| !w.is_empty()) {
-        let eq = text.iter().position(|&c| c == b'=')?;
-        let (status, action) = (text.get(..eq)?, text.get(eq.checked_add(1)?..)?);
-        let (negate, status) = match status.strip_prefix(b"!") {
-            Some(s) => (true, s),
-            None => (false, status),
-        };
-        let status = Status::from_keyword(status)?;
-        let action = Action::from_keyword(action)?;
-        for s in Status::ALL {
-            if (s == status) != negate {
-                *step.on.get_mut(s.index())? = action;
-            }
+    for piece in body.split(|&c| is_space(c)).filter(|w| !w.is_empty()) {
+        // The space before `piece` is dropped (the two join) when an `=` is next to it.
+        let joins = word.as_slice().last() == Some(&b'=') || piece.first() == Some(&b'=');
+        if word.len > 0 && !joins {
+            item(word.as_slice(), step)?;
+            any = true;
+            word.len = 0;
         }
+        let end = word.len.checked_add(piece.len())?;
+        word.buf.get_mut(word.len..end)?.copy_from_slice(piece);
+        word.len = end;
+    }
+    if word.len > 0 {
+        item(word.as_slice(), step)?;
         any = true;
     }
     any.then_some(())
 }
 
+/// Apply one `STATUS=ACTION` or `!STATUS=ACTION` item to `step`.
+fn item(text: &[u8], step: &mut Step) -> Option<()> {
+    let eq = text.iter().position(|&c| c == b'=')?;
+    let (status, action) = (text.get(..eq)?, text.get(eq.checked_add(1)?..)?);
+    let (negate, status) = match status.strip_prefix(b"!") {
+        Some(s) => (true, s),
+        None => (false, status),
+    };
+    let status = Status::from_keyword(status)?;
+    let action = Action::from_keyword(action)?;
+    for s in Status::ALL {
+        if (s == status) != negate {
+            *step.on.get_mut(s.index())? = action;
+        }
+    }
+    Some(())
+}
+
+static FILES: Spec = Spec::fixed(&[Service::Files]);
+static FILES_DNS: Spec = Spec::fixed(&[Service::Files, Service::Dns]);
+
 /// The source list a database uses when the configuration has no line for it.
-pub fn default_spec(db: Database) -> Spec {
+pub fn default_spec(db: Database) -> &'static Spec {
     match db {
-        Database::Hosts | Database::Networks => Spec::of(&[Service::Files, Service::Dns]),
-        _ => Spec::of(&[Service::Files]),
+        Database::Hosts | Database::Networks => &FILES_DNS,
+        _ => &FILES,
     }
 }
 
 /// A configuration: the line given for each database, if any.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Config {
     lines: [Option<Spec>; DATABASES],
 }
@@ -445,9 +515,10 @@ impl Default for Config {
 
 impl Config {
     /// No line for any database: every database uses its default.
-    pub const EMPTY: Config = Config { lines: [None; DATABASES] };
+    pub const EMPTY: Config = Config { lines: [const { None }; DATABASES] };
 
-    /// The configuration an `nsswitch.conf` text gives.
+    /// The configuration an `nsswitch.conf` text gives. A line that cannot be held (more than
+    /// [`INLINE_STEPS`] sources and no memory) is taken as one that does not parse.
     pub fn parse(text: &[u8]) -> Config {
         let mut c = Config::EMPTY;
         for line in text.split(|&c| c == b'\n') {
@@ -462,8 +533,8 @@ impl Config {
     }
 
     /// The line given for `db`.
-    pub fn line(&self, db: Database) -> Option<Spec> {
-        self.lines.get(db.index()).copied().flatten()
+    pub fn line(&self, db: Database) -> Option<&Spec> {
+        self.lines.get(db.index()).and_then(Option::as_ref)
     }
 
     /// Give `db` the line `spec` (`None`: back to the default).
@@ -473,14 +544,23 @@ impl Config {
         }
     }
 
+    /// A copy (`ENOMEM`: a line past the inline sources, and no memory).
+    pub fn try_clone(&self) -> Result<Config> {
+        let mut c = Config::EMPTY;
+        for (d, s) in c.lines.iter_mut().zip(&self.lines) {
+            *d = s.as_ref().map(Spec::try_clone).transpose()?;
+        }
+        Ok(c)
+    }
+
     /// The sources `db` uses.
-    pub fn spec(&self, db: Database) -> Spec {
+    pub fn spec(&self, db: Database) -> &Spec {
         self.resolve(db).0
     }
 
     /// The sources `db` uses, and whether they were inherited (`initgroups` without a line of
     /// its own uses `group`'s).
-    pub fn resolve(&self, db: Database) -> (Spec, bool) {
+    pub fn resolve(&self, db: Database) -> (&Spec, bool) {
         match (self.line(db), db) {
             (Some(s), _) => (s, false),
             (None, Database::Initgroups) => (self.spec(Database::Group), true),
@@ -541,7 +621,7 @@ pub type Answer<T> = core::result::Result<T, LookupError>;
 /// result of the source whose rule returns, the merged result, or the last failure; a failure
 /// without a system error that follows one with an error reports the earlier error (so that a
 /// database file that cannot be read stays visible behind an unavailable module).
-pub fn run<T>(spec: &Spec, mut ask: impl FnMut(Service) -> Answer<T>, mut merge: impl FnMut(&mut T, T) -> crate::error::Result<()>) -> Answer<T> {
+pub fn run<T>(spec: &Spec, mut ask: impl FnMut(Service) -> Answer<T>, mut merge: impl FnMut(&mut T, T) -> Result<()>) -> Answer<T> {
     let mut kept: Option<T> = None;
     let mut last = LookupError::Unavailable;
     let mut os: Option<Errno> = None;
@@ -619,7 +699,9 @@ mod tests {
         assert_eq!(Spec::parse(b"files [FOO=return]"), None);
         assert_eq!(Spec::parse(b"files [NOTFOUND=return"), None);
         assert_eq!(Spec::parse(b"").unwrap().steps().len(), 0);
-        assert_eq!(Spec::decode(&Spec::parse(b"files [SUCCESS=merge] dns").unwrap().encode()), Spec::parse(b"files [SUCCESS=merge] dns"));
+        for st in Spec::parse(b"files [SUCCESS=merge] dns [!notfound=return]").unwrap().steps() {
+            assert_eq!(Step::decode(&st.encode()), Some(*st));
+        }
         let c = Config::parse(b"HOSTS: dns\nhosts files\npasswd: files\npasswd: compat\nnosuch: x\ngroup: [x]\n");
         assert_eq!(c.spec(Database::Hosts), default_spec(Database::Hosts));
         assert_eq!(c.spec(Database::Passwd).steps()[0].service, Service::Compat);

@@ -1,8 +1,12 @@
-//! The POSIX defaults localedef writes for a category a source does not define (spec §31.8,
-//! #7534; D-31.24): the POSIX locale's values (POSIX XBD 7.3, "POSIX locale") for the POSIX
-//! categories, and for the others the values the reference writes for an undefined category
-//! (probe-settled, `tests/reference.rs` `undefined_categories_get_the_references_defaults`).
-//! The text is a locale source, compiled by the same writers as any source, for the run's charmap.
+//! The defaults localedef writes for a category a source does not define (spec §31.8, #7534;
+//! D-31.24). XBD 7.3 leaves a category whose definition is missing unspecified, so these are the
+//! values the reference writes for an undefined category (probe-settled, black box:
+//! `tests/reference.rs` `undefined_categories_get_the_references_defaults` compares every item):
+//! `LC_CTYPE`'s `print` and `graph` only the letters, digits (and space), no `cntrl` or `punct`;
+//! the "not available" monetary numbers 255; empty alternative month names; country codes of
+//! spaces. The text is a locale source, compiled by the same writers as any source, for the run's
+//! charmap; the few items a source cannot state (empty wide `LC_TIME` names, no wide input digits,
+//! `mon_grouping` and CRNCYSTR) the writers give when told they compile these defaults.
 
 /// The defaults, one section per category.
 pub const SOURCE: &str = r#"LC_CTYPE
@@ -11,10 +15,8 @@ lower <U0061>..<U007A>
 alpha <U0041>..<U005A>;<U0061>..<U007A>
 digit <U0030>..<U0039>
 space <U0009>..<U000D>;<U0020>
-cntrl <U0000>..<U001F>;<U007F>
-punct <U0021>;<U0022>;<U0023>;<U0024>;<U0025>;<U0026>;<U0027>;<U0028>;<U0029>;<U002A>;<U002B>;<U002C>;<U002D>;<U002E>;<U002F>;<U003A>;<U003B>;<U003C>;<U003D>;<U003E>;<U003F>;<U0040>;<U005B>;<U005C>;<U005D>;<U005E>;<U005F>;<U0060>;<U007B>;<U007C>;<U007D>;<U007E>
-graph <U0021>..<U007E>
-print <U0020>..<U007E>
+graph <U0030>..<U0039>;<U0041>..<U005A>;<U0061>..<U007A>
+print <U0020>;<U0030>..<U0039>;<U0041>..<U005A>;<U0061>..<U007A>
 xdigit <U0030>..<U0039>;<U0041>..<U0046>;<U0061>..<U0066>
 blank <U0009>;<U0020>
 toupper (<U0061>,<U0041>);(<U0062>,<U0042>);(<U0063>,<U0043>);(<U0064>,<U0044>);(<U0065>,<U0045>);(<U0066>,<U0046>);(<U0067>,<U0047>);(<U0068>,<U0048>);(<U0069>,<U0049>);(<U006A>,<U004A>);(<U006B>,<U004B>);(<U006C>,<U004C>);(<U006D>,<U004D>);(<U006E>,<U004E>);(<U006F>,<U004F>);(<U0070>,<U0050>);(<U0071>,<U0051>);(<U0072>,<U0052>);(<U0073>,<U0053>);(<U0074>,<U0054>);(<U0075>,<U0055>);(<U0076>,<U0056>);(<U0077>,<U0057>);(<U0078>,<U0058>);(<U0079>,<U0059>);(<U007A>,<U005A>)
@@ -36,6 +38,8 @@ t_fmt "%H:%M:%S"
 t_fmt_ampm "%I:%M:%S %p"
 date_fmt "%a %b %e %H:%M:%S %Z %Y"
 week 7;19971130;7
+alt_mon "";"";"";"";"";"";"";"";"";"";"";""
+ab_alt_mon "";"";"";"";"";"";"";"";"";"";"";""
 END LC_TIME
 LC_COLLATE
 END LC_COLLATE
@@ -44,17 +48,16 @@ int_curr_symbol ""
 currency_symbol ""
 mon_decimal_point "."
 mon_thousands_sep ""
-mon_grouping -1
 positive_sign ""
 negative_sign ""
-int_frac_digits -1
-frac_digits -1
-p_cs_precedes -1
-p_sep_by_space -1
-n_cs_precedes -1
-n_sep_by_space -1
-p_sign_posn -1
-n_sign_posn -1
+int_frac_digits 255
+frac_digits 255
+p_cs_precedes 255
+p_sep_by_space 255
+n_cs_precedes 255
+n_sep_by_space 255
+p_sign_posn 255
+n_sign_posn 255
 END LC_MONETARY
 LC_MESSAGES
 yesexpr "^[yY]"
@@ -69,6 +72,8 @@ name_fmt "%p%t%g%t%m%t%f"
 END LC_NAME
 LC_ADDRESS
 postal_fmt "%a%N%f%N%d%N%b%N%s %h %e %r%N%C-%z %T%N%c%N"
+country_ab2 "  "
+country_ab3 "   "
 END LC_ADDRESS
 LC_TELEPHONE
 tel_int_fmt "+%c %a%t%l"

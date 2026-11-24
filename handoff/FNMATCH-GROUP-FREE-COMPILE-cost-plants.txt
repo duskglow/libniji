@@ -1,0 +1,1 @@
+group-path-for-sets | crates/core/src/pattern/fnmatch.rs | lit:        if prog.groups == 0 { ==>         if prog.groups == 0 && !prog.root().iter().any(|i| matches!(i, Item::Set(_))) { | cargo xtask bench --counters --rows cbench_opt/fnmatch_names_ch,cbench_opt/fnmatch_names_class | msg:fnmatch_names_(ch|class).*INSTR-REGRESS

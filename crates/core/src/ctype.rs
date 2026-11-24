@@ -208,7 +208,7 @@ pub enum WClass {
 const UTF8_CLASSES: [&[u8]; 2] = [b"combining", b"combining_level3"];
 
 /// Look up a class by name in `loc` (`wctype`); `None` for an unknown name.
-pub fn wctype(name: &[u8], loc: &Locale) -> Option<WClass> {
+pub fn wctype_class(name: &[u8], loc: &Locale) -> Option<WClass> {
     if let Some(c) = Class::by_name(name) {
         return Some(WClass::Standard(c));
     }

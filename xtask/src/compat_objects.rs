@@ -339,15 +339,41 @@ pub fn render(m: &Model) -> String {
         rows(&mut s, "tolower", ".long", t.tolower.iter().map(i32::to_string).collect());
         rows(&mut s, "toupper", ".long", t.toupper.iter().map(i32::to_string).collect());
         // Writable, as the reference's: the pointers are variables an old binary may assign.
-        for o in ctype {
+        for &o in &ctype {
             let (table, off) = ctype_target(&o.name);
             s.push_str(&format!("\t.section .data.{},\"aw\",@progbits\n\t.p2align 3\n", o.label()));
             declare(&mut s, &[o]);
             s.push_str(&format!("\t.quad .Lniji_compat_ctype_{table}+{off}\n"));
             symver(&mut s, &[o]);
         }
+        store(&mut s, &ctype);
     }
     s
+}
+
+/// The order of the six words `niji_compat_ctype_store` takes (`crates/boundary/src/locale.rs`,
+/// `publish_global`): the 16-bit class, `tolower`, `toupper` tables, then the 32-bit ones.
+pub const CTYPE_STORE_ORDER: [&str; 6] = ["__ctype_b", "__ctype_tolower", "__ctype_toupper", "__ctype32_b", "__ctype32_tolower", "__ctype32_toupper"];
+
+/// CTYPE-OBJECTS-SETLOCALE: `niji_compat_ctype_store(const uintptr_t at[6], const uintptr_t
+/// words[6])`, which `setlocale` calls (through csys's weak hook, absent from libc.a) when the
+/// global `LC_CTYPE` changes: `words[i]` goes to the object at `at[i]` (skipped when 0). The
+/// addresses are the objects' versioned names as the loader resolves them, looked up on the first
+/// store (`crates/boundary/src/locale.rs`), so an old binary's COPY of an object is the one
+/// written (the reference's objects follow the global locale: spec/behaviour/ctype-objects.md).
+/// No GOT reference to the names: each would be a symbol relocation the loader resolves at every
+/// start-up. Hidden: only the library calls it.
+fn store(s: &mut String, ctype: &[&Object]) {
+    let f = "niji_compat_ctype_store";
+    s.push_str(&format!("\t.section .text.{f},\"ax\",@progbits\n\t.globl {f}\n\t.hidden {f}\n\t.type {f}, @function\n\t.p2align 4\n{f}:\n"));
+    for (i, name) in CTYPE_STORE_ORDER.iter().enumerate() {
+        if !ctype.iter().any(|o| o.name == *name) {
+            continue;
+        }
+        let skip = format!(".Lniji_compat_ctype_store_{i}");
+        s.push_str(&format!("\tmovq {o}(%rdi), %rcx\n\ttestq %rcx, %rcx\n\tjz {skip}\n\tmovq {o}(%rsi), %rax\n\tmovq %rax, (%rcx)\n{skip}:\n", o = 8 * i));
+    }
+    s.push_str(&format!("\tret\n\t.size {f}, .-{f}\n"));
 }
 
 /// `text` (LG-1's rendering) with the objects before its closing GNU-stack note.

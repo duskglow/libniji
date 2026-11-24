@@ -97,7 +97,7 @@ ok locale: LC_ALL=C, LC_CTYPE=C, decimal point \".\"
 ok process: pid is positive
 ok nscache: enabled and idle, 6 categories; switched off and on, invalidated
 ok aio: worker threads chosen before the first request
-ok getpass: default 1048576 bytes; set to 4096 and back
+ok getpass: default: no bound; set to 4096 and back
 native example: 14 of 14 steps passed
 ";
 

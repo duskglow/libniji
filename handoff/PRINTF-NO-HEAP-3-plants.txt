@@ -1,0 +1,7 @@
+nh3-kept-count | crates/boundary/src/printf.rs | lit:render_plan(fmt, plan, ap, out) ==> render_plan(fmt, plan, ap, out).map(|n| n.saturating_add(1)) | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked
+nh3-planned-skips-hooks | crates/boundary/src/printf.rs | lit:    if reg::active() || !pf::simple_into(fmt, &mut plan) { ==>     if !pf::simple_into(fmt, &mut plan) { | cargo test -p niji-boundary --test s12_stdio_symbols registered_conversion | msg:registered_conversion_is_written_by_its_handler.*FAILED
+nh3-bare-s-count | crates/boundary/src/printf.rs | lit:return Ok(body.len()); ==> return Ok(body.len().saturating_sub(1)); | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# nh3-kept-count: CAUGHT, caught by s12_stdio_symbols sym__IO_fprintf
+# nh3-planned-skips-hooks: CAUGHT, caught by s12_stdio_symbols no_heap::registered_conversion_is_written_by_its_handler
+# nh3-bare-s-count: CAUGHT, caught by s12_stdio_symbols sym___fwprintf_chk

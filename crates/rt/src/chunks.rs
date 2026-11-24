@@ -18,6 +18,30 @@ use crate::heap::{Pages, PAGE};
 /// Chunk addresses in the directory: chunk `k` is `PAGE << k` bytes.
 pub const DIR: usize = 48;
 
+/// The memory a [`Chunks`] table lives in: the three operations it uses, object-safe so an owner
+/// can take the boundary's memory source as `&dyn ChunkPages` (CONFIG-TABLES-GROWTH: the switch
+/// and `gai.conf` tables, read through a lookup's context). Every [`Pages`] is one.
+pub trait ChunkPages {
+    /// [`Pages::map`] of `len` bytes, page-aligned, on no particular node.
+    fn map_chunk(&self, len: usize) -> Option<usize>;
+    /// [`Pages::unmap`].
+    fn unmap_chunk(&self, addr: usize, len: usize);
+    /// [`Pages::words`].
+    fn chunk_words(&self, addr: usize, n: usize) -> &[AtomicU64];
+}
+
+impl<P: Pages> ChunkPages for P {
+    fn map_chunk(&self, len: usize) -> Option<usize> {
+        self.map(len, PAGE, None)
+    }
+    fn unmap_chunk(&self, addr: usize, len: usize) {
+        self.unmap(addr, len);
+    }
+    fn chunk_words(&self, addr: usize, n: usize) -> &[AtomicU64] {
+        self.words(addr, n)
+    }
+}
+
 /// A table of `w`-word entries in chunks that never move.
 pub struct Chunks {
     dir: [AtomicUsize; DIR],
@@ -49,30 +73,44 @@ impl Chunks {
     }
 
     /// Entry `i`'s `w` words; `None` while its chunk is not mapped. Needs no lock.
-    pub fn get<'a, P: Pages>(&self, pages: &'a P, i: usize, w: usize) -> Option<&'a [AtomicU64]> {
+    pub fn get<'a, P: ChunkPages + ?Sized>(&self, pages: &'a P, i: usize, w: usize) -> Option<&'a [AtomicU64]> {
         let (k, off, _, _) = Self::place(i, w)?;
         match self.dir.get(k)?.load(Acquire) {
             0 => None,
-            base => Some(pages.words(base.checked_add(off.checked_mul(w)?.checked_mul(8)?)?, w)),
+            base => Some(pages.chunk_words(base.checked_add(off.checked_mul(w)?.checked_mul(8)?)?, w)),
         }
     }
 
     /// Make entry `i` (of `w` words) present, mapping its chunk if it is not yet; false without
     /// memory (nothing changes then). Callers serialise growth.
-    pub fn reserve<P: Pages>(&self, pages: &P, i: usize, w: usize) -> bool {
+    pub fn reserve<P: ChunkPages + ?Sized>(&self, pages: &P, i: usize, w: usize) -> bool {
         let Some((k, _, _, _)) = Self::place(i, w) else { return false };
         let Some(slot) = self.dir.get(k) else { return false };
         if slot.load(Relaxed) != 0 {
             return true;
         }
         let Some(len) = PAGE.checked_shl(u32::try_from(k).unwrap_or(u32::MAX)) else { return false };
-        match pages.map(len, PAGE, None) {
+        match pages.map_chunk(len) {
             Some(base) => {
                 slot.store(base, Release);
                 true
             }
             None => false,
         }
+    }
+
+    /// Make entries `0..n` (of `w` words) present: [`Chunks::reserve`] of each chunk they
+    /// reach. False without memory (the chunks mapped before stay mapped).
+    pub fn reserve_first<P: ChunkPages + ?Sized>(&self, pages: &P, n: usize, w: usize) -> bool {
+        let mut i = 0usize;
+        while i < n {
+            let Some((_, _, first, count)) = Self::place(i, w) else { return false };
+            if !self.reserve(pages, i, w) {
+                return false;
+            }
+            i = first.saturating_add(count);
+        }
+        true
     }
 
     /// Bytes mapped so far.
@@ -82,11 +120,11 @@ impl Chunks {
 
     /// Unmap every chunk, for an owner that goes away (a table in a test); no entry may be used
     /// afterwards.
-    pub fn unmap_all<P: Pages>(&self, pages: &P) {
+    pub fn unmap_all<P: ChunkPages + ?Sized>(&self, pages: &P) {
         for (k, c) in self.dir.iter().enumerate() {
             let base = c.swap(0, Relaxed);
             if base != 0 {
-                pages.unmap(base, PAGE.checked_shl(u32::try_from(k).unwrap_or(u32::MAX)).unwrap_or(0));
+                pages.unmap_chunk(base, PAGE.checked_shl(u32::try_from(k).unwrap_or(u32::MAX)).unwrap_or(0));
             }
         }
     }

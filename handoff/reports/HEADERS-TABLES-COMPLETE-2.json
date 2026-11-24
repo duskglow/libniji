@@ -1,0 +1,19 @@
+{"task": "HEADERS-TABLES-COMPLETE-2", "model": "opus", "tokens": null,
+ "result": "floating macros spelled in decimal (lex and bit-exact in C89..C++20), the _FloatN literal form (70 exceptions gone), SNAN* signaling; complex.h/tgmath.h slice and math-vector-fortran.h not started",
+ "branch": "task/headers-tables-complete-2", "head": "81cd6e9c1",
+ "gate": {"affected": "FULL escalated (generated headers): xtask tests (all passed) + static + headers-gen --check (test2 green), plants 6/6 CAUGHT, rows test and header_check 0 failed of 16193 (gen2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["SNAN, SNANF and SNANL were quiet NaNs before this branch (type_probe recorded every NaN as nan); fixed with the snan value and a signaling check", "type_probe.py's quiet-bit test has no test of its own; its result is pinned by the eight macros.tsv rows and the rows test", "test1's two iconv transcript failures: target/niji-test/iconv missing on the role (no product build); green in test2 after cargo xtask so"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "values.h MAXDOUBLE MAXFLOAT MINDOUBLE MINFLOAT and math.h M_* constants usable in C89 and C++98-14 (hex constants did not lex)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "SNAN SNANF SNANL are signaling NaNs (were quiet)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "math.h _FloatN macros defined and checked (rows-exceptions.tsv rows removed)", "before": 71, "after": 1, "unit": "exception rows", "measured": true},
+  {"kind": "coverage", "what": "header_check units (P1 floating checks now in every mode)", "before": null, "after": 16193, "unit": "units", "measured": true},
+  {"kind": "coverage", "what": "plants", "before": 0, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "header_check builds with -Werror; a probe of a check form should use the same flags (my first probe used -w and cost one job)",
+ "next_step": "land; a follow-up story for complex.h/tgmath.h (new slice, union typedef C++ spelling, tgmath rows) and math-vector-fortran.h (non-C output form)",
+ "report_file": "handoff/HEADERS-TABLES-COMPLETE-2.md",
+ "jobs": ["shiki:headers-tables-complete-2-test2", "shiki:headers-tables-complete-2-plants1", "shiki:headers-tables-complete-2-gen2"]}

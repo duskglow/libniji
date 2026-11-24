@@ -1,0 +1,21 @@
+{"task": "HEADERS-UAPI-COMPAT", "model": "opus", "tokens": null,
+ "result": "libniji headers follow the kernel's libc-compat.h protocol: every libc/uapi pair compiles in both orders wherever the reference's does (probe mismatches 104 -> 0 of 18,480 units)",
+ "branch": "task/headers-uapi-compat", "head": null,
+ "gate": {"affected": "626 passed / 0 failed (headers-uapi-compat-gate2)", "peak": "1.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "First gate (headers-uapi-compat-gate) failed 2 tests in xtask --test transcripts: the role's target/niji-test/iconv was built 09:37:58 by the role's previous tree, before this run; after cargo xtask so on this head the suite passed 7/7 (headers-uapi-compat-transcripts) and gate2 is green. Gate tiers that select no product build still run tests against products left in the role.",
+   "libniji's IN6_IS_ADDR_* macros work on the kernel's struct in6_addr (kernel header first); the reference's do not. More permissive, nothing a built program sees; no differences row.",
+   "Kernel-first linux/in.h before netinet/in.h and linux/if.h before net/if.h still fail, as with the reference (parity, per the brief)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "kernel UAPI header (linux/in6.h, linux/ipv6.h) included before netinet/in.h, ip6.h, icmp6.h, arpa/inet.h, netdb.h, resolv.h, net/route.h, igmp.h, ip.h, ip_icmp.h: compile error fixed; strict C17 linux/in.h before igmp.h, ip_icmp.h fixed", "before": 104, "after": 0, "unit": "probe units reference ok / libniji FAIL", "measured": true},
+   {"kind": "coverage", "what": "P8 uapi pairs added (netinet/ip6.h cell among them) plus a gnu++17 mode, and header_checks/uapi.py usage units", "before": null, "after": 16, "unit": "new usage units (header_check 16342 units, 0 failed)", "measured": true},
+   {"kind": "coverage", "what": "plants on the new template code", "before": null, "after": 10, "unit": "plants", "measured": true}
+ ],
+ "improvement": "The affected gate ran product-dependent tests (iconv transcripts) against a product another tree built in the role; a gate should build or skip, never test a foreign product.",
+ "next_step": "Land.",
+ "report_file": "handoff/HEADERS-UAPI-COMPAT.md",
+ "jobs": ["headers-uapi-compat-gate2", "headers-uapi-compat-plants", "headers-uapi-compat-transcripts"]}

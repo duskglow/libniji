@@ -57,6 +57,9 @@ pub enum ErrorKind {
     Missing,
     /// Memory ran out.
     NoMemory,
+    /// A category the source cannot have at all (an empty `LC_COLLATE`): nothing is written,
+    /// even with `-c`.
+    Refused,
 }
 
 impl Error {
@@ -114,6 +117,10 @@ pub struct Output {
     /// The categories whose statements failed, by number (one error each after the outside ones,
     /// in category order).
     pub failed: [bool; 13],
+    /// The values written empty because a character is neither in the charmap nor
+    /// transliterable (probed, LOCALEDEF-TRANSLIT: one report per value, a warning, the locale
+    /// still written): (source line, category number, keyword), in source order.
+    pub unknown: TryVec<(u32, usize, TryVec<u8>)>,
 }
 
 /// Compile the locale source `locale` for the charmap `charmap` (both read through `files`):
@@ -143,20 +150,40 @@ pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> R
 
 /// [`compile_output`] of the source `text` (already read) for the charset `cs`.
 pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
-    let src = source::parse(text, files)?;
+    let mut src = source::parse(text, files)?;
+    resolve_names(&mut src, cs)?;
     let outside = src.errors.len();
-    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside, failed: [false; 13] };
+    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside, failed: [false; 13], unknown: TryVec::new() };
+    // LC_CTYPE first: its transliteration table converts the other categories' values.
+    let (ctype, mut ctype_err) = match src.cats.first().and_then(Option::as_ref).map(|s| ctype::parse(s, files)) {
+        Some(Ok(c)) => (Some(c), None),
+        Some(Err(e)) => (None, Some(e)),
+        None => (None, None),
+    };
+    let enc = cats::Enc { cs, ctype: ctype.as_ref() };
     for (n, stmts) in src.cats.iter().enumerate() {
         let Some(stmts) = stmts else { continue };
         if let Some(d) = out.defined.get_mut(n) {
             *d = true;
         }
-        match category(n, stmts, cs, files) {
+        let file = if n == 0 {
+            match (ctype_err.take(), ctype.as_ref()) {
+                (Some(e), _) => Err(e),
+                (None, Some(c)) => ctype::write(c, cs, false).map(Some),
+                (None, None) => category(n, stmts, &enc, files, false),
+            }
+        } else {
+            unknown_values(n, stmts, &enc, &mut out.unknown)?;
+            category(n, stmts, &enc, files, false)
+        };
+        match file {
             Ok(file) => {
                 if let Some(slot) = out.files.get_mut(n) {
                     *slot = file;
                 }
             }
+            // Refused at the category's END line (probed: `<file>:<END line>: LC_COLLATE: ...`).
+            Err(e) if e.kind == ErrorKind::Refused => return Err(Error { line: src.ends.get(n).copied().unwrap_or(0), ..e }),
             Err(e) if e.kind == ErrorKind::Syntax => {
                 out.errors.push(e)?;
                 if let Some(f) = out.failed.get_mut(n) {
@@ -171,18 +198,68 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
         for (n, stmts) in defaults.cats.iter().enumerate() {
             let (Some(stmts), Some(slot)) = (stmts, out.files.get_mut(n)) else { continue };
             if slot.is_none() {
-                *slot = category(n, stmts, cs, files)?;
+                *slot = category(n, stmts, &enc, files, true)?;
             }
         }
     }
+    out.unknown.sort_by_key(|u| u.0);
     Ok(out)
 }
 
-/// The file of category `n` from its statements (`None` for `LC_ALL`).
-fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut dyn Files) -> Result<Option<TryVec<u8>>> {
-    let b = cats::Body::new(stmts);
+/// Record in `unknown` each value of category `n` (not `LC_CTYPE` or `LC_COLLATE`, which
+/// convert nothing this way) that `enc` cannot convert: one per string or character argument.
+fn unknown_values(n: usize, stmts: &[source::Stmt], enc: &cats::Enc<'_>, unknown: &mut TryVec<(u32, usize, TryVec<u8>)>) -> Result<()> {
+    if n == 0 || n == 3 {
+        return Ok(());
+    }
+    for s in stmts {
+        for a in cats::args(s).map(TryVec::into_inner).unwrap_or_default() {
+            let value = match a {
+                cats::Arg::Str(v) => v,
+                cats::Arg::Char(c) => TryVec::from_slice(&[c])?,
+                cats::Arg::Num(_) => continue,
+            };
+            if enc.convert(&value)?.is_none() {
+                unknown.push((s.no, n, TryVec::from_slice(s.keyword())?))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Write each symbolic name the charmap defines other than `<Uxxxx>` (a POSIX name such as
+/// `<a>` or `<space>`, XBD 6.4 and 7.3) as the `<Uxxxxxxxx>` of its code point, in every
+/// statement and string of `src`; names the charmap does not define are left as written.
+fn resolve_names(src: &mut source::Source, cs: &charset::Charset) -> Result<()> {
+    let resolve = |n: &[u8]| cs.map().named(n);
+    for stmts in src.cats.iter_mut().flatten() {
+        for s in stmts.iter_mut() {
+            for t in s.toks.iter_mut() {
+                match t {
+                    lex::Tok::Sym(n) if lex::ucs_name(n).is_none() => {
+                        if let Some(cp) = resolve(n) {
+                            *n = TryVec::from_slice(&lex::ucs_text(cp))?;
+                        }
+                    }
+                    lex::Tok::Str(raw) => {
+                        if let Some(new) = lex::resolve_string(raw, s.esc, &resolve)? {
+                            *raw = new;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The file of category `n` from its statements (`None` for `LC_ALL`); `defaults`: the
+/// statements are `defaults.rs`'s, for a category the source does not define (D-31.24).
+fn category(n: usize, stmts: &[source::Stmt], cs: &cats::Enc<'_>, files: &mut dyn Files, defaults: bool) -> Result<Option<TryVec<u8>>> {
+    let b = if defaults { cats::Body::defaults(stmts) } else { cats::Body::new(stmts) };
     Ok(Some(match n {
-        0 => ctype::write(&ctype::parse(stmts, files)?, cs)?,
+        0 => ctype::write(&ctype::parse(stmts, files)?, cs, defaults)?,
         1 => cats::numeric(&b, cs)?,
         2 => cats::time(&b, cs)?,
         4 => cats::monetary(&b, cs)?,
@@ -193,7 +270,7 @@ fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut
         10 => cats::telephone(&b, cs)?,
         11 => cats::measurement(&b, cs)?,
         12 => cats::identification(&b, cs)?,
-        3 => collate::write(stmts, cs)?,
+        3 => collate::write(stmts, cs, defaults)?,
         _ => return Ok(None),
     }))
 }

@@ -259,6 +259,60 @@ pub fn ucs_name(name: &[u8]) -> Option<u32> {
     (v <= 0x7fff_ffff).then_some(v)
 }
 
+/// A string's raw contents with each symbolic name `resolve` knows written as `<Uxxxxxxxx>`
+/// (XBD 7.3: a string may name characters by the charmap's symbolic names); `None` when the
+/// string names none.
+pub fn resolve_string(raw: &[u8], esc: u8, resolve: &dyn Fn(&[u8]) -> Option<u32>) -> Result<Option<TryVec<u8>>> {
+    let mut out = TryVec::new();
+    let (mut i, mut changed) = (0, false);
+    while i < raw.len() {
+        if raw[i] == b'<' && is_symbol_start(raw, i, esc) {
+            let mut j = i + 1;
+            let mut name = TryVec::new();
+            while j < raw.len() && raw[j] != b'>' {
+                if raw[j] == esc && j + 1 < raw.len() {
+                    j += 1;
+                }
+                name.push(raw[j])?;
+                j += 1;
+            }
+            let end = (j + 1).min(raw.len());
+            match resolve(&name).filter(|_| ucs_name(&name).is_none()) {
+                Some(cp) => {
+                    write_ucs(&mut out, cp)?;
+                    changed = true;
+                }
+                None => out.extend_from_slice(&raw[i..end])?,
+            }
+            i = end;
+            continue;
+        }
+        let n = if raw[i] == esc { 2 } else { 1 };
+        out.extend_from_slice(&raw[i..(i + n).min(raw.len())])?;
+        i += n;
+    }
+    Ok(changed.then_some(out))
+}
+
+/// Append `<Uxxxxxxxx>`.
+fn write_ucs(out: &mut TryVec<u8>, cp: u32) -> Result<()> {
+    out.push(b'<')?;
+    out.extend_from_slice(&ucs_text(cp))?;
+    out.push(b'>')?;
+    Ok(())
+}
+
+/// The name `Uxxxxxxxx` of a code point (eight hexadecimal digits).
+pub fn ucs_text(cp: u32) -> [u8; 9] {
+    let mut t = [b'U'; 9];
+    let mut v = cp;
+    for d in t.iter_mut().skip(1).rev() {
+        *d = b"0123456789ABCDEF".get(usize::from(u8::try_from(v & 0xf).unwrap_or(0))).copied().unwrap_or(b'0');
+        v >>= 4;
+    }
+    t
+}
+
 /// Decode a string's raw contents into code points: `<Uxxxx>` names, the escape character
 /// followed by a character (that character), `/xHH`-style byte escapes are not characters and are
 /// refused, and literal UTF-8 text (the installed sources are UTF-8).

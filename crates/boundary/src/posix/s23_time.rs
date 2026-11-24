@@ -48,7 +48,7 @@ pub extern "C" fn clock_getcpuclockid(pid: c_int, id: Option<&mut c_int>) -> c_i
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn time(t: Option<&mut i64>) -> i64 {
-    ret::time(t, clock_compat::time(&CSys))
+    ret::time_result(t, clock_compat::time(&CSys))
 }}
 
 export! { "GLIBC_2.2.5";

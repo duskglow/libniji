@@ -1,0 +1,7 @@
+# XTASK-STALE-PRODUCTS plants: `cargo xtask plants handoff/XTASK-STALE-PRODUCTS-plants.txt --dir <new RAM dir>`
+# (a) The product build no longer clears the products directory: a gencat an earlier build left stays and the
+# manifest lint names it.
+cleanup-skipped | xtask/src/so.rs | lit:    clear_products(release) ==>     Ok(Vec::new()) | cargo test -p xtask --bin xtask -- so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint | msg:product gencat is in .* and no file row ships it
+# (b) The test link check no longer looks at what the link loads: the leftover link whose loader is gone is run and
+# fails with ENOENT.
+link-loads-unchecked | xtask/tests/test_link/mod.rs | lit:    if !missing.is_empty() { ==>     if missing.is_empty() && missing.len() > 1 { | cargo test -p xtask --test transcripts -- a_leftover_iconv_link_whose_loader_is_gone_is_skipped | msg:run the leftover iconv link.*No such file or directory
