@@ -110,7 +110,12 @@ typedef unsigned int id_t;
 # endif
 # ifndef __NIJI_D_idtype_t
 #  define __NIJI_D_idtype_t 1
-typedef struct { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); } idtype_t;
+typedef enum {
+  P_ALL = 0,
+  P_PID = 1,
+  P_PGID = 2,
+  P_PIDFD = 3,
+} idtype_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
@@ -151,30 +156,6 @@ extern int wait3 (int *, int, struct rusage *) __NIJI_NOTHROW;
 # ifndef __NIJI_D_waitid
 #  define __NIJI_D_waitid 1
 extern int waitid (idtype_t, unsigned int, siginfo_t *, int);
-# endif
-# ifndef __NIJI_D_enum_P_ALL
-#  define __NIJI_D_enum_P_ALL 1
-#  ifndef P_ALL
-enum { P_ALL = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_P_PGID
-#  define __NIJI_D_enum_P_PGID 1
-#  ifndef P_PGID
-enum { P_PGID = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_P_PID
-#  define __NIJI_D_enum_P_PID 1
-#  ifndef P_PID
-enum { P_PID = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_P_PIDFD
-#  define __NIJI_D_enum_P_PIDFD 1
-#  ifndef P_PIDFD
-enum { P_PIDFD = 3 };
-#  endif
 # endif
 #endif
 #if 1
