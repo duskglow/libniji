@@ -1,22 +1,79 @@
-{"task": "UTIL-LOCALE-GEN", "model": "opus", "tokens": null,
+{
+ "task": "UTIL-LOCALE-GEN",
+ "model": "opus",
+ "tokens": null,
  "result": "locale-gen, update-locale and validlocale ship as commands of libniji's localedef with the locales package's debconf scripts. In a trixie root, dpkg-reconfigure locales gives the same result as stock. The direct gate (gate5) is pending.",
- "branch": "task/util-locale-gen", "head": "43231b0d0",
- "jobs": ["util-locale-gen-verify4", "util-locale-gen-plants3", "util-locale-gen-root5", "util-locale-gen-gate5"],
- "gate": {"affected": "pending (util-locale-gen-gate5 on keke, started 20:47Z); verify4 green: clippy, static, records, 26 unit, 9/9 transcripts", "peak": null},
+ "branch": "task/util-locale-gen",
+ "head": "43231b0d0",
+ "jobs": [
+  "util-locale-gen-verify4",
+  "util-locale-gen-root5",
+  "util-locale-gen-gate5"
+ ],
+ "gate": {
+  "affected": "pending (util-locale-gen-gate5 on keke, started 20:47Z); verify4 green: clippy, static, records, 26 unit, 9/9 transcripts",
+  "peak": null
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "/etc/locale.alias ships with no aliases", "recommendation": "a follow-up story that derives aliases from CLDR language names, or ship none"}],
+ "rulings": [
+  {
+   "item": "/etc/locale.alias ships with no aliases",
+   "recommendation": "a follow-up story that derives aliases from CLDR language names, or ship none"
+  }
+ ],
  "informational": [
-   "kill-label --kill on a gate job left its `cargo xtask affected --run` running, reparented to init; only kill-mine <role> found it",
-   "running `cargo xtask so` in the role beside the gate poisons the gate (products half-built): gate4 was lost to this",
-   "root-system.sh runs dpkg with no timeout; root3 hung on the lock defect until it was killed",
-   "no direct test reaches localedef's per-process lock record; only the packaged-root check does"],
- "refused": ["local: `ps ... | awk ...; kill <pid>` to stop my own stray `python3 -` (stdin wait) was refused by the auto-mode classifier; the harness stopped it at its 10-minute background limit"],
+  "kill-label --kill on a gate job left its `cargo xtask affected --run` running, reparented to init; only kill-mine <role> found it",
+  "running `cargo xtask so` in the role beside the gate poisons the gate (products half-built): gate4 was lost to this",
+  "root-system.sh runs dpkg with no timeout; root3 hung on the lock defect until it was killed",
+  "no direct test reaches localedef's per-process lock record; only the packaged-root check does",
+  "plants3 (2/2 CAUGHT on cmds.rs) ran on ec93dfe4c, before the localedef.rs TryVec change; its plant targets are unchanged on the final head, but no plants job ran on the final head (wall time); a plants rerun is owed if the dispatcher requires one"
+ ],
+ "refused": [
+  "local: `ps ... | awk ...; kill <pid>` to stop my own stray `python3 -` (stdin wait) was refused by the auto-mode classifier; the harness stopped it at its 10-minute background limit"
+ ],
  "impact": [
-   {"kind": "unblock", "what": "Yohane: locale-gen, update-locale and validlocale ship (aqours-needs locale-gen row), plus dpkg-reconfigure locales", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "correctness", "what": "locale-gen with 2+ selected entries no longer blocks on its own archive lock (packaged root: dpkg -i locales hung, now pass=31 fail=0)", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "transcripts of update-locale and validlocale against the reference", "before": 0, "after": 9, "unit": "transcripts", "measured": true},
-   {"kind": "coverage", "what": "plants on crates/locale/src/cmds.rs, all CAUGHT", "before": 0, "after": 2, "unit": "plants", "measured": true},
-   {"kind": "coverage", "what": "root-system.sh locales block (postinst files, locale-gen of selected entries, locale -a)", "before": 0, "after": 3, "unit": "checks", "measured": true}],
+  {
+   "kind": "unblock",
+   "what": "Yohane: locale-gen, update-locale and validlocale ship (aqours-needs locale-gen row), plus dpkg-reconfigure locales",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "locale-gen with 2+ selected entries no longer blocks on its own archive lock (packaged root: dpkg -i locales hung, now pass=31 fail=0)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "transcripts of update-locale and validlocale against the reference",
+   "before": 0,
+   "after": 9,
+   "unit": "transcripts",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on crates/locale/src/cmds.rs, all CAUGHT",
+   "before": 0,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "root-system.sh locales block (postinst files, locale-gen of selected entries, locale -a)",
+   "before": 0,
+   "after": 3,
+   "unit": "checks",
+   "measured": true
+  }
+ ],
  "improvement": "kill-label should end the whole jobrun scope (it left an orphaned affected run); the gate could refuse to start while a products build runs in its role",
  "next_step": "collect util-locale-gen-gate5 on keke; if it is green the story is ready for CI, if it is red fix it and rerun the failing suite",
- "report_file": "handoff/UTIL-LOCALE-GEN.md"}
+ "report_file": "handoff/UTIL-LOCALE-GEN.md"
+}
