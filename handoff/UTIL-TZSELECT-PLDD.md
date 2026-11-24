@@ -25,8 +25,14 @@ no-compat reasons).
   the plants file and two clippy lints in the test).
 * `util-tzselect-pldd-rootsys1`: build.sh --flavour system + check-system.sh + root-system.sh on 33097e147:
   `root: RESULT pass=25 fail=0`, the four new checks PASS.
-* `util-tzselect-pldd-plants` (handoff/UTIL-TZSELECT-PLDD-plants.txt): see the report json.
-* Gate, precheck: see the report json.
+* `util-tzselect-pldd-plants` (handoff/UTIL-TZSELECT-PLDD-plants.txt): 3 plants, 3 CAUGHT, 0 WARN
+  (c-order-reversed, pldd-no-dlopened, manifest-no-ld-so).
+* `util-tzselect-pldd-gate` (direct tier, bfe269a9a): every step ok (products, xtask tests on the products, niji,
+  niji-boundary, niji-math, niji-rt, layout-check, static; peak 5.1G) except one test in "xtask tests that run no
+  products", which runs beside the products build: `so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint`
+  reads the real target/niji and saw locale-sources being rewritten (SUPPORTED written 14:48:16, inside the test's
+  window). `util-tzselect-pldd-xtbin` (`cargo test -p xtask --bin xtask`, alone, same tree): 657 passed / 0 failed.
+  INFORMATIONAL: that test should be classed as using the products.
 
 ## Probe-settled behaviour (leg 1 and 2 replays; reference = the installed tzselect/pldd)
 Prompts on stderr, the TZ value on stdout; "\n" on stdout at end of input at a menu; no try line after
