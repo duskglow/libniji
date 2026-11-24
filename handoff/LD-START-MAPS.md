@@ -1,72 +1,76 @@
 # LD-START-MAPS: the start's mappings at or below the reference's kernel cost
 
-## State after leg 4 (2026-11-23, final)
+## State after LD-START-MAPS-2 (2026-11-24)
 
-Branch `task/ld-start-maps`, base origin/next e3b0caf60. Code head 961e52335 (later commits: D-27.92's text,
-this note, the report). Role mei:~/w/s4 (Skylake-SP). Decision in force: D-27.92
-(records/decisions/D-27/D-27.92.toml). Code: `image.rs` `open_start` / `read_headers` / `image_object` /
-`image_spans` / `arena_give_back` / `StartMapper::{store_file, map_span}`; `map.rs` `plan_headers`, `span_first`,
-`Mapper::{maps_span, map_span, store_file}`, cold `tail_from_file`; `link.rs` start search via `open_start`.
+Branch `task/ld-start-maps-2` (LD-START-MAPS's branch, origin/next de86ab08b merged in at 28e2001bf, clean).
+Code head 9e0b3ed92; later commits: plants file, this note, the report. Role shiki:~/w/sh2 (Haswell-EP, 26 threads).
+Decision in force: D-27.92 (records/decisions/D-27/D-27.92.toml), amended by this run for `ld.so PROGRAM`.
 
-Leg 4: gate on 1616cd635 RED, `hot_text_products::init_dynamic_start_system_calls_stay_within_their_bounds`:
-"three: 52 calls besides 8 openat, over the bounds 50" (DYN-START-RING). Cause: the per-object `pread` of the
-dynamic array (one call per dependency). Fix 961e52335: the start's mapper makes the reservation of a movable,
-page-aligned dependency whose PT_LOADs leave no gap by mapping its file over the span with the first segment's
-protection (`Mapper::map_span`, one mmap fewer per such object); the first segment keeps it, each later one maps
-over its part. Gapped, over-aligned (libc: 2 MiB), fixed, or read-only-first-with-zero-fill objects reserve apart;
-dlopen's mappers unchanged. Model test extended (spanned space equals the whole-file space, one call fewer where
-gapless; a gapped shared object reserved apart).
+Done this run:
+1. Merged origin/next (no conflict; next's loader changes are TLS descriptors and `surplus_bytes`, not the mapper).
+   The CI red on train 953 (`init_dynamic_empty_main_stays_within_its_instruction_bound`, batch overshoot) does not
+   reproduce on the merged head: `hot_text_products` 36/36, then 37/37 with the new test (empty main 162,618 user
+   instructions on this host, inside the bound).
+2. `ld.so PROGRAM` (the loader run as a command) was the last start path reading a file through a whole-file view
+   (its own reservation, two trims, the view and its unmap). `image.rs::load` now maps the program as a start
+   dependency is mapped: `program_from_headers` (one `pread` of the headers into the scratch arena, given back after,
+   `map::plan_headers`, `map::map_planned` with `StartMapper`); anything those headers do not settle falls back to the
+   old code, moved whole into the cold `program_by_view` (all refusal messages, COMPAT-19). `read_headers` returns the
+   arena range as `&'static mut` (open_start binds it as a shared slice; no change there).
+3. Test `hot_text_products::init_explicit_run_maps_the_program_without_a_whole_file_view` (traces `ld.so PROGRAM`, no
+   `munmap` of the program file's length). The tracer `oracle/start_syscalls.c` takes program arguments (the words
+   before the first `NAME=VALUE`).
 
-### Jobs on the code head 961e52335 (mei)
+### Measured (owner rule #8178: `results/kernel-residual/probes/krp.py --only shared,strace`, pages held by a holder)
 
-- `ld-start-maps-gate2`: direct tier, all green (13 steps, `test -p niji` included).
-- `ld-start-maps-plants3`: 13 plants, 13 CAUGHT, no WARN (`/mnt/zram/claude/ld-start-maps/plants-3/results.txt`;
-  plants file `~/work/ld-start-maps/plants.txt`, copy in the scratch dir). 4 new: span-gap, span-in-place,
-  span-prot, start-span-offset.
-- `ld-start-maps-startup3`: `NIJI_FULL_PROFILE=1 cargo xtask so`, `hot_text_products` 33/33, kit counts.
-- `ld-start-maps-xtask-test`: `cargo xtask test` (workspace), started last; see the hand-back.
-- Superseded: `ld-start-maps-gate` (1616cd635, red as above), `-plants` / `-startup` (old head, stopped),
-  `-plants2` (a `|` in a plant's replacement split the line: baseline failed, no plant applied), `-startup2`
-  (stopped: `cargo xtask test` first would have held the counts past the deadline; its one failure is below).
-- `ld-start-maps-basebins`, `-basebins-fast`: the merge base's products in a RAM copy, for layout-bins.
+Shiki (Haswell-EP, kernel of that host), release products (`NIJI_FULL_PROFILE=1 cargo xtask so`), medians of 21, two
+runs each, alternating head and next; every program started through an explicitly invoked loader, as krp does.
+"next" = origin/next de86ab08b without this branch; "leg 4" = the merged head before change 2 (28e2001bf).
+Per start: user / kernel instructions, total, page faults, mmap/munmap (strace).
 
-Layout-bins (`target/product/{fast,release}/layout-bins.tsv`): identical to the merge base's (0 lines differ).
-DYN_TRUE_BOUND not tightened: the passing test prints no count, none measured.
+| program | glibc 2.39 | next | leg 4 (merged) | this head | head - next | head - glibc |
+|---|---|---|---|---|---|---|
+| empty `main` | 104.9k / 590.6k = 695.6k, 51, 8/1 | 166.9k / 726.0k = 893.0k, 62, 11/1 | 168.6k / 652.0k = 820.6k, 61, 9/0 | 169.0k / 613.2k = 782.2k, 60.5, 9/0 | user +2.1k, kernel -112.8k, total -110.7k | +86.6k (user +64.1k, kernel +22.6k), faults +9.5 |
+| `true` | 131.3k / 590.2k = 721.5k, 51, 11/0 | 207.1k / 750.6k = 957.7k, 63, 18/4 | 210.3k / 680.8k = 891.1k, 64, 15/3 | 210.8k / 637.8k = 848.6k, 62, 13/0 | +3.6k, -112.8k, -109.2k | +127.1k (user +79.5k, kernel +47.6k), faults +11 |
+| `ls /` | 564.5k / 1,535.8k = 2,100.3k, 102, 35/0 | 780.3k / 1,979.2k = 2,759.4k, 172.5, 47/8 | 782.4k / 1,802.0k = 2,584.4k, 167, 40/7 | 783.0k / 1,739.0k = 2,521.9k, 163, 38/4 | +2.7k, -240.2k, -237.5k | +421.6k (user +218.5k, kernel +203.2k), faults +61 |
+| `sed` | 910.0k / 1,598.8k = 2,508.8k, 110, 38/0 | 1,140.8k / 2,174.7k = 3,315.5k, 190, 55/8 | 1,146.8k / 1,963.8k = 3,110.6k, 181.5, 46/7 | 1,147.5k / 1,905.7k = 3,053.3k, 180.5, 44/4 | +6.7k, -268.9k, -262.2k | +544.5k (user +237.5k, kernel +306.9k), faults +70.5 |
 
-### Measured (kit, release, Skylake-SP, median of 101; `ld-start-maps-meas-base` vs `ld-start-maps-startup3`)
+Unheld libniji pages (no holder) cost a further 55k to 167k kernel instructions per start (krp `niji` column, leg 4);
+glibc's are held by every process on the host.
 
-| program | user | kernel | faults | syscalls | maps |
-|---|---|---|---|---|---|
-| n0 | 159,047 -> 161,576 | 730,939 -> 626,081 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
-| n3 | 250,528 -> 265,243 | 1,122,981 -> 903,807 | 70 -> 70 | 59 -> 58 | 35 -> 26 |
-| t | 216,900 -> 219,364 | 730,456 -> 627,444 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
-| glibc 2.39 g0 / g3 / true (same run) | 101,855 / 138,761 / 128,175 | 586,781 / 920,185 / 588,150 | 51 / 67 / 51 | 30 / 64 / 30 | 12 / 27 / 12 |
+What each part removes: the dependencies read from their headers and mapped by span (LD-START-MAPS, legs 1-4)
+are 68k to 224k of the kernel column and apply to every exec'd dynamic program (Yohane's rows); the program read from
+its headers (change 2) is a further 38k to 63k, and applies only where the loader is run as a command (`ld.so
+PROGRAM`, krp's own setup, `ldd`-style use), not to an exec'd program. Against Yohane's table (+118k / +620k / +709k
+kernel over glibc 2.41 for `true` / `ls` / `sed`), the exec'd share removed here is 68k / 191k / 224k (this host, glibc 2.39).
 
-Per start: kernel -105k (n0), -219k (n3); n3 is now 16k below glibc's kernel count, n0 +39k over. Faults -1 (n0).
-User +2.5k (n0), +14.7k (n3): image-mode reading (leg 3 PT attribution) and `span_first`'s pass over the headers
-(about +0.75k per small library over leg 3). Target "kernel and faults <= the reference" NOT reached for n0
-(kernel +39k, faults +6, the stack inline tables and anonymous areas per leg 1's attribution).
+What is left on the mapping side (strace, `ls /`): the heap's first area (a 32 MiB aligned reservation and two trims:
+3 calls where the reference uses `brk`), two sub-page anonymous mappings made and unmapped during the start (720 and
+384 bytes), libc's `.bss` mapping of 770 KiB (the reference's is 52 KiB; untouched pages cost nothing, the touched
+ones are faults), and the 16 KiB / 6.9 KiB / 68 KiB anonymous areas (thread block, TLS, signal stack). The empty
+`main` makes 9 mmap + 2 mprotect + 0 munmap against the reference's 8 + 3 + 1: its mapping calls are at parity, so
+its remaining kernel gap (+23k held) is page faults (+9.5: written pages), not mappings.
 
-### Not planted, with reasons
+### Jobs on the code head (shiki)
 
-`arena_give_back`'s zeroing (every consumer writes a scratch range before reading it: equivalent).
-`kind_of`'s past-32 fallback (only the 300-PT_LOAD program reaches it; its extra pages hold nothing read).
+`ld-start-maps-2-lint1` (clippy + static), `-startup2` (full products, `hot_text_products` 37/37), `-krp3`
+(measurement above), `-gate` (direct tier), `-plants` (16 plants: 3 new, 13 of LD-START-MAPS again on the merged
+head; `handoff/LD-START-MAPS-2-plants.txt`), `-xtask-test`. Results: see the report json and the hand-back.
+Earlier: `-lint0` (inherited head, clean), `-startup` / `-krp2` (merged head before change 2), `-nextprod` (next's
+products for the comparison), `-krp` (failed: wrong product layout, no measurement).
 
-### Open / INFORMATIONAL
-
-- `catalogs_products::catalogs_equal_the_reference` failed in `cargo xtask test` (startup2, stopped): "catalog
-  file replaced on disk after it was loaded": libniji `[new]`, reference `[old]`, name-service cache on. No message
-  catalog code on this branch; run on the merge base's products in job `ld-start-maps-basecat` (see hand-back).
-- `cargo clippy -p niji-boundary --all-targets` alone fails in ffi.rs/selftest.rs (feature set); `cargo xtask
-  clippy` is clean. `jobrun ... measure` kind failed in 1 s for the kit (used `bench`).
-- Kit: `meas.sh` needs an ABSOLUTE output dir.
+Not planted, with reasons: `arena_give_back(head)` in `program_from_headers` (returns ~0.8 KiB of the 16 KiB scratch
+arena; observable only when an explicitly run program's dependencies would fill the arena within those bytes).
 
 ## Exact next step
 
-Coordinator: collect `ld-start-maps-xtask-test` (and `-basecat`); land if green. Next story for the n0 gap: the
-stack inline tables (`link`'s `Table<_, INLINE>`) and the anonymous areas (thread block, TLS, descriptor area).
+Coordinator: collect the jobs; land if green. Next stories for the remaining gap (kernel, exec'd programs): the
+written pages (faults +9.5 on the empty main: link's inline stack tables, libc's `.data`/`.bss` writes), the heap's
+first area by reservation and trims, the sub-page anonymous mappings at start.
 
 ## Do not redo
 
 Leg 1's attribution; leg 3's PT attribution; `MADV_RANDOM` on the view (rejected); mapping the view without the
-arena (brings back DYN-START-SPEED-2's alignment dependence).
+arena (brings back DYN-START-SPEED-2's alignment dependence). Kit notes: krp's `--products` needs the dynamic product
+layout (`wl_dyn_layout` in validation/wl_lock.sh), not `target/niji`; `--runs 0` with an empty `--kallsyms` file gives
+the counts without kernel samples.
