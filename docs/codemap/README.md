@@ -27,7 +27,7 @@ exactly which tests a change reaches.
 | 18 | Processes | crates/boundary/src/posix/s18_processes.rs | abi::ctypes, abi::layout, boundary::cancel, boundary::conv, boundary::fork, boundary::nscache, boundary::pthread, boundary::raw, boundary::ret, boundary::spawn, boundary::strz, boundary::sys, kernel::fd, kernel::sys, kernel::uapi, legacy::spawn_compat | s18_processes_symbols.rs, crates/core/tests/s18_processes_clauses.rs | s18_exec.c, s18_fork.c, s18_fork_aliases.c, s18_fork_reset.c, s18_spawn_vm.c, s18_system_cancel.c, s18_vfork.c | plan/07-decisions/s18-processes.md | noproc.md, process.md |
 | 19 | Terminals, job control and pseudo-terminals | crates/boundary/src/posix/s19_terminals.rs | abi::ctypes, abi::layout, abi::pack, boundary::cancel, boundary::conv, boundary::ret, boundary::strz, boundary::sys, boundary::terminal, kernel::uapi, legacy::stubs, legacy::term_compat | s19_terminals_symbols.rs, crates/core/tests/s19_terminals_clauses.rs | s19_terminals.c | plan/07-decisions/s19-terminals.md | noproc.md, terminals.md |
 | 20 | Signals | crates/boundary/src/posix/s20_signals.rs | abi::ctypes, abi::layout, boundary::cancel, boundary::conv, boundary::errno, boundary::raw, boundary::report, boundary::ret, boundary::strz, boundary::sys, boundary::thread, kernel::sys, kernel::uapi, legacy::signal_compat, rt::thread | s20_signals_symbols.rs, crates/core/tests/s20_signals_clauses.rs | s20_internal_signal.c, s20_psignal_stream.c, s20_pthread_kill.c | plan/07-decisions/s20-signals.md | compat-objects.md |
-| 21 | Non-local control transfer and execution contexts | crates/boundary/src/posix/s21_contexts.rs | abi::ctypes, abi::layout, boundary::context, boundary::conv | s21_contexts_symbols.rs, crates/core/tests/s21_contexts_clauses.rs | s21_context.c, s21_longjmp_chk.c, s21_setjmp.c, s21_shadow_stack.c | plan/07-decisions/s21-contexts.md | setjmp.md |
+| 21 | Non-local control transfer and execution contexts | crates/boundary/src/posix/s21_contexts.rs | abi::ctypes, abi::layout, boundary::context, boundary::conv | s21_contexts_symbols.rs, crates/core/tests/s21_contexts_clauses.rs | s21_context.c, s21_longjmp_chk.c, s21_setjmp.c, s21_shadow_stack.c, s21_shstk_optin.c, s21_shstk_optin_static.c | plan/07-decisions/s21-contexts.md | setjmp.md |
 | 22 | Threads and synchronization | crates/boundary/src/posix/s22_threads.rs | abi::ctypes, abi::layout, boundary::cancel, boundary::conv, boundary::ffi, boundary::fork, boundary::pthread, boundary::ret, boundary::strz, boundary::sync, kernel::uapi | s22_threads_symbols.rs, crates/core/tests/s22_threads_clauses.rs | s22_cancel.c, s22_cancel_fast.c, s22_cancel_points.c, s22_cancel_race.c, s22_compat_condvar.c, s22_errno.c, s22_key_nomem.c, s22_last_exit.c, s22_lifecycle.c, s22_more.c, s22_mutex_alone.c, s22_mutex_clone.c, s22_once_cxx.c, s22_once_unwind.c, s22_order.c, s22_past_deadline.c, s22_rwlock_self.c, s22_sem_named_many.c, s22_symbols.c, s22_sync.c | plan/07-decisions/s22-threads.md | key-nomem.md, noproc.md |
 | 23 | Time, clocks and timers | crates/boundary/src/posix/s23_time.rs | abi::ctypes, abi::layout, boundary::cancel, boundary::conv, boundary::locale, boundary::ret, boundary::strz, boundary::sys, boundary::timefmt, boundary::timer, boundary::zone, kernel::sys, kernel::uapi, legacy::clock_compat, legacy::getdate, legacy::time_compat | s23_time_symbols.rs, crates/core/tests/s23_time_clauses.rs, crates/core/tests/s23_strptime_engine.rs | s23_timefmt.c, s23_tz_secure.c, s23_tzfresh.c, s23_zones.c | plan/07-decisions/s23-time.md | env-cache.md, time-gaps.md, timefmt.md, timers.md, zones.md |
 | 24 | Resource limits, scheduling and system information | crates/boundary/src/posix/s24_system.rs | abi::ctypes, boundary::conv, boundary::netaddr, boundary::nr, boundary::process, boundary::raw, boundary::ret, boundary::strz, boundary::sys, kernel::errno, kernel::sys, kernel::uapi, legacy::sys_compat, legacy::sysconf_table | s24_system_symbols.rs, crates/core/tests/s24_system_clauses.rs | s24_hostname_chk.c, s24_variadic.c | plan/07-decisions/s24-resources-and-system-information.md | compat.md, noproc.md |
@@ -84,7 +84,7 @@ Other crates: abi, boundary, charmaps, collate-root, core, kernel, ld, ld-so, ld
 | `/etc/ttys` | crates/legacy/src/accounting.rs:46 |
 | `/proc/loadavg` | crates/core/src/system.rs:191 |
 | `/proc/self/auxv` | crates/boundary/src/sys.rs:353 |
-| `/proc/self/exe` | crates/boundary/src/ld/link.rs:546 |
+| `/proc/self/exe` | crates/boundary/src/ld/link.rs:567 |
 | `/proc/self/fd` | crates/core/src/process.rs:453, crates/legacy/src/io_compat.rs:40 |
 | `/proc/self/fd/` | crates/core/src/term.rs:462, crates/legacy/src/fs_compat.rs:66 |
 | `/proc/self/fd/0123456789` | crates/legacy/src/accounting.rs:447 |
@@ -105,7 +105,7 @@ Other crates: abi, boundary, charmaps, collate-root, core, kernel, ld, ld-so, ld
 | `/sys/devices/system/cpu` | crates/core/src/system.rs:351 |
 | `/sys/devices/system/cpu/online` | crates/core/src/system.rs:331 |
 | `/usr/` | crates/core/src/catalog/xopen.rs:197 |
-| `/usr/bin/ls` | crates/rt/src/start.rs:589 |
+| `/usr/bin/ls` | crates/rt/src/start.rs:592 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
 | `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:16 |
