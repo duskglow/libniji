@@ -116,6 +116,9 @@ fn entry(reference: &Path, what: &str) -> usize {
 /// Answers that end any session on a confirmation: "1" picks the first entry of every menu and Yes.
 const ONES: &str = "1\n1\n1\n1\n1\n1\n1\n1\n";
 
+/// A scripted session: its name, the arguments, the environment and the input.
+type Case<'a> = (String, Vec<&'a str>, Vec<(&'a str, &'a str)>, String);
+
 /// TZ strings probed against the reference, accepted and refused ones.
 const TZ_STRINGS: &[&str] = &[
     "EST5EDT,M3.2.0,M11.1.0", ":Europe/Paris", "AB5", "ABCDEFGHIJ5", "<A>5", "EST+5:30", "EST5:30:59", "EST25", "EST-24:59:59",
@@ -133,7 +136,7 @@ fn tzselect_sessions_match_the_reference() {
     let reference = Path::new(REF_TZSELECT);
     let (coord, tz) = (entry(reference, "coord - "), entry(reference, "TZ - "));
     let continents = coord - 1;
-    let mut cases: Vec<(String, Vec<&str>, Vec<(&str, &str)>, String)> = Vec::new();
+    let mut cases: Vec<Case> = Vec::new();
     for k in 1..=continents {
         cases.push((format!("continent {k}"), vec![], vec![], format!("{k}\n{ONES}")));
     }
@@ -149,7 +152,7 @@ fn tzselect_sessions_match_the_reference() {
     for cols in ["40", "200", "abc", "0", "-5"] {
         cases.push((format!("COLUMNS={cols}"), vec![], vec![("COLUMNS", cols)], "2\n".into()));
     }
-    cases.push(("TZ in the environment".into(), vec![], vec![("TZ", "Asia/Tokyo")], format!("{ONES}")));
+    cases.push(("TZ in the environment".into(), vec![], vec![("TZ", "Asia/Tokyo")], ONES.to_string()));
     cases.push(("-x".into(), vec!["-x"], vec![], String::new()));
     cases.push(("-c without its value".into(), vec!["-c"], vec![], String::new()));
     cases.push(("an operand".into(), vec!["extra"], vec![], String::new()));
