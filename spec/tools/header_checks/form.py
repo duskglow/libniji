@@ -10,8 +10,8 @@ the probe unit's own diagnostics are read (`-fdiagnostics-plain-output`, no care
 sizes of the probe's own objects (`nm -S`). No reference header text is read.
 
 Inventory: every `#define NAME` without a parameter list in the generated tree (libc-include/), except libniji's
-own `__NIJI_*` / `__LIELLA_*` names, each probed through the header that defines it (the macros.tsv header when it is
-one of them, else the first in path order); headers shipped to fail (`must_fail`) are left out.
+own `__NIJI_*` names, each probed through every header that defines it (one macro can be spelled differently in two
+headers); headers shipped to fail (`must_fail`) are left out.
 
 Facts per (macro, configuration, side): `def` defined; `pp` usable in `#if`; `expr` usable as an expression;
 `ice` an integer constant expression in C (`_Static_assert`) or a constant expression in C++ (`static_assert`);
@@ -59,7 +59,7 @@ INT_TYPES = {"int", "unsigned int", "long", "unsigned long", "long long", "unsig
 FACTS = ("def", "pp", "expr", "ice", "arr", "init", "cx")
 C_ONLY, CXX_ONLY = {"init"}, {"cx"}
 DEFINE = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)(\(?)")
-OWN = ("__NIJI", "__LIELLA")
+OWN = ("__NIJI",)
 
 
 def must_fail_headers():
