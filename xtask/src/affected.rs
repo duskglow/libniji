@@ -4094,6 +4094,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                     cmd.arg("test");
                 }
                 cmd.args(&selection);
+                cmd.args(pass_filter(pass, nextest, c, &ts));
                 if pass == 1 {
                     let r = runner.get_or_insert_with(|| {
                         let made = crate::pass2::lock(root).and_then(|held| {
@@ -4303,6 +4304,17 @@ fn second_pass(interpose: bool, c: &str, ts: &[&str]) -> bool {
 /// `nextest::PASS2_PRODUCTS` (D-X.161) run in the first pass only; the interposed pass runs the suite's targets only.
 fn pass_targets<'a>(pass: usize, c: &str, ts: &[&'a str]) -> Vec<&'a str> {
     ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::first_pass_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect()
+}
+
+/// The nextest filter of pass `pass` over crate `c`'s targets `ts`: the native pass leaves out the
+/// later shards of `nextest::PASS2_SHARD0` (D-X.167), as the gate's second pass does; the other
+/// passes, and a run without nextest (`cargo test` takes no filterset), run every test.
+fn pass_filter(pass: usize, nextest: bool, c: &str, ts: &[&str]) -> Vec<String> {
+    if pass == 1 && nextest {
+        crate::nextest::later_shards_filter(c, ts)
+    } else {
+        Vec::new()
+    }
 }
 
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
@@ -6995,5 +7007,17 @@ fn plain() {}", &aliases);
         assert_eq!(pass_targets(1, "niji", &ts), ["hot_text_products", "heap_meta_products", "timers_products", "s03_memory_clauses", "printf_rules"]);
         assert_eq!(pass_targets(2, "niji", &ts), ["s03_memory_clauses"], "the interposed pass runs the suite's targets only");
         assert_eq!(pass_targets(1, "niji-math", &["special_cr", "complex_products", "fast64"]), ["fast64"]);
+    }
+
+    #[test]
+    fn the_native_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps() {
+        // no spec clause: gate tooling (PASS2-KERNEL-SHARD0, D-X.167), not libc behaviour.
+        let ts = ["strstr_find", "heap_threads"];
+        let native = pass_filter(1, true, "niji-boundary", &ts);
+        assert_eq!(native, crate::nextest::later_shards_filter("niji-boundary", &ts));
+        assert!(native.len() == 2 && native[1].contains("m_16_to_31") && !native[1].contains("small_compare"), "{native:?}");
+        assert!(pass_filter(0, true, "niji-boundary", &ts).is_empty(), "the first pass runs every shard");
+        assert!(pass_filter(2, true, "niji-boundary", &ts).is_empty() && pass_filter(1, false, "niji-boundary", &ts).is_empty());
+        assert!(pass_filter(1, true, "niji-boundary", &["heap_threads"]).is_empty());
     }
 }

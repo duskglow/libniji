@@ -1,0 +1,16 @@
+# PASS2-KERNEL-SHARD0 plants: `nextest::PASS2_SHARD0` and its wiring (xtask/src/nextest.rs, affected.rs; D-X.167). Run: cargo xtask plants handoff/PASS2-KERNEL-SHARD0-plants.txt --dir <dir>
+# The first shard leaking into the left-out list (pass 2 would run no shard of small_compare's sweep).
+first-shard-out | xtask/src/nextest.rs | lit:in_each_build_", "0", &["1", "2", "3", "4"]), ==> in_each_build_", "0", &["0", "1", "2", "3", "4"]), | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)|must stay in the second pass
+# A misspelled shard name: the filter would match nothing and save nothing.
+shard-misnamed | xtask/src/nextest.rs | lit:const STRSTR_LATER: &[&str] = &["m_16_to_31", ==> const STRSTR_LATER: &[&str] = &["m_16_to_32", | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)|no test strstr
+# The gate's second pass loses the term.
+pass1-term-dropped | xtask/src/nextest.rs | lit:    ids.extend(later_shards_term(|_, _| true)); ==> | cargo test -p xtask --bin xtask second_pass | msg:the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)
+# Another crate's or target's tests taken into a pass's filter.
+keep-ignores-crate | xtask/src/nextest.rs | lit:later_shards_term(|c, t| c == krate && targets.contains(&t)) ==> later_shards_term(|_, t| targets.contains(&t)) | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)
+keep-ignores-target | xtask/src/nextest.rs | lit:later_shards_term(|c, t| c == krate && targets.contains(&t)) ==> later_shards_term(|c, _| c == krate) | cargo test -p xtask --bin xtask kernel_sweeps | msg:kernel_sweeps.*(FAILED|panicked)
+# Two families of one target as two groups (a grouping slip).
+group-split | xtask/src/nextest.rs | lit:match groups.iter_mut().find(|(b, _)| *b == id) { ==> match groups.iter_mut().find(|(b, _)| *b == id && false) { | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)
+# affected's native pass loses the filter, or applies it to the first pass.
+affected-native-dropped | xtask/src/affected.rs | lit:    if pass == 1 && nextest { ==>     if pass == 9 && nextest { | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_native_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)
+affected-first-pass | xtask/src/affected.rs | lit:    if pass == 1 && nextest { ==>     if pass < 2 && nextest { | cargo test -p xtask --bin xtask kernel_sweeps | msg:the_native_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps.*(FAILED|panicked)|the first pass runs every shard
+affected-not-wired | xtask/src/affected.rs | lit:                cmd.args(pass_filter(pass, nextest, c, &ts)); ==> | cargo xtask clippy | msg:pass_filter.*never used|dead_code
