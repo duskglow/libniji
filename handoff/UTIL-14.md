@@ -92,3 +92,6 @@ Probe scripts: local `~/w/.scratch/UTIL-14/` (`pd_probe.py`, `syn_probe.py`, res
    Check `cargo xtask affected --list` selects gencat_products and the transcripts test for csys/util/gencat.c.
 3. Both package flavours build + check-system lists /usr/bin/gencat (brief Proof); precheck --jobs <labels> --head <sha>.
 4. Report: handoff/UTIL-14-report.md + handoff/reports/UTIL-14.json (+ "jobs"), handback-check, hand back.
+
+## UTIL-14-5
+Stale-products fixture in xtask/src/so.rs renamed gencat -> old-tool-not-a-product (gencat is now a product). Test, clippy, static green. Nothing else left.
