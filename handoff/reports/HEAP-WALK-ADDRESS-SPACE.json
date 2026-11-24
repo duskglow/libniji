@@ -1,0 +1,104 @@
+{
+ "task": "HEAP-WALK-ADDRESS-SPACE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Size classes eight per doubling to 1024 (D-3.26): the find formula with LD-START-MAPS-3 drops from 35608..37284 to 32940..33196 KiB (under the issue's 35000; glibc 29904 by the same method, not reached); refill step unchanged",
+ "branch": "task/heap-walk-address-space",
+ "head": "0540cb9f6",
+ "gate": {
+  "affected": "pending: heap-walk-address-space-gate4 on 0540cb9f6 (gate2 on 26b90489e: 2326 passed / 1 failed, fixed; gate3 rerun of that suite on 71f0ca5: 198 passed / 0 failed)",
+  "peak": "11G (gate2)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The issue's refill step (+10 MiB VmSize over the reference) needs reuse of freed blocks across size classes; not in this change (next story).",
+  "calloc_free_4096 +2.1% and realloc_grow_x2 +0.5% instr/op beside next: sizes above 1024 now take one more branch in class_for's general path (likely cause, not traced); fix-forward folds the two formulas.",
+  "The 'this branch alone' row is from release-profile products of a source copy at the final code; products from the role after cargo xtask test are a different profile (need over 3 entries 15872 vs 27636) and were discarded."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "size",
+   "what": "find formula over 200000 entries with LD-START-MAPS-3 (least ulimit -v minus 3-entry need, 8 phases)",
+   "before": 37284,
+   "after": 33196,
+   "unit": "KiB address space (worst phase)",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "find formula over 200000 entries on this branch alone vs next (worst phase)",
+   "before": 21724,
+   "after": 17660,
+   "unit": "KiB address space",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_malloc heap_mix_real",
+   "before": 149.1,
+   "after": 144.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_malloc lifo_batch64",
+   "before": 8342.1,
+   "after": 8213.9,
+   "unit": "instr/batch",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_malloc malloc_free_16..1024",
+   "before": 122.2,
+   "after": 121.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_malloc calloc_free_4096 (fix-forward: fold class_for's two formulas)",
+   "before": 416.3,
+   "after": 425.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_malloc realloc_grow_x2",
+   "before": 1748.8,
+   "after": 1757.4,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "per-thread heap cache",
+   "before": 3072,
+   "after": 3968,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: one new (block waste <= 1/8 up to 1024), rule form in heap_meta_products; plants added",
+   "before": 0,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "The bench ratchet should run with the first gate, not after it: the lifo_batch64 regression (hint table too small for more classes) surfaced only in leg 2 and forced a third gate cycle.",
+ "next_step": "Collect gate4/plants3/startup3 on 0540cb9f6; then a story for cross-class reuse on refill and folding class_for's formulas.",
+ "report_file": "handoff/HEAP-WALK-ADDRESS-SPACE.md",
+ "jobs": [
+  "heap-walk-address-space-gate4",
+  "heap-walk-address-space-plants3",
+  "heap-walk-address-space-startup3",
+  "heap-walk-address-space-bench-next",
+  "heap-walk-address-space-bench-hint32"
+ ]
+}

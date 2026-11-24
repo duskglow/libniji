@@ -9,7 +9,7 @@
 //! cache lines. A shard's segments are mapped with its node preferred.
 //!
 //! **Small blocks** (up to [`MAX_SMALL`] bytes) come from 256 KiB slabs, each serving one of
-//! 44 size classes, inside 16 MiB segments aligned to 16 MiB. A segment starts with a header
+//! 56 size classes, inside 16 MiB segments aligned to 16 MiB. A segment starts with a header
 //! (its shard) and the slab records; the slabs follow. There is no per-block header (D-3.3).
 //! `free` finds the segment from the address through a lock-free, insert-only registry
 //! (segments are never unmapped, only their pages discarded), the slab by offset, and the block
@@ -294,16 +294,19 @@ const _: () = assert!(BITMAP_WORDS >> GROUP_SHIFT <= 64);
 /// Eight words (one cache line) per class: the index is a shift, and a class's words never
 /// straddle two lines. Word 7 is unused.
 const CLASS_WORDS: usize = 8;
-const C_LARGE: usize = C_CLASS + 44 * CLASS_WORDS;
-const CACHE_WORDS: usize = 384;
+const C_LARGE: usize = C_CLASS + NCLASSES * CLASS_WORDS;
+const CACHE_WORDS: usize = 496;
 /// The free fast path's slab hints (HEAP-CUTS2 S-C): a small table, indexed by the slab's address
 /// bits above `SLAB_SHIFT`, of slabs that are the current slab of their class: base | class, 0
 /// for none. Every allocation from a current slab records it; `refill` removes a class's entry
 /// before its slab stops being current, so an entry always names a current slab and a free
 /// inside it needs no lookup. (One word, the latest slab only, missed every free of a block of
-/// another class than the latest allocation's.)
+/// another class than the latest allocation's.) 32 entries (D-3.26): with eight classes per
+/// doubling to 1024 a mixed-size batch keeps more current slabs than 16 entries hold apart
+/// (`lifo_batch64`: 17 classes before, 20 after; 8937 instructions per batch with 16, 8214 with
+/// 32, Zen 1 build host).
 const C_SLABS: usize = C_LARGE + 2 * LARGE_KEEP;
-const SLAB_HINTS: usize = 16;
+const SLAB_HINTS: usize = 32;
 /// The largest size `resize`'s fused path and growth forecast serve (REALLOC-FUSE).
 pub const FORECAST_CAP: usize = 1024;
 /// The smallest block whose growth by `realloc` the general path forecasts up to
@@ -324,20 +327,29 @@ const FIRST_SEGS: usize = 128;
 const FIRST_CACHES: usize = 64;
 const _: () = assert!((FIRST_CACHES + 3 * FIRST_SEGS) * 8 <= PAGE && FIRST_SEGS.is_power_of_two() && FIRST_CACHES.is_power_of_two());
 
-/// The size classes: 16-byte steps to 128, then four per doubling up to 64 KiB.
-pub const CLASSES: [usize; 44] = [
+/// The size classes: 16-byte steps to 128, eight per doubling to 1024 (a step of at most an
+/// eighth of the class below), then four per doubling up to 64 KiB (D-3.26). Eight per
+/// doubling up to 1024 keeps every class of the fused paths' table below 32 (their `& 31`).
+/// With four (steps of a quarter) a common record size just over a boundary paid up to a fifth
+/// of its block: `find`'s 264-byte directory entries took 320 bytes each, 4.7 MiB of address
+/// space over 100000 live entries (HEAP-WALK-ADDRESS-SPACE, GitHub issue #21).
+pub const CLASSES: [usize; NCLASSES] = [
     16, 32, 48, 64, 80, 96, 112, 128,
-    160, 192, 224, 256, 320, 384, 448, 512, 640, 768, 896, 1024,
+    144, 160, 176, 192, 208, 224, 240, 256,
+    288, 320, 352, 384, 416, 448, 480, 512,
+    576, 640, 704, 768, 832, 896, 960, 1024,
     1280, 1536, 1792, 2048, 2560, 3072, 3584, 4096, 5120, 6144, 7168, 8192,
     10240, 12288, 14336, 16384, 20480, 24576, 28672, 32768, 40960, 49152, 57344, 65536,
 ];
+/// The number of size classes.
+const NCLASSES: usize = 56;
 
 /// `floor(2^40 / size) + 1` per class: `(rel * m) >> 40` is `rel / size` exactly for every
 /// offset in a slab (`rel < 2^18`, `size <= 2^16`: the error stays below `2^34 / 2^40`).
-const MAGIC: [u64; 44] = {
-    let mut m = [0u64; 44];
+const MAGIC: [u64; NCLASSES] = {
+    let mut m = [0u64; NCLASSES];
     let mut i = 0;
-    while i < 44 {
+    while i < NCLASSES {
         // A const context: `as` is the only conversion there; every class fits in 17 bits.
         #[allow(clippy::as_conversions)]
         let size = CLASSES[i] as u64;
@@ -358,7 +370,7 @@ const MAGIC: [u64; 44] = {
 const HALF_BELOW: [u64; 64] = {
     let mut t = [0u64; 64];
     let mut i = 1;
-    while i < 44 {
+    while i < NCLASSES {
         // A const context: CLASSES fits in 64 bits.
         #[allow(clippy::as_conversions)]
         {
@@ -372,7 +384,7 @@ const HALF_BELOW: [u64; 64] = {
 const FREE_VIEW: [[u64; 3]; 64] = {
     let mut t = [[0u64; 3]; 64];
     let mut i = 0;
-    while i < 44 {
+    while i < NCLASSES {
         // A const context: `as` is the only conversion there; both fit in 64 bits.
         #[allow(clippy::as_conversions)]
         {
@@ -591,10 +603,11 @@ pub fn class_for(size: usize, align: usize) -> Option<usize> {
     let first = if size <= 128 {
         size.div_ceil(16) - 1
     } else {
-        // Four classes per doubling: (size - 1) in [2^e, 2^(e+1)) picks one of four steps.
+        // (size - 1) in [2^e, 2^(e+1)) picks one of eight steps up to 1024 (e 7..9), one of
+        // four above it.
         let s = size - 1;
         let e = uz(u64::from(s.ilog2()));
-        8 + (e - 7) * 4 + ((s >> (e - 2)) - 4)
+        if e < 10 { 8 + (e - 7) * 8 + ((s >> (e - 3)) - 8) } else { 32 + (e - 10) * 4 + ((s >> (e - 2)) - 4) }
     };
     // A power of two: a mask, not a division.
     let mask = align.max(ALIGN) - 1;
@@ -603,10 +616,10 @@ pub fn class_for(size: usize, align: usize) -> Option<usize> {
 
 /// Blocks per slab, per class (a table: a division here would cost more than the rest of the
 /// fast path).
-const BLOCKS: [usize; 44] = {
-    let mut b = [0usize; 44];
+const BLOCKS: [usize; NCLASSES] = {
+    let mut b = [0usize; NCLASSES];
     let mut i = 0;
-    while i < 44 {
+    while i < NCLASSES {
         b[i] = SLAB / CLASSES[i];
         i += 1;
     }
@@ -2202,7 +2215,7 @@ impl Heap {
                 let word = &r.local[j];
                 let usable = uz(FREE_VIEW[c][0]);
                 let target = Self::move_target(usable, size);
-                // `target <= FORECAST_CAP`: the table's class (at most 19, so the mask is the
+                // `target <= FORECAST_CAP`: the table's class (at most 31, so the mask is the
                 // identity and spares the cache words' bounds checks); above it, the general rule.
                 let nc = if target <= FORECAST_CAP { Some(usize::from(SMALL_CLASS[(target + 15) >> 4]) & 31) } else { class_for(target, ALIGN) };
                 if let Some(new) = nc.and_then(|nc| Self::alloc_hint(pages, &k, nc)) {

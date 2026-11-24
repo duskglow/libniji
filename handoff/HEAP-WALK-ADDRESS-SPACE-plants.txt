@@ -1,0 +1,9 @@
+# HEAP-WALK-ADDRESS-SPACE plants (D-3.26): size classes eight per doubling up to 1024; the issue #21 steps' rule form.
+# quarter-step-288: the old over-reservation put back where find's 264-byte entries land (257..320 -> 320, as with four
+#   classes per doubling).
+# never-aligned-steps: no aligned segment once the over-mapping is refused: the steps need more under a limit than they hold.
+quarter-step-288 | crates/rt/src/heap.rs | lit:    288, 320, 352, 384, ==>    320, 320, 352, 384, | cargo test -p niji-rt --test heap_and_sync a_block_up_to_1024_bytes_exceeds_its_request_by_at_most_an_eighth | msg:size [0-9]+: class 320 wastes
+never-aligned-steps | crates/boundary/src/heap.rs | lit:let addr = found?; ==> let addr = found.filter(|_| false)?; | cargo test -p niji --test heap_meta_products the_heap_keeps_address_space_near_its_use | msg:the issue's steps need [0-9]+ KiB over start under RLIMIT_AS
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# quarter-step-288: CAUGHT, caught by heap_and_sync a_block_up_to_1024_bytes_exceeds_its_request_by_at_most_an_eighth
+# never-aligned-steps: CAUGHT, caught by heap_meta_products the_heap_keeps_address_space_near_its_use

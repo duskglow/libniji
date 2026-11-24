@@ -203,6 +203,32 @@ fn the_heap_keeps_address_space_near_its_use() {
         eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
         assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
     }
+    // The rule form (HEAP-WALK-ADDRESS-SPACE, as the find walk's rule, HEAP-FIND-DEPTH-NEED-3): in
+    // the same layout, the least headroom over start the steps succeed under (page-exact) against
+    // the most address space the same steps hold without a limit. Start-up and the steps' real use
+    // are in both and cancel; what is left is address space the heap needs under a limit and does
+    // not keep without one (a segment not placed, freed space not reused there). Measured (Zen 1
+    // build host): need 41288, held 41288. The allowance is the find walk's.
+    let run = |arg: String| with_cpus(node, || with_fixed_layout(|| Command::new(&exe).arg(arg).env_clear().stdin(Stdio::null()).output().unwrap()));
+    let o = run("-".into());
+    assert!(o.status.success(), "{} - failed: {:?}", exe.display(), o.status);
+    let out = String::from_utf8_lossy(&o.stdout);
+    let at = |step: &str| -> u64 { out.lines().find_map(|l| l.strip_prefix(step).and_then(|v| v.strip_prefix(' ')).and_then(|v| v.parse().ok())).unwrap_or_else(|| panic!("no step {step} in {out:?}")) };
+    let held = AS_STEPS.iter().map(|&(step, ..)| at(step).saturating_sub(at("start"))).max().unwrap_or(0);
+    let (mut lo, mut hi): (u64, u64) = (0, 1 << 17);
+    while hi.saturating_sub(lo) > 4 {
+        let mid = lo.midpoint(hi) / 4 * 4;
+        if run(mid.to_string()).status.success() {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    eprintln!("issue #21 steps (ADDR_NO_RANDOMIZE): need {hi} KiB over start under RLIMIT_AS, hold {held} without a limit (allowance {FIND_PLACEMENT_SLACK})");
+    assert!(
+        hi <= held.saturating_add(FIND_PLACEMENT_SLACK),
+        "the issue's steps need {hi} KiB over start under RLIMIT_AS but hold at most {held} without a limit: more than {FIND_PLACEMENT_SLACK} over (a segment not placed, or freed space not reused, under the limit?)"
+    );
     let o = with_cpus(node, || with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
     assert!(
         o.status.success(),
