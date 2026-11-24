@@ -1,0 +1,5 @@
+# LOCALE-ADDRESS-SPACE plants: the permanent arena put back on the heap, one half at a time.
+# items: an interned locale's item tables (`Permanent::slice`) leaked from the heap again.
+# views: its view and `Tables` (`Permanent::value`) leaked from the heap again.
+items | crates/boundary/src/locale.rs | perl:s/(fn slice<T: Copy \+ 'static>.*?)if heap::routed\(\)/${1}if !heap::routed()/s | cargo test -p niji --test heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references | msg:locale data back on the heap
+views | crates/boundary/src/locale.rs | perl:s/(fn value<T: 'static>.*?)if heap::routed\(\)/${1}if !heap::routed()/s | cargo test -p niji --test heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references | msg:locale data back on the heap

@@ -1,0 +1,16 @@
+id = "D-NEW"
+series = "D-7"
+section = "s07"
+spec = "§7.2"
+ann = "—"
+status = "active"
+story = "LOCALE-ADDRESS-SPACE"
+date = "2026-11-24"
+tests = ["crates/core/tests/heap_meta_products.rs::a_utf8_locale_costs_no_more_address_space_than_the_references"]
+body = '''
+**An interned locale's permanent data lives in a page arena of its own, not on the heap** (LOCALE-ADDRESS-SPACE, 2026-11-24). An interned locale's view, item tables, `Tables` and name are never freed (D-7.8). Leaked from the heap, the four objects of an `en_US.UTF-8` locale (about 9 KiB: name 31 B, items 5920 B, `Tables` 288 B, view 2944 B) each fell in a size class nothing else in a small program uses, so each opened a 256 KiB slab, and on `find` over 3 files the fourth grew the heap by its 2 MiB segment step: en_US.UTF-8 left 2032 KiB more mapped at exit than it does now (Zen 1 build host, find 4.9.0, tmpfs). `niji::mem::Permanent` names where such data goes (default methods: the heap leak, `OnHeap`); `global_locale::Objects: Permanent`, and `LocaleView::new_in` places the items and `Tables` through it. The products' `Glue` packs them into lazily mapped private page chunks (16 KiB first, one locale's data; doubling to 1 MiB; a larger request gets a chunk of its own; a chunk's unused tail is abandoned when the next one opens), under a lock taken only inside `global_locale`'s interning lock (so a `fork` child never finds it held unless it finds that one held too). When a replacement allocator serves the library's allocations (D-X.156), the data still goes through its `malloc`.
+
+Measured after (same host, `VmSize` at exit, fixed layout; the test's own run gave the same three differences): products C 12896 KiB, en_US.UTF-8 16480 (+3584), C.UTF-8 13488 (+592); the reference C 3736, en_US.UTF-8 6724 (+2988, the locale archive, mapped by both). Before: en_US.UTF-8 18512 (+5616), C.UTF-8 13472 (+576). C.UTF-8 now maps the 16 KiB first chunk (its view and name; 4 KiB resident, `RssAnon` unchanged).
+
+**Left over, with its reason:** +596 KiB over the reference for any non-C `LC_CTYPE` (C.UTF-8 included): `locale::publish_global` looks up six compatibility objects by name (`niji_dl_sym`), which creates the `dlopen` loader's state (one 528 KiB NORESERVE map of in-line tables for 512 objects) and maps one page per start-up object for its image views (44 KiB with 10 objects), plus the arena's 16 KiB chunk. Removing it needs a loader change (a smaller or growable loader table, or a lookup that reads the executable's own dynamic symbols without the `dlopen` state), outside this story; recommended as its own story. The test allows it through the same-run C.UTF-8 baseline (no locale data, the same loader state), plus a 64 KiB margin. gettext's two records for a missing catalog under a non-C `LC_MESSAGES` (240 B and 46 B) stay on the heap: their classes did not open a slab of their own on `find`, and they sit behind gettext's own lock and `intl::Host`.
+'''

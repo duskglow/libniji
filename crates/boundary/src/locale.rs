@@ -59,7 +59,7 @@ impl Objects for Glue {
 /// An interned locale's view, item tables and name live for the rest of the process (D-7.8).
 /// Kept on the heap, a few kilobytes of them each opened a size class nothing else in a process
 /// uses (a 256 KiB slab each, so a UTF-8 locale grew a program's heap by a whole segment step);
-/// here they are packed into page chunks of their own instead (LOCALE-ADDRESS-SPACE, D-NEW). A
+/// here they are packed into page chunks of their own instead (LOCALE-ADDRESS-SPACE). A
 /// program whose allocator replaces `malloc` still sees them as `malloc` calls (D-X.156).
 impl Permanent for Glue {
     fn slice<T: Copy + 'static>(&self, n: usize, fill: T) -> KResult<&'static mut [T]> {

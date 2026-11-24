@@ -409,6 +409,89 @@ fn find_over_200000_entries_bounds_its_address_space() {
     }
 }
 
+/// What a UTF-8 locale may cost over the reference's, past the same-run C.UTF-8 baseline (KiB):
+/// a quarter of one heap slab (256 KiB) and a sixty-fourth of the heap's 2 MiB segment growth
+/// step, so that one locale object that opens a heap size class of its own, or grows the heap,
+/// is seen. Measured with the permanent arena (LOCALE-ADDRESS-SPACE; Zen 1 build host, find
+/// 4.9.0): 4 KiB over. With the view, items, `Tables` and name leaked from the heap (before) the
+/// en_US.UTF-8 run left 2032 KiB more mapped: its four new size classes grew the heap a step.
+const LOCALE_MARGIN: u64 = 64;
+
+/// `find dir` with `vm_size_at_exit.so` preloaded and `LANG=lang`, run by the products (`ld` the
+/// products' loader, with `--library-path`) or by the system's loader and libc (the reference,
+/// `lib_path` `None`): the address space (KiB) it leaves mapped at exit.
+fn locale_mapped(ld: &Path, lib_path: Option<&Path>, find: &Path, dir: &Path, preload: &Path, lang: &str) -> u64 {
+    let lp = lib_path.map_or(String::new(), |p| format!("--library-path '{}' ", p.display()));
+    // Descriptor 3 is the preload's (on the standard error pipe), as in `find_run`.
+    let cmd = format!("exec \"$0\" --preload \"$1\" {lp}\"$2\" \"$3\" > /dev/null 3>&2");
+    let o = with_fixed_layout(|| Command::new("sh").arg("-c").arg(cmd).arg(ld).arg(preload).arg(find).arg(dir).env_clear().env("LANG", lang).stdin(Stdio::null()).output().unwrap());
+    assert!(o.status.success(), "find {} with LANG={lang} by {} fails: {:?}", dir.display(), ld.display(), o.status);
+    let err = String::from_utf8_lossy(&o.stderr);
+    let kib = err.lines().find_map(|l| l.strip_prefix("VmSize:")).and_then(|v| v.trim().strip_suffix("kB")).and_then(|v| v.trim().parse().ok());
+    kib.unwrap_or_else(|| panic!("no VmSize line from the preloaded vm_size_at_exit.so: {err}"))
+}
+
+#[test]
+fn a_utf8_locale_costs_no_more_address_space_than_the_references() {
+    // Clauses: s7_2_c_2 (`setlocale(LC_ALL, "")` loads LANG's locale), s3_1_c_1 (T14: address space); the
+    // Yohane report on GitHub issue #21's `find` (LOCALE-ADDRESS-SPACE).
+    // `find` over 3 entries in en_US.UTF-8 and in C, by the products and by the reference, in
+    // one run and one fixed layout: the address space the UTF-8 locale adds at exit (both map the
+    // locale archive) is at most the reference's, plus what the products add for C.UTF-8, whose
+    // data is built in (no archive, no locale data: the loader state a non-C `LC_CTYPE` sets up
+    // and the first arena chunk, LOCALE-ADDRESS-SPACE), plus [`LOCALE_MARGIN`].
+    let find = Path::new("/usr/bin/find");
+    let system_ld = Path::new("/lib64/ld-linux-x86-64.so.2");
+    let shm = Path::new("/dev/shm");
+    for (need, why) in [
+        (find, "no /usr/bin/find on this host (findutils not installed)"),
+        (system_ld, "no system loader /lib64/ld-linux-x86-64.so.2 (the reference) on this host"),
+        (Path::new("/usr/lib/locale/locale-archive"), "no /usr/lib/locale/locale-archive on this host"),
+        (shm, "no /dev/shm (tmpfs) on this host"),
+    ] {
+        if !need.exists() {
+            eprintln!("skipped: {why}");
+            return;
+        }
+    }
+    let listed = Command::new("locale").arg("-a").output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    if !listed.lines().any(|l| l == "en_US.utf8") {
+        eprintln!("skipped: the en_US.UTF-8 locale is not installed (locale -a)");
+        return;
+    }
+    let r = root();
+    assert!(r.join("target/niji/libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
+    let products = r.join("target/niji");
+    let ld = ["ld-linux-x86-64.so.2", "ld.so"].iter().map(|n| products.join(n)).find(|p| p.exists()).expect("the products' dynamic loader");
+    let oracles = r.join("target/test-oracles");
+    std::fs::create_dir_all(&oracles).unwrap();
+    let preload = oracles.join("vm_size_at_exit-locale.so");
+    let st = Command::new("cc")
+        .args(["-O1", "-shared", "-fPIC", "-nostdlib", "-fno-builtin"])
+        .arg(r.join("crates/core/tests/oracle/vm_size_at_exit.c"))
+        .arg("-o")
+        .arg(&preload)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "vm_size_at_exit.c does not build");
+    let base = Dirs(shm.join(format!("niji-locale-as-{}", std::process::id())));
+    std::fs::create_dir_all(&base.0).unwrap();
+    for i in 0..3 {
+        std::fs::File::create(base.0.join(i.to_string())).unwrap();
+    }
+    let niji = |lang: &str| locale_mapped(&ld, Some(&products), find, &base.0, &preload, lang);
+    let reference = |lang: &str| locale_mapped(system_ld, None, find, &base.0, &preload, lang);
+    let (n_c, n_en, n_cu) = (niji("C"), niji("en_US.UTF-8"), niji("C.UTF-8"));
+    let (s_c, s_en) = (reference("C"), reference("en_US.UTF-8"));
+    let (cost, ref_cost, builtin) = (n_en.saturating_sub(n_c), s_en.saturating_sub(s_c), n_cu.saturating_sub(n_c));
+    eprintln!("find over 3 entries, VmSize at exit (KiB): products C {n_c}, en_US.UTF-8 {n_en} (+{cost}), C.UTF-8 {n_cu} (+{builtin}); reference C {s_c}, en_US.UTF-8 {s_en} (+{ref_cost})");
+    let allowed = ref_cost.saturating_add(builtin).saturating_add(LOCALE_MARGIN);
+    assert!(
+        cost <= allowed,
+        "en_US.UTF-8 adds {cost} KiB of address space over C with the products, the reference {ref_cost}: over the reference's + C.UTF-8's {builtin} + {LOCALE_MARGIN} = {allowed} (locale data back on the heap?)"
+    );
+}
+
 /// The migration case of [`AS_STEPS`] (ruling #7441): the program starts on the first node's
 /// CPUs and moves itself to a CPU of the second at point `at` (`heap_address_space.c`: 1 after
 /// malloc1, 2 halfway through alloc, 3 after alloc, 4 after refill). Per point: the VmSize growth
