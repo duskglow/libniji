@@ -635,6 +635,62 @@ fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
     }
 }
 
+/// s31_8_c_1 (D-31.27, D-31.31): the generated source `C` compiled for UTF-8 (`localedef -i C -f UTF-8`) is the
+/// built-in C.UTF-8: every code point below 0x110000 has the built-in's classes (the twelve POSIX classes and
+/// libniji's `combining`, `combining_level3`), simple case maps and width, and `LC_COLLATE` is the no-rules code
+/// point order (`strcoll` as `strcmp`).
+#[test]
+fn generated_c_source_compiles_to_the_builtin_c_utf8() {
+    use niji::ctype::Class;
+    use niji::locale::collate::{Collate, Collation};
+    let ours = niji_locale::compile(b"C", b"UTF-8", &mut Sources(sources())).unwrap_or_else(|e| panic!("C: the generated source does not compile: {e:?}"));
+    let cat = |n: usize| Category::parse(leak(ours[n].as_ref().unwrap_or_else(|| panic!("C: no category {n}")).as_slice().to_vec())).unwrap();
+    assert!(matches!(Collate::parse(cat(3)), Some(Collation::CodePoint)), "C: LC_COLLATE is not the no-rules code point order");
+    let ctype = CtypeFile::parse(cat(0)).expect("C: an LC_CTYPE the reader refuses");
+    let classes = [
+        ("upper", Class::UPPER),
+        ("lower", Class::LOWER),
+        ("alpha", Class::ALPHA),
+        ("digit", Class::DIGIT),
+        ("xdigit", Class::XDIGIT),
+        ("space", Class::SPACE),
+        ("print", Class::PRINT),
+        ("graph", Class::GRAPH),
+        ("blank", Class::BLANK),
+        ("cntrl", Class::CNTRL),
+        ("punct", Class::PUNCT),
+        ("alnum", Class::ALNUM),
+    ]
+    .map(|(n, bit)| (n, ctype.class_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no class {n}")), bit));
+    let extra = [("combining", niji::unicode::is_combining as fn(u32) -> bool), ("combining_level3", niji::unicode::is_combining_level3)]
+        .map(|(n, f)| (n, ctype.class_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no class {n}")), f));
+    let maps = [("toupper", niji::unicode::to_upper as fn(u32) -> u32), ("tolower", niji::unicode::to_lower), ("totitle", niji::unicode::to_title)]
+        .map(|(n, f)| (n, ctype.map_index(n.as_bytes()).unwrap_or_else(|| panic!("C: no map {n}")), f));
+    let mut out = Vec::new();
+    for c in 0..0x11_0000u32 {
+        let want = niji::unicode::classes(c);
+        for &(n, k, bit) in &classes {
+            if ctype.in_class(k, c) != want.intersects(bit) {
+                out.push(format!("U+{c:04X} class {n}: built-in {}", want.intersects(bit)));
+            }
+        }
+        for &(n, k, f) in &extra {
+            if ctype.in_class(k, c) != f(c) {
+                out.push(format!("U+{c:04X} class {n}: built-in {}", f(c)));
+            }
+        }
+        for &(n, k, f) in &maps {
+            if ctype.map(k, c) != f(c) {
+                out.push(format!("U+{c:04X} {n}: U+{:04X}, built-in U+{:04X}", ctype.map(k, c), f(c)));
+            }
+        }
+        if ctype.width(c) != niji::unicode::width(c) {
+            out.push(format!("U+{c:04X} width {}, built-in {}", ctype.width(c), niji::unicode::width(c)));
+        }
+    }
+    assert!(out.is_empty(), "C: {} differences from the built-in C.UTF-8, first:\n{}", out.len(), out[..out.len().min(20)].join("\n"));
+}
+
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).
