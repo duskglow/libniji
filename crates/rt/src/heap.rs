@@ -295,15 +295,18 @@ const _: () = assert!(BITMAP_WORDS >> GROUP_SHIFT <= 64);
 /// straddle two lines. Word 7 is unused.
 const CLASS_WORDS: usize = 8;
 const C_LARGE: usize = C_CLASS + NCLASSES * CLASS_WORDS;
-const CACHE_WORDS: usize = 480;
+const CACHE_WORDS: usize = 496;
 /// The free fast path's slab hints (HEAP-CUTS2 S-C): a small table, indexed by the slab's address
 /// bits above `SLAB_SHIFT`, of slabs that are the current slab of their class: base | class, 0
 /// for none. Every allocation from a current slab records it; `refill` removes a class's entry
 /// before its slab stops being current, so an entry always names a current slab and a free
 /// inside it needs no lookup. (One word, the latest slab only, missed every free of a block of
-/// another class than the latest allocation's.)
+/// another class than the latest allocation's.) 32 entries (D-3.26): with eight classes per
+/// doubling to 1024 a mixed-size batch keeps more current slabs than 16 entries hold apart
+/// (`lifo_batch64`: 17 classes before, 20 after; 8937 instructions per batch with 16, 8214 with
+/// 32, Zen 1 build host).
 const C_SLABS: usize = C_LARGE + 2 * LARGE_KEEP;
-const SLAB_HINTS: usize = 16;
+const SLAB_HINTS: usize = 32;
 /// The largest size `resize`'s fused path and growth forecast serve (REALLOC-FUSE).
 pub const FORECAST_CAP: usize = 1024;
 /// The smallest block whose growth by `realloc` the general path forecasts up to
