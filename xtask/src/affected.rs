@@ -1983,6 +1983,7 @@ const XTASK_TOOLS: &[(&str, &str)] = &[
     ("register", "the saturation register check (static: register)"),
     ("compat_ids", "the compat id check (static: compat-ids)"),
     ("abi_versions", "the versions tables against their additions and reference digest (static: abi-versions)"),
+    ("abi_prototypes", "the prototypes table against its additions and reference digest (static: abi-prototypes)"),
     ("codemap", "the code map view (static: codemap)"),
     ("compat_plan", "the compat dispatch table check (static: compat-plan)"),
     ("compatprobe", "the compat probe list check (static: compat-probes)"),

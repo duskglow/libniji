@@ -49,3 +49,8 @@ layouts.tsv by abi_extract.py --layouts-only with these tags in TYPES: only the 
 icmp_ra_addr (a typedefs.tsv row before, laid out only as a member of struct icmp) were spliced in (the rerun
 also differs from the committed table outside them: the hand-respelled p_type rows above, and members of _fpstate,
 _libc_fpstate, __sigset_t, La_x86_64_regs and the place of struct res_sym, left as they are). enumerators.tsv unchanged.
+prototypes.tsv, prototypes.sha256 (SPEC-PROTOTYPES-ADDITIONS): abi_extract.py --prototypes-only on the reference system
+(ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39, GCC 13.3): the `_GNU_SOURCE` pass plus the functions only other configurations
+declare (gets, bsd_signal; formerly the separate --prototypes-missing step), 3781 reference rows, merged with
+prototypes-additions.tsv (sched_getattr, sched_setattr, D-24.12; formerly hand rows, now in sorted place). The full run
+and --prototypes-missing write the same two files byte for byte; the rows are the committed table's, reordered only.
