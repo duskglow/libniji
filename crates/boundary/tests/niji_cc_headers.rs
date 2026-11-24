@@ -8,6 +8,9 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[path = "../../core/tests/support/skip_note.rs"]
+mod skip_note;
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -124,4 +127,82 @@ fn packaged_niji_gcc_compiles_against_the_sysroot_headers() {
     ok(&run(&gcc, &dir, &[("NIJI_SYSROOT", sr), ("NIJI_SYSTEM_HEADERS", "1")], &["-c", "s.c", "-o", "s.o"]), "NIJI_SYSTEM_HEADERS=1 niji-gcc -c s.c");
     let o = run(&gcc, &dir, &[("NIJI_SYSROOT", sr)], &["-c", "s.c", "-o", "d.o"]);
     assert!(!o.status.success(), "niji-gcc -c s.c compiled without __NIJI__: not libniji's headers");
+}
+
+/// The scalar functions libmvec.so.1 has vector variants of (spec/abi/versions.tsv), each with its
+/// parameter count (`v`, `vv`, or `vvv` for the sincos shape).
+fn libmvec_scalars() -> Vec<(String, usize)> {
+    let text = std::fs::read_to_string(root().join("spec/abi/versions.tsv")).unwrap();
+    let mut out: Vec<(String, usize)> = text
+        .lines()
+        .filter_map(|l| l.strip_prefix("libmvec.so.1\t_ZGVbN"))
+        .filter_map(|l| {
+            let name = l.split('\t').next()?.trim_start_matches(|c: char| c.is_ascii_digit());
+            let (params, f) = name.split_once('_')?;
+            Some((f.to_string(), params.len()))
+        })
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// The `_ZGV` names (sorted, space-separated; empty for none) in the assembly `cc` makes of a loop
+/// over `f` in `c[i] = f(a[i]...)` form, compiled `-O3` with `flags`. `omp`: `#pragma omp simd` on the loop.
+fn vector_calls(cc: &Path, dir: &Path, f: &str, params: usize, float: bool, omp: bool, flags: &[&str]) -> String {
+    let t = if float { "float" } else { "double" };
+    let call = match params {
+        1 => format!("c[i] = {f}(a[i]);"),
+        2 => format!("c[i] = {f}(a[i], b[i]);"),
+        _ => format!("{f}(a[i], &b[i], &c[i]);"),
+    };
+    let pragma = if omp { "#pragma omp simd\n" } else { "" };
+    let src = format!("#define _GNU_SOURCE 1\n#include <math.h>\n{t} a[1024], b[1024], c[1024];\nvoid k(void) {{\n  int i;\n{pragma}  for (i = 0; i < 1024; i++) {call}\n}}\n");
+    std::fs::write(dir.join("v.c"), src).unwrap();
+    let o = run(cc, dir, &[], &[&["-O3", "-S", "-o", "-"], flags, &["v.c"]].concat());
+    ok(&o, &format!("{} -O3 {flags:?} on a loop over {f}", cc.display()));
+    let asm = String::from_utf8_lossy(&o.stdout);
+    let mut names: Vec<&str> = asm.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).filter(|w| w.starts_with("_ZGV")).collect();
+    names.sort_unstable();
+    names.dedup();
+    names.join(" ")
+}
+
+#[test]
+fn niji_cc_loops_call_the_libmvec_variants_the_reference_calls() {
+    // Trace: no spec clause (D-X.170; issue #28: vector math through libmvec.so.1 for programs built on
+    // libniji's headers). For every function with libmvec variants: the variants gcc calls in a loop
+    // with libniji's math.h are those it calls with the reference's, under -ffast-math (SSE and
+    // AVX-512 widths, C and C++), none without it, and the strict-standard simd loop of -std=c89.
+    let dir = scratch("simd");
+    let niji = root().join("scripts/niji-cc");
+    let reference = PathBuf::from("gcc");
+    let scalars = libmvec_scalars();
+    assert!(scalars.len() >= 50, "spec/abi/versions.tsv lists {} libmvec scalar functions", scalars.len());
+    let configs: [(&str, bool, &[&str]); 5] = [
+        ("fast", false, &["-ffast-math"]),
+        ("fast-avx512", false, &["-ffast-math", "-mavx512f"]),
+        ("not-fast", false, &[]),
+        ("fast-c++", false, &["-x", "c++", "-ffast-math"]),
+        ("c89-omp", true, &["-std=c89", "-ffast-math", "-fopenmp-simd"]),
+    ];
+    let mut differ = Vec::new();
+    let mut reference_calls = 0;
+    for (f, params) in &scalars {
+        // `sinf` is the float form of `sin`; `erf` is a double function that ends in f.
+        let float = f.strip_suffix('f').is_some_and(|d| scalars.iter().any(|(s, _)| s == d));
+        for (name, omp, flags) in &configs {
+            let want = vector_calls(&reference, &dir, f, *params, float, *omp, flags);
+            let got = vector_calls(&niji, &dir, f, *params, float, *omp, flags);
+            reference_calls += usize::from(!want.is_empty());
+            if got != want {
+                differ.push(format!("{f} {name}: libniji [{got}], reference [{want}]"));
+            }
+        }
+    }
+    if reference_calls == 0 {
+        skip_note::skipped("skipped: the reference's headers make gcc call no vector variant here");
+        return;
+    }
+    assert!(differ.is_empty(), "{} differences:\n{}", differ.len(), differ.join("\n"));
 }
