@@ -1,5 +1,7 @@
 # UTIL-14: gencat in libc-dev-bin (GitHub issue #12)
 
+**State (UTIL-14-4, 2026-11-24).** Branch task/util-14-4 = UTIL-14-3 + merge of origin/next (conflicts: RELEASE-NOTES.md, whose gencat line is now the fragment docs/release-notes.d/UTIL-14-4.md; catalogs_products.rs imports) + libc-dev-bin package description rewritten (deb_manifest needs `$programs`). Role mei:~/w/s2. Gate util-14-4-gate2 green; plants util-14-4-plants 7/7 CAUGHT (handoff/UTIL-14-3-plants.txt). Next step: none; land.
+
 **State (UTIL-14-3, 2026-11-23).** Branch task/util-14-3 = UTIL-14-2 head + merge of origin/next (RELEASE-NOTES.md: gencat entry kept under Unreleased; execstack entry already in a snapshot section) + plants file repointed to catalogs_products. Role shiki:~/w/sh2. Direct gate util-14-3-gate green (1853 passed), plants util-14-3-plants 7/7 CAUGHT (handoff/UTIL-14-3-plants.txt). Next step: none; land.
 
 **State (UTIL-14-2, 2026-11-23).** Branch `task/util-14-2` = UTIL-14's head `2e25f9305` + merge of origin/next
