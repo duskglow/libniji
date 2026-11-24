@@ -1,0 +1,20 @@
+# RELEASE-SNAPSHOT-1124C plants: cargo xtask plants handoff/RELEASE-SNAPSHOT-1124C-plants.txt (docs/plants.md).
+# RELEASE-SNAPSHOT-1120C's six release-check plants, rerun on 88c0518f6's system products (job
+# release-snapshot-1124c-debs-1's build, ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji) with the
+# copied swap verdict script (~/work/RELEASE-SNAPSHOT-1124C/swapverdict.sh). Run in the keke role ~/w/n1 (Zen 1).
+# Changed from RELEASE-SNAPSHOT-1124B-plants.txt: paths, ids and the deb version (2.39+niji20261124.1-1) only
+# (role: keke n1, as 1124B). Each pattern checked present once in 88c0518f6's file before the run.
+rs1124c-debug-rows-unstripped | tools/deb/build.sh | lit:rows_with unneeded debug ==> rows_with unneeded | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL .*usr/sbin/ldconfig is not stripped
+rs1124c-postinst-configure-ldconfig | tools/deb/system/libc-bin.postinst | perl:s/(ldconfig itself\.\n\s+)run_ldconfig/$1true/ | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL ldconfig -p in the root
+rs1124c-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG_ROOT/etc/ld.so.cache" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL left after purge: .*ld\.so\.cache
+rs1124c-postrm-not-packaged | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) case $path in DEBIAN/postrm) ;; *) put "$mode" "$here/$src" "$dest" ;; esac ;; | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:chmod: cannot access .*DEBIAN/postrm
+rs1124c-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
+rs1124c-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1124C/debs/system-work/src/target/niji --version 2.39+niji20261124.1-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-1124C/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (job release-snapshot-1124c-plants-1; 6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT;
+# one WARN-DEV-SHM: the plants dir is under /dev/shm, as the brief prescribes for the Zen 1 host; none of these plants mounts /dev):
+# rs1124c-debug-rows-unstripped: CAUGHT
+# rs1124c-postinst-configure-ldconfig: CAUGHT
+# rs1124c-postrm-purge-cache: CAUGHT
+# rs1124c-postrm-not-packaged: CAUGHT
+# rs1124c-cxx-needs-libstdcxx: CAUGHT
+# rs1124c-swap-not-done: CAUGHT
