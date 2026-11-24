@@ -320,6 +320,6 @@ fn a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id() {
     let o = Command::new(&exe).arg(own.0.join("libstatic.so")).arg(own.0.join("libdemand.so")).output().unwrap();
     let out = String::from_utf8_lossy(&o.stdout);
     assert_eq!(o.status.code(), Some(0), "on libniji: {out} {}", String::from_utf8_lossy(&o.stderr));
-    let ids: Vec<&str> = out.lines().find_map(|l| l.strip_prefix("module ids: ")).expect("the ids line").split(' ').collect();
-    assert_eq!(ids[0], ids[1], "the on-demand module did not take the closed module's ID: the case is not reached");
+    let (old, new) = out.lines().find_map(|l| l.strip_prefix("module ids: ")?.split_once(' ')).expect("the ids line");
+    assert_eq!(old, new, "the on-demand module did not take the closed module's ID: the case is not reached");
 }
