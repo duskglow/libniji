@@ -20,4 +20,4 @@
  "improvement": "A failing self-control inside a report-mode check is what made the probe's own blind spots (-w, system-header suppression) visible; report-mode checks should always carry one",
  "next_step": "coordinator briefs follow-ups A (stack-size macros), B (header defects), C (C++ enum/char types); then turn FORM-DIFF rows into FAILs",
  "report_file": "handoff/HEADERS-MACRO-FORM-AUDIT.md",
- "jobs": ["mei:headers-macro-form-audit-gate3", "mei:headers-macro-form-audit-plants3", "mei:headers-macro-form-audit-t7"]}
+ "jobs": ["mei:headers-macro-form-audit-gate3", "mei:headers-macro-form-audit-plants3", "mei:headers-macro-form-audit-t8"]}

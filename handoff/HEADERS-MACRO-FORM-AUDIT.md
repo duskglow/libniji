@@ -27,9 +27,8 @@ Configurations: compiler default (gnu17), `-std=c11`, `-std=c11 -D_POSIX_C_SOURC
 
 ## Inventory and result (job headers-macro-form-audit-t7 on mei, final probe; origin/next efa8bb9c0 headers)
 
-8265 object-like macros (libniji's own `__NIJI_*` and the project-name macro excluded in job t7; the final module
-excludes `__NIJI_*` only, because the static old-name check refuses the other prefix in code, so the project-name
-macro now shows as F1, defined in libniji only, which owner rulings R-H0..R-H7 intend; `regexp.h`, `sys/elf.h` are must-fail),
+8265 object-like macros (libniji's own `__NIJI_*` excluded; job t8 on the final head gives the same numbers as t7;
+`regexp.h`, `sys/elf.h` are must-fail),
 13480 (macro, defining header) pairs, 115 headers, x 8 configurations. Both package flavours ship the same
 `libc-include/` tree, so one inventory covers both. **12042 pairs (7241 macros) match in every configuration;
 1438 pairs (1024 macros) differ in at least one** (2771 rows).
