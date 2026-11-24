@@ -463,7 +463,7 @@ mod sys_param {
     use std::process::Command;
     use std::sync::OnceLock;
 
-    pub fn root() -> PathBuf {
+    pub(crate) fnroot() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
@@ -488,7 +488,7 @@ mod sys_param {
     }
 
     /// Whether the compilers are here; prints why not.
-    pub fn have_gcc() -> bool {
+    pub(crate) fnhave_gcc() -> bool {
         let ok = ["gcc", "g++"].iter().all(|t| Command::new(t).arg("--version").output().is_ok_and(|o| o.status.success()));
         if !ok {
             eprintln!("skipped: needs gcc and g++ (the macros are compiled, not called)");
@@ -497,12 +497,13 @@ mod sys_param {
     }
 
     /// The oracle probe built with libniji's headers and run: (its output, the recorded reference output).
-    pub fn probe() -> &'static (String, String) {
+    pub(crate) fnprobe() -> &'static (String, String) {
         static P: OnceLock<(String, String)> = OnceLock::new();
         P.get_or_init(|| {
             let src = std::fs::read_to_string(root().join("crates/core/tests/oracle/sys_param_diff.c")).unwrap();
-            let exe = cc("c", &["-std=gnu17", "-O1"], &src, "probe", true).unwrap_or_else(|e| panic!("sys_param_diff.c with libniji's headers: {e}"));
-            let out = Command::new(&exe).env_clear().output().expect("run probe");
+            let built = cc("c", &["-std=gnu17", "-O1"], &src, "probe", true);
+            assert!(built.is_ok(), "sys_param_diff.c with libniji's headers: {built:?}");
+            let out = Command::new(built.unwrap()).env_clear().output().unwrap();
             assert!(out.status.success(), "probe: {:?}", out.status);
             let reference = std::fs::read_to_string(root().join("spec/behaviour/sys-param.glibc.txt")).unwrap();
             (String::from_utf8(out.stdout).unwrap(), reference)
@@ -510,7 +511,7 @@ mod sys_param {
     }
 
     /// The probe's lines whose item starts with one of `prefixes`, libniji's beside the reference's.
-    pub fn same(prefixes: &[&str]) {
+    pub(crate) fnsame(prefixes: &[&str]) {
         let (ours, reference) = probe();
         let pick = |t: &str| t.lines().filter(|l| prefixes.iter().any(|p| l.starts_with(p))).map(String::from).collect::<Vec<_>>();
         let (o, r) = (pick(ours), pick(reference));
@@ -520,7 +521,7 @@ mod sys_param {
     }
 
     /// Compiles `text` with `-Wall -Wextra -Werror`; the error lines when it does not.
-    pub fn compiles(lang: &str, flags: &[&str], text: &str, tag: &str) -> Result<(), String> {
+    pub(crate) fncompiles(lang: &str, flags: &[&str], text: &str, tag: &str) -> Result<(), String> {
         let mut f = vec!["-Wall", "-Wextra", "-Werror"];
         f.extend_from_slice(flags);
         cc(lang, &f, text, tag, false).map(|_| ())
@@ -541,7 +542,8 @@ fn s8_12_c_0() {
     let unit = format!("#include <sys/param.h>\n{shown}enum {{ e = MIN (1, 2) + MAX (1, 2) + howmany (9, 4) + roundup (9, 4) + roundup (9, 3) + powerof2 (8) }};\n");
     let configs: [(&str, &[&str]); 7] = [("c", &["-std=c89"]), ("c", &["-std=c99"]), ("c", &["-std=c99", "-D_POSIX_C_SOURCE=200809L"]), ("c", &["-std=c11", "-D_XOPEN_SOURCE=700"]), ("c", &["-std=gnu17", "-D_GNU_SOURCE"]), ("c++", &["-std=c++98"]), ("c++", &["-std=c++17"])];
     for (i, (lang, flags)) in configs.iter().enumerate() {
-        sys_param::compiles(lang, flags, &unit, &format!("vis{i}")).unwrap_or_else(|e| panic!("{lang} {flags:?}: {e}"));
+        let r = sys_param::compiles(lang, flags, &unit, &format!("vis{i}"));
+        assert!(r.is_ok(), "{lang} {flags:?}: {r:?}");
     }
     let cxx = "#include <sys/param.h>\nconstexpr int m = MIN (3, 4) + MAX (1, 2) + howmany (9, 4) + roundup (9, 4) + roundup (9, 3) + powerof2 (8);\nstatic_assert (m == 3 + 2 + 3 + 12 + 9 + 1, \"constexpr\");\n";
     sys_param::compiles("c++", &["-std=c++17"], cxx, "constexpr").unwrap();
