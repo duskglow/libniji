@@ -9,7 +9,8 @@
  * main runs each row as a fresh copy of itself (/proc/self/exe) with GLIBC_TUNABLES set; the copy
  * answers in its exit status: 1 on, 2 locked, 4 the unmarked object loaded, 8 on after the dlopen,
  * 16 the refusal names SHSTK, 32 a 256 KiB thread's shadow stack is under 1 MiB with RLIMIT_STACK
- * at 64 MiB. Only a CPU and kernel with user shadow stacks (`user_shstk` in /proc/cpuinfo) run the
+ * at 64 MiB; mode 'x' answers 64 alone when a return-address overwrite is stopped by SIGSEGV with
+ * SEGV_CPERR (the shadow stack is enforced, not only reported). Only a CPU and kernel with user shadow stacks (`user_shstk` in /proc/cpuinfo) run the
  * rows, and only when this program itself carries the property (the build host's start files
  * decide): elsewhere it reports SKIPPED and exits 0. s21_shstk_optin_static runs the start rows on
  * a static image. */
@@ -18,6 +19,7 @@
 #define _GNU_SOURCE
 #include <elf.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,9 +117,48 @@ static void *thread_shstk_size(void *out)
     return 0;
 }
 
-/* The copy: mode 's' start state, 'd' also dlopen the unmarked helper, 't' also a thread. */
+/* Mode 'x': s21sk_smash replaces its own return address with s21sk_hijacked's and returns. With the
+ * shadow stack on, the return faults (SIGSEGV, si_code SEGV_CPERR: 64); without, it lands in
+ * s21sk_hijacked (66). */
+#ifndef SEGV_CPERR
+#define SEGV_CPERR 10
+#endif
+void s21sk_smash(void);
+void s21sk_hijacked(void);
+void s21sk_hijacked(void)
+{
+    _exit(66);
+}
+__asm__(".text\n"
+        ".globl s21sk_smash\n"
+        ".type s21sk_smash, @function\n"
+        "s21sk_smash:\n"
+        "    leaq s21sk_hijacked(%rip), %rax\n"
+        "    movq %rax, (%rsp)\n"
+        "    ret\n"
+        ".size s21sk_smash, .-s21sk_smash\n");
+
+static void on_segv(int sig, siginfo_t *si, void *uc)
+{
+    (void)sig;
+    (void)uc;
+    _exit(si->si_code == SEGV_CPERR ? 64 : 65);
+}
+
+/* The copy: mode 's' start state, 'd' also dlopen the unmarked helper, 't' also a thread, 'x' a
+ * return-address overwrite. */
 static int child(char mode)
 {
+    if (mode == 'x') {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof sa);
+        sa.sa_sigaction = on_segv;
+        sa.sa_flags = SA_SIGINFO;
+        sigaction(SIGSEGV, &sa, 0);
+        fflush(stdout);
+        s21sk_smash();
+        return 67;
+    }
     int bits = status_bits();
     if (mode == 't') {
         struct rlimit r;
@@ -202,6 +243,7 @@ static const struct row {
     {"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=bogus", 's', 3},
     {"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=permissive", 's', 1},
     {"glibc.cpu.hwcaps=SHSTK", 't', 3 | 32},
+    {"glibc.cpu.hwcaps=SHSTK", 'x', 64},
 #ifndef S21SK_STATIC
     {"glibc.cpu.hwcaps=SHSTK", 'd', 3 | 8 | 16},
     {"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=on", 'd', 3 | 4 | 8},
