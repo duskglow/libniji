@@ -12,22 +12,6 @@
 # include <stdlib.h>
 #endif
 
-/* `simd ("notinbranch")` (GCC's manual, "Common Function Attributes"): a vectorizing caller may call the unmasked
-   x86-64 vector variants libmvec.so.1 exports (D-X.170). Only where the program asked for fast math (GCC defines
-   __FAST_MATH__ once -fno-math-errno, -funsafe-math-optimizations and -ffinite-math-only are all in force),
-   and only for a compiler that has the
-   attribute. An attribute of the declaration: no function's type changes. */
-#ifndef __NIJI_SIMD
-# if defined __FAST_MATH__ && defined __has_attribute
-#  if __has_attribute (__simd__)
-#   define __NIJI_SIMD __attribute__ ((__simd__ ("notinbranch")))
-#  endif
-# endif
-# ifndef __NIJI_SIMD
-#  define __NIJI_SIMD
-# endif
-#endif
-
 __NIJI_BEGIN_C
 
 #if 1

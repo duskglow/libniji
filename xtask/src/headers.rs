@@ -180,7 +180,8 @@ struct Tables {
     /// `diagattrs.tsv` rows with noreturn `nonzero:K`: the function and K (1-based), for the GCC wrapper (functions.rs).
     nonzero_noreturn: BTreeMap<String, usize>,
     /// The scalar functions whose vector variants `libmvec.so.1` exports (versions.tsv): their declarations carry
-    /// `__NIJI_SIMD` (math.h.in defines it), so a vectorizing compiler calls those variants (D-X.170).
+    /// `__NIJI_SIMD` (features.h.in defines it, beside `__NIJI_NOTHROW`, so every unit with a declaration has it),
+    /// so a vectorizing compiler calls those variants (D-X.170).
     simd: BTreeSet<String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,

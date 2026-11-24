@@ -61,7 +61,8 @@ impl Gen<'_> {
         // The attributes (slice 19) come after the assembler label (GCC's declarator order).
         let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
         // A libmvec function bound to its own name (the variants' names are the symbol's) is declared simd
-        // (D-X.170); `__NIJI_SIMD` is empty unless the header defines it for a vectorizing configuration.
+        // (D-X.170); `__NIJI_SIMD` comes from features.h (as `__NIJI_NOTHROW` does), empty unless the configuration
+        // vectorizes.
         let simd = if sym == name && self.t.simd.contains(name) { " __NIJI_SIMD" } else { "" };
         match self.t.lfs.get(name) {
             Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
