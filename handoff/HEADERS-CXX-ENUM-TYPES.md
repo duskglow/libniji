@@ -45,7 +45,7 @@ Plants files: `handoff/HEADERS-CXX-ENUM-TYPES-plants.txt` (5), `handoff/HEADERS-
 * headers-cxx-enum-types-lint2: clippy -D warnings + `cargo xtask static`, rc 0.
 * headers-cxx-enum-types-test3: `cargo test -p xtask`, rc 0 (661 passed in the bin target; other targets green).
 * headers-cxx-enum-types-plants3: plants.txt rerun, 5/5 CAUGHT (by message: the commands run form.py, no cargo test).
-* headers-cxx-enum-types-plants4: plants-2.txt (3 plants), --timeout 1800.
+* headers-cxx-enum-types-plants4: plants-2.txt, 3/3 CAUGHT (--timeout 1800).
 * Probes: headers-cxx-enum-types-overload3 (proof, rc 0), headers-cxx-enum-types-ms (MS_* include orders).
 * Superseded: test1 (head 32f76996e, 2 failures fixed in ed6a2610c), test2/gen6 (diagnostic reruns), plants (head
   32f76996e), plants2 (baseline of anon-empty-enum timed out at 600 s: headers-gen + test build + s12 check under
