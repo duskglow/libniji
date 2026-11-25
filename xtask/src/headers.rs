@@ -165,6 +165,14 @@ fn slice_table_problems(root: &Path, templates: &[String]) -> Result<Vec<String>
     Ok(out)
 }
 
+/// Macros a kernel UAPI header defines outright, in another spelling, before libniji's own definition can:
+/// `<asm/ioctls.h>` (included first by `<sys/ioctl.h>`, `<termios.h>` and the headers built on them) spells FIOASYNC
+/// `0x5452` and TIOCSER_TEMT `0x01`; `<linux/in6.h>` included before `<netinet/in.h>` defines IPPROTO_DSTOPTS as `60`.
+/// libniji's definition of these stays under `#ifndef`: with the kernel header in front, the kernel's outright
+/// definition is the one that replaces a program's, as in the reference, and a second outright definition in another
+/// spelling would be a redefinition (header_check.py P5 and its kernel-first orders, `-Wsystem-headers -Werror`).
+const KERNEL_SPELLED: &[&str] = &["FIOASYNC", "IPPROTO_DSTOPTS", "TIOCSER_TEMT"];
+
 struct Tables {
     lv: Levels,
     vis: Rows,
@@ -280,11 +288,12 @@ impl Tables {
     }
 
     /// Whether `header` defines the macro `name` outright (see `guarded`): visible there under `_GNU_SOURCE`
-    /// (configuration `gnu`, where the form was probed) and not a macro-forms.tsv row.
+    /// (configuration `gnu`, where the form was probed), not a macro-forms.tsv row and not [`KERNEL_SPELLED`].
     fn redefined(&self, header: &str, name: &str) -> bool {
         let gnu = self.lv.ids.iter().position(|i| i == "gnu");
         let shown = self.vis_row(header, name, "macro").and_then(|r| mask_of(&self.lv, &r["configs"]).ok());
         matches!((gnu, shown), (Some(g), Some(m)) if m >> g & 1 == 1) && !self.guarded.contains(&(header.to_string(), name.to_string()))
+            && !KERNEL_SPELLED.contains(&name)
     }
 
     /// The visibility.tsv rows of `header`, in table order.
