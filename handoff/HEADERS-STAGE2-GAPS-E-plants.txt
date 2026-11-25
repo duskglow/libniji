@@ -11,3 +11,14 @@ ftw-no-sys-stat | headers/ftw.h.in | lit:#include <sys/stat.h> ==> | sh -c 'carg
 fd-mask-omitted | headers/reserved.tsv | perl:s/^__fd_mask\temit/__fd_mask\tomit/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/select.h"' | msg:FAIL exact sys/select.h
 u-char-omitted | headers/reserved.tsv | perl:s/^__u_char\temit/__u_char\tomit/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/types.h"' | msg:FAIL exact sys/types.h
 needs-if-all-configs | xtask/src/headers/slices/s12.rs | lit:supply(g, h, within); ==> supply(g, h, u64::MAX); | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/wait.h"' | msg:FAIL exact sys/wait.h
+# cargo xtask plants results (10 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# tftp-drop-th-data: CAUGHT, caught by no test the log names
+# tftp-code-as-block: CAUGHT, caught by no test the log names
+# ns-get16-advance: CAUGHT, caught by no test the log names
+# ns-put16-block: CAUGHT, caught by no test the log names
+# ns-msg-id-lvalue: CAUGHT, caught by no test the log names
+# ipproto-max-macro: CAUGHT, caught by no test the log names
+# ftw-no-sys-stat: WARN-NO-MSG, caught by no test the log names
+# fd-mask-omitted: CAUGHT, caught by no test the log names
+# u-char-omitted: CAUGHT, caught by no test the log names
+# needs-if-all-configs: CAUGHT, caught by no test the log names
