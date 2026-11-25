@@ -1,0 +1,30 @@
+{
+ "task": "NL-LOCALE-NAME-ABI-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "_STDIO_H include guard emitted (R-H2: perl 5.40's nostdio.h tests it) and header_check P1G units now check every emitted include guard (none were tested); run 1's _NL_LOCALE_NAME/static_assert work unchanged; gnulib/liblocale-gettext-perl stage-2 rebuild NOT VERIFIED (mei recipe listing refused)",
+ "branch": "task/nl-locale-name-abi-2",
+ "head": null,
+ "gate": {
+  "affected": "FULL: the train's (generated tables). test1: header_check 0 failed of 20622 (P1G 0 failed of 507 in p1g1), cargo test -p xtask all suites ok (665 + 34 passed); test2: cargo xtask so + niji-boundary s07_locale_symbols, see jobs; lint: clippy -D warnings + static on the final head",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Reference-only names left (no layout change): va_copy/__va_copy in printf.h (perl handy.h, after its own <stdarg.h>), _IOC_SIZE in sys/soundcard.h (perl.h with __GLIBC__), CHARBITS in values.h (perl uses its own), _PATH_RESCONF in resolv.h (gio gnetworking.h defines the same value when absent), S_IS* in ftw.h, SPACE in scsi/scsi.h.",
+  "complex.h and tgmath.h show _STDIO_H in the reference's C++ modes; libniji's complex.h does not include stdio.h; whether the C++ library's <complex.h> reaches stdio.h there is NOT VERIFIED (both p1 0, outside P1G).",
+  "Superseded: plants (stdio-guard-omitted SURVIVED: P1G reads its guard list from reserved.tsv, so the policy-row plant removed the check too; replaced by a template slip); test1's s07_locale_symbols part failed 7 tests on 'the products are missing' (no cargo xtask so in r4; rerun in test2); lint0 was the inherited head's check."
+ ],
+ "refused": [
+  "Bash: . ~/src/liella-ops/tools/vm_ssh.sh && vm_ssh_cmd mei && \"${VSSH[@]}\" 'ls -la ~/work/RELEASE-SNAPSHOT-1125B/ | head -40' (denied by the auto-mode classifier [Unauthorized Access]); the stage-2 rebuild step stopped there"
+ ],
+ "impact": [
+  {"kind": "correctness", "what": "perl XS modules using nostdio.h after <stdio.h>: _STDIO_H now tells them stdio.h was included (FILE kept)", "before": 0, "after": 1, "unit": "macro present in stdio.h and its includers", "measured": true},
+  {"kind": "coverage", "what": "header_check P1G units: every include guard headers/reserved.tsv emits, per p1 header and configuration (previously tested nowhere); 3 plants", "before": 0, "after": 507, "unit": "units", "measured": true}
+ ],
+ "improvement": "test jobs that need the products should say so up front: s07_locale_symbols' conformance tests fail as 7 'products missing' panics in a role without `cargo xtask so`; a guard that skips them with a reason, or `cargo xtask affected` building them, would have saved a rerun.",
+ "next_step": "The train (FULL: generated tables); then the stage-2 rebuild of grep/gettext (gnulib localename) and liblocale-gettext-perl once the mei recipe is permitted.",
+ "report_file": "handoff/NL-LOCALE-NAME-ABI.md",
+ "jobs": []
+}
