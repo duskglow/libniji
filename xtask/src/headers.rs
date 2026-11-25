@@ -125,6 +125,44 @@ fn registry_problems() -> Vec<String> {
     out
 }
 
+/// layouts.tsv's rows against the declaration order the generator emits them in: members are declared in row order, so a
+/// member's offset is never below the previous member's of the same aggregate level (a union's members share one offset,
+/// a bit-field has its storage unit's) and a member's parts (`m.x`) never start below `m`. A table whose offsets
+/// disagree with its rows would otherwise give a header whose layout differs from the table's. One message per problem.
+fn layout_order_problems(layouts: &BTreeMap<String, Rows>) -> Vec<String> {
+    let mut out = Vec::new();
+    for (key, rows) in layouts {
+        // The last row seen at each level, by the path of the level's aggregate member (empty: the aggregate itself),
+        // and each member's offset by path.
+        let mut last: BTreeMap<&str, (u64, &str)> = BTreeMap::new();
+        let mut at: BTreeMap<&str, u64> = BTreeMap::new();
+        for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            let member = r["member"].as_str();
+            let parent = member.rsplit_once('.').map_or("", |(p, _)| p);
+            let Ok(off) = r["offset_or_size"].parse::<u64>() else {
+                out.push(format!("layouts.tsv: {key}: member `{member}` has the offset `{}`, not a number", r["offset_or_size"]));
+                continue;
+            };
+            // A bit-field's offset is its storage unit's, which may start before the member declared ahead of it
+            // (`struct ip_timestamp`): its position is the bit offset. An anonymous aggregate opens a group of its
+            // own members, a union's alternatives each at the group's start (`struct udphdr`).
+            let (bits, anon) = (r["bitfield"].starts_with("bits "), member.rsplit('.').next() == Some("<anon>"));
+            if bits {
+                continue;
+            }
+            if let Some(&(prev_off, prev)) = last.get(parent).filter(|(o, _)| off < *o && !anon) {
+                out.push(format!("layouts.tsv: {key}: member `{member}` is at offset {off}, below `{prev}` at {prev_off}, which the rows declare before it"));
+            }
+            if let Some(&parent_off) = at.get(parent).filter(|o| off < **o) {
+                out.push(format!("layouts.tsv: {key}: member `{member}` is at offset {off}, below its enclosing member `{parent}` at {parent_off}"));
+            }
+            last.insert(parent, (off, member));
+            at.insert(member, off);
+        }
+    }
+    out
+}
+
 /// The rows of `headers/slices/*.tsv` against the templates: each row's header has a template, no header is in two
 /// rows and every template is in a row. One message per problem, naming the row (`headers/slices/s09.tsv:7`).
 fn slice_table_problems(root: &Path, templates: &[String]) -> Result<Vec<String>, String> {
@@ -772,6 +810,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     let mut out = Vec::new();
     let names = templates(root)?;
     let mut errors = registry_problems();
+    errors.extend(layout_order_problems(&t.layouts));
     errors.extend(slice_table_problems(root, &names)?);
     let mut texts = BTreeMap::new();
     for h in &names {
@@ -963,6 +1002,33 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 mod tests {
     use super::values::literal;
     use super::*;
+
+    fn layout_rows(rows: &[(&str, &str)]) -> BTreeMap<String, Rows> {
+        let made: Rows = rows
+            .iter()
+            .map(|(m, o)| ["member", "offset_or_size", "bitfield"].iter().zip([*m, *o, if m.starts_with("bf") { "bits 4@0" } else { "" }]).map(|(k, v)| (k.to_string(), v.to_string())).collect())
+            .collect();
+        BTreeMap::from([("struct niji_test_order".to_string(), made)])
+    }
+
+    /// No spec clause: the generator's own rule that layouts.tsv offsets agree with the row (declaration) order.
+    #[test]
+    fn layout_offsets_follow_the_row_order() {
+        // In order, a union's members at one offset, a member's part at its own offset, an anonymous group's members.
+        let ok = layout_rows(&[("a", "0"), ("a.x", "0"), ("b", "4"), ("b.x", "4"), ("u", "8"), ("v", "8"), ("c", "16")]);
+        assert!(layout_order_problems(&ok).is_empty(), "{:?}", layout_order_problems(&ok));
+        // Two members whose offsets are swapped against their rows (struct ip_mreq_source's, as a plant breaks it).
+        let swapped = layout_rows(&[("a", "0"), ("b", "8"), ("b.x", "8"), ("c", "4"), ("c.x", "4")]);
+        let got = layout_order_problems(&swapped);
+        assert_eq!(got.len(), 1, "{got:?}");
+        assert!(got[0].contains("member `c` is at offset 4, below `b` at 8"), "{got:?}");
+        // A bit-field's storage unit may start before the member before it; an anonymous group restarts at its own offset.
+        let special = layout_rows(&[("a", "0"), ("b", "2"), ("bf", "0"), ("<anon>", "0"), ("x", "0"), ("y", "2"), ("<anon>", "0"), ("z", "0")]);
+        assert!(layout_order_problems(&special).is_empty(), "{:?}", layout_order_problems(&special));
+        // A part below its member.
+        let part = layout_rows(&[("a", "4"), ("a.x", "0")]);
+        assert!(layout_order_problems(&part).iter().any(|p| p.contains("below its enclosing member `a`")));
+    }
 
     // no spec clause (PLANTS-BUILD-SLOWDOWN): the visibility.tsv index answers as the row scan did: the row of the
     // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
