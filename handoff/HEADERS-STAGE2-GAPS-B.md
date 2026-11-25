@@ -10,7 +10,7 @@ rows (local, table-driven; forms settled by black-box probes recorded in the che
   `fa`), plus the `format_arg` column (TABLE_COLUMNS); `spec/abi/diagattrs.tsv` is next's rows plus the `format_arg`
   column (gettext family) and the exec* rows without a sentinel (this branch's -fno-builtin result), merged by a row-wise
   three-way (not regenerated: ruling #8623 says a full run drifts on pure/const); `libc-include/libintl.h` regenerated.
-* b64_ntop/b64_pton (the -b-2 follow-up): `b64_ntop`, `b64_pton` in header_probe's stage2_names; the two probed rows
+* b64_ntop/b64_pton (the -b-2 follow-up): `b64_ntop`, `b64_pton` in header_probe's stage2_gaps_b_names (renamed from stage2_names, which the -C story also defines); the two probed rows
   (`macro`, `!time64only`) spliced into visibility.tsv; `__b64_ntop`/`__b64_pton` `emit` rows in headers/reserved.tsv;
   `#define b64_ntop __b64_ntop` (and pton) in headers/resolv.h.in; unit `initializers resolv.h b64` (s12.py: both function
   pointer types exact, a call); the two macros in form.py ENFORCED. Plants: handoff/HEADERS-STAGE2-GAPS-B-3-plants.txt.
@@ -44,6 +44,6 @@ plants), proof6 (openssh above). Earlier legs' jobs are superseded by these (see
   (const unsigned char *, size_t, char *, size_t) and `__b64_pton` (char const *, unsigned char *, size_t), both nothrow.
   Findings: headers/reserved.tsv has no `emit` row for the two `__b64_*` names (headers-gen omits `__x` names by default,
   as it does for `__res_init` before its emit row); the `b64_ntop`/`b64_pton` macros are in neither visibility.tsv nor macros.tsv
-  (add them to header_probe's stage2_names, run `header_probe.py --headers resolv.h --names <file>`, merge the rows,
+  (add them to header_probe's stage2_gaps_b_names, run `header_probe.py --headers resolv.h --names <file>`, merge the rows,
   add the macros to headers/resolv.h.in, a unit and a plant). Left to a follow-up story: it needs a table regeneration
   and a second gate, and this run's gate would be stale.

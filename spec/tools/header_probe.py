@@ -402,7 +402,7 @@ ELF_TYPES = ("Half", "Word", "Sword", "Xword", "Sxword", "Addr", "Off", "Section
              "auxv_t", "Nhdr", "Move", "Lib", "Conflict")
 
 
-def stage2_names():
+def stage2_gaps_b_names():
     """Names that package builds against libniji's headers failed on (HEADERS-STAGE2-GAPS-B, Yohane stage 2): apt's
     `__RES` (resolver interface version), gprofng's `RTLD_DI_SERINFOSIZE` with the other dlinfo(3) requests and the
     dladdr1(3) flags, krb5's `IN6ADDR_ANY_INIT` and `IN6ADDR_LOOPBACK_INIT` (RFC 3493 section 3.8), and babeltrace's
@@ -751,7 +751,7 @@ def candidates():
     names.update(standard_names())
     names.update(math_names())
     names.update(package_names())
-    names.update(stage2_names())
+    names.update(stage2_gaps_b_names())
     # The public type name of each reserved one (`__blksize_t` spells struct stat's member, `blksize_t` is the
     # name XBD <sys/types.h> gives programs): a header that shows the reserved type may show its public name.
     names.update(n[2:] for n in list(names) if n.startswith("__") and n.endswith("_t") and not n.startswith("___"))
