@@ -40,7 +40,9 @@ story scratch dir. `gp.py <include-dir> <workdir>`: stock vs libniji compile pro
 
 ## Exact next step
 1. Read `~/logs/headers-stage2-gaps-d-gen3.log` on keke: gp TOTAL must be diff=0, header_check 0 failed; fix any.
-2. Commit the generated libc-include (`cargo xtask headers-gen` output) separately; push.
+2. libc-include/ is NOT yet regenerated in the worktree (leg 1 regenerated only on keke): run `cargo xtask headers-gen`
+   in the worktree (or on keke and copy libc-include back), commit it alone ("Regenerate libc-include"); push.
+   gp.py on gen3: 1310 SAME, 0 DIFF; facts SAME (code commit cb3ca77d0).
 3. Tests: header_check rows (s12.py: IN_* values, union member names, ip_mreq_source offsets, h_addr; s07.py: __WALL,
    __priority_which_t redeclaration in C/C++, utimensat/futimens array form with -Werror=array-parameter; time.h
    __timezone in a module that fits). Plants file handoff/HEADERS-STAGE2-GAPS-D-plants.txt; `cargo xtask plants`.
