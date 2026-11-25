@@ -10,7 +10,20 @@
 
 __NIJI_BEGIN_C
 
+@@owns ip6_vfc ip6_flow ip6_plen ip6_nxt ip6_hlim ip6_hops
 @@emit
+
+/* The fields of the IPv6 header (RFC 8200 section 3) by name: the first eight bytes are struct ip6_hdr's union of the
+   control structure and the version byte; each name is a macro for the member the layout table records (the hop
+   limit has two names). */
+@@when ip6_hdr
+# define ip6_vfc ip6_ctlun.ip6_un2_vfc
+# define ip6_flow ip6_ctlun.ip6_un1.ip6_un1_flow
+# define ip6_plen ip6_ctlun.ip6_un1.ip6_un1_plen
+# define ip6_nxt ip6_ctlun.ip6_un1.ip6_un1_nxt
+# define ip6_hlim ip6_ctlun.ip6_un1.ip6_un1_hlim
+# define ip6_hops ip6_ctlun.ip6_un1.ip6_un1_hlim
+#endif
 
 __NIJI_END_C
 

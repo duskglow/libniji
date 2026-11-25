@@ -10,7 +10,18 @@
 
 __NIJI_BEGIN_C
 
+@@owns arp_hrd arp_pro arp_hln arp_pln arp_op
 @@emit
+
+/* The fixed fields of an ARP packet (RFC 826) by name: struct ether_arp begins with a struct arphdr, and each name is a
+   macro for its member. */
+@@when ether_arp
+# define arp_hrd ea_hdr.ar_hrd
+# define arp_pro ea_hdr.ar_pro
+# define arp_hln ea_hdr.ar_hln
+# define arp_pln ea_hdr.ar_pln
+# define arp_op ea_hdr.ar_op
+#endif
 
 __NIJI_END_C
 

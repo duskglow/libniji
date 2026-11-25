@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (303 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (330 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3153,6 +3153,296 @@ fn abi_struct_mt_tape_info() {
     expect_type("struct mt_tape_info", size_of::<struct_mt_tape_info>(), align_of::<struct_mt_tape_info>());
     expect_member("struct mt_tape_info", "t_type", offset_of!(struct_mt_tape_info, t_type));
     expect_member("struct mt_tape_info", "t_name", offset_of!(struct_mt_tape_info, t_name));
+}
+
+#[test]
+fn abi_struct_tcp_md5sig() {
+    expect_type("struct tcp_md5sig", size_of::<struct_tcp_md5sig>(), align_of::<struct_tcp_md5sig>());
+    expect_member("struct tcp_md5sig", "tcpm_addr", offset_of!(struct_tcp_md5sig, tcpm_addr));
+    expect_member("struct tcp_md5sig", "tcpm_addr.ss_family", offset_of!(struct_tcp_md5sig, tcpm_addr.ss_family));
+    expect_member("struct tcp_md5sig", "tcpm_addr.__ss_padding", offset_of!(struct_tcp_md5sig, tcpm_addr.__ss_padding));
+    expect_member("struct tcp_md5sig", "tcpm_addr.__ss_align", offset_of!(struct_tcp_md5sig, tcpm_addr.__ss_align));
+    expect_member("struct tcp_md5sig", "tcpm_flags", offset_of!(struct_tcp_md5sig, tcpm_flags));
+    expect_member("struct tcp_md5sig", "tcpm_prefixlen", offset_of!(struct_tcp_md5sig, tcpm_prefixlen));
+    expect_member("struct tcp_md5sig", "tcpm_keylen", offset_of!(struct_tcp_md5sig, tcpm_keylen));
+    expect_member("struct tcp_md5sig", "tcpm_ifindex", offset_of!(struct_tcp_md5sig, tcpm_ifindex));
+    expect_member("struct tcp_md5sig", "tcpm_key", offset_of!(struct_tcp_md5sig, tcpm_key));
+}
+
+#[test]
+fn abi_struct_tcp_repair_opt() {
+    expect_type("struct tcp_repair_opt", size_of::<struct_tcp_repair_opt>(), align_of::<struct_tcp_repair_opt>());
+    expect_member("struct tcp_repair_opt", "opt_code", offset_of!(struct_tcp_repair_opt, opt_code));
+    expect_member("struct tcp_repair_opt", "opt_val", offset_of!(struct_tcp_repair_opt, opt_val));
+}
+
+#[test]
+fn abi_struct_tcp_repair_window() {
+    expect_type("struct tcp_repair_window", size_of::<struct_tcp_repair_window>(), align_of::<struct_tcp_repair_window>());
+    expect_member("struct tcp_repair_window", "snd_wl1", offset_of!(struct_tcp_repair_window, snd_wl1));
+    expect_member("struct tcp_repair_window", "snd_wnd", offset_of!(struct_tcp_repair_window, snd_wnd));
+    expect_member("struct tcp_repair_window", "max_window", offset_of!(struct_tcp_repair_window, max_window));
+    expect_member("struct tcp_repair_window", "rcv_wnd", offset_of!(struct_tcp_repair_window, rcv_wnd));
+    expect_member("struct tcp_repair_window", "rcv_wup", offset_of!(struct_tcp_repair_window, rcv_wup));
+}
+
+#[test]
+fn abi_struct_tcp_cookie_transactions() {
+    expect_type("struct tcp_cookie_transactions", size_of::<struct_tcp_cookie_transactions>(), align_of::<struct_tcp_cookie_transactions>());
+    expect_member("struct tcp_cookie_transactions", "tcpct_flags", offset_of!(struct_tcp_cookie_transactions, tcpct_flags));
+    expect_member("struct tcp_cookie_transactions", "__tcpct_pad1", offset_of!(struct_tcp_cookie_transactions, __tcpct_pad1));
+    expect_member("struct tcp_cookie_transactions", "tcpct_cookie_desired", offset_of!(struct_tcp_cookie_transactions, tcpct_cookie_desired));
+    expect_member("struct tcp_cookie_transactions", "tcpct_s_data_desired", offset_of!(struct_tcp_cookie_transactions, tcpct_s_data_desired));
+    expect_member("struct tcp_cookie_transactions", "tcpct_used", offset_of!(struct_tcp_cookie_transactions, tcpct_used));
+    expect_member("struct tcp_cookie_transactions", "tcpct_value", offset_of!(struct_tcp_cookie_transactions, tcpct_value));
+}
+
+#[test]
+fn abi_struct_tcp_zerocopy_receive() {
+    expect_type("struct tcp_zerocopy_receive", size_of::<struct_tcp_zerocopy_receive>(), align_of::<struct_tcp_zerocopy_receive>());
+    expect_member("struct tcp_zerocopy_receive", "address", offset_of!(struct_tcp_zerocopy_receive, address));
+    expect_member("struct tcp_zerocopy_receive", "length", offset_of!(struct_tcp_zerocopy_receive, length));
+    expect_member("struct tcp_zerocopy_receive", "recv_skip_hint", offset_of!(struct_tcp_zerocopy_receive, recv_skip_hint));
+}
+
+#[test]
+fn abi_struct_ip6_hdrctl() {
+    expect_type("struct ip6_hdrctl", size_of::<struct_ip6_hdrctl>(), align_of::<struct_ip6_hdrctl>());
+    expect_member("struct ip6_hdrctl", "ip6_un1_flow", offset_of!(struct_ip6_hdrctl, ip6_un1_flow));
+    expect_member("struct ip6_hdrctl", "ip6_un1_plen", offset_of!(struct_ip6_hdrctl, ip6_un1_plen));
+    expect_member("struct ip6_hdrctl", "ip6_un1_nxt", offset_of!(struct_ip6_hdrctl, ip6_un1_nxt));
+    expect_member("struct ip6_hdrctl", "ip6_un1_hlim", offset_of!(struct_ip6_hdrctl, ip6_un1_hlim));
+}
+
+#[test]
+fn abi_struct_ip6_ext() {
+    expect_type("struct ip6_ext", size_of::<struct_ip6_ext>(), align_of::<struct_ip6_ext>());
+    expect_member("struct ip6_ext", "ip6e_nxt", offset_of!(struct_ip6_ext, ip6e_nxt));
+    expect_member("struct ip6_ext", "ip6e_len", offset_of!(struct_ip6_ext, ip6e_len));
+}
+
+#[test]
+fn abi_struct_ip6_hbh() {
+    expect_type("struct ip6_hbh", size_of::<struct_ip6_hbh>(), align_of::<struct_ip6_hbh>());
+    expect_member("struct ip6_hbh", "ip6h_nxt", offset_of!(struct_ip6_hbh, ip6h_nxt));
+    expect_member("struct ip6_hbh", "ip6h_len", offset_of!(struct_ip6_hbh, ip6h_len));
+}
+
+#[test]
+fn abi_struct_ip6_dest() {
+    expect_type("struct ip6_dest", size_of::<struct_ip6_dest>(), align_of::<struct_ip6_dest>());
+    expect_member("struct ip6_dest", "ip6d_nxt", offset_of!(struct_ip6_dest, ip6d_nxt));
+    expect_member("struct ip6_dest", "ip6d_len", offset_of!(struct_ip6_dest, ip6d_len));
+}
+
+#[test]
+fn abi_struct_ip6_rthdr() {
+    expect_type("struct ip6_rthdr", size_of::<struct_ip6_rthdr>(), align_of::<struct_ip6_rthdr>());
+    expect_member("struct ip6_rthdr", "ip6r_nxt", offset_of!(struct_ip6_rthdr, ip6r_nxt));
+    expect_member("struct ip6_rthdr", "ip6r_len", offset_of!(struct_ip6_rthdr, ip6r_len));
+    expect_member("struct ip6_rthdr", "ip6r_type", offset_of!(struct_ip6_rthdr, ip6r_type));
+    expect_member("struct ip6_rthdr", "ip6r_segleft", offset_of!(struct_ip6_rthdr, ip6r_segleft));
+}
+
+#[test]
+fn abi_struct_ip6_rthdr0() {
+    expect_type("struct ip6_rthdr0", size_of::<struct_ip6_rthdr0>(), align_of::<struct_ip6_rthdr0>());
+    expect_member("struct ip6_rthdr0", "ip6r0_nxt", offset_of!(struct_ip6_rthdr0, ip6r0_nxt));
+    expect_member("struct ip6_rthdr0", "ip6r0_len", offset_of!(struct_ip6_rthdr0, ip6r0_len));
+    expect_member("struct ip6_rthdr0", "ip6r0_type", offset_of!(struct_ip6_rthdr0, ip6r0_type));
+    expect_member("struct ip6_rthdr0", "ip6r0_segleft", offset_of!(struct_ip6_rthdr0, ip6r0_segleft));
+    expect_member("struct ip6_rthdr0", "ip6r0_reserved", offset_of!(struct_ip6_rthdr0, ip6r0_reserved));
+    expect_member("struct ip6_rthdr0", "ip6r0_slmap", offset_of!(struct_ip6_rthdr0, ip6r0_slmap));
+    expect_member("struct ip6_rthdr0", "ip6r0_addr", offset_of!(struct_ip6_rthdr0, ip6r0_addr));
+}
+
+#[test]
+fn abi_struct_ip6_frag() {
+    expect_type("struct ip6_frag", size_of::<struct_ip6_frag>(), align_of::<struct_ip6_frag>());
+    expect_member("struct ip6_frag", "ip6f_nxt", offset_of!(struct_ip6_frag, ip6f_nxt));
+    expect_member("struct ip6_frag", "ip6f_reserved", offset_of!(struct_ip6_frag, ip6f_reserved));
+    expect_member("struct ip6_frag", "ip6f_offlg", offset_of!(struct_ip6_frag, ip6f_offlg));
+    expect_member("struct ip6_frag", "ip6f_ident", offset_of!(struct_ip6_frag, ip6f_ident));
+}
+
+#[test]
+fn abi_struct_ip6_opt() {
+    expect_type("struct ip6_opt", size_of::<struct_ip6_opt>(), align_of::<struct_ip6_opt>());
+    expect_member("struct ip6_opt", "ip6o_type", offset_of!(struct_ip6_opt, ip6o_type));
+    expect_member("struct ip6_opt", "ip6o_len", offset_of!(struct_ip6_opt, ip6o_len));
+}
+
+#[test]
+fn abi_struct_ip6_opt_jumbo() {
+    expect_type("struct ip6_opt_jumbo", size_of::<struct_ip6_opt_jumbo>(), align_of::<struct_ip6_opt_jumbo>());
+    expect_member("struct ip6_opt_jumbo", "ip6oj_type", offset_of!(struct_ip6_opt_jumbo, ip6oj_type));
+    expect_member("struct ip6_opt_jumbo", "ip6oj_len", offset_of!(struct_ip6_opt_jumbo, ip6oj_len));
+    expect_member("struct ip6_opt_jumbo", "ip6oj_jumbo_len", offset_of!(struct_ip6_opt_jumbo, ip6oj_jumbo_len));
+}
+
+#[test]
+fn abi_struct_ip6_opt_nsap() {
+    expect_type("struct ip6_opt_nsap", size_of::<struct_ip6_opt_nsap>(), align_of::<struct_ip6_opt_nsap>());
+    expect_member("struct ip6_opt_nsap", "ip6on_type", offset_of!(struct_ip6_opt_nsap, ip6on_type));
+    expect_member("struct ip6_opt_nsap", "ip6on_len", offset_of!(struct_ip6_opt_nsap, ip6on_len));
+    expect_member("struct ip6_opt_nsap", "ip6on_src_nsap_len", offset_of!(struct_ip6_opt_nsap, ip6on_src_nsap_len));
+    expect_member("struct ip6_opt_nsap", "ip6on_dst_nsap_len", offset_of!(struct_ip6_opt_nsap, ip6on_dst_nsap_len));
+}
+
+#[test]
+fn abi_struct_ip6_opt_tunnel() {
+    expect_type("struct ip6_opt_tunnel", size_of::<struct_ip6_opt_tunnel>(), align_of::<struct_ip6_opt_tunnel>());
+    expect_member("struct ip6_opt_tunnel", "ip6ot_type", offset_of!(struct_ip6_opt_tunnel, ip6ot_type));
+    expect_member("struct ip6_opt_tunnel", "ip6ot_len", offset_of!(struct_ip6_opt_tunnel, ip6ot_len));
+    expect_member("struct ip6_opt_tunnel", "ip6ot_encap_limit", offset_of!(struct_ip6_opt_tunnel, ip6ot_encap_limit));
+}
+
+#[test]
+fn abi_struct_ip6_opt_router() {
+    expect_type("struct ip6_opt_router", size_of::<struct_ip6_opt_router>(), align_of::<struct_ip6_opt_router>());
+    expect_member("struct ip6_opt_router", "ip6or_type", offset_of!(struct_ip6_opt_router, ip6or_type));
+    expect_member("struct ip6_opt_router", "ip6or_len", offset_of!(struct_ip6_opt_router, ip6or_len));
+    expect_member("struct ip6_opt_router", "ip6or_value", offset_of!(struct_ip6_opt_router, ip6or_value));
+}
+
+#[test]
+fn abi_struct_sg_io_hdr() {
+    expect_type("struct sg_io_hdr", size_of::<struct_sg_io_hdr>(), align_of::<struct_sg_io_hdr>());
+    expect_member("struct sg_io_hdr", "interface_id", offset_of!(struct_sg_io_hdr, interface_id));
+    expect_member("struct sg_io_hdr", "dxfer_direction", offset_of!(struct_sg_io_hdr, dxfer_direction));
+    expect_member("struct sg_io_hdr", "cmd_len", offset_of!(struct_sg_io_hdr, cmd_len));
+    expect_member("struct sg_io_hdr", "mx_sb_len", offset_of!(struct_sg_io_hdr, mx_sb_len));
+    expect_member("struct sg_io_hdr", "iovec_count", offset_of!(struct_sg_io_hdr, iovec_count));
+    expect_member("struct sg_io_hdr", "dxfer_len", offset_of!(struct_sg_io_hdr, dxfer_len));
+    expect_member("struct sg_io_hdr", "dxferp", offset_of!(struct_sg_io_hdr, dxferp));
+    expect_member("struct sg_io_hdr", "cmdp", offset_of!(struct_sg_io_hdr, cmdp));
+    expect_member("struct sg_io_hdr", "sbp", offset_of!(struct_sg_io_hdr, sbp));
+    expect_member("struct sg_io_hdr", "timeout", offset_of!(struct_sg_io_hdr, timeout));
+    expect_member("struct sg_io_hdr", "flags", offset_of!(struct_sg_io_hdr, flags));
+    expect_member("struct sg_io_hdr", "pack_id", offset_of!(struct_sg_io_hdr, pack_id));
+    expect_member("struct sg_io_hdr", "usr_ptr", offset_of!(struct_sg_io_hdr, usr_ptr));
+    expect_member("struct sg_io_hdr", "status", offset_of!(struct_sg_io_hdr, status));
+    expect_member("struct sg_io_hdr", "masked_status", offset_of!(struct_sg_io_hdr, masked_status));
+    expect_member("struct sg_io_hdr", "msg_status", offset_of!(struct_sg_io_hdr, msg_status));
+    expect_member("struct sg_io_hdr", "sb_len_wr", offset_of!(struct_sg_io_hdr, sb_len_wr));
+    expect_member("struct sg_io_hdr", "host_status", offset_of!(struct_sg_io_hdr, host_status));
+    expect_member("struct sg_io_hdr", "driver_status", offset_of!(struct_sg_io_hdr, driver_status));
+    expect_member("struct sg_io_hdr", "resid", offset_of!(struct_sg_io_hdr, resid));
+    expect_member("struct sg_io_hdr", "duration", offset_of!(struct_sg_io_hdr, duration));
+    expect_member("struct sg_io_hdr", "info", offset_of!(struct_sg_io_hdr, info));
+}
+
+#[test]
+fn abi_struct_sg_scsi_id() {
+    expect_type("struct sg_scsi_id", size_of::<struct_sg_scsi_id>(), align_of::<struct_sg_scsi_id>());
+    expect_member("struct sg_scsi_id", "host_no", offset_of!(struct_sg_scsi_id, host_no));
+    expect_member("struct sg_scsi_id", "channel", offset_of!(struct_sg_scsi_id, channel));
+    expect_member("struct sg_scsi_id", "scsi_id", offset_of!(struct_sg_scsi_id, scsi_id));
+    expect_member("struct sg_scsi_id", "lun", offset_of!(struct_sg_scsi_id, lun));
+    expect_member("struct sg_scsi_id", "scsi_type", offset_of!(struct_sg_scsi_id, scsi_type));
+    expect_member("struct sg_scsi_id", "h_cmd_per_lun", offset_of!(struct_sg_scsi_id, h_cmd_per_lun));
+    expect_member("struct sg_scsi_id", "d_queue_depth", offset_of!(struct_sg_scsi_id, d_queue_depth));
+    expect_member("struct sg_scsi_id", "unused", offset_of!(struct_sg_scsi_id, unused));
+}
+
+#[test]
+fn abi_struct_sg_req_info() {
+    expect_type("struct sg_req_info", size_of::<struct_sg_req_info>(), align_of::<struct_sg_req_info>());
+    expect_member("struct sg_req_info", "req_state", offset_of!(struct_sg_req_info, req_state));
+    expect_member("struct sg_req_info", "orphan", offset_of!(struct_sg_req_info, orphan));
+    expect_member("struct sg_req_info", "sg_io_owned", offset_of!(struct_sg_req_info, sg_io_owned));
+    expect_member("struct sg_req_info", "problem", offset_of!(struct_sg_req_info, problem));
+    expect_member("struct sg_req_info", "pack_id", offset_of!(struct_sg_req_info, pack_id));
+    expect_member("struct sg_req_info", "usr_ptr", offset_of!(struct_sg_req_info, usr_ptr));
+    expect_member("struct sg_req_info", "duration", offset_of!(struct_sg_req_info, duration));
+    expect_member("struct sg_req_info", "unused", offset_of!(struct_sg_req_info, unused));
+}
+
+#[test]
+fn abi_struct_sg_iovec() {
+    expect_type("struct sg_iovec", size_of::<struct_sg_iovec>(), align_of::<struct_sg_iovec>());
+    expect_member("struct sg_iovec", "iov_base", offset_of!(struct_sg_iovec, iov_base));
+    expect_member("struct sg_iovec", "iov_len", offset_of!(struct_sg_iovec, iov_len));
+}
+
+#[test]
+fn abi_struct_sg_header() {
+    expect_type("struct sg_header", size_of::<struct_sg_header>(), align_of::<struct_sg_header>());
+    expect_member("struct sg_header", "pack_len", offset_of!(struct_sg_header, pack_len));
+    expect_member("struct sg_header", "reply_len", offset_of!(struct_sg_header, reply_len));
+    expect_member("struct sg_header", "pack_id", offset_of!(struct_sg_header, pack_id));
+    expect_member("struct sg_header", "result", offset_of!(struct_sg_header, result));
+    expect_member("struct sg_header", "sense_buffer", offset_of!(struct_sg_header, sense_buffer));
+}
+
+#[test]
+fn abi_struct_ccs_modesel_head() {
+    expect_type("struct ccs_modesel_head", size_of::<struct_ccs_modesel_head>(), align_of::<struct_ccs_modesel_head>());
+    expect_member("struct ccs_modesel_head", "_r1", offset_of!(struct_ccs_modesel_head, _r1));
+    expect_member("struct ccs_modesel_head", "medium", offset_of!(struct_ccs_modesel_head, medium));
+    expect_member("struct ccs_modesel_head", "_r2", offset_of!(struct_ccs_modesel_head, _r2));
+    expect_member("struct ccs_modesel_head", "block_desc_length", offset_of!(struct_ccs_modesel_head, block_desc_length));
+    expect_member("struct ccs_modesel_head", "density", offset_of!(struct_ccs_modesel_head, density));
+    expect_member("struct ccs_modesel_head", "number_blocks_hi", offset_of!(struct_ccs_modesel_head, number_blocks_hi));
+    expect_member("struct ccs_modesel_head", "number_blocks_med", offset_of!(struct_ccs_modesel_head, number_blocks_med));
+    expect_member("struct ccs_modesel_head", "number_blocks_lo", offset_of!(struct_ccs_modesel_head, number_blocks_lo));
+    expect_member("struct ccs_modesel_head", "_r3", offset_of!(struct_ccs_modesel_head, _r3));
+    expect_member("struct ccs_modesel_head", "block_length_hi", offset_of!(struct_ccs_modesel_head, block_length_hi));
+    expect_member("struct ccs_modesel_head", "block_length_med", offset_of!(struct_ccs_modesel_head, block_length_med));
+    expect_member("struct ccs_modesel_head", "block_length_lo", offset_of!(struct_ccs_modesel_head, block_length_lo));
+}
+
+#[test]
+fn abi_struct_msginfo() {
+    expect_type("struct msginfo", size_of::<struct_msginfo>(), align_of::<struct_msginfo>());
+    expect_member("struct msginfo", "msgpool", offset_of!(struct_msginfo, msgpool));
+    expect_member("struct msginfo", "msgmap", offset_of!(struct_msginfo, msgmap));
+    expect_member("struct msginfo", "msgmax", offset_of!(struct_msginfo, msgmax));
+    expect_member("struct msginfo", "msgmnb", offset_of!(struct_msginfo, msgmnb));
+    expect_member("struct msginfo", "msgmni", offset_of!(struct_msginfo, msgmni));
+    expect_member("struct msginfo", "msgssz", offset_of!(struct_msginfo, msgssz));
+    expect_member("struct msginfo", "msgtql", offset_of!(struct_msginfo, msgtql));
+    expect_member("struct msginfo", "msgseg", offset_of!(struct_msginfo, msgseg));
+}
+
+#[test]
+fn abi_struct_shminfo() {
+    expect_type("struct shminfo", size_of::<struct_shminfo>(), align_of::<struct_shminfo>());
+    expect_member("struct shminfo", "shmmax", offset_of!(struct_shminfo, shmmax));
+    expect_member("struct shminfo", "shmmin", offset_of!(struct_shminfo, shmmin));
+    expect_member("struct shminfo", "shmmni", offset_of!(struct_shminfo, shmmni));
+    expect_member("struct shminfo", "shmseg", offset_of!(struct_shminfo, shmseg));
+    expect_member("struct shminfo", "shmall", offset_of!(struct_shminfo, shmall));
+    expect_member("struct shminfo", "__glibc_reserved1", offset_of!(struct_shminfo, __glibc_reserved1));
+    expect_member("struct shminfo", "__glibc_reserved2", offset_of!(struct_shminfo, __glibc_reserved2));
+    expect_member("struct shminfo", "__glibc_reserved3", offset_of!(struct_shminfo, __glibc_reserved3));
+    expect_member("struct shminfo", "__glibc_reserved4", offset_of!(struct_shminfo, __glibc_reserved4));
+}
+
+#[test]
+fn abi_struct_shm_info() {
+    expect_type("struct shm_info", size_of::<struct_shm_info>(), align_of::<struct_shm_info>());
+    expect_member("struct shm_info", "used_ids", offset_of!(struct_shm_info, used_ids));
+    expect_member("struct shm_info", "shm_tot", offset_of!(struct_shm_info, shm_tot));
+    expect_member("struct shm_info", "shm_rss", offset_of!(struct_shm_info, shm_rss));
+    expect_member("struct shm_info", "shm_swp", offset_of!(struct_shm_info, shm_swp));
+    expect_member("struct shm_info", "swap_attempts", offset_of!(struct_shm_info, swap_attempts));
+    expect_member("struct shm_info", "swap_successes", offset_of!(struct_shm_info, swap_successes));
+}
+
+#[test]
+fn abi_struct_seminfo() {
+    expect_type("struct seminfo", size_of::<struct_seminfo>(), align_of::<struct_seminfo>());
+    expect_member("struct seminfo", "semmap", offset_of!(struct_seminfo, semmap));
+    expect_member("struct seminfo", "semmni", offset_of!(struct_seminfo, semmni));
+    expect_member("struct seminfo", "semmns", offset_of!(struct_seminfo, semmns));
+    expect_member("struct seminfo", "semmnu", offset_of!(struct_seminfo, semmnu));
+    expect_member("struct seminfo", "semmsl", offset_of!(struct_seminfo, semmsl));
+    expect_member("struct seminfo", "semopm", offset_of!(struct_seminfo, semopm));
+    expect_member("struct seminfo", "semume", offset_of!(struct_seminfo, semume));
+    expect_member("struct seminfo", "semusz", offset_of!(struct_seminfo, semusz));
+    expect_member("struct seminfo", "semvmx", offset_of!(struct_seminfo, semvmx));
+    expect_member("struct seminfo", "semaem", offset_of!(struct_seminfo, semaem));
 }
 
 #[test]
