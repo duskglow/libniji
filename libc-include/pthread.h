@@ -2,7 +2,7 @@
 /* pthread.h: threads (XSH <pthread.h>). Appendix C.9: PTHREAD_STACK_MIN (from <limits.h>) is the run-time
    sysconf (_SC_THREAD_STACK_MIN) under _DYNAMIC_STACK_SIZE_SOURCE; pthread_cleanup_push and pthread_cleanup_pop
    are a pair of macros: in C they open and close one block holding a __pthread_unwind_buf_t, registered with
-   __pthread_register_cancel after __sigsetjmp, and unregistered by __pthread_unregister_cancel; in C++ with
+   __pthread_register_cancel after a __sigsetjmp call, and unregistered by __pthread_unregister_cancel; in C++ with
    exceptions they hold a destructor object instead, so that cancellation, which unwinds the stack, runs the
    handler. */
 #ifndef __NIJI_H_pthread_h
@@ -14,9 +14,12 @@
 
 __NIJI_BEGIN_C
 
-/* Only what the cleanup macros call: pthread.h does not show the rest of <setjmp.h>. */
+/* Only what the cleanup macros call: pthread.h does not show the rest of <setjmp.h>, nor the name __sigsetjmp itself
+   (black-box probe: a program's own declaration of __sigsetjmp after <pthread.h>, with any parameter form, is its
+   first, so -Warray-parameter has nothing to compare). The macros call the __sigsetjmp symbol under libniji's own
+   name; that name no longer tells the compiler the call returns twice, so the attribute says it. */
 struct __jmp_buf_tag;
-extern int __sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
+extern int __niji_sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__sigsetjmp") __attribute__ ((__returns_twice__));
 
 #if 1
 # ifndef __NIJI_D___jmp_buf
@@ -1099,7 +1102,7 @@ public:
     __pthread_unwind_buf_t __cancel_buf; \
     void (*__cancel_routine) (void *) = (routine); \
     void *__cancel_arg = (arg); \
-    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
+    int __not_first_call = __niji_sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
     if (__builtin_expect (__not_first_call, 0)) \
       { \
         __cancel_routine (__cancel_arg); \
@@ -1119,7 +1122,7 @@ public:
     __pthread_unwind_buf_t __cancel_buf; \
     void (*__cancel_routine) (void *) = (routine); \
     void *__cancel_arg = (arg); \
-    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
+    int __not_first_call = __niji_sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
     if (__builtin_expect (__not_first_call, 0)) \
       { \
         __cancel_routine (__cancel_arg); \
