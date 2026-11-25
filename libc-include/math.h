@@ -2854,39 +2854,39 @@ extern long double modff64x (long double, long double *) __NIJI_NOTHROW;
 # ifndef __NIJI_D_nanf128
 #  define __NIJI_D_nanf128 1
 #  if __NIJI_FLOAT128
-extern _Float128 nanf128 (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern _Float128 nanf128 (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  endif
 # endif
 # ifndef __NIJI_D_nanf32
 #  define __NIJI_D_nanf32 1
 #  if __NIJI_FLOATN
-extern _Float32 nanf32 (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern _Float32 nanf32 (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  elif !defined __cplusplus
-extern float nanf32 (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern float nanf32 (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  endif
 # endif
 # ifndef __NIJI_D_nanf32x
 #  define __NIJI_D_nanf32x 1
 #  if __NIJI_FLOATN
-extern _Float32x nanf32x (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern _Float32x nanf32x (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  elif !defined __cplusplus
-extern double nanf32x (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern double nanf32x (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  endif
 # endif
 # ifndef __NIJI_D_nanf64
 #  define __NIJI_D_nanf64 1
 #  if __NIJI_FLOATN
-extern _Float64 nanf64 (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern _Float64 nanf64 (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  elif !defined __cplusplus
-extern double nanf64 (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern double nanf64 (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  endif
 # endif
 # ifndef __NIJI_D_nanf64x
 #  define __NIJI_D_nanf64x 1
 #  if __NIJI_FLOATN
-extern _Float64x nanf64x (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern _Float64x nanf64x (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  elif !defined __cplusplus
-extern long double nanf64x (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern long double nanf64x (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 #  endif
 # endif
 # ifndef __NIJI_D_nearbyintf128
@@ -4459,15 +4459,15 @@ extern long double modfl (long double, long double *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_nan
 #  define __NIJI_D_nan 1
-extern double nan (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern double nan (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_nanf
 #  define __NIJI_D_nanf 1
-extern float nanf (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern float nanf (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_nanl
 #  define __NIJI_D_nanl 1
-extern long double nanl (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __const__));
+extern long double nanl (const char *) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_nearbyint
 #  define __NIJI_D_nearbyint 1

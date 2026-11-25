@@ -517,7 +517,7 @@ typedef int (*__compar_fn_t)(void const *, void const *);
 # endif
 # ifndef __NIJI_D_bsearch
 #  define __NIJI_D_bsearch 1
-extern void *bsearch (const void *, const void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1, 2), __warn_unused_result__));
+extern void *bsearch (const void *, const void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1, 2, 5), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_calloc
 #  define __NIJI_D_calloc 1
@@ -569,7 +569,7 @@ typedef int (*__compar_fn_t)(void const *, void const *);
 # endif
 # ifndef __NIJI_D_qsort
 #  define __NIJI_D_qsort 1
-extern void qsort (void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1)));
+extern void qsort (void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1, 4)));
 # endif
 # ifndef __NIJI_D_rand
 #  define __NIJI_D_rand 1
@@ -655,7 +655,7 @@ typedef int (*__compar_d_fn_t)(void const *, void const *, void *);
 # endif
 # ifndef __NIJI_D_qsort_r
 #  define __NIJI_D_qsort_r 1
-extern void qsort_r (void *, unsigned long, unsigned long, __compar_d_fn_t, void *) __attribute__ ((__nonnull__ (1)));
+extern void qsort_r (void *, unsigned long, unsigned long, __compar_d_fn_t, void *) __attribute__ ((__nonnull__ (1, 4)));
 # endif
 # ifndef __NIJI_D_secure_getenv
 #  define __NIJI_D_secure_getenv 1
@@ -701,7 +701,7 @@ extern int strfromf64x (char *, unsigned long, const char *, long double) __NIJI
 # endif
 # ifndef __NIJI_D_strtod_l
 #  define __NIJI_D_strtod_l 1
-extern double strtod_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern double strtod_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_strtof128
 #  define __NIJI_D_strtof128 1
@@ -712,7 +712,7 @@ extern _Float128 strtof128 (const char *, char **) __NIJI_NOTHROW __attribute__ 
 # ifndef __NIJI_D_strtof128_l
 #  define __NIJI_D_strtof128_l 1
 #  if __NIJI_FLOAT128
-extern _Float128 strtof128_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern _Float128 strtof128_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_strtof32
@@ -726,9 +726,9 @@ extern float strtof32 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef __NIJI_D_strtof32_l
 #  define __NIJI_D_strtof32_l 1
 #  if __NIJI_FLOATN
-extern _Float32 strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern _Float32 strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  elif !defined __cplusplus
-extern float strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern float strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_strtof32x
@@ -742,9 +742,9 @@ extern double strtof32x (const char *, char **) __NIJI_NOTHROW __attribute__ ((_
 # ifndef __NIJI_D_strtof32x_l
 #  define __NIJI_D_strtof32x_l 1
 #  if __NIJI_FLOATN
-extern _Float32x strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern _Float32x strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  elif !defined __cplusplus
-extern double strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern double strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_strtof64
@@ -758,9 +758,9 @@ extern double strtof64 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__
 # ifndef __NIJI_D_strtof64_l
 #  define __NIJI_D_strtof64_l 1
 #  if __NIJI_FLOATN
-extern _Float64 strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern _Float64 strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  elif !defined __cplusplus
-extern double strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern double strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_strtof64x
@@ -774,34 +774,34 @@ extern long double strtof64x (const char *, char **) __NIJI_NOTHROW __attribute_
 # ifndef __NIJI_D_strtof64x_l
 #  define __NIJI_D_strtof64x_l 1
 #  if __NIJI_FLOATN
-extern _Float64x strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern _Float64x strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  elif !defined __cplusplus
-extern long double strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern long double strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_strtof_l
 #  define __NIJI_D_strtof_l 1
-extern float strtof_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern float strtof_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_strtol_l
 #  define __NIJI_D_strtol_l 1
-extern long int strtol_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtol_l") __attribute__ ((__nonnull__ (1)));
+extern long int strtol_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtol_l") __attribute__ ((__nonnull__ (1, 4)));
 # endif
 # ifndef __NIJI_D_strtold_l
 #  define __NIJI_D_strtold_l 1
-extern long double strtold_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern long double strtold_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_strtoll_l
 #  define __NIJI_D_strtoll_l 1
-extern long long int strtoll_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoll_l") __attribute__ ((__nonnull__ (1)));
+extern long long int strtoll_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoll_l") __attribute__ ((__nonnull__ (1, 4)));
 # endif
 # ifndef __NIJI_D_strtoul_l
 #  define __NIJI_D_strtoul_l 1
-extern long unsigned int strtoul_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoul_l") __attribute__ ((__nonnull__ (1)));
+extern long unsigned int strtoul_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoul_l") __attribute__ ((__nonnull__ (1, 4)));
 # endif
 # ifndef __NIJI_D_strtoull_l
 #  define __NIJI_D_strtoull_l 1
-extern long long unsigned int strtoull_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoull_l") __attribute__ ((__nonnull__ (1)));
+extern long long unsigned int strtoull_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoull_l") __attribute__ ((__nonnull__ (1, 4)));
 # endif
 #endif
 #if __NIJI_GNU || __NIJI_FORTIFY >= 1
@@ -973,7 +973,7 @@ extern int nrand48_r (short unsigned int *, struct drand48_data *, long int *) _
 # endif
 # ifndef __NIJI_D_on_exit
 #  define __NIJI_D_on_exit 1
-extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
