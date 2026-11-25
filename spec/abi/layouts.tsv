@@ -2419,6 +2419,67 @@ Elf64_Vernaux	vna_flags	4		Elf64_Half
 Elf64_Vernaux	vna_other	6		Elf64_Half	
 Elf64_Vernaux	vna_name	8		Elf64_Word	
 Elf64_Vernaux	vna_next	12		Elf64_Word	
+Elf32_Chdr		12	4		
+Elf32_Chdr	ch_type	0		Elf32_Word	
+Elf32_Chdr	ch_size	4		Elf32_Word	
+Elf32_Chdr	ch_addralign	8		Elf32_Word	
+Elf32_auxv_t		8	4		
+Elf32_auxv_t	a_type	0		uint32_t	
+Elf32_auxv_t	a_un	4		union <anon>	
+Elf32_auxv_t	a_un.a_val	4		uint32_t	
+Elf32_Verdef		20	4		
+Elf32_Verdef	vd_version	0		Elf32_Half	
+Elf32_Verdef	vd_flags	2		Elf32_Half	
+Elf32_Verdef	vd_ndx	4		Elf32_Half	
+Elf32_Verdef	vd_cnt	6		Elf32_Half	
+Elf32_Verdef	vd_hash	8		Elf32_Word	
+Elf32_Verdef	vd_aux	12		Elf32_Word	
+Elf32_Verdef	vd_next	16		Elf32_Word	
+Elf32_Verdaux		8	4		
+Elf32_Verdaux	vda_name	0		Elf32_Word	
+Elf32_Verdaux	vda_next	4		Elf32_Word	
+Elf32_Verneed		16	4		
+Elf32_Verneed	vn_version	0		Elf32_Half	
+Elf32_Verneed	vn_cnt	2		Elf32_Half	
+Elf32_Verneed	vn_file	4		Elf32_Word	
+Elf32_Verneed	vn_aux	8		Elf32_Word	
+Elf32_Verneed	vn_next	12		Elf32_Word	
+Elf32_Vernaux		16	4		
+Elf32_Vernaux	vna_hash	0		Elf32_Word	
+Elf32_Vernaux	vna_flags	4		Elf32_Half	
+Elf32_Vernaux	vna_other	6		Elf32_Half	
+Elf32_Vernaux	vna_name	8		Elf32_Word	
+Elf32_Vernaux	vna_next	12		Elf32_Word	
+Elf32_Syminfo		4	2		
+Elf32_Syminfo	si_boundto	0		Elf32_Half	
+Elf32_Syminfo	si_flags	2		Elf32_Half	
+Elf32_Move		24	8		
+Elf32_Move	m_value	0		Elf32_Xword	
+Elf32_Move	m_info	8		Elf32_Word	
+Elf32_Move	m_poffset	12		Elf32_Word	
+Elf32_Move	m_repeat	16		Elf32_Half	
+Elf32_Move	m_stride	18		Elf32_Half	
+Elf32_Lib		20	4		
+Elf32_Lib	l_name	0		Elf32_Word	
+Elf32_Lib	l_time_stamp	4		Elf32_Word	
+Elf32_Lib	l_checksum	8		Elf32_Word	
+Elf32_Lib	l_version	12		Elf32_Word	
+Elf32_Lib	l_flags	16		Elf32_Word	
+Elf64_Syminfo		4	2		
+Elf64_Syminfo	si_boundto	0		Elf64_Half	
+Elf64_Syminfo	si_flags	2		Elf64_Half	
+Elf64_Move		32	8		
+Elf64_Move	m_value	0		Elf64_Xword	
+Elf64_Move	m_info	8		Elf64_Xword	
+Elf64_Move	m_poffset	16		Elf64_Xword	
+Elf64_Move	m_repeat	24		Elf64_Half	
+Elf64_Move	m_stride	26		Elf64_Half	
+Elf64_Lib		20	4		
+Elf64_Lib	l_name	0		Elf64_Word	
+Elf64_Lib	l_time_stamp	4		Elf64_Word	
+Elf64_Lib	l_checksum	8		Elf64_Word	
+Elf64_Lib	l_version	12		Elf64_Word	
+Elf64_Lib	l_flags	16		Elf64_Word	
 struct user		912	8		
 struct user	regs	0		struct user_regs_struct	
 struct user	regs.r15	0		long long unsigned int	

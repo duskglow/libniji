@@ -6,37 +6,57 @@ typedef	Dl_serinfo	dlfcn.h	32	8	Dl_serinfo
 typedef	Dl_serpath	dlfcn.h	16	8	Dl_serpath
 typedef	ENTRY	search.h	16	8	entry
 typedef	Elf32_Addr	elf.h	4	4	unsigned int
+typedef	Elf32_Chdr	elf.h	12	4	Elf32_Chdr
+typedef	Elf32_Conflict	elf.h	4	4	unsigned int
 typedef	Elf32_Dyn	elf.h	8	4	Elf32_Dyn
 typedef	Elf32_Ehdr	elf.h	52	4	Elf32_Ehdr
 typedef	Elf32_Half	elf.h	2	2	unsigned short
+typedef	Elf32_Lib	elf.h	20	4	Elf32_Lib
+typedef	Elf32_Move	elf.h	24	8	Elf32_Move
 typedef	Elf32_Nhdr	elf.h	12	4	Elf32_Nhdr
 typedef	Elf32_Off	elf.h	4	4	unsigned int
 typedef	Elf32_Phdr	elf.h	32	4	Elf32_Phdr
 typedef	Elf32_Rel	elf.h	8	4	Elf32_Rel
 typedef	Elf32_Rela	elf.h	12	4	Elf32_Rela
+typedef	Elf32_Relr	elf.h	4	4	unsigned int
 typedef	Elf32_Section	elf.h	2	2	unsigned short
 typedef	Elf32_Shdr	elf.h	40	4	Elf32_Shdr
 typedef	Elf32_Sword	elf.h	4	4	int
+typedef	Elf32_Sxword	elf.h	8	8	long
 typedef	Elf32_Sym	elf.h	16	4	Elf32_Sym
+typedef	Elf32_Syminfo	elf.h	4	2	Elf32_Syminfo
+typedef	Elf32_Verdaux	elf.h	8	4	Elf32_Verdaux
+typedef	Elf32_Verdef	elf.h	20	4	Elf32_Verdef
+typedef	Elf32_Vernaux	elf.h	16	4	Elf32_Vernaux
+typedef	Elf32_Verneed	elf.h	16	4	Elf32_Verneed
+typedef	Elf32_Versym	elf.h	2	2	unsigned short
 typedef	Elf32_Word	elf.h	4	4	unsigned int
+typedef	Elf32_Xword	elf.h	8	8	unsigned long
+typedef	Elf32_auxv_t	elf.h	8	4	Elf32_auxv_t
 typedef	Elf64_Addr	elf.h	8	8	unsigned long
 typedef	Elf64_Chdr	elf.h	24	8	Elf64_Chdr
 typedef	Elf64_Dyn	elf.h	16	8	Elf64_Dyn
 typedef	Elf64_Ehdr	elf.h	64	8	Elf64_Ehdr
 typedef	Elf64_Half	elf.h	2	2	unsigned short
+typedef	Elf64_Lib	elf.h	20	4	Elf64_Lib
+typedef	Elf64_Move	elf.h	32	8	Elf64_Move
 typedef	Elf64_Nhdr	elf.h	12	4	Elf64_Nhdr
 typedef	Elf64_Off	elf.h	8	8	unsigned long
 typedef	Elf64_Phdr	elf.h	56	8	Elf64_Phdr
 typedef	Elf64_Rel	elf.h	16	8	Elf64_Rel
 typedef	Elf64_Rela	elf.h	24	8	Elf64_Rela
+typedef	Elf64_Relr	elf.h	8	8	unsigned long
 typedef	Elf64_Section	elf.h	2	2	unsigned short
 typedef	Elf64_Shdr	elf.h	64	8	Elf64_Shdr
+typedef	Elf64_Sword	elf.h	4	4	int
 typedef	Elf64_Sxword	elf.h	8	8	long
 typedef	Elf64_Sym	elf.h	24	8	Elf64_Sym
+typedef	Elf64_Syminfo	elf.h	4	2	Elf64_Syminfo
 typedef	Elf64_Verdaux	elf.h	8	4	Elf64_Verdaux
 typedef	Elf64_Verdef	elf.h	20	4	Elf64_Verdef
 typedef	Elf64_Vernaux	elf.h	16	4	Elf64_Vernaux
 typedef	Elf64_Verneed	elf.h	16	4	Elf64_Verneed
+typedef	Elf64_Versym	elf.h	2	2	unsigned short
 typedef	Elf64_Word	elf.h	4	4	unsigned int
 typedef	Elf64_Xword	elf.h	8	8	unsigned long
 typedef	Elf64_auxv_t	elf.h	16	8	Elf64_auxv_t

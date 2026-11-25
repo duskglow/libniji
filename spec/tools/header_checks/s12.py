@@ -68,6 +68,7 @@ def units(ctx):
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             res.append((cid, f"P1 {h}", body))
     res += member_names(ctx)
+    res += initializers(ctx)
     # P8, libc-first only (ruling #6458: the kernel header first is not supported; slice 13 measures it): <netinet/in.h>
     # with linux/in6.h, once, with the shared tags used so a missing or doubled definition fails to compile. The other
     # kernel pairs are the `uapi` cells of headers/slices/s12.tsv, both orders.
@@ -75,6 +76,34 @@ def units(ctx):
         if cid in ctx.ids:
             res.append((cid, "P8 netinet/in.h then linux/in6.h", "#include <netinet/in.h>\n#include <linux/in6.h>\n"
                         "struct in_addr a; struct in6_addr b; struct sockaddr_in c; struct sockaddr_in6 d;\nint niji_p8_tu;\n"))
+    return res
+
+
+def initializers(ctx):
+    """RFC 3493 section 3.8 and the resolver interface version (no spec clause; HEADERS-STAGE2-GAPS-B): where
+    netinet/in.h shows them, IN6ADDR_ANY_INIT and IN6ADDR_LOOPBACK_INIT initialize a struct in6_addr (C, and a table
+    of them), and in C++11 and later their bytes are :: and ::1 (a constant expression); where resolv.h shows `__RES`,
+    the preprocessor sees macros.tsv's value."""
+    res = []
+    init = {r["name"]: r for r in ctx.vis if r["header"] == "netinet/in.h" and r["name"] in ("IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT")}
+    ver = next((r for r in ctx.vis if r["header"] == "resolv.h" and r["name"] == "__RES" and r["kind"] == "macro"), None)
+    if len(init) != 2 or ver is None or "__RES" not in ctx.macros:
+        return [(ctx.ids[0], "initializers netinet/in.h", "#error visibility.tsv or macros.tsv lacks IN6ADDR_*_INIT or __RES\n")]
+    for cid in ctx.ids:
+        if all(cid in expand(r["configs"], ctx.ids) for r in init.values()):
+            body = ["#include <netinet/in.h>",
+                    "static const struct in6_addr niji_any = IN6ADDR_ANY_INIT, niji_lo = IN6ADDR_LOOPBACK_INIT;",
+                    "struct in6_addr niji_tab[] = { IN6ADDR_ANY_INIT, IN6ADDR_LOOPBACK_INIT };",
+                    "typedef char niji_tab_n[sizeof niji_tab == 2 * sizeof (struct in6_addr) ? 1 : -1];",
+                    "const struct in6_addr *niji_use[] = { &niji_any, &niji_lo };"]
+            if cid.startswith("cxx") and cid != "cxx98":
+                body += ["constexpr struct in6_addr niji_ca = IN6ADDR_ANY_INIT, niji_cl = IN6ADDR_LOOPBACK_INIT;"]
+                body += [f"static_assert (niji_ca.s6_addr[{i}] == 0 && niji_cl.s6_addr[{i}] == {int(i == 15)}, \"byte {i}\");"
+                         for i in range(16)]
+            res.append((cid, "initializers netinet/in.h", "\n".join(body) + "\n"))
+        if cid in expand(ver["configs"], ctx.ids):
+            res.append((cid, "initializers resolv.h __RES",
+                        f"#include <resolv.h>\n#if !defined __RES || __RES != {ctx.macros['__RES']['value']}\n#error __RES\n#endif\nint niji_res;\n"))
     return res
 
 

@@ -612,9 +612,10 @@ impl Gen<'_> {
     fn item(&mut self, name: &str, kind: &str) {
         match kind {
             "macro" => {
-                // A macro that is an enumerator in the reference names it (enum-macros.tsv), where this header declares it.
-                // Else a macro the reference spells as another macro's name (macro-aliases.tsv) names it, else its value.
-                let v = match self.enum_macro(name).or_else(|| self.macro_alias(name)) {
+                // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
+                // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
+                // reference names it (enum-macros.tsv), where this header declares it, else its value.
+                let v = match self.macro_alias(name).or_else(|| self.enum_macro(name)) {
                     Some(e) => e,
                     None => self.value(name),
                 };

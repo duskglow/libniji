@@ -67,8 +67,29 @@ def units(ctx):
         f"typedef char niji_so_{i}[__builtin_strcmp({n.split('.so')[0].upper().replace('-', '_')}_SO, \"{n}\") == 0 ? 1 : -1];\n"
         for i, n in enumerate(names))
     out += [(cid, "S16 gnu/lib-names.h", body) for cid in ctx.ids]
-    levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
+    out += dl_requests(ctx)
+    levels ={r["id"]: r for r in ctx.rows("headers/levels.tsv")}
     out += [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n") for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
+    return out
+
+
+def dl_requests(ctx):
+    """dlinfo(3) and dladdr1(3) (spec 27.1 s27_1_c_6, s27_1_c_7; HEADERS-STAGE2-GAPS-B): where <dlfcn.h> or <link.h>
+    shows them, the RTLD_DI_* requests and RTLD_DL_* flags are enumerators of an unnamed enumeration (not macros: a
+    use survives `#undef`) with enumerators.tsv's values, and Dl_serinfo's entries are Dl_serpath."""
+    vals = {r["name"]: r["value"] for r in ctx.rows("spec/abi/enumerators.tsv") if r["name"].startswith(("RTLD_DI_", "RTLD_DL_"))}
+    out = []
+    for h in ("dlfcn.h", "link.h"):
+        shown = {}
+        for r in ctx.vis:
+            if r["header"] == h and r["kind"] == "enumerator" and r["name"] in vals:
+                for cid in hc.expand(r["configs"], ctx.ids):
+                    shown.setdefault(cid, []).append(r["name"])
+        for cid, names in sorted(shown.items()):
+            body = [f"#include <{h}>"] + [f"#undef {n}" for n in sorted(names)]
+            body += [f"typedef char niji_di_{i}[({n}) == {vals[n]} ? 1 : -1];" for i, n in enumerate(sorted(names))]
+            body += ["typedef char niji_di_ser[sizeof (((Dl_serinfo *) 0)->dls_serpath[0]) == sizeof (Dl_serpath) ? 1 : -1];"]
+            out.append((cid, f"S16 dlinfo requests {h}", "\n".join(body) + "\n"))
     return out
 
 
