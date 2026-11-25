@@ -57,7 +57,7 @@ extern char *bindtextdomain (const char *, const char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dcgettext
 #  define __NIJI_D_dcgettext 1
-extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2), __nonnull__ (2)));
+extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2)));
 # endif
 # ifndef __NIJI_D_dcngettext
 #  define __NIJI_D_dcngettext 1
