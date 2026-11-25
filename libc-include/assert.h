@@ -33,10 +33,10 @@ __NIJI_END_C
 # endif
 #endif
 
-/* C11 7.2: static_assert expands to _Static_assert; in C23 and C++ it is a keyword (probed: a macro in the C11 and C17
-   language modes only, whatever the feature-test macros, so the condition is the compiler's language version, not a
-   level; HEADERS-STAGE2-GAPS-C). */
-#if !defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L && __STDC_VERSION__ <= 201710L
+/* C11 7.2: static_assert expands to _Static_assert; in C23 and C++ it is a keyword. Probed: a macro wherever the C11
+   names are (the ISOC level, so also `-std=c99 -D_ISOC11_SOURCE`, where the compiler accepts `_Static_assert`) and the
+   language is not C23 (`-std=c17 -D_ISOC2X_SOURCE` has it, `-std=c2x` not); HEADERS-STAGE2-GAPS-C. */
+#if !defined __cplusplus && __NIJI_ISOC >= 2011 && !(defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L)
 # define static_assert _Static_assert
 #endif
 

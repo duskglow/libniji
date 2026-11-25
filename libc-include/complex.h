@@ -6,6 +6,7 @@
    optional). In C++ the C++ library's <complex.h> decides whether this header is read at all. */
 #ifndef __NIJI_H_complex_h
 #define __NIJI_H_complex_h 1
+#include <features.h>
 #if __NIJI_CXX < 2
 # define _COMPLEX_H 1
 #endif
