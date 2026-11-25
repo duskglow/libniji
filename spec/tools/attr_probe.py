@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """Probe which diagnostic attributes each function carries (plan/headers.md slice 19, Appendix C.14).
 
-    python3 spec/tools/attr_probe.py table [--include DIR] [--out FILE] [--keep DIR]
-    python3 spec/tools/attr_probe.py check --include DIR [--keep DIR]
+    python3 spec/tools/attr_probe.py table [--include DIR] [--out FILE] [--keep DIR] [--columns C,..]
+    python3 spec/tools/attr_probe.py check --include DIR [--keep DIR] [--config CFG] [--kinds K,..]
+
+`--config` names the build configuration (base: `_GNU_SOURCE`, `-O2`, `_FORTIFY_SOURCE=3`; gnu, default
+(no feature macro), fortify2, c++, c++-fortify3); outside base only the nonnull tests (`n.k`, `rn`) run, and a
+test line that builds on one side only is listed as "not declared alike", not counted. The table is written
+from base; `--columns nonnull` writes that column and keeps the others' values. `check
+--kinds n,rn` compares only those test kinds; an `n` or `rn` line is compared on the signal it measures only
+(MEASURES), in every mode.
 
 `table` compiles a corpus against the system's public headers (the reference) and writes
 `spec/abi/diagattrs.tsv`: for each function that libniji's headers (DIR, default libc-include/) declare,
@@ -23,7 +30,13 @@ Tests per function F (parameters from prototypes.tsv: a pointer is `v[k]`, an ar
 a `va_list` is an extern object; a function with a by-value aggregate parameter is not probed):
 * `r`   F(valid arguments) with the result unused: -Wunused-result, -Wdeprecated-declarations, -Wunused-value
         (a pure function).
-* `n.k` F with a null pointer constant for pointer parameter k: -Wnonnull.
+* `n.k` (F)(..), a call no function-like macro expands, with a null pointer constant for pointer parameter k, every other pointer (function pointers, pointer
+        typedefs and `locale_t` included) a valid `v[j]` and every number 0: -Wnonnull. Compiled in a unit of
+        its own with `-fno-builtin`, so the compiler's knowledge of a builtin (printf's format, fputs, nan)
+        is not read as the header's, and a size of 0 keeps an `access` attribute quiet (a size of 1 would make
+        it warn about a null buffer the header does not mark nonnull).
+* `rn`  r = F(valid arguments); mk_rn() when r is null: the marker is dropped when the result is known non-null
+        (returns_nonnull); `check` compares it, the table has no column for it.
 * `f.j` F with an unknown `char *` for the `const char *` parameter j (and, for a variadic F, the same
         parameter replaced by the literal "%d" with a string argument in a second test `g.j`): -Wformat*.
 * `h.j` a non-variadic F with the unknown conversion "%y" for the `const char *` parameter j: -Wformat= (the
@@ -51,8 +64,10 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure format_arg`): nonnull is the comma list of
-1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure format_arg`): nonnull is the comma
+list of the 1-based parameters marked nonnull; `table` runs the `n.k` tests again in the gnu configuration
+(`_FORTIFY_SOURCE` off) and fails, naming them, when a parameter is marked in one of the two only (the table cannot
+say so; none is, HEADERS-NONNULL-MATCH), format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
 parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const; format_arg the comma list of 1-based parameters
 (`fa.0` quiet and `fa.j` diagnosed: one attribute format_arg per parameter).
@@ -70,7 +85,7 @@ OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security
 # optional mode and attribute pair: a call with 3 arguments is the error, and the whole corpus would not build).
 NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64", "mq_open"}
 # The tests that read back a marker function (mk_<kind>_<line>) from the object.
-MARKED = ("nr", "nz", "nv", "ma", "as", "ct", "e")
+MARKED = ("nr", "nz", "nv", "ma", "as", "ct", "e", "rn")
 
 
 def protos():
@@ -101,7 +116,40 @@ def split_params(decl, name):
     return ret, out
 
 
+ARITH = re.compile(r"^(const\s+)?((un)?signed|char|short|int|long|float|double|_Bool|bool|_Float\d+x?|__int128|_Complex|\s)+$")
+
+
+def pointer_typedefs(pr, names, heads, cfg):
+    """The parameter types written as one name that are pointers (qsort's `__compar_fn_t`, `iconv_t`): one compile on
+    the reference, one line per name, `__builtin_classify_type` 5 (a pointer) or an error. Only line numbers are read."""
+    cands = set()
+    for n in names:
+        for p in split_params(pr[n], n)[1]:
+            q = re.sub(r"^const\s+", "", p.strip())
+            if re.match(r"^[A-Za-z_]\w*$", q) and not ARITH.match(q) and "va_list" not in q and "locale_t" not in q:
+                cands.add(q)
+    cands = sorted(cands)
+    pre = prelude_of(heads, cfg).split("\n")
+    lines = pre + ["typedef char t_%d[__builtin_classify_type (*(%s *) 0) == 5 ? 1 : -1];" % (i, t) for i, t in enumerate(cands)]
+    p = subprocess.run(["gcc", "-fsyntax-only", "-O2", "-fdiagnostics-format=json"] + cfg_flags(cfg) + ["-"], input="\n".join(lines) + "\n",
+                       capture_output=True, text=True)
+    bad = set()
+    try:
+        for dg in json.loads(p.stderr[p.stderr.index("["):]) if "[" in p.stderr else []:
+            for loc in dg.get("locations") or []:
+                if loc.get("caret", {}).get("file") == "<stdin>":
+                    bad.add(loc.get("caret", {}).get("line"))
+    except ValueError:
+        sys.exit("attr_probe: the pointer-typedef probe's diagnostics could not be read")
+    return {t for i, t in enumerate(cands) if len(pre) + i + 1 not in bad}
+
+
+PTR_TYPEDEFS = set()
+
+
 def classify(p):
+    if re.sub(r"^const\s+", "", p.strip()) in PTR_TYPEDEFS:
+        return "ptr"
     if p == "...":
         return "var"
     if "va_list" in p or "__va_list_tag" in p:
@@ -117,15 +165,69 @@ def classify(p):
     return "num"
 
 
-def declared(inc_dir, names):
-    """Function names declared by the headers in inc_dir, and the headers."""
-    heads = sorted(h for h in os.listdir(inc_dir) if h.endswith(".h") and h not in SKIP_HEADERS)
+# The configurations a program is built in (`--config`). `base` is the one the table is written from and the only one in
+# which every test runs: C with _GNU_SOURCE at _FORTIFY_SOURCE=3 (the reference system's compiler defines =3 itself at -O2,
+# so the level is stated, not inherited). The others run the nonnull tests (`n.k`, `rn`) only: whether a call with a
+# null argument is diagnosed and whether a result is known non-null must not depend on the language, the feature-test
+# macros or the fortify level in a way the reference's does not.
+CONFIGS = {
+    "base": {"lang": "c", "gnu": True, "fortify": 3},
+    "gnu": {"lang": "c", "gnu": True, "fortify": 0},
+    "default": {"lang": "c", "gnu": False, "fortify": 0},
+    "fortify2": {"lang": "c", "gnu": True, "fortify": 2},
+    "c++": {"lang": "c++", "gnu": True, "fortify": 0},
+    "c++-fortify3": {"lang": "c++", "gnu": True, "fortify": 3},
+}
+# The tests of the nonnull unit (compiled with -fno-builtin: the compiler's own knowledge of a library function, as for
+# printf's format or nan's argument, adds nonnull to any declaration and would hide what the header says).
+NN_KINDS = ("n", "rn")
+
+
+def cfg_flags(cfg):
+    c = CONFIGS[cfg]
+    f = ["-U_FORTIFY_SOURCE"] + (["-D_FORTIFY_SOURCE=%d" % c["fortify"]] if c["fortify"] else [])
+    if c["lang"] == "c++":
+        return ["-x", "c++", "-std=gnu++17"] + f
+    # Outside the base configuration a function the configuration does not declare is an error (its lines are not
+    # compared), never an implicit declaration that would take no attribute on one side only.
+    return ["-x", "c", "-std=gnu17"] + ([] if cfg == "base" else ["-Werror=implicit-function-declaration"]) + f
+
+
+def compiles(prelude, cfg):
+    p = subprocess.run(["gcc", "-fsyntax-only", "-O2"] + cfg_flags(cfg) + ["-"], input=prelude, capture_output=True, text=True)
+    return p.returncode == 0
+
+
+def prelude_of(heads, cfg):
+    gnu = "#define _GNU_SOURCE 1\n" if CONFIGS[cfg]["gnu"] else ""
+    return gnu + "".join("#include <%s>\n" % h for h in heads)
+
+
+def declared(inc_dir, names, cfg="base"):
+    """Function names declared by the headers in inc_dir (every directory below it), and the headers the corpus includes."""
+    heads = []
+    for d, _, files in os.walk(inc_dir):
+        rel = os.path.relpath(d, inc_dir)
+        for h in files:
+            if h.endswith(".h") and not (rel == "." and h in SKIP_HEADERS):
+                heads.append(h if rel == "." else os.path.join(rel, h))
+    heads.sort()
+    every = list(heads)
     # A header the reference itself refuses to include (a deliberate #error, as for <regexp.h>) cannot be part of the
     # corpus: one such line would keep the whole translation unit from building. Its functions have no row.
-    heads = [h for h in heads if subprocess.run(["gcc", "-fsyntax-only", "-x", "c", "-"], input="#define _GNU_SOURCE 1\n#include <%s>\n" % h,
-                                                capture_output=True, text=True).returncode == 0]
+    heads = [h for h in heads if compiles(prelude_of([h], cfg), cfg)]
+    # Two headers that each build alone may still clash (two definitions of one name): keep the first of each pair, in
+    # order, so that the corpus builds outside its test lines.
+    if not compiles(prelude_of(heads, cfg), cfg):
+        kept = []
+        for h in heads:
+            if compiles(prelude_of(kept + [h], cfg), cfg):
+                kept.append(h)
+            else:
+                print("attr_probe: %s: <%s> left out (it clashes with a header before it)" % (cfg, h), file=sys.stderr)
+        heads = kept
     found = set()
-    for h in heads:
+    for h in every:
         with open(os.path.join(inc_dir, h)) as f:
             lines = [l for l in f if l.startswith("extern ")]
         text = "\n".join(lines)
@@ -137,20 +239,33 @@ def declared(inc_dir, names):
     return sorted(found), heads
 
 
-def corpus(names, heads, pr):
+def cxx_type(p):
+    """A parameter's type as a C++ cast can name it (an array parameter is the pointer it adjusts to)."""
+    p = re.sub(r"\brestrict\b", "__restrict", p)
+    return re.sub(r"\s*\[[^\]]*\]\s*$", " *", p)
+
+
+def corpus(names, heads, pr, cfg="base", every=None):
+    """The probe program; every=False keeps only the nonnull tests (the default: every test in base only)."""
+    cxx = CONFIGS[cfg]["lang"] == "c++"
+    every_test = cfg == "base" if every is None else every
     # unistd.h first: with fcntl.h included before it, the reference's lockf loses its warn_unused_result (the header
     # order changes the answer), and a program that includes unistd.h alone sees it.
     order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
-    L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in order] + ["#include <errno.h>"]
-    L += ["extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap;"]
+    L = (["#define _GNU_SOURCE 1"] if CONFIGS[cfg]["gnu"] else []) + ["#include <%s>" % h for h in order] + ["#include <errno.h>"]
+    ext = 'extern "C" ' if cxx else ""
+    L += [ext + "{ extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap; }" if cxx else
+          "extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap;"]
     # The probe's own printf-like function for the `fa` tests (format_arg).
     L += ["extern int pf_fa (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));"]
     meta = {}
 
     def add(fmt, key):
         """One test per line; `%(N)d` in fmt is the line's own number (it names the line's marker)."""
+        if not every_test and key[1] not in NN_KINDS:
+            return
         n = len(L) + 1
-        mk = "extern void mk_%s_%d(void); " % (key[1], n) if key[1] in MARKED else ""
+        mk = "%sextern void mk_%s_%d(void); " % ('extern "C" ' if cxx else "", key[1], n) if key[1] in MARKED else ""
         L.append(mk + fmt.replace("@N@", str(n)))
         meta[n] = key
 
@@ -171,29 +286,42 @@ def corpus(names, heads, pr):
         opaque = {j: ("oe" if re.search(r"\b(double|float|_Float\d+x?)\b", p) else "ov")
                   for j, (k, p) in enumerate((k, p) for k, p in zip(kinds, ps) if k != "var") if k == "num"}
 
-        def args(over=None, lit=True):
+        types = [p for p in ps if p != "..."]
+
+        def args(over=None, lit=True, zero=False):
+            """Pointers are unknown non-null objects (a function pointer too: a null one would draw the function's own
+            -Wnonnull on every line); numbers are 1, or 0 with `zero` (a size argument of 0 draws no warning from an
+            `access` attribute, so the nonnull tests see the nonnull attribute alone). C++ casts each argument to the
+            parameter's type."""
             o = []
             for j, k in enumerate(fixed):
                 if over and j in over:
-                    o.append(over[j])
-                elif k == "ptr":
-                    o.append("v[%d]" % j)
+                    a = over[j]
+                elif k in ("ptr", "fn"):
+                    a = "v[%d]" % j
                 elif k == "loc":
-                    o.append("((locale_t) v[%d])" % j)
+                    a = "((locale_t) v[%d])" % j
                 elif k == "constchar":
-                    o.append('"x"' if lit else "v[%d]" % j)
-                elif k == "fn":
-                    o.append("0")
+                    a = '"x"' if lit else "v[%d]" % j
                 elif k == "ap":
-                    o.append("ap")
+                    a = "ap"
                 else:
-                    o.append("1")
+                    a = "0" if zero else "1"
+                if cxx and k != "ap" and not a.startswith('"'):
+                    a = "(%s) %s" % (cxx_type(types[j]), a)
+                o.append(a)
             return ", ".join(o)
 
+        null = "0" if cxx else "((void *) 0)"
         add("void r_@N@(void) { %s(%s); }" % (n, args()), (n, "r"))
         for j, k in enumerate(fixed):
-            if k in ("ptr", "constchar", "fn"):
-                add("void n_@N@(void) { %s(%s); }" % (n, args({j: "((void *) 0)"})), (n, "n", j + 1))
+            if k in ("ptr", "constchar", "fn", "loc"):
+                # `(F)(..)`: the declaration's attribute, not a function-like macro of the same name (the reference's
+                # C headers at -O2 turn fread_unlocked and fwrite_unlocked calls into code the warning does not see).
+                add("void n_@N@(void) { (%s)(%s); }" % (n, args({j: null}, zero=True)), (n, "n", j + 1))
+        if isptr_ret:
+            # returns_nonnull: the marker is dropped when the compiler may assume the result is not null.
+            add("void rn_@N@(void) { if (%s(%s) == 0) mk_rn_@N@(); }" % (n, args(lit=False)), (n, "rn"))
         for j, k in enumerate(fixed):
             if k == "constchar":
                 add("void f_@N@(void) { %s(%s); }" % (n, args({j: "nl"})), (n, "f", j + 1))
@@ -247,14 +375,14 @@ def corpus(names, heads, pr):
 HEADER_ERRORS = []
 
 
-def compile_side(text, inc, keep, tag, extra=()):
+def compile_side(text, inc, keep, tag, cfg="base", extra=()):
     d = keep or tempfile.mkdtemp(prefix="attr-")
     os.makedirs(d, exist_ok=True)
     src = os.path.join(d, tag + ".c")
     obj = os.path.join(d, tag + ".o")
     with open(src, "w") as f:
         f.write(text)
-    cmd = ["gcc"] + OPT + list(extra) + ["-fdiagnostics-format=json", "-c", src, "-o", obj]
+    cmd = ["gcc"] + [o for o in OPT if not o.startswith("-std=")] + list(extra) + ["-fdiagnostics-format=json", "-c"] + cfg_flags(cfg) + [src, "-o", obj]
     if inc:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
         # The kernel UAPI headers (asm/, asm-generic/, linux/) are not part of the C library: libniji's headers include
@@ -303,30 +431,33 @@ def compile_side(text, inc, keep, tag, extra=()):
     return diags, marks, errs
 
 
-def results(text, meta, inc, keep, tag):
-    """The `e` tests in a unit of their own (the same line numbers, every other test line blank): GCC merges the `bp`
-    redeclaration's pure into the one declaration of F for the whole unit, wherever the line is."""
+def results(text, meta, inc, keep, tag, cfg="base"):
+    """Three units with the same line numbers, every other unit's test lines blank: the `e` tests (GCC merges the `bp`
+    redeclaration's pure into the one declaration of F for the whole unit, wherever the line is), the nonnull tests
+    (`n.k`, `rn`, compiled with -fno-builtin, so that only the header's declaration speaks) and the rest."""
     lines = text.split("\n")
-    ekeys = {ln for ln, key in meta.items() if key[1] == "e"}
-    # The sentinel tests: -fno-builtin, so that only the declaration's own attribute decides (module docstring, `s.c`).
-    skeys = {ln for ln, key in meta.items() if key[1] in ("s", "fa")}
-    own = ekeys | skeys
-    main = "\n".join("" if ln + 1 in own else x for ln, x in enumerate(lines))
-    res = results_unit(main, {ln: k for ln, k in meta.items() if ln not in own}, inc, keep, tag)
-    for keys, suffix, extra in ((ekeys, "-e", ()), (skeys, "-s", ("-fno-builtin",))):
-        unit = "\n".join("" if ln + 1 in meta and ln + 1 not in keys else x for ln, x in enumerate(lines))
-        res.update(results_unit(unit, {ln: meta[ln] for ln in keys}, inc, keep, tag + suffix, extra))
+    # The sentinel and format_arg tests: -fno-builtin, so that only the declaration's own attribute decides
+    # (module docstring, `s.c`).
+    units = [("", lambda k: k not in NN_KINDS and k not in ("e", "s", "fa"), ()), ("-e", lambda k: k == "e", ()),
+             ("-nn", lambda k: k in NN_KINDS, ("-fno-builtin",)), ("-s", lambda k: k in ("s", "fa"), ("-fno-builtin",))]
+    res = {}
+    for suffix, keep_kind, extra in units:
+        mine = {ln for ln, key in meta.items() if keep_kind(key[1])}
+        if not mine:
+            continue
+        text_u = "\n".join("" if ln + 1 in meta and ln + 1 not in mine else x for ln, x in enumerate(lines))
+        res.update(results_unit(text_u, {ln: meta[ln] for ln in mine}, inc, keep, tag + suffix, cfg, extra))
     return res
 
 
-def results_unit(text, meta, inc, keep, tag, extra=()):
+def results_unit(text, meta, inc, keep, tag, cfg="base", extra=()):
     """Compile; a test line that does not compile is blanked (keeping every line number) and recorded."""
     dropped = set()
     for _ in range(6):
         lines = text.split("\n")
         for ln in dropped:
             lines[ln - 1] = ""
-        diags, marks, errs = compile_side("\n".join(lines), inc, keep, tag, extra)
+        diags, marks, errs = compile_side("\n".join(lines), inc, keep, tag, cfg, extra)
         if errs is None or not (errs - dropped):
             break
         dropped |= {e for e in errs if e in meta}
@@ -381,6 +512,11 @@ def decided(flags):
     return {f for f in flags if f in DECIDED}
 
 
+# What each nonnull test measures: `check --kinds` naming only these compares that signal alone (another attribute's
+# warning on the same line, a deprecation or warn_unused_result, is the question of that attribute's own tests).
+MEASURES = {"n": {"-Wnonnull"}, "rn": {"marker"}}
+
+
 def fmt_kind(n):
     if "scanf" in n:
         return "scanf"
@@ -400,7 +536,8 @@ BUILTIN_SIZE = {"strndup", "strdup"}
 
 
 def derive(res, pr, names):
-    rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": "", "format_arg": ""} for n in names}
+    rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": "",
+                "returns_nonnull": "", "format_arg": ""} for n in names}
     fmt = {}
     fa = {}  # name -> {0 (literals) or 1-based string parameter: the pf_fa call was diagnosed}
     conflict = set()
@@ -428,6 +565,8 @@ def derive(res, pr, names):
                 r["sentinel"] = "?"
         elif kind == "fa":
             fa.setdefault(n, {})[key[2]] = bool(flags & {"-Wformat-nonliteral", "-Wformat-security"})
+        elif kind == "rn" and "marker" not in flags:
+            r["returns_nonnull"] = "1"
         elif kind == "s" and r["sentinel"]:
             if "-Wformat=" not in flags and r["sentinel"] == "?":
                 r["sentinel"] = "%d" % (key[2] - 1)
@@ -484,38 +623,103 @@ def errno_kept(res):
     return {key[0] for key, flags, err in res.values() if key[1] == "e" and not err and "marker" in flags}
 
 
+TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure", "format_arg")
+
+
+def nn_sets(inc, pr, cfg, keep):
+    """The 1-based parameters the reference's declarations mark nonnull in configuration cfg (the `n.k` tests alone)."""
+    names, heads = declared(inc, pr, cfg)
+    text, meta = corpus(names, heads, pr, cfg)
+    out = {}
+    for key, flags, err in results(text, meta, None, keep, "ref-" + cfg, cfg).values():
+        if key[1] == "n" and not err and "-Wnonnull" in flags:
+            out.setdefault(key[0], set()).add(str(key[2]))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["table", "check"])
     ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
     ap.add_argument("--out", default=os.path.join(ABI, "diagattrs.tsv"))
     ap.add_argument("--keep", default="")
+    ap.add_argument("--columns", default="all",
+                    help="table: the comma list of columns this run writes (the others keep the table's values)")
+    ap.add_argument("--kinds", default="",
+                    help="check: compare only these test kinds (comma list, e.g. n,rn: the nonnull tests)")
+    ap.add_argument("--config", default="base", choices=sorted(CONFIGS),
+                    help="the build configuration (default base; the table is written from base only)")
     args = ap.parse_args()
+    cfg = args.config
+    if args.mode == "table" and cfg != "base":
+        sys.exit("attr_probe: the table is written from the base configuration")
     pr = protos()
-    names, heads = declared(args.include, pr)
-    text, meta = corpus(names, heads, pr)
-    ref = results(text, meta, None, args.keep, "ref")
+    names, heads = declared(args.include, pr, cfg)
+    PTR_TYPEDEFS.update(pointer_typedefs(pr, names, heads, cfg))
+    # A table run that writes only the nonnull columns needs only the nonnull tests (a fraction of the corpus).
+    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull"}
+    text, meta = corpus(names, heads, pr, cfg, False if nn_only else None)
+    ref = results(text, meta, None, args.keep, "ref", cfg)
     if args.mode == "table":
+        rn = sorted(n for n, r in derive(ref, pr, names).items() if r["returns_nonnull"])
+        if rn:
+            # Not a column: under _FORTIFY_SOURCE the result of memcpy and kin is the destination, itself nonnull, and
+            # alloca's is the compiler's own; `check` compares these lines in every configuration.
+            print("attr_probe: results known non-null on the reference (rn, compared by check): %s" % " ".join(rn), file=sys.stderr)
         bad = sorted({ref[ln][0][0] for ln in ref if ref[ln][2]})
         if bad:
             print("attr_probe: %d functions have a test that did not compile on the reference side: %s" % (len(bad), " ".join(bad[:40])), file=sys.stderr)
         rows = derive(ref, pr, names)
+        for r in rows.values():
+            r["nonnull"] = ",".join(sorted(set(r["nonnull"]), key=int))
+        # The nonnull tests again with _FORTIFY_SOURCE off (base has it on). The table has one nonnull column, so a
+        # parameter marked in one build only cannot be written: stop and name it rather than pick a side.
+        plain = nn_sets(args.include, pr, "gnu", args.keep)
+        split = []
+        for n in sorted(set(rows) | set(plain)):
+            fort = set(filter(None, rows[n]["nonnull"].split(","))) if n in rows else set()
+            off = plain.get(n, set())
+            if fort != off:
+                split.append("%s (fortify on %s, off %s)" % (n, ",".join(sorted(fort, key=int)) or "-",
+                                                            ",".join(sorted(off, key=int)) or "-"))
+        if split:
+            sys.exit("attr_probe: the reference marks these nonnull in one _FORTIFY_SOURCE build only, which the table "
+                     "cannot say: %s" % "; ".join(split))
+        cols = list(TABLE_COLUMNS[1:])
+        if args.columns != "all":
+            # Only the named columns come from this run; every other column keeps the table's value.
+            cols = args.columns.split(",")
+            old = {}
+            if os.path.exists(args.out):
+                with open(args.out) as f:
+                    old = {r["name"]: r for r in csv.DictReader(f, delimiter="\t")}
+            merged = {}
+            for n in sorted(set(old) | set(rows)):
+                m = {c: (old.get(n) or {}).get(c) or "" for c in TABLE_COLUMNS[1:]}
+                for c in cols:
+                    m[c] = rows[n][c] if n in rows else ""
+                merged[n] = m
+            rows, names = merged, sorted(merged)
         with open(args.out, "w") as f:
-            f.write("name\tnonnull\twur\tnoreturn\tformat\tmalloc\talloc_size\tdeprecated\tsentinel\tpure\tformat_arg\n")
+            f.write("\t".join(TABLE_COLUMNS) + "\n")
             for n in names:
                 r = rows[n]
-                nn = ",".join(sorted(set(r["nonnull"]), key=int))
-                if nn or any(r[k] for k in ("wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure", "format_arg")):
-                    f.write("\t".join([n, nn, r["wur"], r["noreturn"], r["format"], r["malloc"], r["alloc_size"], r["deprecated"], r["sentinel"], r["pure"], r["format_arg"]]) + "\n")
+                if any(r[k] for k in TABLE_COLUMNS[1:]):
+                    f.write("\t".join([n] + [r[k] for k in TABLE_COLUMNS[1:]]) + "\n")
         print("attr_probe: %d functions probed, table written to %s" % (len(names), args.out))
         return
-    got = results(text, meta, args.include, args.keep, "niji")
+    got = results(text, meta, args.include, args.keep, "niji", cfg)
     diff = 0
+    unseen = {}  # outside base: a test line that builds on one side only (the function is not declared alike there)
     opened = {}
     known = {}
     vetoed = errno_kept(ref)
     table = derive(ref, pr, names)
+    kinds = args.kinds.split(",") if args.kinds else []
+    focus = set().union(*(MEASURES[k] for k in kinds)) if kinds and all(k in MEASURES for k in kinds) else None
     for ln in sorted(ref):
+        if args.kinds and ref[ln][0][1] not in args.kinds.split(","):
+            continue
         if ref[ln][0][1] == "bp":
             continue  # a table-only test (is the compiler's own knowledge of the function const?), not a compared line
         for f in ref[ln][1] ^ got[ln][1]:
@@ -525,6 +729,18 @@ def main():
         # another attribute (nonnull on a parameter whose typedef hides the pointer, qsort's comparator) is the
         # question of that attribute's own tests.
         if ref[ln][0][1] in ("nz", "nv") and ("marker" in ref[ln][1]) == ("marker" in got[ln][1]) and ref[ln][2] == got[ln][2]:
+            continue
+        if (cfg != "base" or focus) and ref[ln][2] != got[ln][2]:
+            unseen.setdefault("reference only" if got[ln][2] else "libniji only", set()).add(ref[ln][0][0])
+            continue
+        # A nonnull line (n, rn) is compared on the signal it measures only, in every mode: its unit is built with
+        # -fno-builtin and its null and zero arguments wake other attributes (a sentinel, a format, a deprecation),
+        # which the r, s, f and h lines judge as the program's own build sees them. A line that builds on one side
+        # only is still a difference below.
+        if focus is not None or (ref[ln][0][1] in MEASURES and ref[ln][2] == got[ln][2]):
+            if ref[ln][1] & MEASURES[ref[ln][0][1]] != got[ln][1] & MEASURES[ref[ln][0][1]]:
+                diff += 1
+                print("line %d %s: reference %s, libniji %s" % (ln, " ".join(map(str, ref[ln][0])), sorted(ref[ln][1]), sorted(got[ln][1])))
             continue
         if decided(ref[ln][1]) != decided(got[ln][1]) or ref[ln][2] != got[ln][2]:
             why = open_reason(ref[ln][0][0])
@@ -545,7 +761,10 @@ def main():
     for n, why in sorted(known.items()):
         print("attr_probe: known difference, %s: %s" % (n, why))
     print("attr_probe: open (not decided by attributes, not compared): %s" % (", ".join("%s x%d" % kv for kv in sorted(opened.items())) or "none"))
-    print("attr_probe: %d functions, %d tests, %d differ" % (len(names), len(ref), diff))
+    for side, ns in sorted(unseen.items()):
+        print("attr_probe: %s: %d functions build their test lines on the %s side only (declared differently there; not "
+              "compared): %s" % (cfg, len(ns), side.split()[0], " ".join(sorted(ns)[:30])))
+    print("attr_probe: %s: %d functions, %d tests, %d differ" % (cfg, len(names), len(ref), diff))
     sys.exit(1 if diff else 0)
 
 

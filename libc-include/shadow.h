@@ -78,25 +78,25 @@ struct spwd;
 struct spwd;
 # ifndef __NIJI_D_fgetspent_r
 #  define __NIJI_D_fgetspent_r 1
-extern int fgetspent_r (FILE *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int fgetspent_r (FILE *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_getspent_r
 #  define __NIJI_D_getspent_r 1
-extern int getspent_r (struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (2)));
+extern int getspent_r (struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_getspnam_r
 #  define __NIJI_D_getspnam_r 1
-extern int getspnam_r (const char *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int getspnam_r (const char *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_sgetspent_r
 #  define __NIJI_D_sgetspent_r 1
-extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 #endif
 #if 1

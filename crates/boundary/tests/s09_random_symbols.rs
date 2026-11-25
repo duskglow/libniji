@@ -67,6 +67,8 @@ fn sym_getrandom() {
 fn sym_getentropy() {
     let mut b = [0u8; 257];
     assert_eq!(s::getentropy(b.as_mut_ptr().cast(), 256), 0);
+    // The header leaves the buffer nullable (HEADERS-NONNULL-MATCH): no bytes asked, none written.
+    assert_eq!(s::getentropy(null_mut(), 0), 0, "a NULL buffer for 0 bytes");
     errno::set_raw(0);
     assert_eq!(s::getentropy(b.as_mut_ptr().cast(), 257), -1);
     assert_eq!(errno::get(), EIO, "more than 256 bytes");

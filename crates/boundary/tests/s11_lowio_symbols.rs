@@ -1830,6 +1830,7 @@ fn sym_pwrite() {
     let (_f, fd) = file("pwrite", b"0123456789");
     assert_eq!(s::pwrite(fd, b"ab".as_ptr().cast(), 2, 1), 2);
     assert_eq!(s::lseek(fd, 0, 1), 10, "the offset does not move");
+    assert_eq!(s::pwrite(fd, null(), 0, 3), 0, "a NULL buffer for 0 bytes (nullable in the header)");
     let mut b = [0u8; 4];
     s::pread(fd, b.as_mut_ptr().cast(), 4, 0);
     assert_eq!(&b, b"0ab3");
@@ -2162,6 +2163,7 @@ fn sym_write() {
     assert!(n > 0 && (n as usize) < big.len(), "short: the pipe's capacity");
     errno::set_raw(0);
     assert!(fails(s::write(w, big.as_ptr().cast(), 1), EAGAIN), "non-blocking and full");
+    assert_eq!(s::write(w, null(), 0), 0, "a NULL buffer for 0 bytes (nullable in the header)");
     s::close(r);
     s::close(w);
 }
