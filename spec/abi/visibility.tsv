@@ -36816,6 +36816,7 @@ proc_service.h	blkcnt_t	typedef	!time64only
 proc_service.h	clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,isoc99,isoc11,isoc2x,time64only
 proc_service.h	clockid_t	typedef	!time64only
 proc_service.h	dev_t	typedef	!time64only
+proc_service.h	elf_fpregset_t	typedef	!time64only
 proc_service.h	elf_greg_t	typedef	!time64only
 proc_service.h	elf_gregset_t	typedef	!time64only
 proc_service.h	elf_prpsinfo	struct	!time64only
@@ -36844,6 +36845,9 @@ proc_service.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 proc_service.h	off_t	typedef	!time64only
 proc_service.h	pid_t	typedef	!time64only
 proc_service.h	prfpregset_t	typedef	!time64only
+proc_service.h	prgregset_t	typedef	!time64only
+proc_service.h	prpsinfo_t	typedef	!time64only
+proc_service.h	prstatus_t	typedef	!time64only
 proc_service.h	ps_err_e	typedef	!time64only
 proc_service.h	ps_get_thread_area	function	!time64only
 proc_service.h	ps_getpid	function	!time64only
@@ -55721,6 +55725,7 @@ sys/procfs.h	blkcnt_t	typedef	!time64only
 sys/procfs.h	clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,isoc99,isoc11,isoc2x,time64only
 sys/procfs.h	clockid_t	typedef	!time64only
 sys/procfs.h	dev_t	typedef	!time64only
+sys/procfs.h	elf_fpregset_t	typedef	!time64only
 sys/procfs.h	elf_greg_t	typedef	!time64only
 sys/procfs.h	elf_gregset_t	typedef	!time64only
 sys/procfs.h	elf_prpsinfo	struct	!time64only
@@ -55749,6 +55754,9 @@ sys/procfs.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/procfs.h	off_t	typedef	!time64only
 sys/procfs.h	pid_t	typedef	!time64only
 sys/procfs.h	prfpregset_t	typedef	!time64only
+sys/procfs.h	prgregset_t	typedef	!time64only
+sys/procfs.h	prpsinfo_t	typedef	!time64only
+sys/procfs.h	prstatus_t	typedef	!time64only
 sys/procfs.h	psaddr_t	typedef	!time64only
 sys/procfs.h	pselect	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/procfs.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -69100,6 +69108,7 @@ thread_db.h	daylight	object	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix
 thread_db.h	dev_t	typedef	!time64only
 thread_db.h	difftime	function	!time64only
 thread_db.h	dysize	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+thread_db.h	elf_fpregset_t	typedef	!time64only
 thread_db.h	elf_greg_t	typedef	!time64only
 thread_db.h	elf_gregset_t	typedef	!time64only
 thread_db.h	elf_prpsinfo	struct	!time64only
@@ -69150,6 +69159,9 @@ thread_db.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 thread_db.h	off_t	typedef	!time64only
 thread_db.h	pid_t	typedef	!time64only
 thread_db.h	prfpregset_t	typedef	!time64only
+thread_db.h	prgregset_t	typedef	!time64only
+thread_db.h	prpsinfo_t	typedef	!time64only
+thread_db.h	prstatus_t	typedef	!time64only
 thread_db.h	psaddr_t	typedef	!time64only
 thread_db.h	pselect	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 thread_db.h	pthread_atfork	function	!time64only

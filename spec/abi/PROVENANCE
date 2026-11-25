@@ -70,4 +70,8 @@ thread_db.h,proc_service.h: the 900 committed rows of the two headers reproduced
 by type_probe.py --headers thread_db.h,proc_service.h: 22 rows added, the 70 it gave for names already in the table
 identical. macros.tsv unchanged (type_probe now calls TD_SIGNO_MASK `pointer` 0; the committed `null` row is kept).
 callsites.tsv and noexcept.tsv: the proc_service.h rows from callsite_probe.py --names <its 15 functions> (30 call-site
-rows, 15 noexcept rows), added in the tables' order; other rows unchanged.
+rows, 15 noexcept rows), added in the tables' order; other rows unchanged. The sys/procfs.h typedefs no prototype
+spells (prgregset_t, elf_fpregset_t, prstatus_t, prpsinfo_t; a debugger names them): abi_extract.py with them in TYPES,
+--layouts-only, their 53 rows spliced in alone; header_probe.py --headers sys/procfs.h,thread_db.h,proc_service.h,
+only the 12 rows of those four names added (each header's other rows left as committed); type_probe.py, same headers:
+4 typedefs.tsv rows added, macros.tsv unchanged.

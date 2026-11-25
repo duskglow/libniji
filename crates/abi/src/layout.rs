@@ -96,6 +96,16 @@
 //! * `struct_elf_prstatus.pr_reg (elf_gregset_t)`
 //! * `struct_elf_prpsinfo.pr_uid (__pr_uid_t)`
 //! * `struct_elf_prpsinfo.pr_gid (__pr_gid_t)`
+//! * `struct_td_thrhandle.th_unique (psaddr_t)`
+//! * `struct_td_notify__u.bptaddr (psaddr_t)`
+//! * `struct_td_thrinfo.ti_tid (thread_t)`
+//! * `struct_td_thrinfo.ti_startfunc (psaddr_t)`
+//! * `struct_td_thrinfo.ti_stkbase (psaddr_t)`
+//! * `struct_td_thrinfo.ti_ro_area (psaddr_t)`
+//! * `struct_td_thrinfo.ti_lid (lwpid_t)`
+//! * `prstatus_t.pr_reg (elf_gregset_t)`
+//! * `prpsinfo_t.pr_uid (__pr_uid_t)`
+//! * `prpsinfo_t.pr_gid (__pr_gid_t)`
 
 #![allow(non_camel_case_types, non_snake_case, missing_docs, clippy::all)]
 
@@ -3629,5 +3639,190 @@ pub struct struct_res_sym {
     pub number: i32,
     pub name: usize,
     pub humanname: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_td_thrhandle {
+    pub th_ta_p: usize,
+    pub th_unique: [u64; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_td_thr_events {
+    pub event_bits: [u32; 2],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_td_notify__u {
+    pub bptaddr: [u64; 1],
+    pub syscallno: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_td_notify {
+    pub r#type: td_notify_e,
+    pub u: struct_td_notify__u,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_td_event_msg__msg {
+    pub data: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_td_event_msg {
+    pub event: td_event_e,
+    pub th_p: usize,
+    pub msg: struct_td_event_msg__msg,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_td_ta_stats {
+    pub nthreads: i32,
+    pub r_concurrency: i32,
+    pub nrunnable_num: i32,
+    pub nrunnable_den: i32,
+    pub a_concurrency_num: i32,
+    pub a_concurrency_den: i32,
+    pub nlwps_num: i32,
+    pub nlwps_den: i32,
+    pub nidle_num: i32,
+    pub nidle_den: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_td_thrinfo__ti_events {
+    pub event_bits: [u32; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_td_thrinfo {
+    pub ti_ta_p: usize,
+    pub ti_user_flags: u32,
+    pub ti_tid: [u64; 1],
+    pub ti_tls: usize,
+    pub ti_startfunc: [u64; 1],
+    pub ti_stkbase: [u64; 1],
+    pub ti_stksize: i64,
+    pub ti_ro_area: [u64; 1],
+    pub ti_ro_size: i32,
+    pub ti_state: td_thr_state_e,
+    pub ti_db_suspended: u8,
+    pub ti_type: td_thr_type_e,
+    pub ti_pc: i64,
+    pub ti_sp: i64,
+    pub ti_flags: i16,
+    pub ti_pri: i32,
+    pub ti_lid: [u64; 1],
+    pub ti_sigmask: sigset_t,
+    pub ti_traceme: u8,
+    pub ti_preemptflag: u8,
+    pub ti_pirecflag: u8,
+    pub ti_pending: sigset_t,
+    pub ti_events: struct_td_thrinfo__ti_events,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct td_eventbuf_t__eventmask {
+    pub event_bits: [u32; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct td_eventbuf_t {
+    pub eventmask: td_eventbuf_t__eventmask,
+    pub eventnum: td_event_e,
+    pub eventdata: usize,
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct td_err_e(pub u32);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct td_event_e(pub u32);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct td_notify_e(pub u32);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct td_thr_state_e(pub u32);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct td_thr_type_e(pub u32);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct ps_err_e(pub u32);
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct prgregset_t(pub [u8; 216]);
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct elf_fpregset_t {
+    pub cwd: u16,
+    pub swd: u16,
+    pub ftw: u16,
+    pub fop: u16,
+    pub rip: u64,
+    pub rdp: u64,
+    pub mxcsr: u32,
+    pub mxcr_mask: u32,
+    pub st_space: [u32; 32],
+    pub xmm_space: [u32; 64],
+    pub padding: [u32; 24],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct prstatus_t {
+    pub pr_info: struct_elf_siginfo,
+    pub pr_cursig: i16,
+    pub pr_sigpend: u64,
+    pub pr_sighold: u64,
+    pub pr_pid: i32,
+    pub pr_ppid: i32,
+    pub pr_pgrp: i32,
+    pub pr_sid: i32,
+    pub pr_utime: struct_timeval,
+    pub pr_stime: struct_timeval,
+    pub pr_cutime: struct_timeval,
+    pub pr_cstime: struct_timeval,
+    pub pr_reg: [u64; 27],
+    pub pr_fpvalid: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct prpsinfo_t {
+    pub pr_state: i8,
+    pub pr_sname: i8,
+    pub pr_zomb: i8,
+    pub pr_nice: i8,
+    pub pr_flag: u64,
+    pub pr_uid: [u32; 1],
+    pub pr_gid: [u32; 1],
+    pub pr_pid: i32,
+    pub pr_ppid: i32,
+    pub pr_pgrp: i32,
+    pub pr_sid: i32,
+    pub pr_fname: [i8; 16],
+    pub pr_psargs: [i8; 80],
 }
 

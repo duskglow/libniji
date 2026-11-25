@@ -165,6 +165,9 @@ TYPES = [
  ("struct td_eventbuf", "struct td_eventbuf"), ("td_eventbuf_t", "td_eventbuf_t"),
  ("td_err_e", "td_err_e"), ("td_event_e", "td_event_e"), ("td_notify_e", "td_notify_e"),
  ("td_thr_state_e", "td_thr_state_e"), ("td_thr_type_e", "td_thr_type_e"), ("ps_err_e", "ps_err_e"),
+ # The sys/procfs.h typedefs a debugger names (td_thr_getgregs, ps_lgetregs; core files) that no prototype spells.
+ ("prgregset_t", "prgregset_t"), ("elf_fpregset_t", "elf_fpregset_t"), ("prstatus_t", "prstatus_t"),
+ ("prpsinfo_t", "prpsinfo_t"),
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).

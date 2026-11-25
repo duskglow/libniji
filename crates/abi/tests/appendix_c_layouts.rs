@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (277 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (294 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3429,6 +3429,191 @@ fn abi_struct_res_sym() {
     expect_member("struct res_sym", "number", offset_of!(struct_res_sym, number));
     expect_member("struct res_sym", "name", offset_of!(struct_res_sym, name));
     expect_member("struct res_sym", "humanname", offset_of!(struct_res_sym, humanname));
+}
+
+#[test]
+fn abi_struct_td_thrhandle() {
+    expect_type("struct td_thrhandle", size_of::<struct_td_thrhandle>(), align_of::<struct_td_thrhandle>());
+    expect_member("struct td_thrhandle", "th_ta_p", offset_of!(struct_td_thrhandle, th_ta_p));
+    expect_member("struct td_thrhandle", "th_unique", offset_of!(struct_td_thrhandle, th_unique));
+}
+
+#[test]
+fn abi_struct_td_thr_events() {
+    expect_type("struct td_thr_events", size_of::<struct_td_thr_events>(), align_of::<struct_td_thr_events>());
+    expect_member("struct td_thr_events", "event_bits", offset_of!(struct_td_thr_events, event_bits));
+}
+
+#[test]
+fn abi_struct_td_notify() {
+    expect_type("struct td_notify", size_of::<struct_td_notify>(), align_of::<struct_td_notify>());
+    expect_member("struct td_notify", "type", offset_of!(struct_td_notify, r#type));
+    expect_member("struct td_notify", "u", offset_of!(struct_td_notify, u));
+    expect_member("struct td_notify", "u.bptaddr", offset_of!(struct_td_notify, u.bptaddr));
+    expect_member("struct td_notify", "u.syscallno", offset_of!(struct_td_notify, u.syscallno));
+}
+
+#[test]
+fn abi_struct_td_event_msg() {
+    expect_type("struct td_event_msg", size_of::<struct_td_event_msg>(), align_of::<struct_td_event_msg>());
+    expect_member("struct td_event_msg", "event", offset_of!(struct_td_event_msg, event));
+    expect_member("struct td_event_msg", "th_p", offset_of!(struct_td_event_msg, th_p));
+    expect_member("struct td_event_msg", "msg", offset_of!(struct_td_event_msg, msg));
+    expect_member("struct td_event_msg", "msg.data", offset_of!(struct_td_event_msg, msg.data));
+}
+
+#[test]
+fn abi_struct_td_ta_stats() {
+    expect_type("struct td_ta_stats", size_of::<struct_td_ta_stats>(), align_of::<struct_td_ta_stats>());
+    expect_member("struct td_ta_stats", "nthreads", offset_of!(struct_td_ta_stats, nthreads));
+    expect_member("struct td_ta_stats", "r_concurrency", offset_of!(struct_td_ta_stats, r_concurrency));
+    expect_member("struct td_ta_stats", "nrunnable_num", offset_of!(struct_td_ta_stats, nrunnable_num));
+    expect_member("struct td_ta_stats", "nrunnable_den", offset_of!(struct_td_ta_stats, nrunnable_den));
+    expect_member("struct td_ta_stats", "a_concurrency_num", offset_of!(struct_td_ta_stats, a_concurrency_num));
+    expect_member("struct td_ta_stats", "a_concurrency_den", offset_of!(struct_td_ta_stats, a_concurrency_den));
+    expect_member("struct td_ta_stats", "nlwps_num", offset_of!(struct_td_ta_stats, nlwps_num));
+    expect_member("struct td_ta_stats", "nlwps_den", offset_of!(struct_td_ta_stats, nlwps_den));
+    expect_member("struct td_ta_stats", "nidle_num", offset_of!(struct_td_ta_stats, nidle_num));
+    expect_member("struct td_ta_stats", "nidle_den", offset_of!(struct_td_ta_stats, nidle_den));
+}
+
+#[test]
+fn abi_struct_td_thrinfo() {
+    expect_type("struct td_thrinfo", size_of::<struct_td_thrinfo>(), align_of::<struct_td_thrinfo>());
+    expect_member("struct td_thrinfo", "ti_ta_p", offset_of!(struct_td_thrinfo, ti_ta_p));
+    expect_member("struct td_thrinfo", "ti_user_flags", offset_of!(struct_td_thrinfo, ti_user_flags));
+    expect_member("struct td_thrinfo", "ti_tid", offset_of!(struct_td_thrinfo, ti_tid));
+    expect_member("struct td_thrinfo", "ti_tls", offset_of!(struct_td_thrinfo, ti_tls));
+    expect_member("struct td_thrinfo", "ti_startfunc", offset_of!(struct_td_thrinfo, ti_startfunc));
+    expect_member("struct td_thrinfo", "ti_stkbase", offset_of!(struct_td_thrinfo, ti_stkbase));
+    expect_member("struct td_thrinfo", "ti_stksize", offset_of!(struct_td_thrinfo, ti_stksize));
+    expect_member("struct td_thrinfo", "ti_ro_area", offset_of!(struct_td_thrinfo, ti_ro_area));
+    expect_member("struct td_thrinfo", "ti_ro_size", offset_of!(struct_td_thrinfo, ti_ro_size));
+    expect_member("struct td_thrinfo", "ti_state", offset_of!(struct_td_thrinfo, ti_state));
+    expect_member("struct td_thrinfo", "ti_db_suspended", offset_of!(struct_td_thrinfo, ti_db_suspended));
+    expect_member("struct td_thrinfo", "ti_type", offset_of!(struct_td_thrinfo, ti_type));
+    expect_member("struct td_thrinfo", "ti_pc", offset_of!(struct_td_thrinfo, ti_pc));
+    expect_member("struct td_thrinfo", "ti_sp", offset_of!(struct_td_thrinfo, ti_sp));
+    expect_member("struct td_thrinfo", "ti_flags", offset_of!(struct_td_thrinfo, ti_flags));
+    expect_member("struct td_thrinfo", "ti_pri", offset_of!(struct_td_thrinfo, ti_pri));
+    expect_member("struct td_thrinfo", "ti_lid", offset_of!(struct_td_thrinfo, ti_lid));
+    expect_member("struct td_thrinfo", "ti_sigmask", offset_of!(struct_td_thrinfo, ti_sigmask));
+    expect_member("struct td_thrinfo", "ti_sigmask.__val", offset_of!(struct_td_thrinfo, ti_sigmask.__val));
+    expect_member("struct td_thrinfo", "ti_traceme", offset_of!(struct_td_thrinfo, ti_traceme));
+    expect_member("struct td_thrinfo", "ti_preemptflag", offset_of!(struct_td_thrinfo, ti_preemptflag));
+    expect_member("struct td_thrinfo", "ti_pirecflag", offset_of!(struct_td_thrinfo, ti_pirecflag));
+    expect_member("struct td_thrinfo", "ti_pending", offset_of!(struct_td_thrinfo, ti_pending));
+    expect_member("struct td_thrinfo", "ti_pending.__val", offset_of!(struct_td_thrinfo, ti_pending.__val));
+    expect_member("struct td_thrinfo", "ti_events", offset_of!(struct_td_thrinfo, ti_events));
+    expect_member("struct td_thrinfo", "ti_events.event_bits", offset_of!(struct_td_thrinfo, ti_events.event_bits));
+}
+
+#[test]
+fn abi_td_eventbuf_t() {
+    expect_type("td_eventbuf_t", size_of::<td_eventbuf_t>(), align_of::<td_eventbuf_t>());
+    expect_member("td_eventbuf_t", "eventmask", offset_of!(td_eventbuf_t, eventmask));
+    expect_member("td_eventbuf_t", "eventmask.event_bits", offset_of!(td_eventbuf_t, eventmask.event_bits));
+    expect_member("td_eventbuf_t", "eventnum", offset_of!(td_eventbuf_t, eventnum));
+    expect_member("td_eventbuf_t", "eventdata", offset_of!(td_eventbuf_t, eventdata));
+}
+
+#[test]
+fn abi_td_err_e() {
+    expect_type("td_err_e", size_of::<td_err_e>(), align_of::<td_err_e>());
+}
+
+#[test]
+fn abi_td_event_e() {
+    expect_type("td_event_e", size_of::<td_event_e>(), align_of::<td_event_e>());
+}
+
+#[test]
+fn abi_td_notify_e() {
+    expect_type("td_notify_e", size_of::<td_notify_e>(), align_of::<td_notify_e>());
+}
+
+#[test]
+fn abi_td_thr_state_e() {
+    expect_type("td_thr_state_e", size_of::<td_thr_state_e>(), align_of::<td_thr_state_e>());
+}
+
+#[test]
+fn abi_td_thr_type_e() {
+    expect_type("td_thr_type_e", size_of::<td_thr_type_e>(), align_of::<td_thr_type_e>());
+}
+
+#[test]
+fn abi_ps_err_e() {
+    expect_type("ps_err_e", size_of::<ps_err_e>(), align_of::<ps_err_e>());
+}
+
+#[test]
+fn abi_prgregset_t() {
+    expect_type("prgregset_t", size_of::<prgregset_t>(), align_of::<prgregset_t>());
+}
+
+#[test]
+fn abi_elf_fpregset_t() {
+    expect_type("elf_fpregset_t", size_of::<elf_fpregset_t>(), align_of::<elf_fpregset_t>());
+    expect_member("elf_fpregset_t", "cwd", offset_of!(elf_fpregset_t, cwd));
+    expect_member("elf_fpregset_t", "swd", offset_of!(elf_fpregset_t, swd));
+    expect_member("elf_fpregset_t", "ftw", offset_of!(elf_fpregset_t, ftw));
+    expect_member("elf_fpregset_t", "fop", offset_of!(elf_fpregset_t, fop));
+    expect_member("elf_fpregset_t", "rip", offset_of!(elf_fpregset_t, rip));
+    expect_member("elf_fpregset_t", "rdp", offset_of!(elf_fpregset_t, rdp));
+    expect_member("elf_fpregset_t", "mxcsr", offset_of!(elf_fpregset_t, mxcsr));
+    expect_member("elf_fpregset_t", "mxcr_mask", offset_of!(elf_fpregset_t, mxcr_mask));
+    expect_member("elf_fpregset_t", "st_space", offset_of!(elf_fpregset_t, st_space));
+    expect_member("elf_fpregset_t", "xmm_space", offset_of!(elf_fpregset_t, xmm_space));
+    expect_member("elf_fpregset_t", "padding", offset_of!(elf_fpregset_t, padding));
+}
+
+#[test]
+fn abi_prstatus_t() {
+    expect_type("prstatus_t", size_of::<prstatus_t>(), align_of::<prstatus_t>());
+    expect_member("prstatus_t", "pr_info", offset_of!(prstatus_t, pr_info));
+    expect_member("prstatus_t", "pr_info.si_signo", offset_of!(prstatus_t, pr_info.si_signo));
+    expect_member("prstatus_t", "pr_info.si_code", offset_of!(prstatus_t, pr_info.si_code));
+    expect_member("prstatus_t", "pr_info.si_errno", offset_of!(prstatus_t, pr_info.si_errno));
+    expect_member("prstatus_t", "pr_cursig", offset_of!(prstatus_t, pr_cursig));
+    expect_member("prstatus_t", "pr_sigpend", offset_of!(prstatus_t, pr_sigpend));
+    expect_member("prstatus_t", "pr_sighold", offset_of!(prstatus_t, pr_sighold));
+    expect_member("prstatus_t", "pr_pid", offset_of!(prstatus_t, pr_pid));
+    expect_member("prstatus_t", "pr_ppid", offset_of!(prstatus_t, pr_ppid));
+    expect_member("prstatus_t", "pr_pgrp", offset_of!(prstatus_t, pr_pgrp));
+    expect_member("prstatus_t", "pr_sid", offset_of!(prstatus_t, pr_sid));
+    expect_member("prstatus_t", "pr_utime", offset_of!(prstatus_t, pr_utime));
+    expect_member("prstatus_t", "pr_utime.tv_sec", offset_of!(prstatus_t, pr_utime.tv_sec));
+    expect_member("prstatus_t", "pr_utime.tv_usec", offset_of!(prstatus_t, pr_utime.tv_usec));
+    expect_member("prstatus_t", "pr_stime", offset_of!(prstatus_t, pr_stime));
+    expect_member("prstatus_t", "pr_stime.tv_sec", offset_of!(prstatus_t, pr_stime.tv_sec));
+    expect_member("prstatus_t", "pr_stime.tv_usec", offset_of!(prstatus_t, pr_stime.tv_usec));
+    expect_member("prstatus_t", "pr_cutime", offset_of!(prstatus_t, pr_cutime));
+    expect_member("prstatus_t", "pr_cutime.tv_sec", offset_of!(prstatus_t, pr_cutime.tv_sec));
+    expect_member("prstatus_t", "pr_cutime.tv_usec", offset_of!(prstatus_t, pr_cutime.tv_usec));
+    expect_member("prstatus_t", "pr_cstime", offset_of!(prstatus_t, pr_cstime));
+    expect_member("prstatus_t", "pr_cstime.tv_sec", offset_of!(prstatus_t, pr_cstime.tv_sec));
+    expect_member("prstatus_t", "pr_cstime.tv_usec", offset_of!(prstatus_t, pr_cstime.tv_usec));
+    expect_member("prstatus_t", "pr_reg", offset_of!(prstatus_t, pr_reg));
+    expect_member("prstatus_t", "pr_fpvalid", offset_of!(prstatus_t, pr_fpvalid));
+}
+
+#[test]
+fn abi_prpsinfo_t() {
+    expect_type("prpsinfo_t", size_of::<prpsinfo_t>(), align_of::<prpsinfo_t>());
+    expect_member("prpsinfo_t", "pr_state", offset_of!(prpsinfo_t, pr_state));
+    expect_member("prpsinfo_t", "pr_sname", offset_of!(prpsinfo_t, pr_sname));
+    expect_member("prpsinfo_t", "pr_zomb", offset_of!(prpsinfo_t, pr_zomb));
+    expect_member("prpsinfo_t", "pr_nice", offset_of!(prpsinfo_t, pr_nice));
+    expect_member("prpsinfo_t", "pr_flag", offset_of!(prpsinfo_t, pr_flag));
+    expect_member("prpsinfo_t", "pr_uid", offset_of!(prpsinfo_t, pr_uid));
+    expect_member("prpsinfo_t", "pr_gid", offset_of!(prpsinfo_t, pr_gid));
+    expect_member("prpsinfo_t", "pr_pid", offset_of!(prpsinfo_t, pr_pid));
+    expect_member("prpsinfo_t", "pr_ppid", offset_of!(prpsinfo_t, pr_ppid));
+    expect_member("prpsinfo_t", "pr_pgrp", offset_of!(prpsinfo_t, pr_pgrp));
+    expect_member("prpsinfo_t", "pr_sid", offset_of!(prpsinfo_t, pr_sid));
+    expect_member("prpsinfo_t", "pr_fname", offset_of!(prpsinfo_t, pr_fname));
+    expect_member("prpsinfo_t", "pr_psargs", offset_of!(prpsinfo_t, pr_psargs));
 }
 
 #[test]

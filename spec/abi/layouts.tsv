@@ -2530,3 +2530,56 @@ td_notify_e		4	4
 td_thr_state_e		4	4		
 td_thr_type_e		4	4		
 ps_err_e		4	4		
+prgregset_t		216	8		
+elf_fpregset_t		512	8		
+elf_fpregset_t	cwd	0		short unsigned int	
+elf_fpregset_t	swd	2		short unsigned int	
+elf_fpregset_t	ftw	4		short unsigned int	
+elf_fpregset_t	fop	6		short unsigned int	
+elf_fpregset_t	rip	8		long long unsigned int	
+elf_fpregset_t	rdp	16		long long unsigned int	
+elf_fpregset_t	mxcsr	24		unsigned int	
+elf_fpregset_t	mxcr_mask	28		unsigned int	
+elf_fpregset_t	st_space	32		unsigned int[32]	
+elf_fpregset_t	xmm_space	160		unsigned int[64]	
+elf_fpregset_t	padding	416		unsigned int[24]	
+prstatus_t		336	8		
+prstatus_t	pr_info	0		struct elf_siginfo	
+prstatus_t	pr_info.si_signo	0		int	
+prstatus_t	pr_info.si_code	4		int	
+prstatus_t	pr_info.si_errno	8		int	
+prstatus_t	pr_cursig	12		short int	
+prstatus_t	pr_sigpend	16		long unsigned int	
+prstatus_t	pr_sighold	24		long unsigned int	
+prstatus_t	pr_pid	32		__pid_t	
+prstatus_t	pr_ppid	36		__pid_t	
+prstatus_t	pr_pgrp	40		__pid_t	
+prstatus_t	pr_sid	44		__pid_t	
+prstatus_t	pr_utime	48		struct timeval	
+prstatus_t	pr_utime.tv_sec	48		__time_t	
+prstatus_t	pr_utime.tv_usec	56		__suseconds_t	
+prstatus_t	pr_stime	64		struct timeval	
+prstatus_t	pr_stime.tv_sec	64		__time_t	
+prstatus_t	pr_stime.tv_usec	72		__suseconds_t	
+prstatus_t	pr_cutime	80		struct timeval	
+prstatus_t	pr_cutime.tv_sec	80		__time_t	
+prstatus_t	pr_cutime.tv_usec	88		__suseconds_t	
+prstatus_t	pr_cstime	96		struct timeval	
+prstatus_t	pr_cstime.tv_sec	96		__time_t	
+prstatus_t	pr_cstime.tv_usec	104		__suseconds_t	
+prstatus_t	pr_reg	112		elf_gregset_t	
+prstatus_t	pr_fpvalid	328		int	
+prpsinfo_t		136	8		
+prpsinfo_t	pr_state	0		char	
+prpsinfo_t	pr_sname	1		char	
+prpsinfo_t	pr_zomb	2		char	
+prpsinfo_t	pr_nice	3		char	
+prpsinfo_t	pr_flag	8		long unsigned int	
+prpsinfo_t	pr_uid	16		__pr_uid_t	
+prpsinfo_t	pr_gid	20		__pr_gid_t	
+prpsinfo_t	pr_pid	24		int	
+prpsinfo_t	pr_ppid	28		int	
+prpsinfo_t	pr_pgrp	32		int	
+prpsinfo_t	pr_sid	36		int	
+prpsinfo_t	pr_fname	40		char[16]	
+prpsinfo_t	pr_psargs	56		char[80]	

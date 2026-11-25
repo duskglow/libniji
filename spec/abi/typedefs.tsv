@@ -3798,6 +3798,10 @@ function	ps_pcontinue	proc_service.h			ps_err_e (ps_prochandle*)
 function	ps_pstop	proc_service.h			ps_err_e (ps_prochandle*)
 function	ps_ptread	proc_service.h			ps_err_e (ps_prochandle*, void*, void*, unsigned long)
 function	ps_ptwrite	proc_service.h			ps_err_e (ps_prochandle*, void*, void const*, unsigned long)
+typedef	elf_fpregset_t	proc_service.h	512	8	user_fpregs_struct
+typedef	prgregset_t	proc_service.h	216	8	unsigned long long [27]
+typedef	prpsinfo_t	proc_service.h	136	8	elf_prpsinfo
+typedef	prstatus_t	proc_service.h	336	8	elf_prstatus
 function	usleep	arpa/nameser.h			int (unsigned int)
 function	utime	utime.h			int (char const*, utimbuf const*)
 function	utimensat	ftw.h			int (int, char const*, timespec const*, int)
