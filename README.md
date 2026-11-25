@@ -24,8 +24,9 @@ here should be used in production. In particular:
   binding, `LD_AUDIT`) are not provided yet. Running unmodified glibc-linked binaries that need compatibility-only symbol versions (phase 15) is
   not supported yet and has not been demonstrated.
 * **libniji as the system C library is experimental.** The system packages (`libc6`, `libc-bin`, `libc6-dev` and
-  friends) replace glibc's, for building a system on libniji; it has no C headers of its own yet (they are being
-  built: [plan/headers.md](plan/headers.md)). The packages that
+  friends) replace glibc's, for building a system on libniji, with libniji's own C headers
+  ([plan/headers.md](plan/headers.md); the headers not shipped yet are listed in the release notes' known
+  limitations). The packages that
   sit beside glibc (`niji6`, `niji6-dev`) leave glibc untouched. See
   [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) and [docs/install-packages.md](docs/install-packages.md).
 * **It has not had a security audit.** That is planned after phase 15.

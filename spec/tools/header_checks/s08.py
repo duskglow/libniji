@@ -30,6 +30,11 @@ def units(ctx):
         out.extend((cid, f"MINSIGSTKSZ/SIGSTKSZ used in {h}", body) for cid in sorted(ids))
         out.extend((cid, f"MINSIGSTKSZ/SIGSTKSZ value in {h}", value_unit(ctx, h, cid, dyn[cid]))
                    for cid in sorted(ids))
+    # Spec clause: signal(2) (sighandler_t), the BSD `sig_t` (HEADERS-SNAPSHOT-GAPS): the handler type names in each
+    # header of the slice exactly where the reference shows them, as `void (*)(int)` (apt's configure needs one of
+    # them in the default mode).
+    for h in HEADERS:
+        out += ctx.exact(h, ["sig_t", "sighandler_t"])
     return out
 
 
