@@ -4,8 +4,41 @@
 #define __NIJI_H_paths_h 1
 
 #if 1
+# ifndef _PATH_BSHELL
+#  define _PATH_BSHELL "/bin/sh"
+# endif
+# ifndef _PATH_DEFPATH
+#  define _PATH_DEFPATH "/usr/bin:/bin"
+# endif
+# ifndef _PATH_DEV
+#  define _PATH_DEV "/dev/"
+# endif
+# ifndef _PATH_GSHADOW
+#  define _PATH_GSHADOW "/etc/gshadow"
+# endif
+# ifndef _PATH_KLOG
+#  define _PATH_KLOG "/proc/kmsg"
+# endif
+# ifndef _PATH_MNTTAB
+#  define _PATH_MNTTAB "/etc/fstab"
+# endif
 # ifndef _PATH_MOUNTED
 #  define _PATH_MOUNTED "/etc/mtab"
+# endif
+# ifndef _PATH_SHADOW
+#  define _PATH_SHADOW "/etc/shadow"
+# endif
+# ifndef _PATH_TMP
+#  define _PATH_TMP "/tmp/"
+# endif
+# ifndef _PATH_TTY
+#  define _PATH_TTY "/dev/tty"
+# endif
+# ifndef _PATH_UTMP
+#  define _PATH_UTMP "/var/run/utmp"
+# endif
+# ifndef _PATH_WTMP
+#  define _PATH_WTMP "/var/log/wtmp"
 # endif
 #endif
 

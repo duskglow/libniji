@@ -111,6 +111,10 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
+# ifndef __NIJI_D_suseconds_t
+#  define __NIJI_D_suseconds_t 1
+typedef long suseconds_t;
+# endif
 #endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
@@ -332,6 +336,9 @@ enum { ITIMER_VIRTUAL = 1 };
 # ifndef USER_PROCESS
 #  define USER_PROCESS 7
 # endif
+# ifndef UTMP_FILE
+#  define UTMP_FILE "/var/run/utmp"
+# endif
 # ifndef UT_HOSTSIZE
 #  define UT_HOSTSIZE 256
 # endif
@@ -343,6 +350,9 @@ enum { ITIMER_VIRTUAL = 1 };
 # endif
 # ifndef UT_UNKNOWN
 #  define UT_UNKNOWN 0
+# endif
+# ifndef WTMP_FILE
+#  define WTMP_FILE "/var/log/wtmp"
 # endif
 # ifndef _HAVE_UT_HOST
 #  define _HAVE_UT_HOST 1
@@ -359,8 +369,41 @@ enum { ITIMER_VIRTUAL = 1 };
 # ifndef _HAVE_UT_TYPE
 #  define _HAVE_UT_TYPE 1
 # endif
+# ifndef _PATH_BSHELL
+#  define _PATH_BSHELL "/bin/sh"
+# endif
+# ifndef _PATH_DEFPATH
+#  define _PATH_DEFPATH "/usr/bin:/bin"
+# endif
+# ifndef _PATH_DEV
+#  define _PATH_DEV "/dev/"
+# endif
+# ifndef _PATH_GSHADOW
+#  define _PATH_GSHADOW "/etc/gshadow"
+# endif
+# ifndef _PATH_KLOG
+#  define _PATH_KLOG "/proc/kmsg"
+# endif
+# ifndef _PATH_MNTTAB
+#  define _PATH_MNTTAB "/etc/fstab"
+# endif
 # ifndef _PATH_MOUNTED
 #  define _PATH_MOUNTED "/etc/mtab"
+# endif
+# ifndef _PATH_SHADOW
+#  define _PATH_SHADOW "/etc/shadow"
+# endif
+# ifndef _PATH_TMP
+#  define _PATH_TMP "/tmp/"
+# endif
+# ifndef _PATH_TTY
+#  define _PATH_TTY "/dev/tty"
+# endif
+# ifndef _PATH_UTMP
+#  define _PATH_UTMP "/var/run/utmp"
+# endif
+# ifndef _PATH_WTMP
+#  define _PATH_WTMP "/var/log/wtmp"
 # endif
 #endif
 

@@ -75,6 +75,10 @@ typedef struct __res_state * res_state;
 # endif
 #endif
 #if __NIJI_LFS64 || __NIJI_FOB64
+# ifndef __NIJI_D_blkcnt64_t
+#  define __NIJI_D_blkcnt64_t 1
+typedef long blkcnt64_t;
+# endif
 # ifndef __NIJI_D_struct__G_fpos64_t
 #  define __NIJI_D_struct__G_fpos64_t 1
 struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
@@ -82,6 +86,18 @@ struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); }
 # ifndef __NIJI_D_fpos64_t
 #  define __NIJI_D_fpos64_t 1
 typedef struct _G_fpos64_t fpos64_t;
+# endif
+# ifndef __NIJI_D_fsblkcnt64_t
+#  define __NIJI_D_fsblkcnt64_t 1
+typedef unsigned long fsblkcnt64_t;
+# endif
+# ifndef __NIJI_D_fsfilcnt64_t
+#  define __NIJI_D_fsfilcnt64_t 1
+typedef unsigned long fsfilcnt64_t;
+# endif
+# ifndef __NIJI_D_ino64_t
+#  define __NIJI_D_ino64_t 1
+typedef unsigned long ino64_t;
 # endif
 # ifndef __NIJI_D_off64_t
 #  define __NIJI_D_off64_t 1

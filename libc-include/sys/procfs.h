@@ -184,6 +184,10 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
+# ifndef __NIJI_D_suseconds_t
+#  define __NIJI_D_suseconds_t 1
+typedef long suseconds_t;
+# endif
 #endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t

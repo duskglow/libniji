@@ -376,6 +376,11 @@ extern unsigned long re_set_syntax (unsigned long);
 # endif
 #endif
 
+/* The type of a pattern buffer's translation table (its `translate` member), for programs that declare one. */
+#if __NIJI_GNU
+# define RE_TRANSLATE_TYPE unsigned char *
+#endif
+
 __NIJI_END_C
 
 #endif

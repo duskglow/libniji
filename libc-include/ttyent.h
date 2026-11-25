@@ -43,6 +43,9 @@ extern int setttyent (void) __NIJI_NOTHROW;
 # ifndef TTY_SECURE
 #  define TTY_SECURE 2
 # endif
+# ifndef _PATH_TTYS
+#  define _PATH_TTYS "/etc/ttys"
+# endif
 #endif
 
 __NIJI_END_C

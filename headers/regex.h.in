@@ -8,7 +8,13 @@
 
 __NIJI_BEGIN_C
 
+@@owns RE_TRANSLATE_TYPE
 @@emit
+
+/* The type of a pattern buffer's translation table (its `translate` member), for programs that declare one. */
+@@if RE_TRANSLATE_TYPE
+# define RE_TRANSLATE_TYPE unsigned char *
+#endif
 
 __NIJI_END_C
 

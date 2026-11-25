@@ -501,11 +501,29 @@ typedef unsigned int socklen_t;
 #  define __NIJI_D_ssize_t 1
 typedef long ssize_t;
 # endif
+# ifndef __NIJI_D_useconds_t
+#  define __NIJI_D_useconds_t 1
+typedef unsigned int useconds_t;
+# endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_off64_t
 #  define __NIJI_D_off64_t 1
 typedef long off64_t;
+# endif
+# ifndef __NIJI_D_sighandler_t
+#  define __NIJI_D_sighandler_t 1
+typedef void (*sighandler_t)(int);
+# endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); };
+# endif
+# ifndef __NIJI_D_sigval_t
+#  define __NIJI_D_sigval_t 1
+typedef union sigval sigval_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 1
