@@ -8,3 +8,10 @@ nl-item-arg-parens | headers/langinfo.h.in | lit:(((category) << 16) ==> ((categ
 nl-category-int-cast | headers/langinfo.h.in | lit:((int) (item) >> 16) ==> ((item) >> 16) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "_NL_ITEM forms"' | msg:FAIL P1 langinfo.h _NL_ITEM forms
 nl-index-arg-parens | headers/langinfo.h.in | lit:((int) (item) & 0xffff) ==> ((int) item & 0xffff) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "_NL_ITEM forms"' | msg:FAIL P1 langinfo.h _NL_ITEM forms
 only-selects-none | spec/tools/header_check.py | lit:fails = 1 ==> fails = 0 | sh -c '! python3 spec/tools/header_check.py --only "no unit has this title"' | msg:header_check: 0 failed of 0
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# un-own-max-align: CAUGHT, caught by no test the log names
+# rseq-own-max-align: CAUGHT, caught by no test the log names
+# nl-item-arg-parens: CAUGHT, caught by no test the log names
+# nl-category-int-cast: CAUGHT, caught by no test the log names
+# nl-index-arg-parens: CAUGHT, caught by no test the log names
+# only-selects-none: CAUGHT, caught by no test the log names

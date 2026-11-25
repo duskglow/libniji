@@ -1,0 +1,22 @@
+{"task": "HEADERS-STAGE2-GAPS-A", "model": "opus", "tokens": null,
+ "result": "sys/un.h and sys/rseq.h use the compiler's own max_align_t (no clash with <stddef.h> in either order, C and C++); langinfo.h gains every langinfo.tsv nl_item constant (perl's 36) and _NL_ITEM/_NL_ITEM_CATEGORY/_NL_ITEM_INDEX in the reference's form; nl_langinfo serves every item as the reference does (en_US.UTF-8, C.UTF-8 all equal; C equal but for recorded D-7.10/D-7.22 differences)",
+ "branch": "task/headers-stage2-gaps-a", "head": "3a4803cdb",
+ "gate": {"affected": "FULL: the train's (generated tables); header_check 0 failed of 19083, cargo test -p xtask 6 suites 0 failed, plants 6/6 CAUGHT", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "41 __-prefixed langinfo enumerators (__DECIMAL_POINT, __ALTMON_*, ...) are left out by headers-gen under R-H2/R-H3 (reserved names); perl and gnutls need none of them; the public aliases are emitted",
+   "langinfo.h items are int #defines; the reference's are also enumerators (C++ type enum): 95 pre-existing form-report notes on older items (ABDAY_* ...), none on new ones",
+   "header_check compiles its 19083 units serially (about 520 s on a loaded Zen 1 host); the first plants run's baseline timed out at 600 s, hence --only; parallel units would help every header story",
+   "spec/tools/locale_inspect.py item_names() parses the reference system's langinfo.h text, against plan/headers.md 2.2; not used here",
+   "perl/exim4 source build not run (budget)"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "<stddef.h> before or after <sys/un.h> or <sys/rseq.h> no longer fails with conflicting max_align_t (exim4, openssl stage 2)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "langinfo.h declares the nl_item constants of LC_PAPER..LC_IDENTIFICATION and the other langinfo.tsv items (perl's 36 undeclared names) and _NL_ITEM* (gnutls tests)", "before": 0, "after": 235, "unit": "constants added", "measured": true},
+   {"kind": "coverage", "what": "header_check P9 include-order units (compiler typedef headers x 6 configs x 2 orders) and _NL_ITEM form rows (4 configs); 6 plants", "before": null, "after": 6, "unit": "plants", "measured": true},
+   {"kind": "tooling", "what": "header_check --only REGEX: a plant's command runs its own units in about 2 s instead of the whole check (about 520 s)", "before": 520, "after": 2, "unit": "s per plant command", "measured": true}],
+ "improvement": "header_check runs 19083 compiles one at a time; running units in parallel (or --only in every header plant) would cut header plants and gates by minutes",
+ "next_step": "land through the train (FULL: generated tables)",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-A.md",
+ "jobs": ["headers-stage2-gaps-a-plants2", "headers-stage2-gaps-a-hc2", "headers-stage2-gaps-a-xtask2", "headers-stage2-gaps-a-lint2"]}
