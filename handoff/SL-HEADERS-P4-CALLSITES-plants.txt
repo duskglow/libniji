@@ -1,0 +1,21 @@
+# Plants of SL-HEADERS-P4-CALLSITES (cargo xtask plants; docs/plants.md). Each drops or changes one declaration the
+# story fixed; P4 (validation/headers_p4.py) must fail on it. The products stage the committed libc-include/, so each
+# command regenerates the headers and restages them first. Part 2 (callsites/noexcept) runs with --no-cxx, part 1
+# (C++ inclusion) with --no-noexcept. The brief's "math.h __ name" plant has no site: ruling #8468 keeps those names
+# omitted (D-X.107); the math.h plants drop the isinf function declaration and the C99 functions' exception specs.
+# Run 1 (job sl-headers-p4-callsites-plants) also planted __fpending's reserved.tsv row emit -> omit: SURVIVED, by
+# design: P4 part 2 leaves out exactly the names reserved.tsv omits (ruling #8468), so a flipped row is a policy change
+# P4 cannot see (hand-back INFORMATIONAL). p4cs-fpending-owns drops the same declaration in the template instead.
+p4cs-fpending-owns | headers/stdio_ext.h.in | perl:s/^\x40\x40emit$/\x40\x40owns __fpending\n\x40\x40emit/m | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24 | msg:P4 FAIL.*__fpending
+p4cs-alloca-owns | headers/alloca.h.in | lit:@@owns-macro alloca ==> @@owns alloca | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24 | msg:P4 FAIL.*alloca
+p4cs-isinf-fn | headers/math.h.in | lit:@@when isinf ==> @@if isinf | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24 | msg:P4 FAIL.*isinf
+p4cs-cxx98-throw | xtask/src/headers.rs | lit: || r["cxx98"] == "throw()" ==> | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24 | msg:P4 FAIL.*math\.h
+p4cs-stdbit-nothrow | headers/stdbit.h.in | lit:stdc_leading_zeros_uc (unsigned char __v) __NIJI_NOTHROW { ==> stdc_leading_zeros_uc (unsigned char __v) { | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24 | msg:P4 FAIL.*stdc_leading_zeros_uc
+p4cs-not-cxx11 | xtask/src/headers/cond.rs | lit:("math.h", "isinf"), ==> | cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-noexcept --jobs 24 | msg:P4 FAIL c\+\+11 <math\.h>
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# p4cs-fpending-owns: CAUGHT, caught by no test the log names
+# p4cs-alloca-owns: CAUGHT, caught by no test the log names
+# p4cs-isinf-fn: CAUGHT, caught by no test the log names
+# p4cs-cxx98-throw: CAUGHT, caught by no test the log names
+# p4cs-stdbit-nothrow: CAUGHT, caught by no test the log names
+# p4cs-not-cxx11: CAUGHT, caught by no test the log names

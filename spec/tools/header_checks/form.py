@@ -20,7 +20,8 @@ code, below) and `sz` its `sizeof`; `val` its value at run time (only with --val
 
 Report mode (as a header_check.py module): prints one `FORM-DIFF` line per (macro, configuration) whose form differs,
 grouped by cause, one `FORM-RUNTIME` line per macro the reference defines as a run-time expression, and a summary;
-it never fails the run (the coordinator turns it into a failing check once the follow-ups land). Set
+it fails the run only for a difference of an `ENFORCED` (macro, header) pair (HEADERS-FORM-BREAKS: the groups A1, B1,
+B2, B3); the other groups stay report mode until their follow-ups land. Set
 NIJI_FORM_PROBE=0 to skip it, NIJI_FORM_JOBS=<n> for the parallel compilers (default: CPUs, at most 16).
 
 Stand-alone: python3 spec/tools/header_checks/form.py [--include DIR] [--work DIR] [--tsv FILE] [--diff FILE]
@@ -469,8 +470,26 @@ def problems(ctx):
     jobs = int(os.environ.get("NIJI_FORM_JOBS", min(16, os.cpu_count() or 1)))
     skip = {x for _, mod in ctx.mods for x in getattr(mod, "must_fail", ())} if hasattr(ctx, "mods") else must_fail_headers()
     inv, out = run(inc, work, jobs, macros_tsv=ctx.macros, skip=skip)
-    report(inv, out, emit=lambda s: print("NOTE " + s))
-    return fails
+    _, _, diffs = report(inv, out, emit=lambda s: print("NOTE " + s))
+    return fails + enforced(diffs)
+
+
+# (macro, defining header) pairs whose form must match the reference (a FAIL, not report mode): the audit's groups A1
+# (PTHREAD_STACK_MIN run-time where the reference's is), B1 (a macro naming a function the header declares), B2
+# (sys/vlimit.h's int INFINITY) and B3 (MS_NOUSER a file-scope array size, C configurations: its C++ type is group C1).
+# Every other group stays report mode. Value: the configurations enforced, None for all.
+C_CONFIGS = frozenset(cid for cid, lang, _ in CONFIGS if lang == "c")
+ENFORCED = {("PTHREAD_STACK_MIN", "pthread.h"): None, ("PTHREAD_STACK_MIN", "dirent.h"): None,
+            ("PTHREAD_STACK_MIN", "limits.h"): None, ("basename", "libgen.h"): None, ("res_init", "resolv.h"): None,
+            ("res_ninit", "resolv.h"): None, ("res_nclose", "resolv.h"): None, ("INFINITY", "sys/vlimit.h"): None,
+            ("MS_NOUSER", "sys/mount.h"): C_CONFIGS}
+
+
+def enforced(diffs):
+    """FAIL lines for the FORM-DIFF rows of the ENFORCED pairs, in their enforced configurations."""
+    return [f"FAIL form {n} <{h}> {cid}: [{c}] libniji {fa} | reference {fb}"
+            for c, rows in sorted(diffs.items()) for n, h, cid, fa, fb, _, _ in sorted(rows)
+            if (n, h) in ENFORCED and (ENFORCED[(n, h)] is None or cid in ENFORCED[(n, h)])]
 
 
 def main():
@@ -501,7 +520,10 @@ def main():
     inv, out = run(os.path.abspath(args.include), work, args.jobs, args.values, args.niji_cc or None, args.niji_cxx or None,
                    only, macros, must_fail_headers())
     lines = []
-    report(inv, out, emit=lambda s: (print(s), lines.append(s)))
+    _, _, diffs = report(inv, out, emit=lambda s: (print(s), lines.append(s)))
+    for x in enforced(diffs):
+        print(x)
+        fails.append(x)
     if args.diff:
         with open(args.diff, "w") as f:
             f.write("\n".join(lines) + "\n")

@@ -345,7 +345,9 @@ fn load(root: &Path) -> Result<Tables, String> {
             _ => {}
         }
     }
-    let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept").map(|r| r["name"].clone()).collect();
+    // A function is non-throwing when either C++ probe saw it so: C++17's `noexcept`, or C++98's `throw()` where the
+    // C++17 probe could not resolve `&f` (`error`: an overload set of the C++ library's <cmath>, e.g. acosh).
+    let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept" || r["cxx98"] == "throw()").map(|r| r["name"].clone()).collect();
     let diag = tsv(root, "spec/abi/diagattrs.tsv")?;
     let mut nonzero_noreturn = BTreeMap::new();
     for r in &diag {

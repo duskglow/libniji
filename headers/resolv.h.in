@@ -14,10 +14,11 @@ __NIJI_BEGIN_C
 @@owns-macro res_init res_nclose res_ninit _res
 @@emit
 
+/* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */
 @@when _res
-# define res_init res_init
-# define res_ninit res_ninit
-# define res_nclose res_nclose
+# define res_init __res_init
+# define res_ninit __res_ninit
+# define res_nclose __res_nclose
 # define _res (*__res_state ())
 #endif
 

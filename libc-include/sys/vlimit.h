@@ -24,9 +24,13 @@ enum __vlimit_resource {
 #  define __NIJI_D_vlimit 1
 extern int vlimit (enum __vlimit_resource, int) __NIJI_NOTHROW;
 # endif
-# ifndef INFINITY
-#  define INFINITY (__builtin_inff ())
-# endif
+#endif
+
+/* INFINITY here is vlimit's "no limit": the int INT_MAX, usable in #if (not <math.h>'s float infinity). The header
+   that is included last decides INFINITY. */
+#if 1
+# undef INFINITY
+# define INFINITY 2147483647
 #endif
 
 __NIJI_END_C

@@ -14,7 +14,7 @@
 
 __NIJI_BEGIN_C
 
-@@owns-macro fpclassify isfinite isnormal signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
+@@owns-macro isnan isinf fpclassify isfinite isnormal signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
 @@emit
 
 @@if fpclassify
@@ -26,10 +26,12 @@ __NIJI_BEGIN_C
 @@if isnormal
 # define isnormal(x) __builtin_isnormal (x)
 #endif
-@@if isnan
+/* isnan and isinf are also the functions of their own name (BSD), declared by @@emit above where
+   visibility.tsv has them, before the macros: `&isinf` and `(isinf) (x)` reach the function. */
+@@when isnan
 # define isnan(x) __builtin_isnan (x)
 #endif
-@@if isinf
+@@when isinf
 /* C 7.12.3.3 asks for non-zero; the sign (-1 for -inf, +1 for +inf) is the documented extension of the builtin. */
 # define isinf(x) __builtin_isinf_sign (x)
 #endif

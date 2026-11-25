@@ -170,12 +170,6 @@ enum { MS_NOSUID = 2 };
 enum { MS_NOSYMFOLLOW = 256 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MS_NOUSER
-#  define __NIJI_D_enum_MS_NOUSER 1
-#  ifndef MS_NOUSER
-enum { MS_NOUSER = (-2147483647-1) };
-#  endif
-# endif
 # ifndef __NIJI_D_enum_MS_POSIXACL
 #  define __NIJI_D_enum_MS_POSIXACL 1
 #  ifndef MS_POSIXACL
@@ -458,9 +452,6 @@ enum { UMOUNT_NOFOLLOW = 8 };
 # ifndef MS_NOSYMFOLLOW
 #  define MS_NOSYMFOLLOW 256
 # endif
-# ifndef MS_NOUSER
-#  define MS_NOUSER (-2147483647-1)
-# endif
 # ifndef MS_POSIXACL
 #  define MS_POSIXACL 65536
 # endif
@@ -533,6 +524,13 @@ enum { UMOUNT_NOFOLLOW = 8 };
 # ifndef UMOUNT_NOFOLLOW
 #  define UMOUNT_NOFOLLOW 8
 # endif
+#endif
+
+/* MS_NOUSER: <linux/mount.h> spells it (1<<31), which overflows int and so is no integer constant expression in C
+   (a file-scope array size rejects it); the same int value, spelled as one. */
+#if 1
+# undef MS_NOUSER
+# define MS_NOUSER (-2147483647-1)
 #endif
 
 #if 1

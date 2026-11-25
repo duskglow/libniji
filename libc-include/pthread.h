@@ -1034,11 +1034,6 @@ enum { PTHREAD_MUTEX_RECURSIVE = 1 };
 #  define PTHREAD_ATTR_NO_SIGMASK_NP (-1)
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef PTHREAD_STACK_MIN
-#  define PTHREAD_STACK_MIN 16384
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 # ifndef PTHREAD_BARRIER_SERIAL_THREAD
 #  define PTHREAD_BARRIER_SERIAL_THREAD (-1)
@@ -1047,6 +1042,15 @@ enum { PTHREAD_MUTEX_RECURSIVE = 1 };
 
 #if 1
 # define PTHREAD_CANCELED ((void *) ((void *) (-1L)))
+#endif
+
+/* PTHREAD_STACK_MIN in <limits.h>'s form (see the header comment). */
+#if __NIJI_MISC
+# if __NIJI_DYNSTACK
+#  define PTHREAD_STACK_MIN __sysconf (75)
+# else
+#  define PTHREAD_STACK_MIN 16384
+# endif
 #endif
 
 /* Static initializers: the bytes of initializers.tsv, as the members of the object they initialise. */
