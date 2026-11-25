@@ -28,7 +28,8 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * P9      each header that shows a typedef the compiler's <stddef.h> or <stdarg.h> defines, with those headers
           before and after it (see `compiler_order_units`).
 
-Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
+Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed. `--only REGEX` runs
+only the units whose title matches (no slice-module problems, no P8; a plant's command); selecting none fails.
 """
 import argparse
 import glob
@@ -316,7 +317,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
     ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
+    # A plant's command (docs/plants.md, 600 s per command): only the units whose title (`P9 sys/un.h after`, `P1
+    # langinfo.h _NL_ITEM forms`, ...) matches; the slice modules' problems, their reports and P8 are not run. A
+    # pattern that selects no unit is a failure, never a vacuous pass.
+    ap.add_argument("--only", default="", metavar="REGEX")
     args = ap.parse_args()
+    only = re.compile(args.only) if args.only else None
     inc = os.path.abspath(args.include)
     if not os.path.isfile(os.path.join(inc, "features.h")):
         sys.exit(f"header_check: no features.h under {inc}")
@@ -347,7 +353,8 @@ def main():
     for cid, us in compiler_order_units(ctx).items():
         p1s.setdefault(cid, []).extend(us)
     for name, mod in mods:
-        problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
+        if not only:
+            problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
             p1s.setdefault(cid, []).append((what, body))
     fails, total = len(problems), len(problems)
@@ -375,6 +382,8 @@ def main():
         if not rejected:
             units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
+        if only:
+            units = [u for u in units if only.search(u[0])]
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
@@ -389,8 +398,13 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
-    f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
-    fails, total = fails + f8, total + t8
+    if only:
+        if total == 0:
+            print(f"FAIL --only {args.only}: no unit selected")
+            fails = 1
+    else:
+        f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
+        fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0
 
