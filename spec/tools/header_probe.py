@@ -417,6 +417,15 @@ def candidates():
     names.update(bb)
     tags.update(bb_tags)
     tags.update(["exception", "ieee754_float", "ieee754_double", "ieee754_long_double", "ieee854_long_double"])
+    # The enumerators and enumeration tags of enumerators.tsv (HEADERS-ENUM-FOLLOWUPS): `_REG_NOMATCH`, the
+    # enumerator the macro REG_NOMATCH names, its typedef `reg_errcode_t`, and `ns_t_a` of `enum __ns_type` are
+    # spelled in no other table.
+    for r in tsv("enumerators.tsv"):
+        if r["tag"].startswith("enum "):
+            tags.add(r["tag"][len("enum "):])
+        elif r["tag"].startswith("typedef "):
+            names.add(r["tag"][len("typedef "):])
+        names.add(r["name"])
     # The reserved names headers-gen emits by policy (headers/reserved.tsv `emit`, rulings R-H2, R-H3): the generator
     # declares them only where this table shows them, so they are probed whether or not another table spells them
     # (slice 20: `__locale_t`, which the C++ library's locale support names, appears in no prototype).

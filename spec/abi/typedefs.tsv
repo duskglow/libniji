@@ -706,6 +706,14 @@ function	__nextupl	complex.h			long double (long double)
 typedef	__nftw64_func_t	ftw.h	8	8	int (*)(char const*, stat64 const*, int, FTW*)
 typedef	__nftw_func_t	ftw.h	8	8	int (*)(char const*, stat const*, int, FTW*)
 typedef	__nlink_t	aio.h	8	8	unsigned long
+enum	__ns_cert_types	arpa/nameser.h	4	4	__ns_cert_types
+enum	__ns_class	arpa/nameser.h	4	4	__ns_class
+enum	__ns_flag	arpa/nameser.h	4	4	__ns_flag
+enum	__ns_opcode	arpa/nameser.h	4	4	__ns_opcode
+enum	__ns_rcode	arpa/nameser.h	4	4	__ns_rcode
+enum	__ns_sect	arpa/nameser.h	4	4	__ns_sect
+enum	__ns_type	arpa/nameser.h	4	4	__ns_type
+enum	__ns_update_operation	arpa/nameser.h	4	4	__ns_update_operation
 function	__nss_configure_lookup	nss.h			int (char const*, char const*)
 typedef	__off64_t	aio.h	8	8	long
 typedef	__off_t	aio.h	8	8	long
