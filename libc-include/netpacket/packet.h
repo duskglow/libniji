@@ -2,6 +2,7 @@
 /* netpacket/packet.h: packet sockets (packet(7)) */
 #ifndef __NIJI_H_netpacket_packet_h
 #define __NIJI_H_netpacket_packet_h 1
+#define __NETPACKET_PACKET_H 1
 
 #include <features.h>
 #include <sys/types.h>

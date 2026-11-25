@@ -2,6 +2,7 @@
 /* sys/ttydefaults.h: the default terminal control characters and modes (tty(4)). */
 #ifndef __NIJI_H_sys_ttydefaults_h
 #define __NIJI_H_sys_ttydefaults_h 1
+#define _SYS_TTYDEFAULTS_H_
 
 #include <features.h>
 

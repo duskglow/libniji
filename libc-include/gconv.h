@@ -2,6 +2,7 @@
 /* gconv.h: conversion modules (legacy: plan/headers.md section 5.1 ships it). */
 #ifndef __NIJI_H_gconv_h
 #define __NIJI_H_gconv_h 1
+#define _GCONV_H 1
 
 #include <features.h>
 

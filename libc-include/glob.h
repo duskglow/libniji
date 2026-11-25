@@ -2,6 +2,7 @@
 /* glob.h: path name pattern matching (XSH <glob.h>). */
 #ifndef __NIJI_H_glob_h
 #define __NIJI_H_glob_h 1
+#define _GLOB_H 1
 
 #include <features.h>
 

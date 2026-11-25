@@ -2,6 +2,7 @@
 /* netinet/igmp.h: IGMP (RFC 3376) */
 #ifndef __NIJI_H_netinet_igmp_h
 #define __NIJI_H_netinet_igmp_h 1
+#define _NETINET_IGMP_H 1
 
 #include <features.h>
 #include <sys/types.h>

@@ -2,6 +2,7 @@
 /* sys/mtio.h: magnetic tape ioctls (st(4)) */
 #ifndef __NIJI_H_sys_mtio_h
 #define __NIJI_H_sys_mtio_h 1
+#define _SYS_MTIO_H 1
 
 #include <features.h>
 #include <sys/types.h>

@@ -3,6 +3,7 @@
    supplies the request encoding (TCSETS2 is spelled with it); the rest comes from the tables. */
 #ifndef __NIJI_H_sys_ioctl_h
 #define __NIJI_H_sys_ioctl_h 1
+#define _SYS_IOCTL_H 1
 
 #include <features.h>
 #include <asm/ioctls.h>

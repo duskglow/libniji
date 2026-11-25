@@ -2,6 +2,7 @@
 /* sys/gmon.h: the profiling run-time's interface (gprof(1): monstartup, _mcleanup and the gmon data structures). */
 #ifndef __NIJI_H_sys_gmon_h
 #define __NIJI_H_sys_gmon_h 1
+#define _SYS_GMON_H 1
 
 #include <features.h>
 #include <sys/types.h>

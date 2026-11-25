@@ -2,6 +2,7 @@
 /* re_comp.h: BSD regular expressions (legacy: plan/headers.md section 5.1 ships it). */
 #ifndef __NIJI_H_re_comp_h
 #define __NIJI_H_re_comp_h 1
+#define _RE_COMP_H 1
 
 #include <features.h>
 #include <regex.h>

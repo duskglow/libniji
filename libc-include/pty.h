@@ -2,6 +2,7 @@
 /* pty.h: pseudoterminals (openpty(3), forkpty(3)). */
 #ifndef __NIJI_H_pty_h
 #define __NIJI_H_pty_h 1
+#define _PTY_H 1
 
 #include <features.h>
 #include <asm/ioctls.h>

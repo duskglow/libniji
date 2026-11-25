@@ -2,6 +2,7 @@
 /* sys/procfs.h: the structures of an ELF core file's notes (prstatus, prpsinfo, ...). */
 #ifndef __NIJI_H_sys_procfs_h
 #define __NIJI_H_sys_procfs_h 1
+#define _SYS_PROCFS_H 1
 
 #include <features.h>
 #include <sys/types.h>

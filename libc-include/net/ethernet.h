@@ -2,6 +2,7 @@
 /* net/ethernet.h: Ethernet definitions (ethernet(7)) */
 #ifndef __NIJI_H_net_ethernet_h
 #define __NIJI_H_net_ethernet_h 1
+#define __NET_ETHERNET_H 1
 
 #include <features.h>
 #include <sys/types.h>

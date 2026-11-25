@@ -2,6 +2,7 @@
 /* tar.h: tar archive constants (POSIX XBD <tar.h>). */
 #ifndef __NIJI_H_tar_h
 #define __NIJI_H_tar_h 1
+#define _TAR_H 1
 
 #include <features.h>
 

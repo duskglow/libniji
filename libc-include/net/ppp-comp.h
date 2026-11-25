@@ -2,6 +2,7 @@
 /* net/ppp-comp.h: PPP compression */
 #ifndef __NIJI_H_net_ppp_comp_h
 #define __NIJI_H_net_ppp_comp_h 1
+#define _NET_PPP_COMP_H
 
 #include <features.h>
 

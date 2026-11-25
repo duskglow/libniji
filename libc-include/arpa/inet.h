@@ -2,6 +2,7 @@
 /* arpa/inet.h: Internet address conversion (XSH <arpa/inet.h>) */
 #ifndef __NIJI_H_arpa_inet_h
 #define __NIJI_H_arpa_inet_h 1
+#define _ARPA_INET_H 1
 
 #include <features.h>
 #include <netinet/in.h>

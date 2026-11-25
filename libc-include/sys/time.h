@@ -2,6 +2,7 @@
 /* sys/time.h: time types (XSH <sys/time.h>); the timeval operations are BSD. */
 #ifndef __NIJI_H_sys_time_h
 #define __NIJI_H_sys_time_h 1
+#define _SYS_TIME_H 1
 
 #include <features.h>
 

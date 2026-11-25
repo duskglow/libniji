@@ -4,6 +4,7 @@
    macro argument is evaluated more than once where the page says nothing else. */
 #ifndef __NIJI_H_sys_queue_h
 #define __NIJI_H_sys_queue_h 1
+#define _SYS_QUEUE_H_
 
 #ifdef __cplusplus
 # define __NIJI_QNULL __null

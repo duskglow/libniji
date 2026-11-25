@@ -2,6 +2,7 @@
 /* netinet/tcp.h: TCP (tcp(7), RFC 9293) */
 #ifndef __NIJI_H_netinet_tcp_h
 #define __NIJI_H_netinet_tcp_h 1
+#define _NETINET_TCP_H 1
 
 #include <features.h>
 #if defined __USE_MISC

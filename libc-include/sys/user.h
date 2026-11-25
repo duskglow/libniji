@@ -2,6 +2,7 @@
 /* sys/user.h: the register and core-dump layouts of a traced process (user_regs_struct, struct user). */
 #ifndef __NIJI_H_sys_user_h
 #define __NIJI_H_sys_user_h 1
+#define _SYS_USER_H 1
 
 #if 1
 # ifndef __NIJI_D_struct_user_regs_struct

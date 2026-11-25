@@ -2,6 +2,7 @@
 /* byteswap.h: byte reversal (GNU), on the compiler's byte-swap built-ins. */
 #ifndef __NIJI_H_byteswap_h
 #define __NIJI_H_byteswap_h 1
+#define _BYTESWAP_H 1
 
 #include <features.h>
 

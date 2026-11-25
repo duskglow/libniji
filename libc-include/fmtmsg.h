@@ -2,6 +2,7 @@
 /* fmtmsg.h: message display (XSH fmtmsg). */
 #ifndef __NIJI_H_fmtmsg_h
 #define __NIJI_H_fmtmsg_h 1
+#define __FMTMSG_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* sys/gmon_out.h: the gmon.out file format (gprof(1)). */
 #ifndef __NIJI_H_sys_gmon_out_h
 #define __NIJI_H_sys_gmon_out_h 1
+#define _SYS_GMON_OUT_H 1
 
 #include <features.h>
 

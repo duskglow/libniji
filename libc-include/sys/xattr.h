@@ -2,6 +2,7 @@
 /* sys/xattr.h: extended attributes (xattr(7)). */
 #ifndef __NIJI_H_sys_xattr_h
 #define __NIJI_H_sys_xattr_h 1
+#define _SYS_XATTR_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -66,9 +67,6 @@ extern int removexattr (const char *, const char *) __NIJI_NOTHROW;
 # ifndef __NIJI_D_setxattr
 #  define __NIJI_D_setxattr 1
 extern int setxattr (const char *, const char *, const void *, unsigned long, int) __NIJI_NOTHROW;
-# endif
-# ifndef _SYS_XATTR_H
-#  define _SYS_XATTR_H 1
 # endif
 #endif
 

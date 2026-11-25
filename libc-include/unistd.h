@@ -2,6 +2,7 @@
 /* unistd.h: standard symbolic constants and types (XSH <unistd.h>). The _SC_, _CS_ and _PC_ names are enumerators and macros of the same value. */
 #ifndef __NIJI_H_unistd_h
 #define __NIJI_H_unistd_h 1
+#define _UNISTD_H 1
 
 #include <features.h>
 

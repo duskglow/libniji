@@ -2,6 +2,7 @@
 /* mcheck.h: heap consistency checking (mcheck(3)). */
 #ifndef __NIJI_H_mcheck_h
 #define __NIJI_H_mcheck_h 1
+#define _MCHECK_H 1
 
 #include <features.h>
 

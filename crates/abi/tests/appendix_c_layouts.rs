@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (330 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (355 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3156,6 +3156,25 @@ fn abi_struct_mt_tape_info() {
 }
 
 #[test]
+fn abi_struct_ar_hdr() {
+    expect_type("struct ar_hdr", size_of::<struct_ar_hdr>(), align_of::<struct_ar_hdr>());
+    expect_member("struct ar_hdr", "ar_name", offset_of!(struct_ar_hdr, ar_name));
+    expect_member("struct ar_hdr", "ar_date", offset_of!(struct_ar_hdr, ar_date));
+    expect_member("struct ar_hdr", "ar_uid", offset_of!(struct_ar_hdr, ar_uid));
+    expect_member("struct ar_hdr", "ar_gid", offset_of!(struct_ar_hdr, ar_gid));
+    expect_member("struct ar_hdr", "ar_mode", offset_of!(struct_ar_hdr, ar_mode));
+    expect_member("struct ar_hdr", "ar_size", offset_of!(struct_ar_hdr, ar_size));
+    expect_member("struct ar_hdr", "ar_fmag", offset_of!(struct_ar_hdr, ar_fmag));
+}
+
+#[test]
+fn abi_struct_utimbuf() {
+    expect_type("struct utimbuf", size_of::<struct_utimbuf>(), align_of::<struct_utimbuf>());
+    expect_member("struct utimbuf", "actime", offset_of!(struct_utimbuf, actime));
+    expect_member("struct utimbuf", "modtime", offset_of!(struct_utimbuf, modtime));
+}
+
+#[test]
 fn abi_struct_tcp_md5sig() {
     expect_type("struct tcp_md5sig", size_of::<struct_tcp_md5sig>(), align_of::<struct_tcp_md5sig>());
     expect_member("struct tcp_md5sig", "tcpm_addr", offset_of!(struct_tcp_md5sig, tcpm_addr));
@@ -3988,6 +4007,261 @@ fn abi_prpsinfo_t() {
     expect_member("prpsinfo_t", "pr_sid", offset_of!(prpsinfo_t, pr_sid));
     expect_member("prpsinfo_t", "pr_fname", offset_of!(prpsinfo_t, pr_fname));
     expect_member("prpsinfo_t", "pr_psargs", offset_of!(prpsinfo_t, pr_psargs));
+}
+
+#[test]
+fn abi_ax25_address() {
+    expect_type("ax25_address", size_of::<ax25_address>(), align_of::<ax25_address>());
+    expect_member("ax25_address", "ax25_call", offset_of!(ax25_address, ax25_call));
+}
+
+#[test]
+fn abi_rose_address() {
+    expect_type("rose_address", size_of::<rose_address>(), align_of::<rose_address>());
+    expect_member("rose_address", "rose_addr", offset_of!(rose_address, rose_addr));
+}
+
+#[test]
+fn abi_struct_sockaddr_ax25() {
+    expect_type("struct sockaddr_ax25", size_of::<struct_sockaddr_ax25>(), align_of::<struct_sockaddr_ax25>());
+    expect_member("struct sockaddr_ax25", "sax25_family", offset_of!(struct_sockaddr_ax25, sax25_family));
+    expect_member("struct sockaddr_ax25", "sax25_call", offset_of!(struct_sockaddr_ax25, sax25_call));
+    expect_member("struct sockaddr_ax25", "sax25_call.ax25_call", offset_of!(struct_sockaddr_ax25, sax25_call.ax25_call));
+    expect_member("struct sockaddr_ax25", "sax25_ndigis", offset_of!(struct_sockaddr_ax25, sax25_ndigis));
+}
+
+#[test]
+fn abi_struct_full_sockaddr_ax25() {
+    expect_type("struct full_sockaddr_ax25", size_of::<struct_full_sockaddr_ax25>(), align_of::<struct_full_sockaddr_ax25>());
+    expect_member("struct full_sockaddr_ax25", "fsa_ax25", offset_of!(struct_full_sockaddr_ax25, fsa_ax25));
+    expect_member("struct full_sockaddr_ax25", "fsa_ax25.sax25_family", offset_of!(struct_full_sockaddr_ax25, fsa_ax25.sax25_family));
+    expect_member("struct full_sockaddr_ax25", "fsa_ax25.sax25_call", offset_of!(struct_full_sockaddr_ax25, fsa_ax25.sax25_call));
+    expect_member("struct full_sockaddr_ax25", "fsa_ax25.sax25_call.ax25_call", offset_of!(struct_full_sockaddr_ax25, fsa_ax25.sax25_call.ax25_call));
+    expect_member("struct full_sockaddr_ax25", "fsa_ax25.sax25_ndigis", offset_of!(struct_full_sockaddr_ax25, fsa_ax25.sax25_ndigis));
+    expect_member("struct full_sockaddr_ax25", "fsa_digipeater", offset_of!(struct_full_sockaddr_ax25, fsa_digipeater));
+}
+
+#[test]
+fn abi_struct_ax25_routes_struct() {
+    expect_type("struct ax25_routes_struct", size_of::<struct_ax25_routes_struct>(), align_of::<struct_ax25_routes_struct>());
+    expect_member("struct ax25_routes_struct", "port_addr", offset_of!(struct_ax25_routes_struct, port_addr));
+    expect_member("struct ax25_routes_struct", "port_addr.ax25_call", offset_of!(struct_ax25_routes_struct, port_addr.ax25_call));
+    expect_member("struct ax25_routes_struct", "dest_addr", offset_of!(struct_ax25_routes_struct, dest_addr));
+    expect_member("struct ax25_routes_struct", "dest_addr.ax25_call", offset_of!(struct_ax25_routes_struct, dest_addr.ax25_call));
+    expect_member("struct ax25_routes_struct", "digi_count", offset_of!(struct_ax25_routes_struct, digi_count));
+    expect_member("struct ax25_routes_struct", "digi_addr", offset_of!(struct_ax25_routes_struct, digi_addr));
+}
+
+#[test]
+fn abi_struct_ax25_route_opt_struct() {
+    expect_type("struct ax25_route_opt_struct", size_of::<struct_ax25_route_opt_struct>(), align_of::<struct_ax25_route_opt_struct>());
+    expect_member("struct ax25_route_opt_struct", "port_addr", offset_of!(struct_ax25_route_opt_struct, port_addr));
+    expect_member("struct ax25_route_opt_struct", "port_addr.ax25_call", offset_of!(struct_ax25_route_opt_struct, port_addr.ax25_call));
+    expect_member("struct ax25_route_opt_struct", "dest_addr", offset_of!(struct_ax25_route_opt_struct, dest_addr));
+    expect_member("struct ax25_route_opt_struct", "dest_addr.ax25_call", offset_of!(struct_ax25_route_opt_struct, dest_addr.ax25_call));
+    expect_member("struct ax25_route_opt_struct", "cmd", offset_of!(struct_ax25_route_opt_struct, cmd));
+    expect_member("struct ax25_route_opt_struct", "arg", offset_of!(struct_ax25_route_opt_struct, arg));
+}
+
+#[test]
+fn abi_struct_ax25_ctl_struct() {
+    expect_type("struct ax25_ctl_struct", size_of::<struct_ax25_ctl_struct>(), align_of::<struct_ax25_ctl_struct>());
+    expect_member("struct ax25_ctl_struct", "port_addr", offset_of!(struct_ax25_ctl_struct, port_addr));
+    expect_member("struct ax25_ctl_struct", "port_addr.ax25_call", offset_of!(struct_ax25_ctl_struct, port_addr.ax25_call));
+    expect_member("struct ax25_ctl_struct", "source_addr", offset_of!(struct_ax25_ctl_struct, source_addr));
+    expect_member("struct ax25_ctl_struct", "source_addr.ax25_call", offset_of!(struct_ax25_ctl_struct, source_addr.ax25_call));
+    expect_member("struct ax25_ctl_struct", "dest_addr", offset_of!(struct_ax25_ctl_struct, dest_addr));
+    expect_member("struct ax25_ctl_struct", "dest_addr.ax25_call", offset_of!(struct_ax25_ctl_struct, dest_addr.ax25_call));
+    expect_member("struct ax25_ctl_struct", "cmd", offset_of!(struct_ax25_ctl_struct, cmd));
+    expect_member("struct ax25_ctl_struct", "arg", offset_of!(struct_ax25_ctl_struct, arg));
+    expect_member("struct ax25_ctl_struct", "digi_count", offset_of!(struct_ax25_ctl_struct, digi_count));
+    expect_member("struct ax25_ctl_struct", "digi_addr", offset_of!(struct_ax25_ctl_struct, digi_addr));
+}
+
+#[test]
+fn abi_struct_ax25_info_struct() {
+    expect_type("struct ax25_info_struct", size_of::<struct_ax25_info_struct>(), align_of::<struct_ax25_info_struct>());
+    expect_member("struct ax25_info_struct", "n2", offset_of!(struct_ax25_info_struct, n2));
+    expect_member("struct ax25_info_struct", "n2count", offset_of!(struct_ax25_info_struct, n2count));
+    expect_member("struct ax25_info_struct", "t1", offset_of!(struct_ax25_info_struct, t1));
+    expect_member("struct ax25_info_struct", "t1timer", offset_of!(struct_ax25_info_struct, t1timer));
+    expect_member("struct ax25_info_struct", "t2", offset_of!(struct_ax25_info_struct, t2));
+    expect_member("struct ax25_info_struct", "t2timer", offset_of!(struct_ax25_info_struct, t2timer));
+    expect_member("struct ax25_info_struct", "t3", offset_of!(struct_ax25_info_struct, t3));
+    expect_member("struct ax25_info_struct", "t3timer", offset_of!(struct_ax25_info_struct, t3timer));
+    expect_member("struct ax25_info_struct", "idle", offset_of!(struct_ax25_info_struct, idle));
+    expect_member("struct ax25_info_struct", "idletimer", offset_of!(struct_ax25_info_struct, idletimer));
+    expect_member("struct ax25_info_struct", "state", offset_of!(struct_ax25_info_struct, state));
+    expect_member("struct ax25_info_struct", "rcv_q", offset_of!(struct_ax25_info_struct, rcv_q));
+    expect_member("struct ax25_info_struct", "snd_q", offset_of!(struct_ax25_info_struct, snd_q));
+}
+
+#[test]
+fn abi_struct_ax25_fwd_struct() {
+    expect_type("struct ax25_fwd_struct", size_of::<struct_ax25_fwd_struct>(), align_of::<struct_ax25_fwd_struct>());
+    expect_member("struct ax25_fwd_struct", "port_from", offset_of!(struct_ax25_fwd_struct, port_from));
+    expect_member("struct ax25_fwd_struct", "port_from.ax25_call", offset_of!(struct_ax25_fwd_struct, port_from.ax25_call));
+    expect_member("struct ax25_fwd_struct", "port_to", offset_of!(struct_ax25_fwd_struct, port_to));
+    expect_member("struct ax25_fwd_struct", "port_to.ax25_call", offset_of!(struct_ax25_fwd_struct, port_to.ax25_call));
+}
+
+#[test]
+fn abi_struct_nr_route_struct() {
+    expect_type("struct nr_route_struct", size_of::<struct_nr_route_struct>(), align_of::<struct_nr_route_struct>());
+    expect_member("struct nr_route_struct", "type", offset_of!(struct_nr_route_struct, r#type));
+    expect_member("struct nr_route_struct", "callsign", offset_of!(struct_nr_route_struct, callsign));
+    expect_member("struct nr_route_struct", "callsign.ax25_call", offset_of!(struct_nr_route_struct, callsign.ax25_call));
+    expect_member("struct nr_route_struct", "device", offset_of!(struct_nr_route_struct, device));
+    expect_member("struct nr_route_struct", "quality", offset_of!(struct_nr_route_struct, quality));
+    expect_member("struct nr_route_struct", "mnemonic", offset_of!(struct_nr_route_struct, mnemonic));
+    expect_member("struct nr_route_struct", "neighbour", offset_of!(struct_nr_route_struct, neighbour));
+    expect_member("struct nr_route_struct", "neighbour.ax25_call", offset_of!(struct_nr_route_struct, neighbour.ax25_call));
+    expect_member("struct nr_route_struct", "obs_count", offset_of!(struct_nr_route_struct, obs_count));
+    expect_member("struct nr_route_struct", "ndigis", offset_of!(struct_nr_route_struct, ndigis));
+    expect_member("struct nr_route_struct", "digipeaters", offset_of!(struct_nr_route_struct, digipeaters));
+}
+
+#[test]
+fn abi_struct_sockaddr_rose() {
+    expect_type("struct sockaddr_rose", size_of::<struct_sockaddr_rose>(), align_of::<struct_sockaddr_rose>());
+    expect_member("struct sockaddr_rose", "srose_family", offset_of!(struct_sockaddr_rose, srose_family));
+    expect_member("struct sockaddr_rose", "srose_addr", offset_of!(struct_sockaddr_rose, srose_addr));
+    expect_member("struct sockaddr_rose", "srose_addr.rose_addr", offset_of!(struct_sockaddr_rose, srose_addr.rose_addr));
+    expect_member("struct sockaddr_rose", "srose_call", offset_of!(struct_sockaddr_rose, srose_call));
+    expect_member("struct sockaddr_rose", "srose_call.ax25_call", offset_of!(struct_sockaddr_rose, srose_call.ax25_call));
+    expect_member("struct sockaddr_rose", "srose_ndigis", offset_of!(struct_sockaddr_rose, srose_ndigis));
+    expect_member("struct sockaddr_rose", "srose_digi", offset_of!(struct_sockaddr_rose, srose_digi));
+    expect_member("struct sockaddr_rose", "srose_digi.ax25_call", offset_of!(struct_sockaddr_rose, srose_digi.ax25_call));
+}
+
+#[test]
+fn abi_struct_full_sockaddr_rose() {
+    expect_type("struct full_sockaddr_rose", size_of::<struct_full_sockaddr_rose>(), align_of::<struct_full_sockaddr_rose>());
+    expect_member("struct full_sockaddr_rose", "srose_family", offset_of!(struct_full_sockaddr_rose, srose_family));
+    expect_member("struct full_sockaddr_rose", "srose_addr", offset_of!(struct_full_sockaddr_rose, srose_addr));
+    expect_member("struct full_sockaddr_rose", "srose_addr.rose_addr", offset_of!(struct_full_sockaddr_rose, srose_addr.rose_addr));
+    expect_member("struct full_sockaddr_rose", "srose_call", offset_of!(struct_full_sockaddr_rose, srose_call));
+    expect_member("struct full_sockaddr_rose", "srose_call.ax25_call", offset_of!(struct_full_sockaddr_rose, srose_call.ax25_call));
+    expect_member("struct full_sockaddr_rose", "srose_ndigis", offset_of!(struct_full_sockaddr_rose, srose_ndigis));
+    expect_member("struct full_sockaddr_rose", "srose_digis", offset_of!(struct_full_sockaddr_rose, srose_digis));
+}
+
+#[test]
+fn abi_struct_rose_route_struct() {
+    expect_type("struct rose_route_struct", size_of::<struct_rose_route_struct>(), align_of::<struct_rose_route_struct>());
+    expect_member("struct rose_route_struct", "address", offset_of!(struct_rose_route_struct, address));
+    expect_member("struct rose_route_struct", "address.rose_addr", offset_of!(struct_rose_route_struct, address.rose_addr));
+    expect_member("struct rose_route_struct", "mask", offset_of!(struct_rose_route_struct, mask));
+    expect_member("struct rose_route_struct", "neighbour", offset_of!(struct_rose_route_struct, neighbour));
+    expect_member("struct rose_route_struct", "neighbour.ax25_call", offset_of!(struct_rose_route_struct, neighbour.ax25_call));
+    expect_member("struct rose_route_struct", "device", offset_of!(struct_rose_route_struct, device));
+    expect_member("struct rose_route_struct", "ndigis", offset_of!(struct_rose_route_struct, ndigis));
+    expect_member("struct rose_route_struct", "digipeaters", offset_of!(struct_rose_route_struct, digipeaters));
+}
+
+#[test]
+fn abi_struct_rose_cause_struct() {
+    expect_type("struct rose_cause_struct", size_of::<struct_rose_cause_struct>(), align_of::<struct_rose_cause_struct>());
+    expect_member("struct rose_cause_struct", "cause", offset_of!(struct_rose_cause_struct, cause));
+    expect_member("struct rose_cause_struct", "diagnostic", offset_of!(struct_rose_cause_struct, diagnostic));
+}
+
+#[test]
+fn abi_struct_rose_facilities_struct() {
+    expect_type("struct rose_facilities_struct", size_of::<struct_rose_facilities_struct>(), align_of::<struct_rose_facilities_struct>());
+    expect_member("struct rose_facilities_struct", "source_addr", offset_of!(struct_rose_facilities_struct, source_addr));
+    expect_member("struct rose_facilities_struct", "source_addr.rose_addr", offset_of!(struct_rose_facilities_struct, source_addr.rose_addr));
+    expect_member("struct rose_facilities_struct", "dest_addr", offset_of!(struct_rose_facilities_struct, dest_addr));
+    expect_member("struct rose_facilities_struct", "dest_addr.rose_addr", offset_of!(struct_rose_facilities_struct, dest_addr.rose_addr));
+    expect_member("struct rose_facilities_struct", "source_call", offset_of!(struct_rose_facilities_struct, source_call));
+    expect_member("struct rose_facilities_struct", "source_call.ax25_call", offset_of!(struct_rose_facilities_struct, source_call.ax25_call));
+    expect_member("struct rose_facilities_struct", "dest_call", offset_of!(struct_rose_facilities_struct, dest_call));
+    expect_member("struct rose_facilities_struct", "dest_call.ax25_call", offset_of!(struct_rose_facilities_struct, dest_call.ax25_call));
+    expect_member("struct rose_facilities_struct", "source_ndigis", offset_of!(struct_rose_facilities_struct, source_ndigis));
+    expect_member("struct rose_facilities_struct", "dest_ndigis", offset_of!(struct_rose_facilities_struct, dest_ndigis));
+    expect_member("struct rose_facilities_struct", "source_digis", offset_of!(struct_rose_facilities_struct, source_digis));
+    expect_member("struct rose_facilities_struct", "dest_digis", offset_of!(struct_rose_facilities_struct, dest_digis));
+    expect_member("struct rose_facilities_struct", "rand", offset_of!(struct_rose_facilities_struct, rand));
+    expect_member("struct rose_facilities_struct", "fail_addr", offset_of!(struct_rose_facilities_struct, fail_addr));
+    expect_member("struct rose_facilities_struct", "fail_addr.rose_addr", offset_of!(struct_rose_facilities_struct, fail_addr.rose_addr));
+    expect_member("struct rose_facilities_struct", "fail_call", offset_of!(struct_rose_facilities_struct, fail_call));
+    expect_member("struct rose_facilities_struct", "fail_call.ax25_call", offset_of!(struct_rose_facilities_struct, fail_call.ax25_call));
+}
+
+#[test]
+fn abi_struct_sockaddr_ipx() {
+    expect_type("struct sockaddr_ipx", size_of::<struct_sockaddr_ipx>(), align_of::<struct_sockaddr_ipx>());
+    expect_member("struct sockaddr_ipx", "sipx_family", offset_of!(struct_sockaddr_ipx, sipx_family));
+    expect_member("struct sockaddr_ipx", "sipx_port", offset_of!(struct_sockaddr_ipx, sipx_port));
+    expect_member("struct sockaddr_ipx", "sipx_network", offset_of!(struct_sockaddr_ipx, sipx_network));
+    expect_member("struct sockaddr_ipx", "sipx_node", offset_of!(struct_sockaddr_ipx, sipx_node));
+    expect_member("struct sockaddr_ipx", "sipx_type", offset_of!(struct_sockaddr_ipx, sipx_type));
+    expect_member("struct sockaddr_ipx", "sipx_zero", offset_of!(struct_sockaddr_ipx, sipx_zero));
+}
+
+#[test]
+fn abi_struct_ipx_route_definition() {
+    expect_type("struct ipx_route_definition", size_of::<struct_ipx_route_definition>(), align_of::<struct_ipx_route_definition>());
+    expect_member("struct ipx_route_definition", "ipx_network", offset_of!(struct_ipx_route_definition, ipx_network));
+    expect_member("struct ipx_route_definition", "ipx_router_network", offset_of!(struct_ipx_route_definition, ipx_router_network));
+    expect_member("struct ipx_route_definition", "ipx_router_node", offset_of!(struct_ipx_route_definition, ipx_router_node));
+}
+
+#[test]
+fn abi_struct_ipx_interface_definition() {
+    expect_type("struct ipx_interface_definition", size_of::<struct_ipx_interface_definition>(), align_of::<struct_ipx_interface_definition>());
+    expect_member("struct ipx_interface_definition", "ipx_network", offset_of!(struct_ipx_interface_definition, ipx_network));
+    expect_member("struct ipx_interface_definition", "ipx_device", offset_of!(struct_ipx_interface_definition, ipx_device));
+    expect_member("struct ipx_interface_definition", "ipx_dlink_type", offset_of!(struct_ipx_interface_definition, ipx_dlink_type));
+    expect_member("struct ipx_interface_definition", "ipx_special", offset_of!(struct_ipx_interface_definition, ipx_special));
+    expect_member("struct ipx_interface_definition", "ipx_node", offset_of!(struct_ipx_interface_definition, ipx_node));
+}
+
+#[test]
+fn abi_struct_ipx_config_data() {
+    expect_type("struct ipx_config_data", size_of::<struct_ipx_config_data>(), align_of::<struct_ipx_config_data>());
+    expect_member("struct ipx_config_data", "ipxcfg_auto_select_primary", offset_of!(struct_ipx_config_data, ipxcfg_auto_select_primary));
+    expect_member("struct ipx_config_data", "ipxcfg_auto_create_interfaces", offset_of!(struct_ipx_config_data, ipxcfg_auto_create_interfaces));
+}
+
+#[test]
+fn abi_struct_ipx_route_def() {
+    expect_type("struct ipx_route_def", size_of::<struct_ipx_route_def>(), align_of::<struct_ipx_route_def>());
+    expect_member("struct ipx_route_def", "ipx_network", offset_of!(struct_ipx_route_def, ipx_network));
+    expect_member("struct ipx_route_def", "ipx_router_network", offset_of!(struct_ipx_route_def, ipx_router_network));
+    expect_member("struct ipx_route_def", "ipx_router_node", offset_of!(struct_ipx_route_def, ipx_router_node));
+    expect_member("struct ipx_route_def", "ipx_device", offset_of!(struct_ipx_route_def, ipx_device));
+    expect_member("struct ipx_route_def", "ipx_flags", offset_of!(struct_ipx_route_def, ipx_flags));
+}
+
+#[test]
+fn abi_struct_sockaddr_ec() {
+    expect_type("struct sockaddr_ec", size_of::<struct_sockaddr_ec>(), align_of::<struct_sockaddr_ec>());
+    expect_member("struct sockaddr_ec", "sec_family", offset_of!(struct_sockaddr_ec, sec_family));
+    expect_member("struct sockaddr_ec", "port", offset_of!(struct_sockaddr_ec, port));
+    expect_member("struct sockaddr_ec", "cb", offset_of!(struct_sockaddr_ec, cb));
+    expect_member("struct sockaddr_ec", "type", offset_of!(struct_sockaddr_ec, r#type));
+    expect_member("struct sockaddr_ec", "addr", offset_of!(struct_sockaddr_ec, addr));
+    expect_member("struct sockaddr_ec", "addr.station", offset_of!(struct_sockaddr_ec, addr.station));
+    expect_member("struct sockaddr_ec", "addr.net", offset_of!(struct_sockaddr_ec, addr.net));
+    expect_member("struct sockaddr_ec", "cookie", offset_of!(struct_sockaddr_ec, cookie));
+}
+
+#[test]
+fn abi_struct_ec_addr() {
+    expect_type("struct ec_addr", size_of::<struct_ec_addr>(), align_of::<struct_ec_addr>());
+    expect_member("struct ec_addr", "station", offset_of!(struct_ec_addr, station));
+    expect_member("struct ec_addr", "net", offset_of!(struct_ec_addr, net));
+}
+
+#[test]
+fn abi_struct_sockaddr_ash() {
+    expect_type("struct sockaddr_ash", size_of::<struct_sockaddr_ash>(), align_of::<struct_sockaddr_ash>());
+    expect_member("struct sockaddr_ash", "sash_family", offset_of!(struct_sockaddr_ash, sash_family));
+    expect_member("struct sockaddr_ash", "sash_ifindex", offset_of!(struct_sockaddr_ash, sash_ifindex));
+    expect_member("struct sockaddr_ash", "sash_channel", offset_of!(struct_sockaddr_ash, sash_channel));
+    expect_member("struct sockaddr_ash", "sash_plen", offset_of!(struct_sockaddr_ash, sash_plen));
+    expect_member("struct sockaddr_ash", "sash_prefix", offset_of!(struct_sockaddr_ash, sash_prefix));
 }
 
 #[test]

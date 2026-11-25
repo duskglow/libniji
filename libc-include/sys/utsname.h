@@ -2,6 +2,7 @@
 /* sys/utsname.h: system name structure (XSH <sys/utsname.h>). */
 #ifndef __NIJI_H_sys_utsname_h
 #define __NIJI_H_sys_utsname_h 1
+#define _SYS_UTSNAME_H 1
 
 #include <features.h>
 

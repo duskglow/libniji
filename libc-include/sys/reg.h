@@ -2,6 +2,7 @@
 /* sys/reg.h: the indexes of the registers in struct user_regs_struct. */
 #ifndef __NIJI_H_sys_reg_h
 #define __NIJI_H_sys_reg_h 1
+#define _SYS_REG_H 1
 
 #if 1
 # ifndef CS

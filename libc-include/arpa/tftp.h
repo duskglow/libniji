@@ -2,6 +2,7 @@
 /* arpa/tftp.h: TFTP packet layout (RFC 1350) */
 #ifndef __NIJI_H_arpa_tftp_h
 #define __NIJI_H_arpa_tftp_h 1
+#define _ARPA_TFTP_H 1
 
 #include <features.h>
 

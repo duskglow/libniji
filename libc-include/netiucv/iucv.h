@@ -2,6 +2,7 @@
 /* netiucv/iucv.h: IUCV */
 #ifndef __NIJI_H_netiucv_iucv_h
 #define __NIJI_H_netiucv_iucv_h 1
+#define __NETIUCV_IUCV_H 1
 
 #include <features.h>
 

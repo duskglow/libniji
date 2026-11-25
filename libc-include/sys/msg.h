@@ -2,6 +2,7 @@
 /* sys/msg.h: System V message queues (XSH <sys/msg.h>). */
 #ifndef __NIJI_H_sys_msg_h
 #define __NIJI_H_sys_msg_h 1
+#define _SYS_MSG_H
 
 #include <features.h>
 #include <sys/ipc.h>
