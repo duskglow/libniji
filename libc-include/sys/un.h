@@ -9,6 +9,13 @@
 # include <string.h>
 #endif
 
+/* max_align_t, ptrdiff_t, offsetof and the rest of the compiler's <stddef.h> where the reference shows them (its misc
+   configurations): the compiler's own definition, so a program's <stddef.h> before or after this one declares the one
+   type, whatever guard macros that compiler uses. */
+#if __NIJI_MISC
+# include <stddef.h>
+#endif
+
 __NIJI_BEGIN_C
 
 #if 1
@@ -19,17 +26,6 @@ struct sockaddr_un {
   char sun_path[108];
 };
 # endif
-#endif
-#if (__NIJI_MISC && __NIJI_CXX < 1) || __NIJI_CXX >= 2
-# ifndef __NIJI_D_max_align_t
-#  define __NIJI_D_max_align_t 1
-typedef struct {
-  long long __max_align_ll;
-  long double __max_align_ld;
-} max_align_t;
-# endif
-#endif
-#if 1
 # ifndef __NIJI_D_sa_family_t
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
