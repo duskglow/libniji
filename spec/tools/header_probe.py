@@ -322,6 +322,22 @@ def net_names():
     return n, tags
 
 
+def package_names():
+    """Names that package builds against libniji's headers failed on (HEADERS-SNAPSHOT-GAPS: the snapshot of
+    2026-11-24 built tree, xxhash and a static busybox), with the members of the same families that a program's
+    own source or the reference system's installed documentation names: the BSD integer type names (tree's
+    `u_long`; busybox's `caddr_t`, `loff_t`, `ulong`), the regex translate-table type (busybox's grep), and the
+    login-accounting and other default path macros (busybox's sources, utmp(5), utmpx(5) and the installed
+    documentation). A candidate is only a name to test: which header shows it, and its type or value, are probed."""
+    out = ["u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t",
+           "u_int8_t", "u_int16_t", "u_int32_t", "u_int64_t", "caddr_t", "daddr_t", "loff_t", "register_t",
+           "RE_TRANSLATE_TYPE", "UTMP_FILE", "UTMPX_FILE", "WTMP_FILE", "WTMPX_FILE"]
+    out += [f"_PATH_{p}" for p in ("BSHELL", "BTMP", "DEFPATH", "DEV", "FSTAB", "GROUP", "GSHADOW", "KLOG", "LOG",
+                                   "LOGIN", "MNTTAB", "MOUNTED", "MTAB", "PASSWD", "SERVICES", "SHADOW", "TMP",
+                                   "TTY", "TTYS", "UTMP", "UTMPX", "WTMP", "WTMPX")]
+    return out
+
+
 def candidates():
     """(ordinary names, tag names) from the existing spec/abi tables."""
     names, tags = set(), set()
@@ -350,6 +366,10 @@ def candidates():
     names.update(c_integer_names())
     names.update(standard_names())
     names.update(math_names())
+    names.update(package_names())
+    # The public type name of each reserved one (`__blksize_t` spells struct stat's member, `blksize_t` is the
+    # name XBD <sys/types.h> gives programs): a header that shows the reserved type may show its public name.
+    names.update(n[2:] for n in list(names) if n.startswith("__") and n.endswith("_t") and not n.startswith("___"))
     net, net_tags = net_names()
     names.update(net)
     tags.update(net_tags)
@@ -520,6 +540,7 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--headers", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--names", default="", help="FILE: probe only the candidates it lists (whitespace-separated)")
     ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
     args = ap.parse_args()
     if args.include:
@@ -527,6 +548,12 @@ def main():
         BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, *uapi_flags()])
     headers = args.headers.split(",") if args.headers else public_headers()
     names, tags = candidates()
+    if args.names:
+        # A name's rows depend on that name's units only, so probing a subset gives exactly the full run's rows
+        # for those names (rows to splice into the committed table).
+        with open(args.names) as f:
+            only = set(f.read().split())
+        names, tags = [n for n in names if n in only], [t for t in tags if t in only]
     work = tempfile.mkdtemp(prefix="header_probe.")
     try:
         langs = sorted({c[1] for c in CONFIGS})
