@@ -1,45 +1,46 @@
 # HEADERS-STAGE2-GAPS-B (Yohane stage 2: openssh, apt, binutils, krb5, systemd, apparmor, babeltrace, avahi)
 
-**State:** branch `task/headers-stage2-gaps-b` (from origin/next e125f7e34). Leg 2 ends at the WIP head pushed with
-this note. Role keke:~/w/n2. Local scratch `~/w/.scratch/HEADERS-STAGE2-GAPS-B/` (p1..p5.sh, probe1/2.sh,
-check1.sh, splice.py, r1/ probe outputs); on keke `~/work/headers-stage2-gaps-b/`. Decisions: none new (probes).
+**State:** branch `task/headers-stage2-gaps-b` (from origin/next e125f7e34), leg 3 ends at 88ad51cb2 (pushed). Role
+keke:~/w/n2. Local scratch `~/w/.scratch/HEADERS-STAGE2-GAPS-B/` (regen3/gate3/proof/proof2/probe3.sh, overlay.py,
+ncc, splice.py, sortmacros.py, security-private.txt); on keke `~/work/headers-stage2-gaps-b/`. Decisions: none new.
 
 ## Done
-* Leg 1 (d687e907a): attr_probe sentinel + `format_arg` (gettext family), macro-aliases.tsv + aliases.py module,
-  headers.rs `attr_text` format_arg, enums.rs `macro_alias`. Details: openssh premise corrected (stock signal.h DOES
-  declare execl* under _GNU_SOURCE; real cause our `__sentinel__ (0)` spelling, now none, as stock).
-* Leg 2 fdc3f38ea: header_probe `stage2_names()`, abi_extract ELF pair types; tables spliced (visibility +109,
-  layouts +61, typedefs +20, macros +15, enumerators +14; whole regenerations of layouts/enumerators move unrelated
-  rows, so splice only); `__RES` 19991006 via headers/reserved.tsv emit; IN6ADDR_*_INIT in netinet/in.h.in;
-  headers.rs prefers macro_alias over enum_macro (MSG_TRYHARD -> MSG_DONTROUTE, one-step stringize stock vs ours);
-  header_check units s12 `initializers`, s16 `dl_requests`.
-* Leg 2 WIP commit: s10 `format_arg libintl.h` unit (pragma -Wformat-security error), plants file
-  handoff/HEADERS-STAGE2-GAPS-B-plants.txt (5 plants), regenerated libc-include + crates/abi (from hgen2: NOT yet
-  with the __RES row and the alias precedence; regenerate again).
-* Probe p5 (keke, before the precedence fix): all items compile C and C++, stock and ours, with
-  -Werror=format-security; AF_/PF_/MSG_/SOL_/SO_/SCM_ one-step forms equal except MSG_TRYHARD (fixed since);
-  systemd's af list step finds the same 48 names with both.
+* Legs 1-2: attr_probe sentinel + format_arg, macro-aliases.tsv + aliases.py, AF_x as PF_x, __RES, RTLD_DI_* +
+  Dl_serinfo, IN6ADDR_*_INIT, ELF 32/64 pairs, header_check units (s10 format_arg, s12 initializers, s16 dl_requests).
+* Leg 3: 78d949bc0 "Spell a macro as its alias where the reference shows the alias" (macro_alias returns a condition when
+  the alias is narrower: SO_RCVTIMEO is SO_RCVTIMEO_OLD where shown, value elsewhere; macros.tsv re-sorted, abi-types
+  was red); 941fcbf01 "Regenerate headers" (resolv.h __RES, sys/socket.h SO_*, limits.h _XOPEN_IOV_MAX, sys/mount.h
+  OPEN_TREE_CLOEXEC); 88ad51cb2 attr_probe `s` lines differing only by -Wformat-extra-args = known difference
+  SENTINEL_FORMAT (s19 test was red: printf/fprintf/sprintf/scanf/fscanf/sscanf carry format in libniji, reference
+  relies on builtins; visible only under -fno-builtin: INFORMATIONAL), and header_probe stage2_names + UDP_* (12),
+  SOL_UDP, TCP_ENCAP_ESPINTCP, ELFMAG (coordinator notes 11:58Z, 12:07Z).
+* Jobs: check1 (SUPERSEDED: ALIAS-DIFF SO_*, abi-types, private-paths; all fixed), regen3 green, gate3 on 941fcbf01
+  (header_check 0 failed of 19652, clippy, static OK, cargo test 983 passed / 1 failed = s19, fixed in 88ad51cb2;
+  its drift check printed "not a git repository": role dir has no .git, use a checksum instead), plants1 on 941fcbf01
+  (running at 12:12Z; caught so far: format-arg-dropped, alias-narrow-dropped, alias-after-enum).
+* Proofs on 941fcbf01 headers (proof1/proof2, ncc = -nostdinc + libc-include + host headers minus libc6-dev, linked
+  with the host's libc): systemd af list 48 = 48 names equal; krb5 1.21.3 configure + make util/support OK; openssh
+  10.0p1 --without-openssl --without-zlib, make -k ssh sshd: 2 files fail, getrrsetbyname.c (HEADER, landed on next
+  with HEADERS-APT-GAPS-2) and misc.c (TCP_NODELAY: HEADERS-NET-SYS-NAMES item 1, merging next per coordinator #8568).
+
+## Exact next steps (leg 4)
+1. plants1: `~/bin/jobwait headers-stage2-gaps-b-plants1` (it runs from ~/w/n2: sync is BUSY until it ends).
+2. Sync 88ad51cb2; job `probe3` again (`~/work/headers-stage2-gaps-b/probe3.sh`, label e.g. ...-probe3c): visibility
+   rows (vis3/visibility.tsv) and values (tp3/*.tsv) of UDP_*/SOL_UDP/TCP_ENCAP_ESPINTCP/ELFMAG. Splice with
+   `splice.py vis` / `splice.py rows` (splice only, never whole regeneration); ELFMAG's macros.tsv row is a string
+   (`char[5]`, as `_PATH_BSHELL`'s); keep macros.tsv sorted by name (byte order). Add a header_check unit if one fits
+   (s12 `initializers` style or the udp.h slice) and a plant for it.
+3. Merge origin/next (coordinator allows; conflicts in generated files: regenerate, never hand-merge), `cargo xtask
+   headers-gen`, rsync libc-include/ and crates/abi/ back, commit.
+4. On the final head: gate (headers-gen drift by checksum, `cargo test -p niji-abi -p xtask`, full header_check, clippy,
+   static; affected escalates FULL: write `FULL: the train's (generated tables)`), plants (new dir plants-2, add the
+   new plant), proof.sh + proof2.sh (openssh expected 0 failing files if NET-SYS-NAMES landed; otherwise name misc.c).
+5. precheck `--jobs <labels> --head <sha>`, report json, handback-check, hand-back with security-private.txt verbatim.
 
 ## Open / for the hand-back
-* RTLD_DI_CONFIGADDR/PROFILENAME/PROFILEOUT: declared (reference enumerators, man dlinfo documents none of them); our
-  dlinfo serves LMID, LINKMAP, ORIGIN, SERINFO, SERINFOSIZE, TLS_MODID, TLS_DATA, PHDR and refuses those three
-  (-1, dlerror). RULING NEEDED: recommend keep declared (source compatibility, refused cleanly).
-* Hand-back: include the section in local scratch `security-private.txt` verbatim (never in the repo).
-* INFORMATIONAL: CHAR_MAX is SCHAR_MAX unconditionally in our limits.h (pre-existing; not checked under
-  -funsigned-char). ELF32_ST_*/ELF64_R_* function macros absent in both halves (no table rows). Leg 1's items too
-  (diagattrs `pure` drift 182 cells; pthread_create nonnull 1,2,3,4 vs stock 1,3).
-* Static: private-paths failed only on this note's old home path (fixed here).
-
-## Exact next steps (leg 3)
-1. `~/bin/jobwait headers-stage2-gaps-b-check1` on keke (NIJI_ALIAS_ALL=1 header_check + clippy + static on fdc3f38ea
-   minus s10): read `~/work/headers-stage2-gaps-b/hc.log` FAIL lines; ALIAS-DIFF NOTE lines for other headers are
-   information (ENFORCED is sys/socket.h only). Superseded label: it ran without the s10 unit.
-2. Sync this head; job: `cargo xtask headers-gen` + `python3 spec/tools/header_check.py --only "format_arg|initializers|S16 dlinfo"`;
-   rsync libc-include/ and crates/abi/ back, commit "Regenerate headers" (generated files only).
-3. Gate: `cargo xtask affected --list` (likely FULL: generated tables -> precheck + header_check job, write
-   `FULL: the train's (...)`), plants job via `cargo xtask plants handoff/HEADERS-STAGE2-GAPS-B-plants.txt --dir
-   /dev/shm/claude/headers-stage2-gaps-b/plants-1 --timeout 600` (keke is Zen 1). Append results to the plants file.
-4. Proof builds (blocking per brief): no sources fetched yet. openssh portable (trixie) configure+make ssh/sshd,
-   krb5 src/util/support, against libniji's headers (system flavour). If not reachable in budget: hand back with the
-   p5 compile proofs and say NOT VERIFIED for the package builds.
-5. clippy + static foreground, precheck, report json, handback-check.
+* RULING NEEDED: RTLD_DI_CONFIGADDR/PROFILENAME/PROFILEOUT declared (reference enumerators) but our dlinfo refuses
+  them (-1, dlerror); recommend keep declared. Others served: LMID, LINKMAP, ORIGIN, SERINFO, SERINFOSIZE, TLS_MODID,
+  TLS_DATA, PHDR.
+* INFORMATIONAL: -fno-builtin format attribute difference (above); CHAR_MAX unconditional; ELF32_ST_*/ELF64_R_* macros
+  absent both halves; diagattrs pure drift 182 cells; pthread_create nonnull 1,2,3,4 vs 1,3.
+* Process note: leg 3 ran `sed -i` twice by mistake (no effect either time: a no-op on this note, /dev/null).
