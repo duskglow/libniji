@@ -48,7 +48,14 @@ omitted. Five plants instead: `__fpending` emit row -> omit; math.h `@@when isin
 dropped); the cxx98 `throw()` arm of headers.rs's nothrow set removed; one stdbit.h `__NIJI_NOTHROW` removed; the
 C++11 exclusion of isinf removed (part 1).
 
-**RULING NEEDED / follow-up.** Recommend story HEADERS-O2-INLINES-2: give the 17 remaining -O2 inline forms (ctype.h
+**RULING NEEDED (precheck slice-contract RED).** The branch changes the shared generator in two places:
+xtask/src/headers.rs (nothrow set = C++17 `noexcept` OR C++98 `throw()`: math.h's 34 C99 functions) and
+xtask/src/headers/cond.rs (NOT_CXX11: isinf/isnan functions out of C++11+, probe-settled). Both are table-driven,
+covered by the rows test and plants p4cs-cxx98-throw / p4cs-not-cxx11. Recommend: accept them in this story (a
+cross-slice P4 follow-up, not a slice; the slice data cannot express either), else split them into a generator
+story carrying these two commits unchanged. precheck is otherwise green on c3297077a.
+
+**Follow-up.** Recommend story HEADERS-O2-INLINES-2: give the 17 remaining -O2 inline forms (ctype.h
 `is*_l`, the gettext family via dcgettext/dcngettext and LC_MESSAGES, `__cmsg_nxthdr`) under D-X.158's design and
 drop their 34 accept lines; the ctype ones read libniji's locale table inline, a layout dependence that needs the
 locale owner's look.

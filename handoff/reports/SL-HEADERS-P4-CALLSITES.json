@@ -2,15 +2,19 @@
  "task": "SL-HEADERS-P4-CALLSITES",
  "model": "opus",
  "tokens": null,
- "result": "P4 part 2 runs as a failing check: 116 real differences fixed (stdio_ext.h __f* names, stdbit.h 70 and math.h 34 exception specs, isinf/isnan and alloca functions), math.h's isinf/isnan kept out of C++11+, 43 remaining lines listed with reasons; __ names excluded per ruling #8468",
+ "result": "INCOMPLETE (ruling): P4 part 2 runs as a failing check: 116 real differences fixed (stdio_ext.h __f* names, stdbit.h 70 and math.h 34 exception specs, isinf/isnan and alloca functions), math.h's isinf/isnan kept out of C++11+, 43 remaining lines listed with reasons; __ names excluded per ruling #8468",
  "branch": "task/sl-headers-p4-callsites",
- "head": null,
+ "head": "see branch head",
  "gate": {
   "affected": "695 passed / 0 failed (6 suites, direct tier) + xtask headers 26 passed / 0 failed",
   "peak": "1.8G"
  },
  "accepted_first_attempt": null,
  "rulings": [
+  {
+   "item": "precheck slice-contract RED: the branch changes the shared generator (xtask/src/headers.rs nothrow set with C++98 throw(); xtask/src/headers/cond.rs NOT_CXX11 for math.h isinf/isnan)",
+   "recommendation": "accept both in this cross-slice P4 story (table-driven, rows test + plants p4cs-cxx98-throw/p4cs-not-cxx11 cover them), else move the two commits unchanged to a generator story"
+  },
   {
    "item": "17 -O2 inline forms (ctype.h is*_l, gettext/dgettext/ngettext/dngettext, __cmsg_nxthdr) accepted in validation/headers_p4.accept",
    "recommendation": "follow-up story HEADERS-O2-INLINES-2 under D-X.158; the ctype ones need the locale owner's look (inline table layout)"
