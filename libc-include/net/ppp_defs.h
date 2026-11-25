@@ -2,6 +2,7 @@
 /* net/ppp_defs.h: PPP definitions (RFC 1661) */
 #ifndef __NIJI_H_net_ppp_defs_h
 #define __NIJI_H_net_ppp_defs_h 1
+#define _NET_PPP_DEFS_H 1
 
 #include <features.h>
 #include <sys/types.h>

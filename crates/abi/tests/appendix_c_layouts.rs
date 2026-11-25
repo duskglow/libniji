@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (303 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (305 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3153,6 +3153,25 @@ fn abi_struct_mt_tape_info() {
     expect_type("struct mt_tape_info", size_of::<struct_mt_tape_info>(), align_of::<struct_mt_tape_info>());
     expect_member("struct mt_tape_info", "t_type", offset_of!(struct_mt_tape_info, t_type));
     expect_member("struct mt_tape_info", "t_name", offset_of!(struct_mt_tape_info, t_name));
+}
+
+#[test]
+fn abi_struct_ar_hdr() {
+    expect_type("struct ar_hdr", size_of::<struct_ar_hdr>(), align_of::<struct_ar_hdr>());
+    expect_member("struct ar_hdr", "ar_name", offset_of!(struct_ar_hdr, ar_name));
+    expect_member("struct ar_hdr", "ar_date", offset_of!(struct_ar_hdr, ar_date));
+    expect_member("struct ar_hdr", "ar_uid", offset_of!(struct_ar_hdr, ar_uid));
+    expect_member("struct ar_hdr", "ar_gid", offset_of!(struct_ar_hdr, ar_gid));
+    expect_member("struct ar_hdr", "ar_mode", offset_of!(struct_ar_hdr, ar_mode));
+    expect_member("struct ar_hdr", "ar_size", offset_of!(struct_ar_hdr, ar_size));
+    expect_member("struct ar_hdr", "ar_fmag", offset_of!(struct_ar_hdr, ar_fmag));
+}
+
+#[test]
+fn abi_struct_utimbuf() {
+    expect_type("struct utimbuf", size_of::<struct_utimbuf>(), align_of::<struct_utimbuf>());
+    expect_member("struct utimbuf", "actime", offset_of!(struct_utimbuf, actime));
+    expect_member("struct utimbuf", "modtime", offset_of!(struct_utimbuf, modtime));
 }
 
 #[test]

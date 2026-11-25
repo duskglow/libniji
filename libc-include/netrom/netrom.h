@@ -2,6 +2,7 @@
 /* netrom/netrom.h: NET/ROM */
 #ifndef __NIJI_H_netrom_netrom_h
 #define __NIJI_H_netrom_netrom_h 1
+#define _NETROM_NETROM_H 1
 
 #include <features.h>
 

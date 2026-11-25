@@ -2,6 +2,7 @@
 /* netash/ash.h: Ash family */
 #ifndef __NIJI_H_netash_ash_h
 #define __NIJI_H_netash_ash_h 1
+#define _NETASH_ASH_H 1
 
 #include <features.h>
 

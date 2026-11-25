@@ -2,6 +2,7 @@
 /* sys/shm.h: System V shared memory (XSH <sys/shm.h>). */
 #ifndef __NIJI_H_sys_shm_h
 #define __NIJI_H_sys_shm_h 1
+#define _SYS_SHM_H 1
 
 #include <features.h>
 #include <sys/ipc.h>

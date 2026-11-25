@@ -2,6 +2,7 @@
 /* scsi/sg.h: SCSI generic (sg(4)) */
 #ifndef __NIJI_H_scsi_sg_h
 #define __NIJI_H_scsi_sg_h 1
+#define _SCSI_SG_H 1
 
 #include <features.h>
 

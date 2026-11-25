@@ -2,6 +2,7 @@
 /* nl_types.h: message catalogs (XSH <nl_types.h>). */
 #ifndef __NIJI_H_nl_types_h
 #define __NIJI_H_nl_types_h 1
+#define _NL_TYPES_H 1
 
 #include <features.h>
 

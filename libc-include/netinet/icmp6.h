@@ -2,6 +2,7 @@
 /* netinet/icmp6.h: ICMPv6 (RFC 4443) */
 #ifndef __NIJI_H_netinet_icmp6_h
 #define __NIJI_H_netinet_icmp6_h 1
+#define _NETINET_ICMP6_H 1
 
 #include <features.h>
 #include <stdint.h>

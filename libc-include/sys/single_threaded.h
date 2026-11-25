@@ -2,6 +2,7 @@
 /* sys/single_threaded.h: __libc_single_threaded (the object is exported by the library, C.5). */
 #ifndef __NIJI_H_sys_single_threaded_h
 #define __NIJI_H_sys_single_threaded_h 1
+#define _SYS_SINGLE_THREADED_H
 
 #include <features.h>
 

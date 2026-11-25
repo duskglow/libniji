@@ -2,6 +2,7 @@
 /* mqueue.h: message queues (XSH <mqueue.h>). */
 #ifndef __NIJI_H_mqueue_h
 #define __NIJI_H_mqueue_h 1
+#define _MQUEUE_H 1
 
 #include <features.h>
 #include <fcntl.h>

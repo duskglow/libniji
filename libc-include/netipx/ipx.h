@@ -2,6 +2,7 @@
 /* netipx/ipx.h: IPX */
 #ifndef __NIJI_H_netipx_ipx_h
 #define __NIJI_H_netipx_ipx_h 1
+#define __NETIPX_IPX_H 1
 
 #include <features.h>
 #include <sys/types.h>

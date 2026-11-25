@@ -2,6 +2,7 @@
 /* netinet/if_tr.h: Token Ring */
 #ifndef __NIJI_H_netinet_if_tr_h
 #define __NIJI_H_netinet_if_tr_h 1
+#define _NETINET_IF_TR_H 1
 
 #include <features.h>
 #include <sys/types.h>

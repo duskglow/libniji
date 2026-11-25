@@ -2,6 +2,7 @@
 /* netrose/rose.h: ROSE */
 #ifndef __NIJI_H_netrose_rose_h
 #define __NIJI_H_netrose_rose_h 1
+#define _NETROSE_ROSE_H 1
 
 #include <features.h>
 #include <sys/types.h>

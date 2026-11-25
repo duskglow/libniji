@@ -4,6 +4,7 @@
    MINSIGSTKSZ and SIGSTKSZ are both sysconf (_SC_SIGSTKSZ) (D-20.10). */
 #ifndef __NIJI_H_signal_h
 #define __NIJI_H_signal_h 1
+#define _SIGNAL_H
 
 #include <features.h>
 

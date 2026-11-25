@@ -2,6 +2,7 @@
 /* arpa/nameser.h: domain name system messages (RFC 1035) */
 #ifndef __NIJI_H_arpa_nameser_h
 #define __NIJI_H_arpa_nameser_h 1
+#define _ARPA_NAMESER_H_
 
 #include <features.h>
 #include <sys/types.h>

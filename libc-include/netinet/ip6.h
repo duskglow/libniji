@@ -2,6 +2,7 @@
 /* netinet/ip6.h: IPv6 (ipv6(7), RFC 8200) */
 #ifndef __NIJI_H_netinet_ip6_h
 #define __NIJI_H_netinet_ip6_h 1
+#define _NETINET_IP6_H 1
 
 #include <features.h>
 #include <sys/types.h>

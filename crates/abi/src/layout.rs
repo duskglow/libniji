@@ -3395,6 +3395,25 @@ pub struct struct_mt_tape_info {
     pub t_name: usize,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ar_hdr {
+    pub ar_name: [i8; 16],
+    pub ar_date: [i8; 12],
+    pub ar_uid: [i8; 6],
+    pub ar_gid: [i8; 6],
+    pub ar_mode: [i8; 8],
+    pub ar_size: [i8; 10],
+    pub ar_fmag: [i8; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_utimbuf {
+    pub actime: i64,
+    pub modtime: i64,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct Elf32_Ehdr {

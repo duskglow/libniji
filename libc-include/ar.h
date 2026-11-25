@@ -2,11 +2,35 @@
 /* ar.h: the archive file format (ar(5), the System V ar archive). */
 #ifndef __NIJI_H_ar_h
 #define __NIJI_H_ar_h 1
+#define _AR_H 1
 
 #include <features.h>
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_ar_hdr
+#  define __NIJI_D_struct_ar_hdr 1
+struct ar_hdr {
+  char ar_name[16];
+  char ar_date[12];
+  char ar_uid[6];
+  char ar_gid[6];
+  char ar_mode[8];
+  char ar_size[10];
+  char ar_fmag[2];
+};
+# endif
+# ifndef ARFMAG
+#  define ARFMAG "`\012"
+# endif
+# ifndef ARMAG
+#  define ARMAG "!<arch>\012"
+# endif
+# ifndef SARMAG
+#  define SARMAG 8
+# endif
+#endif
 
 __NIJI_END_C
 

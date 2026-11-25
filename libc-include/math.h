@@ -4,6 +4,7 @@
    vector variants of are declared `simd` under `__FAST_MATH__` (D-X.170). */
 #ifndef __NIJI_H_math_h
 #define __NIJI_H_math_h 1
+#define _MATH_H 1
 
 #include <features.h>
 #ifdef __cplusplus

@@ -2,6 +2,7 @@
 /* neteconet/ec.h: Econet */
 #ifndef __NIJI_H_neteconet_ec_h
 #define __NIJI_H_neteconet_ec_h 1
+#define _NETECONET_EC_H 1
 
 #include <features.h>
 

@@ -195,6 +195,14 @@ __NIJI_FORTIFY_FN void vsyslog (int __p0, const char *__p1, __builtin_va_list __
 # define LOG_UPTO(pri) ((1 << ((pri) + 1)) - 1)
 #endif
 
+/* The priority and facility fields of a priority value, and a value from a facility code and a priority (probed:
+   the facility argument is a LOG_* facility code, already in its field, so the two are or'ed; HEADERS-STAGE2-GAPS-C). */
+#if 1
+# define LOG_PRI(p) ((p) & LOG_PRIMASK)
+# define LOG_MAKEPRI(fac, pri) ((fac) | (pri))
+# define LOG_FAC(p) (((p) & LOG_FACMASK) >> 3)
+#endif
+
 __NIJI_END_C
 
 #endif

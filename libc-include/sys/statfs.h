@@ -2,6 +2,7 @@
 /* sys/statfs.h: file system statistics, the Linux statfs(2) form. */
 #ifndef __NIJI_H_sys_statfs_h
 #define __NIJI_H_sys_statfs_h 1
+#define _SYS_STATFS_H 1
 
 #include <features.h>
 

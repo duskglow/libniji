@@ -2,6 +2,7 @@
 /* netax25/ax25.h: AX.25 */
 #ifndef __NIJI_H_netax25_ax25_h
 #define __NIJI_H_netax25_ax25_h 1
+#define _NETAX25_AX25_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* langinfo.h: language information (XSH <langinfo.h>). */
 #ifndef __NIJI_H_langinfo_h
 #define __NIJI_H_langinfo_h 1
+#define _LANGINFO_H 1
 
 #include <features.h>
 

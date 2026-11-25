@@ -2,6 +2,7 @@
 /* netinet/if_ether.h: Ethernet and ARP (ethernet(7)) */
 #ifndef __NIJI_H_netinet_if_ether_h
 #define __NIJI_H_netinet_if_ether_h 1
+#define __NETINET_IF_ETHER_H 1
 
 #include <features.h>
 #include <sys/types.h>
