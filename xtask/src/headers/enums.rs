@@ -150,6 +150,18 @@ impl Gen<'_> {
         (mmask & !emask == 0).then_some(e)
     }
 
+    /// The macro name `name` is defined as in this header (macro-aliases.tsv: `AF_INET` as `PF_INET`), when this
+    /// header shows that name, as a macro or an enumerator, in every configuration in which it shows `name`; otherwise
+    /// None and the macro keeps its value (the alias would expand to an undefined name).
+    pub(super) fn macro_alias(&mut self, name: &str) -> Option<String> {
+        let a = self.t.macro_aliases.get(&(self.header.clone(), name.to_string()))?.clone();
+        let mrow = self.t.vis_row(&self.header, name, "macro")?;
+        let mmask = mask_of(&self.t.lv, &mrow["configs"]).ok()?;
+        let arow = self.t.vis_row(&self.header, &a, "macro").or_else(|| self.t.vis_row(&self.header, &a, "enumerator"))?;
+        let amask = mask_of(&self.t.lv, &arow["configs"]).ok()?;
+        (mmask & !amask == 0).then_some(a)
+    }
+
     /// `@@enum TAG`: the enumeration `TAG` from enumerators.tsv, and each of its enumerators this header lists in
     /// visibility.tsv also a self-naming macro, so `#ifdef NAME` holds. The enumerators are then not emitted again: a
     /// prototype takes the enumeration (`ptrace (enum __ptrace_request, ...)`).

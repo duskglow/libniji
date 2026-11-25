@@ -29,7 +29,12 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `h.j` a non-variadic F with the unknown conversion "%y" for the `const char *` parameter j: -Wformat= (the
         `v*printf` and `v*scanf` forms take a `va_list`, which the nonliteral test cannot see).
 * `s.c` a variadic F with c null pointers appended: -Wformat= (a missing sentinel) tells the attribute and
-        its position (c - 1 is the position of the first that makes it quiet).
+        its position (c - 1 is the position of the first that makes it quiet). These tests are compiled in a unit
+        of their own with -fno-builtin: the compiler knows execl, execle and execlp as builtins with a sentinel of
+        its own, which a plain declaration would show; the table records the declaration's attribute only.
+* `fa.j` a non-variadic F returning a pointer to char, its result passed as the format of the probe's own printf-like
+        pf_fa: literals in every string parameter (`fa.0`), then the unknown string in string parameter j; in the
+        -fno-builtin unit (gettext, dgettext and dcgettext are builtins with a format_arg of the compiler's own).
 * `nr`  F(valid arguments); mk_nr(): the marker is dropped when F is noreturn.
 * `nz.k`, `nv.k` a void F as in `nr`, numeric parameter k set to 0 (`nz`) or to an opaque value (`nv`): when `nr`
         drops its marker and both of these keep theirs, F returns unless argument k is a nonzero constant
@@ -46,10 +51,11 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma list of
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure format_arg`): nonnull is the comma list of
 1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
-parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
+parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const; format_arg the comma list of 1-based parameters
+(`fa.0` quiet and `fa.j` diagnosed: one attribute format_arg per parameter).
 """
 import argparse, csv, json, os, re, subprocess, sys, tempfile
 
@@ -137,6 +143,8 @@ def corpus(names, heads, pr):
     order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
     L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in order] + ["#include <errno.h>"]
     L += ["extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap;"]
+    # The probe's own printf-like function for the `fa` tests (format_arg).
+    L += ["extern int pf_fa (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));"]
     meta = {}
 
     def add(fmt, key):
@@ -194,8 +202,16 @@ def corpus(names, heads, pr):
                 if variadic and j == len(fixed) - 1:
                     add('void g_@N@(void) { %s(%s, "s"); }' % (n, args({j: '"%d"'})), (n, "g", j + 1))
         if variadic and n not in NO_SENTINEL:
-            for c in (1, 2):
+            for c in (0, 1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
+        # format_arg: F's result as the format of the probe's pf_fa, literals in every string parameter (`fa`, 0) and
+        # the unknown string in parameter j (`fa`, j + 1); only a result of type pointer to char can carry it.
+        rtype = re.sub(r"\b%s\s*$" % re.escape(n), "", ret).strip()
+        if not variadic and re.fullmatch(r"(const\s+)?char\s*\*", rtype) and "constchar" in fixed:
+            add("void fa0_@N@(void) { pf_fa (%s(%s)); }" % (n, args()), (n, "fa", 0))
+            for j, k in enumerate(fixed):
+                if k == "constchar":
+                    add("void fa_@N@(void) { pf_fa (%s(%s)); }" % (n, args({j: "nl"})), (n, "fa", j + 1))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
         if not has_result:
             for j in [j for j, k in enumerate(fixed) if k == "num"]:
@@ -231,14 +247,14 @@ def corpus(names, heads, pr):
 HEADER_ERRORS = []
 
 
-def compile_side(text, inc, keep, tag):
+def compile_side(text, inc, keep, tag, extra=()):
     d = keep or tempfile.mkdtemp(prefix="attr-")
     os.makedirs(d, exist_ok=True)
     src = os.path.join(d, tag + ".c")
     obj = os.path.join(d, tag + ".o")
     with open(src, "w") as f:
         f.write(text)
-    cmd = ["gcc"] + OPT + ["-fdiagnostics-format=json", "-c", src, "-o", obj]
+    cmd = ["gcc"] + OPT + list(extra) + ["-fdiagnostics-format=json", "-c", src, "-o", obj]
     if inc:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
         # The kernel UAPI headers (asm/, asm-generic/, linux/) are not part of the C library: libniji's headers include
@@ -292,21 +308,25 @@ def results(text, meta, inc, keep, tag):
     redeclaration's pure into the one declaration of F for the whole unit, wherever the line is."""
     lines = text.split("\n")
     ekeys = {ln for ln, key in meta.items() if key[1] == "e"}
-    main = "\n".join("" if ln + 1 in ekeys else x for ln, x in enumerate(lines))
-    errno = "\n".join("" if ln + 1 in meta and ln + 1 not in ekeys else x for ln, x in enumerate(lines))
-    res = results_unit(main, {ln: k for ln, k in meta.items() if ln not in ekeys}, inc, keep, tag)
-    res.update(results_unit(errno, {ln: meta[ln] for ln in ekeys}, inc, keep, tag + "-e"))
+    # The sentinel tests: -fno-builtin, so that only the declaration's own attribute decides (module docstring, `s.c`).
+    skeys = {ln for ln, key in meta.items() if key[1] in ("s", "fa")}
+    own = ekeys | skeys
+    main = "\n".join("" if ln + 1 in own else x for ln, x in enumerate(lines))
+    res = results_unit(main, {ln: k for ln, k in meta.items() if ln not in own}, inc, keep, tag)
+    for keys, suffix, extra in ((ekeys, "-e", ()), (skeys, "-s", ("-fno-builtin",))):
+        unit = "\n".join("" if ln + 1 in meta and ln + 1 not in keys else x for ln, x in enumerate(lines))
+        res.update(results_unit(unit, {ln: meta[ln] for ln in keys}, inc, keep, tag + suffix, extra))
     return res
 
 
-def results_unit(text, meta, inc, keep, tag):
+def results_unit(text, meta, inc, keep, tag, extra=()):
     """Compile; a test line that does not compile is blanked (keeping every line number) and recorded."""
     dropped = set()
     for _ in range(6):
         lines = text.split("\n")
         for ln in dropped:
             lines[ln - 1] = ""
-        diags, marks, errs = compile_side("\n".join(lines), inc, keep, tag)
+        diags, marks, errs = compile_side("\n".join(lines), inc, keep, tag, extra)
         if errs is None or not (errs - dropped):
             break
         dropped |= {e for e in errs if e in meta}
@@ -375,8 +395,9 @@ BUILTIN_SIZE = {"strndup", "strdup"}
 
 
 def derive(res, pr, names):
-    rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": ""} for n in names}
+    rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": "", "format_arg": ""} for n in names}
     fmt = {}
+    fa = {}  # name -> {0 (literals) or 1-based string parameter: the pf_fa call was diagnosed}
     conflict = set()
     kept = {}  # name -> {1-based numeric parameter: {"nz", "nv"} tests that kept their marker}
     for ln, (key, flags, err) in sorted(res.items()):
@@ -395,10 +416,13 @@ def derive(res, pr, names):
                 r["deprecated"] = "1"
             if "-Wunused-value" in flags:
                 r["pure"] = "1"
-            if "-Wformat=" in flags and pr[n].rstrip().endswith("...)"):
-                r["sentinel"] = "?"
         elif kind == "n" and "-Wnonnull" in flags:
             r["nonnull"].append(str(key[2]))
+        elif kind == "s" and key[2] == 0:
+            if "-Wformat=" in flags:
+                r["sentinel"] = "?"
+        elif kind == "fa":
+            fa.setdefault(n, {})[key[2]] = bool(flags & {"-Wformat-nonliteral", "-Wformat-security"})
         elif kind == "s" and r["sentinel"]:
             if "-Wformat=" not in flags and r["sentinel"] == "?":
                 r["sentinel"] = "%d" % (key[2] - 1)
@@ -438,6 +462,11 @@ def derive(res, pr, names):
     for n in CONST_BY_STANDARD & set(rows):
         if rows[n]["pure"]:
             rows[n]["pure"] = "const"
+    # format_arg: the all-literal call passes as a literal format, and the call with the unknown string in
+    # parameter j does not (several parameters may carry it: ngettext's singular and plural).
+    for n, by in fa.items():
+        if by.get(0) is False:
+            rows[n]["format_arg"] = ",".join(str(j) for j in sorted(by) if j and by[j])
     # The errno veto, last: a caller of F keeps an errno check after the call in the reference's objects.
     for n in errno_kept(res):
         if n in rows:
@@ -467,12 +496,12 @@ def main():
             print("attr_probe: %d functions have a test that did not compile on the reference side: %s" % (len(bad), " ".join(bad[:40])), file=sys.stderr)
         rows = derive(ref, pr, names)
         with open(args.out, "w") as f:
-            f.write("name\tnonnull\twur\tnoreturn\tformat\tmalloc\talloc_size\tdeprecated\tsentinel\tpure\n")
+            f.write("name\tnonnull\twur\tnoreturn\tformat\tmalloc\talloc_size\tdeprecated\tsentinel\tpure\tformat_arg\n")
             for n in names:
                 r = rows[n]
                 nn = ",".join(sorted(set(r["nonnull"]), key=int))
-                if nn or any(r[k] for k in ("wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure")):
-                    f.write("\t".join([n, nn, r["wur"], r["noreturn"], r["format"], r["malloc"], r["alloc_size"], r["deprecated"], r["sentinel"], r["pure"]]) + "\n")
+                if nn or any(r[k] for k in ("wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure", "format_arg")):
+                    f.write("\t".join([n, nn, r["wur"], r["noreturn"], r["format"], r["malloc"], r["alloc_size"], r["deprecated"], r["sentinel"], r["pure"], r["format_arg"]]) + "\n")
         print("attr_probe: %d functions probed, table written to %s" % (len(names), args.out))
         return
     got = results(text, meta, args.include, args.keep, "niji")
