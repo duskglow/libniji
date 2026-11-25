@@ -1,0 +1,34 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "merge-only: merged origin/next (227f90c04) into the branch, kept both sides in s07.py and header_probe.py, regenerated appendix_c_layouts.rs; gate, clippy, static, precheck green",
+ "branch": "task/headers-stage2-gaps-d-4",
+ "head": "7a53b00bf",
+ "gate": {
+  "affected": "Direct tier rc 0 (headers-stage2-gaps-d-4-gate); clippy, static rc 0; precheck GREEN",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "plants not rerun: the merge changed no code under test, only the header check scripts and a regenerated test (precheck green)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "lets HEADERS-STAGE2-GAPS-D's header changes (perl, fakechroot, faketime, glib, gperftools, icu, heimdal gaps; generator order check) land on next",
+   "before": null,
+   "after": null,
+   "unit": "story",
+   "measured": false
+  }
+ ],
+ "improvement": "a merge of a header template should run the whole header_check before the gate: a conflict-free text merge can double-define a macro",
+ "next_step": "land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D.md",
+ "jobs": [
+  "mei:headers-stage2-gaps-d-4-gate"
+ ]
+}

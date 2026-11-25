@@ -52,3 +52,6 @@ file; nothing in perl reads d_bsd.
 * The perl rebuild after the IN6ADDR fix is still NOT VERIFIED end to end (leg 3 note).
 * Next stories: fakechroot `<fts.h>` FTS64 members, glib TCP_NODELAY (HEADERS-NET-SYS-NAMES-3), icu ELF64_ST_INFO
   (HEADERS-STAGE2-GAPS-B) stop the packages after this story's gaps.
+
+## D-4 (merge-only)
+Merged origin/next 227f90c04: s07.py keeps next BSD paths/DTTOIF/utimbuf units plus stage2_units and array_param_units; header_probe.py keeps the ip_mreq_source tag plus next name sets; appendix_c_layouts.rs regenerated (cargo xtask abi-gen). Gate (direct tier), clippy, static, precheck green. Nothing else changed.
