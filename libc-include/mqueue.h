@@ -157,7 +157,7 @@ extern int mq_close (int) __NIJI_NOTHROW;
 struct mq_attr;
 # ifndef __NIJI_D_mq_getattr
 #  define __NIJI_D_mq_getattr 1
-extern int mq_getattr (int, struct mq_attr *) __NIJI_NOTHROW;
+extern int mq_getattr (int, struct mq_attr *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct sigevent;
 # ifndef __NIJI_D_mq_notify
@@ -166,37 +166,37 @@ extern int mq_notify (int, const struct sigevent *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_mq_open
 #  define __NIJI_D_mq_open 1
-extern int mq_open (const char *, int, ...) __NIJI_NOTHROW;
+extern int mq_open (const char *, int, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_mq_receive
 #  define __NIJI_D_mq_receive 1
-extern long mq_receive (int, char *, unsigned long, unsigned int *);
+extern long mq_receive (int, char *, unsigned long, unsigned int *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_mq_send
 #  define __NIJI_D_mq_send 1
-extern int mq_send (int, const char *, unsigned long, unsigned int);
+extern int mq_send (int, const char *, unsigned long, unsigned int) __attribute__ ((__nonnull__ (2)));
 # endif
 struct mq_attr;
 struct mq_attr;
 # ifndef __NIJI_D_mq_setattr
 #  define __NIJI_D_mq_setattr 1
-extern int mq_setattr (int, const struct mq_attr *, struct mq_attr *) __NIJI_NOTHROW;
+extern int mq_setattr (int, const struct mq_attr *, struct mq_attr *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_mq_unlink
 #  define __NIJI_D_mq_unlink 1
-extern int mq_unlink (const char *) __NIJI_NOTHROW;
+extern int mq_unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
 struct timespec;
 # ifndef __NIJI_D_mq_timedreceive
 #  define __NIJI_D_mq_timedreceive 1
-extern long mq_timedreceive (int, char *, unsigned long, unsigned int *, const struct timespec *);
+extern long mq_timedreceive (int, char *, unsigned long, unsigned int *, const struct timespec *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_mq_timedsend
 #  define __NIJI_D_mq_timedsend 1
-extern int mq_timedsend (int, const char *, unsigned long, unsigned int, const struct timespec *);
+extern int mq_timedsend (int, const char *, unsigned long, unsigned int, const struct timespec *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
 #if __NIJI_FORTIFY > 0

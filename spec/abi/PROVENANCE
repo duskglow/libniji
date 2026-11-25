@@ -75,3 +75,7 @@ spells (prgregset_t, elf_fpregset_t, prstatus_t, prpsinfo_t; a debugger names th
 --layouts-only, their 53 rows spliced in alone; header_probe.py --headers sys/procfs.h,thread_db.h,proc_service.h,
 only the 12 rows of those four names added (each header's other rows left as committed); type_probe.py, same headers:
 4 typedefs.tsv rows added, macros.tsv unchanged.
+SL-HEADERS-UNSHIPPED-REST-2 (aio.h, mqueue.h): diagattrs.tsv by attr_probe.py table on the reference system (GCC 13.3)
+through the branch's headers, mq_open added to NO_SENTINEL (its checking wrapper makes a 3-argument call an error inside
+a header, so the whole reference corpus did not build): 2369 functions probed, two runs byte-identical, 23 rows added
+(aio_*, lio_listio*, mq_*: nonnull only), every earlier row unchanged; thread_db.h and proc_service.h gave no row.

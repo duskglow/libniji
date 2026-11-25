@@ -236,36 +236,36 @@ struct aiocb;
 # ifndef __NIJI_D_aio_error
 #  define __NIJI_D_aio_error 1
 #  if !__NIJI_FOB64
-extern int aio_error (const struct aiocb *) __NIJI_NOTHROW;
+extern int aio_error (const struct aiocb *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int aio_error (const struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_error64");
+extern int aio_error (const struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_error64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 struct aiocb;
 # ifndef __NIJI_D_aio_fsync
 #  define __NIJI_D_aio_fsync 1
 #  if !__NIJI_FOB64
-extern int aio_fsync (int, struct aiocb *) __NIJI_NOTHROW;
+extern int aio_fsync (int, struct aiocb *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int aio_fsync (int, struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_fsync64");
+extern int aio_fsync (int, struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_fsync64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 struct aiocb;
 # ifndef __NIJI_D_aio_read
 #  define __NIJI_D_aio_read 1
 #  if !__NIJI_FOB64
-extern int aio_read (struct aiocb *) __NIJI_NOTHROW;
+extern int aio_read (struct aiocb *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int aio_read (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_read64");
+extern int aio_read (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_read64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 struct aiocb;
 # ifndef __NIJI_D_aio_return
 #  define __NIJI_D_aio_return 1
 #  if !__NIJI_FOB64
-extern long aio_return (struct aiocb *) __NIJI_NOTHROW;
+extern long aio_return (struct aiocb *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern long aio_return (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_return64");
+extern long aio_return (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_return64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 struct aiocb;
@@ -273,18 +273,18 @@ struct timespec;
 # ifndef __NIJI_D_aio_suspend
 #  define __NIJI_D_aio_suspend 1
 #  if !__NIJI_FOB64
-extern int aio_suspend (const struct aiocb *const *, int, const struct timespec *);
+extern int aio_suspend (const struct aiocb *const *, int, const struct timespec *) __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int aio_suspend (const struct aiocb *const *, int, const struct timespec *) __asm__ ("aio_suspend64");
+extern int aio_suspend (const struct aiocb *const *, int, const struct timespec *) __asm__ ("aio_suspend64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 struct aiocb;
 # ifndef __NIJI_D_aio_write
 #  define __NIJI_D_aio_write 1
 #  if !__NIJI_FOB64
-extern int aio_write (struct aiocb *) __NIJI_NOTHROW;
+extern int aio_write (struct aiocb *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int aio_write (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_write64");
+extern int aio_write (struct aiocb *) __NIJI_NOTHROW __asm__ ("aio_write64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 struct aiocb;
@@ -292,9 +292,9 @@ struct sigevent;
 # ifndef __NIJI_D_lio_listio
 #  define __NIJI_D_lio_listio 1
 #  if !__NIJI_FOB64
-extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJI_NOTHROW;
+extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJI_NOTHROW __asm__ ("lio_listio64");
+extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJI_NOTHROW __asm__ ("lio_listio64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 #endif
@@ -302,7 +302,7 @@ extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJ
 struct aioinit;
 # ifndef __NIJI_D_aio_init
 #  define __NIJI_D_aio_init 1
-extern void aio_init (const struct aioinit *) __NIJI_NOTHROW;
+extern void aio_init (const struct aioinit *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_LFS64
@@ -314,39 +314,39 @@ extern int aio_cancel64 (int, struct aiocb64 *) __NIJI_NOTHROW;
 struct aiocb64;
 # ifndef __NIJI_D_aio_error64
 #  define __NIJI_D_aio_error64 1
-extern int aio_error64 (const struct aiocb64 *) __NIJI_NOTHROW;
+extern int aio_error64 (const struct aiocb64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct aiocb64;
 # ifndef __NIJI_D_aio_fsync64
 #  define __NIJI_D_aio_fsync64 1
-extern int aio_fsync64 (int, struct aiocb64 *) __NIJI_NOTHROW;
+extern int aio_fsync64 (int, struct aiocb64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct aiocb64;
 # ifndef __NIJI_D_aio_read64
 #  define __NIJI_D_aio_read64 1
-extern int aio_read64 (struct aiocb64 *) __NIJI_NOTHROW;
+extern int aio_read64 (struct aiocb64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct aiocb64;
 # ifndef __NIJI_D_aio_return64
 #  define __NIJI_D_aio_return64 1
-extern long aio_return64 (struct aiocb64 *) __NIJI_NOTHROW;
+extern long aio_return64 (struct aiocb64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct aiocb64;
 struct timespec;
 # ifndef __NIJI_D_aio_suspend64
 #  define __NIJI_D_aio_suspend64 1
-extern int aio_suspend64 (const struct aiocb64 *const *, int, const struct timespec *) __NIJI_NOTHROW;
+extern int aio_suspend64 (const struct aiocb64 *const *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct aiocb64;
 # ifndef __NIJI_D_aio_write64
 #  define __NIJI_D_aio_write64 1
-extern int aio_write64 (struct aiocb64 *) __NIJI_NOTHROW;
+extern int aio_write64 (struct aiocb64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct aiocb64;
 struct sigevent;
 # ifndef __NIJI_D_lio_listio64
 #  define __NIJI_D_lio_listio64 1
-extern int lio_listio64 (int, struct aiocb64 *const *, int, struct sigevent *) __NIJI_NOTHROW;
+extern int lio_listio64 (int, struct aiocb64 *const *, int, struct sigevent *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if 1
