@@ -2,7 +2,7 @@
 """Check libniji's generated headers (plan/headers.md section 3; SL-HEADERS-S05): P5 hygiene, the level model,
 P1 identity with the tables and P8 kernel UAPI coexistence.
 
-    python3 spec/tools/header_check.py [--work DIR] [--include DIR]
+    python3 spec/tools/header_check.py [--work DIR] [--include DIR] [--only REGEX]
 
 Needs gcc and g++ only (any host; no reference headers are read: every unit is compiled with `-nostdinc
 -isystem <DIR> -isystem <the compiler's own include>`, DIR = libc-include/ by default, or the tree `cargo xtask
@@ -295,7 +295,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
     ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
+    ap.add_argument("--only", default="", help="run only the units, FAIL lines of the slice checks and P8 pairs whose "
+                    "title matches this regular expression (a plant on one header's template: seconds, not minutes)")
     args = ap.parse_args()
+    only = re.compile(args.only) if args.only else None
+    wanted = (lambda title: only.search(title) is not None) if only else (lambda title: True)
     inc = os.path.abspath(args.include)
     if not os.path.isfile(os.path.join(inc, "features.h")):
         sys.exit(f"header_check: no features.h under {inc}")
@@ -327,6 +331,7 @@ def main():
         problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
             p1s.setdefault(cid, []).append((what, body))
+    problems = [p for p in problems if wanted(p)]
     fails, total = len(problems), len(problems)
     for p in problems:
         print(f"FAIL {p}")
@@ -352,6 +357,7 @@ def main():
         if not rejected:
             units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
+        units = [u for u in units if wanted(u[0])]
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
@@ -366,9 +372,12 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
-    f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
+    f8, t8 = p8(inc, gccinc, work, [pr for pr in p8_pairs(srows) if wanted(f"P8 {pr[0]} then {pr[1]}")])
     fails, total = fails + f8, total + t8
-    print(f"header_check: {fails} failed of {total}")
+    print(f"header_check: {fails} failed of {total}" + (f" (only units matching {args.only!r})" if only else ""))
+    if only and total == 0:
+        print("header_check: --only matched no unit")
+        return 1
     return 1 if fails else 0
 
 
