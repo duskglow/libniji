@@ -38,7 +38,20 @@ def units(ctx):
     # as supplied in every configuration left them out there).
     for h in ("sys/wait.h", "wait.h"):
         out += ctx.exact(h, WAIT_U_CHAR_FAMILY)
+    # Spec clause: select(2), FD_SET/FD_CLR/FD_ISSET/FD_ZERO; D-11.4 (the word index goes through __fdelt_chk). Every
+    # header that defines the fd_set macros itself spells them as <sys/types.h> does, so either include order gives one
+    # definition: each one included before and after <sys/types.h> compiles without a redefinition (-Wsystem-headers
+    # -Werror) and the macros expand on a set (HEADERS-STAGE2-GAPS-E: <utmp.h> includes <sys/time.h> first).
+    use = ("#ifdef FD_SET\nint niji_s07_fd (fd_set *s) { FD_ZERO (s); FD_SET (3, s); FD_CLR (3, s); "
+           "return FD_ISSET (3, s); }\n#endif\nint niji_s07_tu;\n")
+    for h in FD_MACRO_HEADERS:
+        for first, second in ((h, "sys/types.h"), ("sys/types.h", h)):
+            body = f"#include <{first}>\n#include <{second}>\n" + use
+            out += [(cid, f"fd_set macros {first} then {second}", body) for cid in ctx.ids]
     return out
+
+
+FD_MACRO_HEADERS = ("sys/select.h", "sys/time.h", "stdlib.h", "utmp.h", "utmpx.h", "sys/procfs.h")
 
 
 FD_WORD_NAMES = ("fd_mask", "__fd_mask", "NFDBITS", "__NFDBITS", "FD_SETSIZE", "__FD_SETSIZE")
