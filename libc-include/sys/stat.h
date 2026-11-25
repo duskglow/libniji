@@ -368,7 +368,7 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 struct statx;
 # ifndef __NIJI_D_statx
 #  define __NIJI_D_statx 1
-extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW;
+extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
 #if defined __USE_MISC

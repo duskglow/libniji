@@ -656,6 +656,7 @@ fn sym_re_match_2() {
     let mut b = gnu("a(b+)c", POSIX_EXTENDED);
     assert_eq!(s::re_match_2(Some(&mut b), b"xab".as_ptr().cast(), 3, b"bcy".as_ptr().cast(), 3, 1, None, 6), 4, "across the boundary");
     assert_eq!(s::re_match_2(Some(&mut b), b"xab".as_ptr().cast(), 3, b"bcy".as_ptr().cast(), 3, 1, None, 3), -1);
+    assert_eq!(s::re_match_2(Some(&mut b), core::ptr::null(), 0, b"abbc".as_ptr().cast(), 4, 0, None, 4), 4, "an empty first string, NULL");
     s::regfree(Some(&mut b));
 }
 

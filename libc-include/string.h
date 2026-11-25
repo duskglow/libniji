@@ -91,7 +91,7 @@ extern char *strtok (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonn
 # endif
 # ifndef __NIJI_D_strxfrm
 #  define __NIJI_D_strxfrm 1
-extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -121,7 +121,7 @@ extern char *stpncpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attr
 # endif
 # ifndef __NIJI_D_strcoll_l
 #  define __NIJI_D_strcoll_l 1
-extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
 # endif
 # ifndef __NIJI_D_strerror_l
 #  define __NIJI_D_strerror_l 1
@@ -137,7 +137,7 @@ extern char *strsignal (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_strxfrm_l
 #  define __NIJI_D_strxfrm_l 1
-extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_ISOC >= 2023
@@ -225,7 +225,7 @@ extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ 
 # endif
 # ifndef __NIJI_D_strcasecmp_l
 #  define __NIJI_D_strcasecmp_l 1
-extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
 # endif
 # ifndef __NIJI_D_strlcat
 #  define __NIJI_D_strlcat 1
@@ -241,7 +241,7 @@ extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHRO
 # endif
 # ifndef __NIJI_D_strncasecmp_l
 #  define __NIJI_D_strncasecmp_l 1
-extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 4), __pure__));
 # endif
 # ifndef __NIJI_D_strsep
 #  define __NIJI_D_strsep 1

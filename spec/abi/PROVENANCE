@@ -16,7 +16,7 @@ ftm-configs.tsv: 40 configurations
 visibility.tsv: 76634 rows, 234 headers, 13774 names
 callsites.tsv: 7923 call-site rows, 3799 functions
 noexcept.tsv: 3798 rows
-diagattrs.tsv: 982 functions
+diagattrs.tsv: 1017 functions
 typegeneric.tsv: 23474 rows, 2 headers, 8 configurations
 
 History: one paragraph per story, spec/abi/provenance.d/<STORY-ID>.txt in `order`; a count in a paragraph is what that run gave.
@@ -90,3 +90,4 @@ typegeneric.tsv (SL-HEADERS-COMPLEX-TGMATH): spec/tools/tgmath_probe.py on the r
 gnu++17 through the C++ library's wrappers), 23474 rows: per tgmath.h macro and argument types the functions the call
 references, the result type and the form; per complex.h macro its type and whether it is a constant expression.
 Read back are only exit statuses and the symbols and object sizes of the probe's own objects.
+diagattrs.tsv (HEADERS-NONNULL-MATCH, D-X.174): the nonnull column from `attr_probe.py table --columns nonnull` on the reference system (GCC 13.3) after the probe fixes (function pointers and pointer typedefs valid, sizes 0, `-fno-builtin` in the nonnull unit, `(F)(..)` calls, included headers walked), the same with `_FORTIFY_SOURCE` on and off: 56 functions lose marks (62 parameters), 48 gain them (53 parameters). The recursive header walk probes 2826 functions (2567 before); from a full `table` run, the rows it adds were spliced in for the deprecated (17 rows, ftime and 16 new), warn_unused_result (11) and pure (4: gnu_dev_major, gnu_dev_minor, gnu_dev_makedev, __x86_get_cpuid_feature_leaf) columns. Not taken from that run: the pure column of 30 committed rows the run left empty (asinh, cos, fmaximum and other double functions; `check` still sees fmaximum's const on the reference) and 152 complex.h rows it marked const, which the compiler's own knowledge decides on both sides.

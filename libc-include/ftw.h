@@ -144,9 +144,9 @@ typedef int (*__ftw_func_t)(char const *, struct stat const *, int);
 # ifndef __NIJI_D_ftw
 #  define __NIJI_D_ftw 1
 #  if !__NIJI_FOB64
-extern int ftw (const char *, __ftw_func_t, int) __attribute__ ((__nonnull__ (1)));
+extern int ftw (const char *, __ftw_func_t, int) __attribute__ ((__nonnull__ (1, 2)));
 #  elif __NIJI_FOB64
-extern int ftw (const char *, __ftw_func_t, int) __asm__ ("ftw64") __attribute__ ((__nonnull__ (1)));
+extern int ftw (const char *, __ftw_func_t, int) __asm__ ("ftw64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 # ifndef __NIJI_D_mkdir
@@ -189,7 +189,7 @@ typedef int (*__ftw64_func_t)(char const *, struct stat64 const *, int);
 # endif
 # ifndef __NIJI_D_ftw64
 #  define __NIJI_D_ftw64 1
-extern int ftw64 (const char *, __ftw64_func_t, int) __attribute__ ((__nonnull__ (1)));
+extern int ftw64 (const char *, __ftw64_func_t, int) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct stat64;
 # ifndef __NIJI_D_lstat64
@@ -265,7 +265,7 @@ typedef int (*__nftw64_func_t)(char const *, struct stat64 const *, int, struct 
 # endif
 # ifndef __NIJI_D_nftw64
 #  define __NIJI_D_nftw64 1
-extern int nftw64 (const char *, __nftw64_func_t, int, int) __attribute__ ((__nonnull__ (1)));
+extern int nftw64 (const char *, __nftw64_func_t, int, int) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if defined __USE_MISC
@@ -574,9 +574,9 @@ enum {
 typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
 # endif
 # if __NIJI_FOB64
-extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64") __attribute__ ((__nonnull__ (1)));
+extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64") __attribute__ ((__nonnull__ (1, 2)));
 # else
-extern int nftw (const char *, __nftw_func_t, int, int) __attribute__ ((__nonnull__ (1)));
+extern int nftw (const char *, __nftw_func_t, int, int) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 
