@@ -348,9 +348,11 @@ def package_names():
     # HEADERS-STAGE2-GAPS-D (Yohane stage 2): perl's pp_sys.c casts to `__priority_which_t`, perl and heimdal read
     # `struct hostent`'s `h_addr`; glib calls IN_MULTICAST, with the other address-class tests of RFC 791 / RFC 1112
     # (class A to D, experimental, bad class); google-perftools waits with `__WALL` (wait(2) names __WALL, __WCLONE,
-    # __WNOTHREAD); icu reads `__timezone` (exported with `__daylight` and `__tzname`, versions.tsv).
+    # __WNOTHREAD); icu reads `__timezone` (exported with `__daylight` and `__tzname`, versions.tsv). perl's Socket
+    # module defines its IN6ADDR_ANY / IN6ADDR_LOOPBACK constants where POSIX's IN6ADDR_ANY_INIT / IN6ADDR_LOOPBACK_INIT are.
     out += ["__priority_which_t", "h_addr", "IN_CLASSA", "IN_CLASSB", "IN_CLASSC", "IN_CLASSD", "IN_MULTICAST",
-            "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname"]
+            "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname",
+            "IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT"]
     return out
 
 

@@ -166,10 +166,15 @@ def stage2_units(ctx):
     beyond netdb.h's 4.2BSD name (perl, heimdal): where `h_addr` is shown it names `h_addr_list[0]` (in a structure
     whose h_addr_list is an array it is one pointer at offset 0, not the array or a later element), and the header
     shows exactly that set. RFC 3678: where
-    struct ip_mreq_source is shown in <netinet/in.h>, it has IP_MREQ_SOURCE's size, alignment and member offsets."""
+    struct ip_mreq_source is shown in <netinet/in.h>, it has IP_MREQ_SOURCE's size, alignment and member offsets.
+    POSIX <netinet/in.h> (IN6ADDR_ANY_INIT, IN6ADDR_LOOPBACK_INIT; perl's Socket module): where shown, each initializes
+    a struct in6_addr and a structure of one union of 16 bytes with no missing-braces warning (braced for structure,
+    union and array, at most 16 elements, no designators: the reference's form by black-box probe), and in C++11 and
+    later the 16 bytes are :: and ::1. Defects: a missing macro, a flat brace list, the 1 in the wrong byte."""
     lang = {c["id"]: c["language"] for c in ctx.cfgs}
     vis = {(r["header"], r["name"], r["kind"]): r["configs"] for r in ctx.vis}
-    res = ctx.exact("netinet/in.h", list(IN_CLASS_CASES)) + ctx.exact("netdb.h", ["h_addr"])
+    res = (ctx.exact("netinet/in.h", list(IN_CLASS_CASES) + ["IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT"])
+           + ctx.exact("netdb.h", ["h_addr"]))
     for cid in ctx.ids:
         shown = [n for n in IN_CLASS_CASES if cid in expand(vis.get(("netinet/in.h", n, "macro"), ""), ctx.ids)]
         if shown:
@@ -188,6 +193,16 @@ def stage2_units(ctx):
         if cid in expand(vis.get(("netinet/in.h", "ip_mreq_source", "struct"), ""), ctx.ids):
             res.append((cid, "ip_mreq_source netinet/in.h", "#include <netinet/in.h>\n" + "".join(
                 f"typedef char niji_ims{i}[{t} ? 1 : -1];\n" for i, t in enumerate(IP_MREQ_SOURCE))))
+        if cid in expand(vis.get(("netinet/in.h", "IN6ADDR_LOOPBACK_INIT", "macro"), ""), ctx.ids):
+            body = ["#include <netinet/in.h>", '#pragma GCC diagnostic error "-Wmissing-braces"',
+                    "struct in6_addr niji_any = IN6ADDR_ANY_INIT, niji_lo = IN6ADDR_LOOPBACK_INIT;",
+                    "struct niji_s { union { unsigned char b[16]; } u; };",
+                    "struct niji_s niji_s_any = IN6ADDR_ANY_INIT, niji_s_lo = IN6ADDR_LOOPBACK_INIT;"]
+            if lang[cid] != "c" and cid != "cxx98":
+                body.append("constexpr niji_s niji_c_any = IN6ADDR_ANY_INIT, niji_c_lo = IN6ADDR_LOOPBACK_INIT;")
+                body += [f'static_assert (niji_c_any.u.b[{i}] == 0 && niji_c_lo.u.b[{i}] == {int(i == 15)}, "byte {i}");'
+                         for i in range(16)]
+            res.append((cid, "in6addr initializers netinet/in.h", "\n".join(body) + "\n"))
         for u, q in (("__CONST_SOCKADDR_ARG", "const "), ("__SOCKADDR_ARG", "")):
             if lang[cid] != "c" or cid not in expand(vis.get(("sys/socket.h", u, "typedef"), ""), ctx.ids):
                 continue

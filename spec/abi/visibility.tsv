@@ -1467,6 +1467,8 @@ arpa/inet.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64
 arpa/inet.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+arpa/inet.h	IN6ADDR_ANY_INIT	macro	!time64only
+arpa/inet.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 arpa/inet.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 arpa/inet.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 arpa/inet.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -25203,6 +25205,8 @@ net/route.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64
 net/route.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/route.h	IN6ADDR_ANY_INIT	macro	!time64only
+net/route.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 net/route.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 net/route.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 net/route.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -26626,6 +26630,8 @@ netdb.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dyns
 netdb.h	GAI_NOWAIT	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netdb.h	GAI_WAIT	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netdb.h	HOST_NOT_FOUND	macro	!posix200809,xopen700,time64only
+netdb.h	IN6ADDR_ANY_INIT	macro	!time64only
+netdb.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 netdb.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 netdb.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 netdb.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -28441,6 +28447,8 @@ netinet/icmp6.h	ICMP6_RR_RESULT_FLAGS_OOB	macro	!time64only
 netinet/icmp6.h	ICMP6_TIME_EXCEEDED	macro	!time64only
 netinet/icmp6.h	ICMP6_TIME_EXCEED_REASSEMBLY	macro	!time64only
 netinet/icmp6.h	ICMP6_TIME_EXCEED_TRANSIT	macro	!time64only
+netinet/icmp6.h	IN6ADDR_ANY_INIT	macro	!time64only
+netinet/icmp6.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 netinet/icmp6.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 netinet/icmp6.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 netinet/icmp6.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -31075,6 +31083,8 @@ netinet/igmp.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,tim
 netinet/igmp.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/igmp.h	IN6ADDR_ANY_INIT	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/igmp.h	IN6ADDR_LOOPBACK_INIT	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	INADDR_ALLHOSTS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	INADDR_ALLRTRS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	INADDR_ALLSNOOPERS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -31872,6 +31882,8 @@ netinet/in.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time6
 netinet/in.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/in.h	IN6ADDR_ANY_INIT	macro	!time64only
+netinet/in.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 netinet/in.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 netinet/in.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 netinet/in.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -32953,6 +32965,8 @@ netinet/ip.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time6
 netinet/ip.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ip.h	IN6ADDR_ANY_INIT	macro	!time64only
+netinet/ip.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 netinet/ip.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 netinet/ip.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 netinet/ip.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -33846,6 +33860,8 @@ netinet/ip6.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time
 netinet/ip6.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ip6.h	IN6ADDR_ANY_INIT	macro	!time64only
+netinet/ip6.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 netinet/ip6.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 netinet/ip6.h	INADDR_ALLRTRS_GROUP	macro	!time64only
 netinet/ip6.h	INADDR_ALLSNOOPERS_GROUP	macro	!time64only
@@ -35002,6 +35018,8 @@ netinet/ip_icmp.h	ICMP_UNREACH_PROTOCOL	macro	gnu17,gnu2x,default,bsd,svid,gnu,l
 netinet/ip_icmp.h	ICMP_UNREACH_SRCFAIL	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_UNREACH_TOSHOST	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_UNREACH_TOSNET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ip_icmp.h	IN6ADDR_ANY_INIT	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ip_icmp.h	IN6ADDR_LOOPBACK_INIT	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	INADDR_ALLHOSTS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	INADDR_ALLRTRS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	INADDR_ALLSNOOPERS_GROUP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41750,6 +41768,8 @@ resolv.h	ILL_PRVOPC	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,po
 resolv.h	ILL_PRVREG	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	ILL_PRVREG	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	IN6ADDRSZ	macro	!time64only
+resolv.h	IN6ADDR_ANY_INIT	macro	!time64only
+resolv.h	IN6ADDR_LOOPBACK_INIT	macro	!time64only
 resolv.h	INADDRSZ	macro	!time64only
 resolv.h	INADDR_ALLHOSTS_GROUP	macro	!time64only
 resolv.h	INADDR_ALLRTRS_GROUP	macro	!time64only
