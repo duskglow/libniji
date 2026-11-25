@@ -40,5 +40,9 @@ black-box probes; no differences row.
 * NOT DONE (refused): the static busybox build against the system flavour on mei and the debs/ypk steps (mei access
   refused, see the report). INFORMATIONAL: net/if_packet.h `sockaddr_pkt` not spliced (outside the three headers).
 
+* Plants (headers-busybox-gaps-plants-1): 6 of 6 CAUGHT, no WARN.
+* Coordinator add (#8510, ifr_qlen for libiproute/ipaddress.c): ifr_qlen is in the set; ipaddress.c compiles in the sweep
+  (make -k runs every directory to the end).
+
 ## Next step
-Plants job headers-busybox-gaps-plants-1 result, precheck, hand-back. Follow-up story for the sweep's remaining names.
+Hand-back done. Follow-up story for the sweep's remaining names.
