@@ -16,3 +16,7 @@ ns-in-experimental-nibble | headers/netinet/in.h.in | perl:s/(IN_EXPERIMENTAL\(a
 ns-in-classa-nocast | headers/netinet/in.h.in | perl:s/IN_CLASSA\(a\) \(\(\(\(in_addr_t\) \(a\)\) & /IN_CLASSA(a) ((((a)) \& / | cargo xtask headers-gen && python3 spec/tools/header_checks/s12.py | msg:FAIL P10 libniji build
 ns-icmp6-willblock-mask | headers/netinet/icmp6.h.in | perl:s/(ICMP6_FILTER_WILLBLOCK\(type, filterp\) )\(\((.*?)\) != 0\)/$1($2)/ | cargo xtask headers-gen && python3 spec/tools/header_checks/s12.py | msg:FAIL P10 line
 ns-icmp6-passall-dowhile | headers/netinet/icmp6.h.in | perl:s/(ICMP6_FILTER_SETPASSALL\(filterp\) )\{ (.*?); \}/${1}do { $2; } while (0)/ | cargo xtask headers-gen && python3 spec/tools/header_checks/s12.py | msg:FAIL P10 libniji build
+# cargo xtask plants results, job headers-net-sys-names-plants-3 on the Zen 1 host (code head 9ab89ce93), PARTIAL at
+# hand-back (09:40Z, 8 of 15 ended; the job was still running, the dispatcher verifies it): ns-icmp6-seq-index,
+# ns-icmp-id-void, ns-ip6-hops-drop, ns-rt-mss-mtu, ns-msg-cbytes-strict, ns-log-makepri-plus, ns-syslog-row-drop,
+# ns-syslog-row-order: CAUGHT, each by the message its msg: names. 0 SURVIVED, 0 WARN-RC-ONLY, 0 WARN-NO-MSG so far.
