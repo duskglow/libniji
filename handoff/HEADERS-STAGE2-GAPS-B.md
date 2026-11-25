@@ -36,6 +36,7 @@ gate (affected direct tier: 18 suites ok, 11811 passed / 0 failed, conformance 1
 plants), proof6 (openssh above). Earlier legs' jobs are superseded by these (see the report).
 
 ## Not done / next step
+* Jobs (keke, final head c232d5162): clippy3, gate3, plants3 (3 CAUGHT), stale. gate3's one red is xtask `so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint`: the gate runs it beside the products build and it lists target/niji while the build still writes it (not this story's code; passes alone on finished products: job stale; passed in gate2). Recommend the test or the gate order be fixed by its owner.
 * Nothing open from this chain after leg 6 (the item below is DONE in leg 6; kept for the record).
 * b64_ntop/b64_pton (coordinator 13:45Z): libniji's libresolv exports `__b64_ntop`/`__b64_pton`, visibility.tsv and
   prototypes.tsv list both as resolv.h functions, but libniji's resolv.h declares neither. The reference's resolv.h has
