@@ -38,7 +38,7 @@ story) and #8493 (above). No new D-row.
 
 **Exact next step.** None in this story once the gate and plants are green; follow-up is #266 (Fortran header).
 
-**Run 3 (SL-HEADERS-UNSHIPPED-REST-3), merge of next.** Branch , stacked on run 2. The
+**Run 3 (SL-HEADERS-UNSHIPPED-REST-3), merge of next.** Branch task/sl-headers-unshipped-rest-3, stacked on run 2. The
 CI conflict (release note, PROVENANCE, headers_unshipped.tsv) came from next shipping complex.h and tgmath.h
 (SL-HEADERS-COMPLEX-TGMATH). Resolved by keeping both sides: PROVENANCE has both entries (no counts in it to
 recompute); headers_unshipped.tsv now lists only math-vector-fortran.h; the known-limitations note names only that
