@@ -20,6 +20,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_time_t
@@ -32,6 +56,9 @@ struct utimbuf;
 # ifndef __NIJI_D_utime
 #  define __NIJI_D_utime 1
 extern int utime (const char *, const struct utimbuf *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __FD_SETSIZE
+#  define __FD_SETSIZE 1024
 # endif
 #endif
 

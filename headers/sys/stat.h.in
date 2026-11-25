@@ -10,6 +10,7 @@ __NIJI_BEGIN_C
 @@hidden-member st_atim st_atime st_atimensec
 @@hidden-member st_mtim st_mtime st_mtimensec
 @@hidden-member st_ctim st_ctime st_ctimensec
+@@owns-macro S_ISBLK S_ISCHR S_ISDIR S_ISFIFO S_ISREG S_ISLNK S_TYPEISSEM S_TYPEISSHM st_atime st_mtime st_ctime
 @@emit
 
 /* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. The bits are spelled as values, not as the
@@ -31,7 +32,7 @@ __NIJI_BEGIN_C
 # define S_TYPEISSHM(buf) ((void) (buf), 0)
 #endif
 /* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
-# if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
+# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC) && !defined st_atime
 #  define st_atime st_atim.tv_sec
 #  define st_mtime st_mtim.tv_sec
 #  define st_ctime st_ctim.tv_sec

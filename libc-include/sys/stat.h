@@ -207,6 +207,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_dev_t
@@ -432,6 +456,9 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 # ifndef S_IXUSR
 #  define S_IXUSR 64
 # endif
+# ifndef __FD_SETSIZE
+#  define __FD_SETSIZE 1024
+# endif
 #endif
 #if __NIJI_GNU
 # ifndef STATX_ALL
@@ -587,14 +614,18 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 # define S_ISFIFO(m) (((m) & 61440) == 4096)
 # define S_ISREG(m) (((m) & 61440) == 32768)
 # define S_ISLNK(m) (((m) & 61440) == 40960)
+#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 450
 # define S_ISSOCK(m) (((m) & 61440) == 49152)
-/* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. */
+#endif
+/* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. S_TYPEISTMO (the typed memory objects option)
+   is not defined, as in the reference (visibility.tsv has no row for it). */
+#if __NIJI_POSIX >= 199309
 # define S_TYPEISMQ(buf) ((void) (buf), 0)
 # define S_TYPEISSEM(buf) ((void) (buf), 0)
 # define S_TYPEISSHM(buf) ((void) (buf), 0)
-# define S_TYPEISTMO(buf) ((void) (buf), 0)
+#endif
 /* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
-# if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
+# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC) && !defined st_atime
 #  define st_atime st_atim.tv_sec
 #  define st_mtime st_mtim.tv_sec
 #  define st_ctime st_ctim.tv_sec

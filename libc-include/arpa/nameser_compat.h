@@ -408,6 +408,14 @@ typedef struct {
 # endif
 #endif
 
+/* The older names of the <arpa/nameser.h> byte-order macros (resolver(3)): aliases, usable once that header is in. */
+#if 1
+# define GETSHORT NS_GET16
+# define GETLONG NS_GET32
+# define PUTSHORT NS_PUT16
+# define PUTLONG NS_PUT32
+#endif
+
 __NIJI_END_C
 
 #endif

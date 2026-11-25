@@ -558,6 +558,38 @@ extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW;
 # endif
 #endif
 
+/* resolver(3) message parsing: the accessors of a parsed message (ns_initparse) and of a resource record (ns_parserr).
+   Each is a value, not an lvalue; the counts and lengths are int, the type and class are ns_type and ns_class, and a
+   record whose name is the root (empty) reads as ".". The section index is not range-checked. */
+#if 1
+# define ns_msg_id(handle) ((handle)._id + 0)
+# define ns_msg_base(handle) ((handle)._msg + 0)
+# define ns_msg_end(handle) ((handle)._eom + 0)
+# define ns_msg_size(handle) ((handle)._eom - (handle)._msg)
+# define ns_msg_count(handle, section) ((handle)._counts[section] + 0)
+# define ns_rr_name(rr) (((rr).name[0] != '\0') ? (rr).name : ".")
+# define ns_rr_type(rr) ((ns_type) ((rr).type + 0))
+# define ns_rr_class(rr) ((ns_class) ((rr).rr_class + 0))
+# define ns_rr_ttl(rr) ((rr).ttl + 0)
+# define ns_rr_rdlen(rr) ((rr).rdlength + 0)
+# define ns_rr_rdata(rr) ((rr).rdata + 0)
+#endif
+
+/* RFC 1035 section 2.3.2: 16- and 32-bit fields in network byte order. GET reads one into s and PUT writes the low
+   bits of s, each advancing cp past the field; each is one statement. */
+#if 1
+# define NS_GET16(s, cp) do { const unsigned char *__niji_cp = (const unsigned char *) (cp); \
+  (s) = (unsigned short) (((unsigned int) __niji_cp[0] << 8) | __niji_cp[1]); (cp) += 2; } while (0)
+# define NS_GET32(s, cp) do { const unsigned char *__niji_cp = (const unsigned char *) (cp); \
+  (s) = ((unsigned long) __niji_cp[0] << 24) | ((unsigned long) __niji_cp[1] << 16) \
+    | ((unsigned long) __niji_cp[2] << 8) | (unsigned long) __niji_cp[3]; (cp) += 4; } while (0)
+# define NS_PUT16(s, cp) do { unsigned long __niji_v = (unsigned long) (s); unsigned char *__niji_cp = (unsigned char *) (cp); \
+  __niji_cp[0] = (unsigned char) (__niji_v >> 8); __niji_cp[1] = (unsigned char) __niji_v; (cp) += 2; } while (0)
+# define NS_PUT32(s, cp) do { unsigned long __niji_v = (unsigned long) (s); unsigned char *__niji_cp = (unsigned char *) (cp); \
+  __niji_cp[0] = (unsigned char) (__niji_v >> 24); __niji_cp[1] = (unsigned char) (__niji_v >> 16); \
+  __niji_cp[2] = (unsigned char) (__niji_v >> 8); __niji_cp[3] = (unsigned char) __niji_v; (cp) += 4; } while (0)
+#endif
+
 __NIJI_END_C
 
 #endif

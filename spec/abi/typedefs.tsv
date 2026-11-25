@@ -753,6 +753,7 @@ typedef	__pthread_unwind_buf_t	pthread.h			__pthread_unwind_buf_t
 enum	__ptrace_request	sys/ptrace.h	4	4	__ptrace_request
 function	__putlong	resolv.h			void (unsigned int, unsigned char*)
 function	__putshort	resolv.h			void (unsigned short, unsigned char*)
+typedef	__quad_t	aio.h	8	8	long
 typedef	__re_long_size_t	re_comp.h	8	8	unsigned long
 typedef	__re_size_t	re_comp.h	4	4	unsigned int
 function	__remainder	complex.h			double (double, double)
@@ -933,6 +934,11 @@ object	__tzname	pthread.h	16	8	char* [2]
 typedef	__u16	ftw.h	2	2	unsigned short
 typedef	__u32	ftw.h	4	4	unsigned int
 typedef	__u64	ftw.h	8	8	unsigned long long
+typedef	__u_char	aio.h	1	1	unsigned char
+typedef	__u_int	aio.h	4	4	unsigned int
+typedef	__u_long	aio.h	8	8	unsigned long
+typedef	__u_quad_t	aio.h	8	8	unsigned long
+typedef	__u_short	aio.h	2	2	unsigned short
 function	__uflow	argp.h			int (_IO_FILE*)
 function	__ufromfp	complex.h			unsigned long (double, int, unsigned int)
 function	__ufromfpf	complex.h			unsigned long (float, int, unsigned int)
@@ -1538,6 +1544,7 @@ function	fcntl	fcntl.h			int (int, int, ...)
 function	fcntl64	fcntl.h			int (int, int, ...)
 function	fcvt	complex.h			char* (double, int, int*, int*)
 function	fcvt_r	complex.h			int (double, int, int*, int*, char*, unsigned long)
+typedef	fd_mask	aio.h	8	8	long
 typedef	fd_set	aio.h	128	8	fd_set
 function	fdatasync	arpa/nameser.h			int (int)
 function	fdim	complex.h			double (double, double)

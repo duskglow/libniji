@@ -6,6 +6,7 @@
 #include <features.h>
 
 #include <sys/select.h>
+#include <sys/time.h>
 
 __NIJI_BEGIN_C
 

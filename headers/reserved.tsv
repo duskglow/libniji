@@ -70,3 +70,12 @@ __freading	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documente
 __fsetlocking	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwritable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwriting	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__u_char	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__u_short	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__u_int	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__u_long	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__quad_t	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__u_quad_t	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.h names the __u_* and __quad_t types)
+__fd_mask	emit	R-H7: Yohane stage 2 (libev): the element type of fd_set's fds_bits, beside fd_mask
+__NFDBITS	emit	R-H7: Yohane stage 2 (libev): the bits per fd_set word, beside NFDBITS
+__FD_SETSIZE	emit	R-H7: Yohane stage 2 (libev): the descriptors one fd_set holds, beside FD_SETSIZE

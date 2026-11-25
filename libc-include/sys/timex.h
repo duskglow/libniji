@@ -6,31 +6,11 @@
 #include <features.h>
 
 #include <sys/select.h>
+#include <sys/time.h>
 
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_itimerval
-#  define __NIJI_D_struct_itimerval 1
-struct itimerval {
-  struct timeval it_interval;
-  struct timeval it_value;
-};
-# endif
 # ifndef __NIJI_D_struct_timeval
 #  define __NIJI_D_struct_timeval 1
 struct timeval {
@@ -94,39 +74,10 @@ struct timex {
   int : 32;
 };
 # endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_timezone
-#  define __NIJI_D_struct_timezone 1
-struct timezone {
-  int tz_minuteswest;
-  int tz_dsttime;
-};
-# endif
-#endif
-#if 1
-# ifndef __NIJI_D_enum___itimer_which
-#  define __NIJI_D_enum___itimer_which 1
-enum __itimer_which {
-  ITIMER_REAL = 0,
-  ITIMER_VIRTUAL = 1,
-  ITIMER_PROF = 2,
-};
-# endif
 struct timex;
 # ifndef __NIJI_D_adjtimex
 #  define __NIJI_D_adjtimex 1
 extern int adjtimex (struct timex *) __NIJI_NOTHROW;
-# endif
-struct itimerval;
-# ifndef __NIJI_D_getitimer
-#  define __NIJI_D_getitimer 1
-extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_gettimeofday
-#  define __NIJI_D_gettimeofday 1
-extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timex;
 # ifndef __NIJI_D_ntp_adjtime
@@ -143,50 +94,6 @@ struct ntptimeval;
 #  define __NIJI_D_ntp_gettimex 1
 extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW;
 # endif
-struct itimerval;
-struct itimerval;
-# ifndef __NIJI_D_setitimer
-#  define __NIJI_D_setitimer 1
-extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_utimes
-#  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_GNU
-struct timeval;
-# ifndef __NIJI_D_futimesat
-#  define __NIJI_D_futimesat 1
-extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC
-struct timeval;
-struct timeval;
-# ifndef __NIJI_D_adjtime
-#  define __NIJI_D_adjtime 1
-extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_futimes
-#  define __NIJI_D_futimes 1
-extern int futimes (int, const struct timeval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_lutimes
-#  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-struct timeval;
-struct timezone;
-# ifndef __NIJI_D_settimeofday
-#  define __NIJI_D_settimeofday 1
-extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
-# endif
-#endif
-#if 1
 # ifndef ADJ_ESTERROR
 #  define ADJ_ESTERROR 8
 # endif
@@ -225,15 +132,6 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # endif
 # ifndef ADJ_TIMECONST
 #  define ADJ_TIMECONST 32
-# endif
-# ifndef ITIMER_PROF
-#  define ITIMER_PROF ITIMER_PROF
-# endif
-# ifndef ITIMER_REAL
-#  define ITIMER_REAL ITIMER_REAL
-# endif
-# ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
 # ifndef MAXTC
 #  define MAXTC 6

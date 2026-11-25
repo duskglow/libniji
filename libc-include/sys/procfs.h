@@ -4,6 +4,7 @@
 #define __NIJI_H_sys_procfs_h 1
 
 #include <features.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/user.h>
 
@@ -96,62 +97,6 @@ struct elf_siginfo {
   int si_errno;
 };
 # endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_itimerval
-#  define __NIJI_D_struct_itimerval 1
-struct itimerval {
-  struct timeval it_interval;
-  struct timeval it_value;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_timezone
-#  define __NIJI_D_struct_timezone 1
-struct timezone {
-  int tz_minuteswest;
-  int tz_dsttime;
-};
-# endif
-#endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-#endif
-#if 1
-# ifndef __NIJI_D_enum___itimer_which
-#  define __NIJI_D_enum___itimer_which 1
-enum __itimer_which {
-  ITIMER_REAL = 0,
-  ITIMER_VIRTUAL = 1,
-  ITIMER_PROF = 2,
-};
-# endif
 # ifndef __NIJI_D_struct_user_fpregs_struct
 #  define __NIJI_D_struct_user_fpregs_struct 1
 struct user_fpregs_struct {
@@ -179,12 +124,6 @@ typedef unsigned long long elf_greg_t;
 # ifndef __NIJI_D_elf_gregset_t
 #  define __NIJI_D_elf_gregset_t 1
 typedef unsigned long long elf_gregset_t[27];
-# endif
-# ifndef __NIJI_D_fd_set
-#  define __NIJI_D_fd_set 1
-typedef struct {
-  long fds_bits[16];
-} fd_set;
 # endif
 # ifndef __NIJI_D_lwpid_t
 #  define __NIJI_D_lwpid_t 1
@@ -304,20 +243,6 @@ typedef struct elf_prstatus prstatus_t;
 #  define __NIJI_D_psaddr_t 1
 typedef void * psaddr_t;
 # endif
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-# ifndef __NIJI_D_sigset_t
-#  define __NIJI_D_sigset_t 1
-typedef __sigset_t sigset_t;
-# endif
-# ifndef __NIJI_D_suseconds_t
-#  define __NIJI_D_suseconds_t 1
-typedef long suseconds_t;
-# endif
 #endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
@@ -330,95 +255,11 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-struct itimerval;
-# ifndef __NIJI_D_getitimer
-#  define __NIJI_D_getitimer 1
-extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_gettimeofday
-#  define __NIJI_D_gettimeofday 1
-extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-struct timeval;
-# ifndef __NIJI_D_select
-#  define __NIJI_D_select 1
-extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
-# endif
-struct itimerval;
-struct itimerval;
-# ifndef __NIJI_D_setitimer
-#  define __NIJI_D_setitimer 1
-extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_utimes
-#  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_GNU
-struct timeval;
-# ifndef __NIJI_D_futimesat
-#  define __NIJI_D_futimesat 1
-extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC
-struct timeval;
-struct timeval;
-# ifndef __NIJI_D_adjtime
-#  define __NIJI_D_adjtime 1
-extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_futimes
-#  define __NIJI_D_futimes 1
-extern int futimes (int, const struct timeval *) __NIJI_NOTHROW;
-# endif
-struct timeval;
-# ifndef __NIJI_D_lutimes
-#  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-struct timeval;
-struct timezone;
-# ifndef __NIJI_D_settimeofday
-#  define __NIJI_D_settimeofday 1
-extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-struct timespec;
-# ifndef __NIJI_D_pselect
-#  define __NIJI_D_pselect 1
-extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
-# endif
-#endif
-#if 1
 # ifndef ELF_NGREG
 #  define ELF_NGREG 27UL
 # endif
 # ifndef ELF_PRARGSZ
 #  define ELF_PRARGSZ 80
-# endif
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
-# ifndef ITIMER_PROF
-#  define ITIMER_PROF ITIMER_PROF
-# endif
-# ifndef ITIMER_REAL
-#  define ITIMER_REAL ITIMER_REAL
-# endif
-# ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
 #endif
 

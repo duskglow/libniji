@@ -513,6 +513,9 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # ifndef SYSCALL_DISPATCH_FILTER_BLOCK
 #  define SYSCALL_DISPATCH_FILTER_BLOCK 1
 # endif
+# ifndef __FD_SETSIZE
+#  define __FD_SETSIZE 1024
+# endif
 #endif
 
 __NIJI_END_C

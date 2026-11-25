@@ -474,11 +474,10 @@ def candidates():
     return sorted(names), sorted(tags)
 
 
-def error_lines(lang, flags, path):
-    """(exit status, set of line numbers of errors located in `path`). Nothing else is read."""
-    # Without macro-expansion tracking an error inside a macro's expansion is located at the line that uses the macro:
-    # a test naming an object-like alias of a function-like macro (`GETSHORT` for `NS_GET16`) fails on its own line,
-    # not at the alias's definition in the header (HEADERS-STAGE2-GAPS-E). Errors outside macros are located as before.
+def _compile(lang, flags, path):
+    """(exit status, line numbers of errors located in `path`, count of errors located elsewhere, command)."""
+    # Without macro-expansion tracking an error inside a macro's expansion is located at the line that uses the macro
+    # where the compiler can do so; errors outside macros are located as before.
     cmd = [COMPILER[lang]] + flags.split() + BASE + ["-ftrack-macro-expansion=0", "-x", "c" if lang == "c" else "c++", path]
     p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     # Only the location prefix of error lines is matched; the message after it is never looked at.
@@ -490,9 +489,20 @@ def error_lines(lang, flags, path):
             lines.add(int(m.group(2)))
         elif m:
             elsewhere += 1
-    if p.returncode != 0 and (elsewhere or not lines):
+    return p.returncode, lines, elsewhere, cmd
+
+
+def _located(rc, lines, elsewhere):
+    """Whether a compile's outcome is known line by line: it passed, or every error is on a line of the unit."""
+    return rc == 0 or (lines and not elsewhere)
+
+
+def error_lines(lang, flags, path):
+    """(exit status, set of line numbers of errors located in `path`). Nothing else is read."""
+    rc, lines, elsewhere, cmd = _compile(lang, flags, path)
+    if not _located(rc, lines, elsewhere):
         raise RuntimeError(f"{os.path.basename(path)}: the unit failed outside its own test lines ({' '.join(cmd[:2])} ...)")
-    return p.returncode, lines
+    return rc, lines
 
 
 class Unit:
@@ -510,11 +520,40 @@ class Unit:
         self.lines.append(text)
         self.tests[len(self.lines)] = key
 
-    def run(self, lang, flags, path):
+    def _write(self, path, active):
+        """Write the unit with only the test lines in `active` (the others blank, so line numbers do not move)."""
         with open(path, "w") as f:
-            f.write("\n".join(self.lines) + "\n")
-        rc, errs = error_lines(lang, flags, path)
+            f.write("\n".join("" if i + 1 in self.tests and i + 1 not in active else t
+                              for i, t in enumerate(self.lines)) + "\n")
+
+    def run(self, lang, flags, path):
+        """(exit status, keys of the tests that fail to compile)."""
+        every = set(self.tests)
+        self._write(path, every)
+        rc, errs, elsewhere, cmd = _compile(lang, flags, path)
+        if not _located(rc, errs, elsewhere):
+            # An error located outside the unit (an object-like alias of a function-like macro, `GETLONG` for
+            # `NS_GET32`, used as a value is reported at the alias's definition in the header, whatever the
+            # tracking flag): halve the set of tests until each such failure is pinned to one test. A unit that
+            # fails with no test at all is the header's own failure, as before.
+            self._write(path, set())
+            if not _located(*_compile(lang, flags, path)[:3]):
+                raise RuntimeError(f"{os.path.basename(path)}: the unit failed outside its own test lines "
+                                   f"({' '.join(cmd[:2])} ...)")
+            errs = self._bisect(lang, flags, path, sorted(every))
+            rc = 1
         return rc, {key for line, key in self.tests.items() if line in errs}
+
+    def _bisect(self, lang, flags, path, active):
+        """The lines of the tests in `active` that fail, each test of an unlocated failure found by halving."""
+        self._write(path, set(active))
+        rc, errs, elsewhere, _ = _compile(lang, flags, path)
+        if _located(rc, errs, elsewhere):
+            return errs
+        if len(active) == 1:
+            return set(active)
+        half = len(active) // 2
+        return self._bisect(lang, flags, path, active[:half]) | self._bisect(lang, flags, path, active[half:])
 
 
 def keywords(lang, names, work):
