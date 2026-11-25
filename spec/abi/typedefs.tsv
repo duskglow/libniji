@@ -1061,6 +1061,7 @@ function	aligned_alloc	complex.h			void* (unsigned long, unsigned long)
 function	alloca	alloca.h			void* (unsigned long)
 function	alphasort	dirent.h			int (dirent const**, dirent const**)
 function	alphasort64	dirent.h			int (dirent64 const**, dirent64 const**)
+struct	ar_hdr	ar.h	60	1	ar_hdr
 function	arc4random	complex.h			unsigned int ()
 function	arc4random_buf	complex.h			void (void*, unsigned long)
 function	arc4random_uniform	complex.h			unsigned int (unsigned int)
@@ -3852,6 +3853,7 @@ struct	user_fpregs_struct	proc_service.h	512	8	user_fpregs_struct
 struct	user_regs_struct	proc_service.h	216	8	user_regs_struct
 typedef	ushort	aio.h	2	2	unsigned short
 function	usleep	arpa/nameser.h			int (unsigned int)
+struct	utimbuf	utime.h	16	8	utimbuf
 function	utime	utime.h			int (char const*, utimbuf const*)
 function	utimensat	ftw.h			int (int, char const*, timespec const*, int)
 function	utimes	lastlog.h			int (char const*, timeval const*)
@@ -4003,5 +4005,3 @@ function	ynf32x	complex.h			_Float32x (int, _Float32x)
 function	ynf64	complex.h			_Float64 (int, _Float64)
 function	ynf64x	complex.h			_Float64x (int, _Float64x)
 function	ynl	complex.h			long double (int, long double)
-struct	ar_hdr	ar.h	60	1	ar_hdr
-struct	utimbuf	utime.h	16	8	utimbuf
