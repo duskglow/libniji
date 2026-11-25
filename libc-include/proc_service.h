@@ -59,7 +59,7 @@ extern ps_err_e ps_lgetfpregs (struct ps_prochandle *, int, prfpregset_t *);
 struct ps_prochandle;
 # ifndef __NIJI_D_ps_lgetregs
 #  define __NIJI_D_ps_lgetregs 1
-extern ps_err_e ps_lgetregs (struct ps_prochandle *, int, unsigned long long *);
+extern ps_err_e ps_lgetregs (struct ps_prochandle *, int, unsigned long long [27]);
 # endif
 struct ps_prochandle;
 # ifndef __NIJI_D_ps_lsetfpregs
@@ -69,7 +69,7 @@ extern ps_err_e ps_lsetfpregs (struct ps_prochandle *, int, const prfpregset_t *
 struct ps_prochandle;
 # ifndef __NIJI_D_ps_lsetregs
 #  define __NIJI_D_ps_lsetregs 1
-extern ps_err_e ps_lsetregs (struct ps_prochandle *, int, const unsigned long long *);
+extern ps_err_e ps_lsetregs (struct ps_prochandle *, int, const unsigned long long [27]);
 # endif
 struct ps_prochandle;
 # ifndef __NIJI_D_ps_lstop

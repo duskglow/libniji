@@ -684,7 +684,7 @@ extern td_err_e td_thr_getfpregs (const td_thrhandle_t *, prfpregset_t *);
 # endif
 # ifndef __NIJI_D_td_thr_getgregs
 #  define __NIJI_D_td_thr_getgregs 1
-extern td_err_e td_thr_getgregs (const td_thrhandle_t *, unsigned long long *);
+extern td_err_e td_thr_getgregs (const td_thrhandle_t *, unsigned long long [27]);
 # endif
 # ifndef __NIJI_D_td_thr_getxregs
 #  define __NIJI_D_td_thr_getxregs 1
@@ -704,7 +704,7 @@ extern td_err_e td_thr_setfpregs (const td_thrhandle_t *, const prfpregset_t *);
 # endif
 # ifndef __NIJI_D_td_thr_setgregs
 #  define __NIJI_D_td_thr_setgregs 1
-extern td_err_e td_thr_setgregs (const td_thrhandle_t *, unsigned long long *);
+extern td_err_e td_thr_setgregs (const td_thrhandle_t *, unsigned long long [27]);
 # endif
 # ifndef __NIJI_D_td_thr_setprio
 #  define __NIJI_D_td_thr_setprio 1
