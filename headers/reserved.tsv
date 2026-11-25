@@ -73,3 +73,5 @@ __fsetlocking	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the docume
 __fwritable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwriting	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __RES	emit	resolv.h's resolver interface version, which programs test to choose the resolver interface (apt: `__RES >= 19991006`; HEADERS-STAGE2-GAPS-B)
+__GNU_GETTEXT_SUPPORTED_REVISION	emit	gettext.m4 AM_GNU_GETTEXT: its "GNU gettext in libc" test compiles __GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1 (tar and every package using the macro; Yohane stage 2)
+>>>>>>> origin/next

@@ -663,23 +663,41 @@ extern char *secure_getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnu
 # endif
 # ifndef __NIJI_D_strfromf128
 #  define __NIJI_D_strfromf128 1
+#  if __NIJI_FLOAT128
 extern int strfromf128 (char *, unsigned long, const char *, _Float128) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strfromf32
 #  define __NIJI_D_strfromf32 1
+#  if __NIJI_FLOATN
 extern int strfromf32 (char *, unsigned long, const char *, _Float32) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  elif !defined __cplusplus
+extern int strfromf32 (char *, unsigned long, const char *, float) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strfromf32x
 #  define __NIJI_D_strfromf32x 1
+#  if __NIJI_FLOATN
 extern int strfromf32x (char *, unsigned long, const char *, _Float32x) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  elif !defined __cplusplus
+extern int strfromf32x (char *, unsigned long, const char *, double) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strfromf64
 #  define __NIJI_D_strfromf64 1
+#  if __NIJI_FLOATN
 extern int strfromf64 (char *, unsigned long, const char *, _Float64) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  elif !defined __cplusplus
+extern int strfromf64 (char *, unsigned long, const char *, double) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strfromf64x
 #  define __NIJI_D_strfromf64x 1
+#  if __NIJI_FLOATN
 extern int strfromf64x (char *, unsigned long, const char *, _Float64x) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  elif !defined __cplusplus
+extern int strfromf64x (char *, unsigned long, const char *, long double) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtod_l
 #  define __NIJI_D_strtod_l 1
@@ -687,43 +705,79 @@ extern double strtod_l (const char *, char **, locale_t) __NIJI_NOTHROW __attrib
 # endif
 # ifndef __NIJI_D_strtof128
 #  define __NIJI_D_strtof128 1
+#  if __NIJI_FLOAT128
 extern _Float128 strtof128 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof128_l
 #  define __NIJI_D_strtof128_l 1
+#  if __NIJI_FLOAT128
 extern _Float128 strtof128_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof32
 #  define __NIJI_D_strtof32 1
+#  if __NIJI_FLOATN
 extern _Float32 strtof32 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  elif !defined __cplusplus
+extern float strtof32 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof32_l
 #  define __NIJI_D_strtof32_l 1
+#  if __NIJI_FLOATN
 extern _Float32 strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  elif !defined __cplusplus
+extern float strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof32x
 #  define __NIJI_D_strtof32x 1
+#  if __NIJI_FLOATN
 extern _Float32x strtof32x (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  elif !defined __cplusplus
+extern double strtof32x (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof32x_l
 #  define __NIJI_D_strtof32x_l 1
+#  if __NIJI_FLOATN
 extern _Float32x strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  elif !defined __cplusplus
+extern double strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof64
 #  define __NIJI_D_strtof64 1
+#  if __NIJI_FLOATN
 extern _Float64 strtof64 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  elif !defined __cplusplus
+extern double strtof64 (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof64_l
 #  define __NIJI_D_strtof64_l 1
+#  if __NIJI_FLOATN
 extern _Float64 strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  elif !defined __cplusplus
+extern double strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof64x
 #  define __NIJI_D_strtof64x 1
+#  if __NIJI_FLOATN
 extern _Float64x strtof64x (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  elif !defined __cplusplus
+extern long double strtof64x (const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof64x_l
 #  define __NIJI_D_strtof64x_l 1
+#  if __NIJI_FLOATN
 extern _Float64x strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  elif !defined __cplusplus
+extern long double strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+#  endif
 # endif
 # ifndef __NIJI_D_strtof_l
 #  define __NIJI_D_strtof_l 1

@@ -31,6 +31,88 @@ pub(crate) const FLOATS: &[(&str, &str, &str, usize)] = &[
     ("_Float128", "f128", "f128", 36),
 ];
 
+/// A standard type of a `_FloatN` type's format: its name, literal suffix and builtin suffix.
+type FloatBase = (&'static str, &'static str, &'static str);
+
+/// The `_FloatN` types and constant suffixes of TS 18661-3 a compiler may lack (clang has none of them), with the type
+/// of the same format on x86-64 (psABI) and that type's literal and builtin suffixes; `None`: `_Float128`, whose
+/// format (binary128) no other standard type has.
+const FLOATN_BASE: &[(&str, &str, Option<FloatBase>)] = &[
+    ("_Float32", "f32", Some(("float", "f", "f"))),
+    ("_Float64", "f64", Some(("double", "", ""))),
+    ("_Float32x", "f32x", Some(("double", "", ""))),
+    ("_Float64x", "f64x", Some(("long double", "L", "l"))),
+    ("_Float128", "f128", None),
+];
+
+/// What a generated line needs of the `_FloatN` types: `Some(true)` when it names `_Float128` or its suffix,
+/// `Some(false)` when it names only the others (a type, `1.5f32`, `__builtin_inff64x`), `None` when it names none;
+/// and the line spelled for a compiler without the keywords (`_FloatN` as its base type in a declaration, each
+/// suffix as the base type's).
+fn floatn_line(line: &str, decl: bool) -> (Option<bool>, String, bool) {
+    let (mut found, mut suffixed, mut out, mut word) = (None, false, String::new(), String::new());
+    for c in line.chars().chain(std::iter::once('\0')) {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            word.push(c);
+            continue;
+        }
+        let w = std::mem::take(&mut word);
+        let mut rep = w.clone();
+        for &(ty, sfx, base) in FLOATN_BASE {
+            let lit = w.starts_with(|d: char| d.is_ascii_digit()) && !w.starts_with("0x") && !w.starts_with("0X") && w.ends_with(sfx);
+            // A suffix match must end the word exactly: `1f32x` is no `f32` literal.
+            let lit = lit && w[..w.len() - sfx.len()].ends_with(|d: char| d.is_ascii_digit() || d == 'e' || d == '.');
+            let builtin = w.starts_with("__builtin_") && w.ends_with(sfx) && !w.ends_with(&format!("{sfx}x"));
+            let lit = lit && !w.ends_with(&format!("{sfx}x"));
+            if w == ty || lit || builtin {
+                found = Some(found.unwrap_or(false) || base.is_none());
+                if let Some((bty, lsfx, bsfx)) = base {
+                    if w == ty && decl {
+                        rep = bty.to_string();
+                    } else if lit {
+                        rep = format!("{}{lsfx}", &w[..w.len() - sfx.len()]);
+                        suffixed = true;
+                    } else if builtin {
+                        rep = format!("{}{bsfx}", &w[..w.len() - sfx.len()]);
+                        suffixed = true;
+                    }
+                }
+            }
+        }
+        out.push_str(&rep);
+        if c != '\0' {
+            out.push(c);
+        }
+    }
+    (found, out, suffixed)
+}
+
+/// Each generated declaration and macro definition that names a `_FloatN` type or spells its constants, under the
+/// compiler's support (features.h's `__NIJI_FLOATN`, `__NIJI_FLOAT128`): `_Float128`'s only where the compiler has
+/// the type; the others' where it has the keywords, else a declaration in C with the base types and a macro with
+/// the base types' suffixes (its casts name the typedefs features.h gives such a compiler). A macro whose only
+/// `_FloatN` words are casts needs neither.
+pub(crate) fn floatn_guards(lines: Vec<String>) -> Vec<String> {
+    let mut out = Vec::with_capacity(lines.len());
+    for l in lines {
+        let decl = l.starts_with("extern ");
+        let def = l.strip_prefix('#').is_some_and(|r| r.trim_start().starts_with("define "));
+        if !(decl || def) {
+            out.push(l);
+            continue;
+        }
+        let (found, base, suffixed) = floatn_line(&l, decl);
+        let hash = if def { l[..l.find("define").unwrap_or(1)].to_string() } else { "#  ".to_string() };
+        match found {
+            Some(true) => out.extend([format!("{hash}if __NIJI_FLOAT128"), l, format!("{hash}endif")]),
+            Some(false) if decl => out.extend([format!("{hash}if __NIJI_FLOATN"), l, format!("{hash}elif !defined __cplusplus"), base, format!("{hash}endif")]),
+            Some(false) if suffixed => out.extend([format!("{hash}if __NIJI_FLOATN"), l, format!("{hash}else"), base, format!("{hash}endif")]),
+            _ => out.push(l),
+        }
+    }
+    out
+}
+
 /// The decimal spelling (`d.ddde+N`) of the hexadecimal floating constant `hex` (`[-]0xH[.H]p[+-]N`), rounded to
 /// `digits` significant digits, half to even. A hexadecimal floating constant is no token in C89 and in C++98 to C++14
 /// (C99 6.4.4.2, C++17 [lex.fcon]); the decimal one is a token in every mode, and with the type's `*_DECIMAL_DIG`
