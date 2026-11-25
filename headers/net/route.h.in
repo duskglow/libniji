@@ -10,7 +10,13 @@
 
 __NIJI_BEGIN_C
 
+@@owns rt_mss
 @@emit
+
+/* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */
+@@when rtentry
+# define rt_mss rt_mtu
+#endif
 
 __NIJI_END_C
 

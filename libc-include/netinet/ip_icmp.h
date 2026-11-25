@@ -394,6 +394,28 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 
+/* The members of struct icmp's two unions by their message's field names (RFC 792, RFC 1191 for the path MTU, RFC 1256
+   for router advertisements): each name is a macro for the nested member the layout table records. */
+#if __NIJI_MISC
+# define icmp_pptr icmp_hun.ih_pptr
+# define icmp_gwaddr icmp_hun.ih_gwaddr
+# define icmp_id icmp_hun.ih_idseq.icd_id
+# define icmp_seq icmp_hun.ih_idseq.icd_seq
+# define icmp_void icmp_hun.ih_void
+# define icmp_pmvoid icmp_hun.ih_pmtu.ipm_void
+# define icmp_nextmtu icmp_hun.ih_pmtu.ipm_nextmtu
+# define icmp_num_addrs icmp_hun.ih_rtradv.irt_num_addrs
+# define icmp_wpa icmp_hun.ih_rtradv.irt_wpa
+# define icmp_lifetime icmp_hun.ih_rtradv.irt_lifetime
+# define icmp_otime icmp_dun.id_ts.its_otime
+# define icmp_rtime icmp_dun.id_ts.its_rtime
+# define icmp_ttime icmp_dun.id_ts.its_ttime
+# define icmp_ip icmp_dun.id_ip.idi_ip
+# define icmp_radv icmp_dun.id_radv
+# define icmp_mask icmp_dun.id_mask
+# define icmp_data icmp_dun.id_data
+#endif
+
 __NIJI_END_C
 
 #endif

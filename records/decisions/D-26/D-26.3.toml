@@ -1,0 +1,10 @@
+id = "D-26.3"
+section = "s26-29"
+spec = "§26.1"
+ann = "ARB"
+status = "active"
+story = "HEADERS-NET-SYS-NAMES"
+date = "2026-11-25"
+body = '''
+**`<syslog.h>` with `SYSLOG_NAMES` needs no other header.** The `prioritynames` and `facilitynames` tables (a program that defines `SYSLOG_NAMES` before the header gets them, where `__NIJI_MISC` holds) end in `{ 0, -1 }`: the integer constant 0 is a null pointer constant in C and C++, so the header does not depend on `NULL` from `<stddef.h>` or `<stdio.h>`. A black-box probe of the reference shows `<syslog.h>` alone with `SYSLOG_NAMES` failing to compile, and compiling once `NULL` is defined. Every program that builds against the reference builds the same against libniji and gets the same tables (contents, order, `char *` names, external definitions). The only effect is that a unit with `SYSLOG_NAMES` and no `NULL` also builds, so this needs no differences row. Tested by spec/tools/header_checks/s14.py (its SYSLOG_NAMES units include nothing else).
+'''

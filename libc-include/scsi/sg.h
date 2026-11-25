@@ -9,10 +9,374 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_sg_header
+#  define __NIJI_D_struct_sg_header 1
+struct sg_header {
+  int pack_len;
+  int reply_len;
+  int pack_id;
+  int result;
+  unsigned int twelve_byte : 1;
+  unsigned int target_status : 5;
+  unsigned int host_status : 8;
+  unsigned int driver_status : 8;
+  unsigned int other_flags : 10;
+  unsigned char sense_buffer[16];
+};
+# endif
+# ifndef __NIJI_D_struct_sg_io_hdr
+#  define __NIJI_D_struct_sg_io_hdr 1
+struct sg_io_hdr {
+  int interface_id;
+  int dxfer_direction;
+  unsigned char cmd_len;
+  unsigned char mx_sb_len;
+  unsigned short iovec_count;
+  unsigned int dxfer_len;
+  void * dxferp;
+  unsigned char * cmdp;
+  unsigned char * sbp;
+  unsigned int timeout;
+  unsigned int flags;
+  int pack_id;
+  void * usr_ptr;
+  unsigned char status;
+  unsigned char masked_status;
+  unsigned char msg_status;
+  unsigned char sb_len_wr;
+  unsigned short host_status;
+  unsigned short driver_status;
+  int resid;
+  unsigned int duration;
+  unsigned int info;
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_struct_sg_iovec
+#  define __NIJI_D_struct_sg_iovec 1
+struct sg_iovec {
+  void * iov_base;
+  unsigned long iov_len;
+};
+# endif
+# ifndef __NIJI_D_struct_sg_req_info
+#  define __NIJI_D_struct_sg_req_info 1
+struct sg_req_info {
+  char req_state;
+  char orphan;
+  char sg_io_owned;
+  char problem;
+  int pack_id;
+  void * usr_ptr;
+  unsigned int duration;
+  int unused;
+};
+# endif
+# ifndef __NIJI_D_struct_sg_scsi_id
+#  define __NIJI_D_struct_sg_scsi_id 1
+struct sg_scsi_id {
+  int host_no;
+  int channel;
+  int scsi_id;
+  int lun;
+  int scsi_type;
+  short h_cmd_per_lun;
+  short d_queue_depth;
+  int unused[2];
+};
+# endif
+# ifndef __NIJI_D_struct_sg_io_hdr
+#  define __NIJI_D_struct_sg_io_hdr 1
+struct sg_io_hdr {
+  int interface_id;
+  int dxfer_direction;
+  unsigned char cmd_len;
+  unsigned char mx_sb_len;
+  unsigned short iovec_count;
+  unsigned int dxfer_len;
+  void * dxferp;
+  unsigned char * cmdp;
+  unsigned char * sbp;
+  unsigned int timeout;
+  unsigned int flags;
+  int pack_id;
+  void * usr_ptr;
+  unsigned char status;
+  unsigned char masked_status;
+  unsigned char msg_status;
+  unsigned char sb_len_wr;
+  unsigned short host_status;
+  unsigned short driver_status;
+  int resid;
+  unsigned int duration;
+  unsigned int info;
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_Sg_io_hdr
+#  define __NIJI_D_Sg_io_hdr 1
+typedef struct sg_io_hdr Sg_io_hdr;
+# endif
+# ifndef __NIJI_D_struct_sg_req_info
+#  define __NIJI_D_struct_sg_req_info 1
+struct sg_req_info {
+  char req_state;
+  char orphan;
+  char sg_io_owned;
+  char problem;
+  int pack_id;
+  void * usr_ptr;
+  unsigned int duration;
+  int unused;
+};
+# endif
+# ifndef __NIJI_D_Sg_req_info
+#  define __NIJI_D_Sg_req_info 1
+typedef struct sg_req_info Sg_req_info;
+# endif
+# ifndef __NIJI_D_struct_sg_scsi_id
+#  define __NIJI_D_struct_sg_scsi_id 1
+struct sg_scsi_id {
+  int host_no;
+  int channel;
+  int scsi_id;
+  int lun;
+  int scsi_type;
+  short h_cmd_per_lun;
+  short d_queue_depth;
+  int unused[2];
+};
+# endif
+# ifndef __NIJI_D_Sg_scsi_id
+#  define __NIJI_D_Sg_scsi_id 1
+typedef struct sg_scsi_id Sg_scsi_id;
+# endif
+# ifndef __NIJI_D_struct_sg_io_hdr
+#  define __NIJI_D_struct_sg_io_hdr 1
+struct sg_io_hdr {
+  int interface_id;
+  int dxfer_direction;
+  unsigned char cmd_len;
+  unsigned char mx_sb_len;
+  unsigned short iovec_count;
+  unsigned int dxfer_len;
+  void * dxferp;
+  unsigned char * cmdp;
+  unsigned char * sbp;
+  unsigned int timeout;
+  unsigned int flags;
+  int pack_id;
+  void * usr_ptr;
+  unsigned char status;
+  unsigned char masked_status;
+  unsigned char msg_status;
+  unsigned char sb_len_wr;
+  unsigned short host_status;
+  unsigned short driver_status;
+  int resid;
+  unsigned int duration;
+  unsigned int info;
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_sg_io_hdr_t
+#  define __NIJI_D_sg_io_hdr_t 1
+typedef struct sg_io_hdr sg_io_hdr_t;
+# endif
+# ifndef __NIJI_D_struct_sg_iovec
+#  define __NIJI_D_struct_sg_iovec 1
+struct sg_iovec {
+  void * iov_base;
+  unsigned long iov_len;
+};
+# endif
+# ifndef __NIJI_D_sg_iovec_t
+#  define __NIJI_D_sg_iovec_t 1
+typedef struct sg_iovec sg_iovec_t;
+# endif
+# ifndef __NIJI_D_struct_sg_req_info
+#  define __NIJI_D_struct_sg_req_info 1
+struct sg_req_info {
+  char req_state;
+  char orphan;
+  char sg_io_owned;
+  char problem;
+  int pack_id;
+  void * usr_ptr;
+  unsigned int duration;
+  int unused;
+};
+# endif
+# ifndef __NIJI_D_sg_req_info_t
+#  define __NIJI_D_sg_req_info_t 1
+typedef struct sg_req_info sg_req_info_t;
+# endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
+# ifndef SG_DEFAULT_RETRIES
+#  define SG_DEFAULT_RETRIES 1
+# endif
+# ifndef SG_DEF_COMMAND_Q
+#  define SG_DEF_COMMAND_Q 0
+# endif
+# ifndef SG_DEF_FORCE_LOW_DMA
+#  define SG_DEF_FORCE_LOW_DMA 0
+# endif
+# ifndef SG_DEF_FORCE_PACK_ID
+#  define SG_DEF_FORCE_PACK_ID 0
+# endif
+# ifndef SG_DEF_KEEP_ORPHAN
+#  define SG_DEF_KEEP_ORPHAN 0
+# endif
+# ifndef SG_DEF_RESERVED_SIZE
+#  define SG_DEF_RESERVED_SIZE 32768
+# endif
+# ifndef SG_DEF_UNDERRUN_FLAG
+#  define SG_DEF_UNDERRUN_FLAG 0
+# endif
+# ifndef SG_DXFER_FROM_DEV
+#  define SG_DXFER_FROM_DEV (-3)
+# endif
+# ifndef SG_DXFER_NONE
+#  define SG_DXFER_NONE (-1)
+# endif
+# ifndef SG_DXFER_TO_DEV
+#  define SG_DXFER_TO_DEV (-2)
+# endif
+# ifndef SG_DXFER_TO_FROM_DEV
+#  define SG_DXFER_TO_FROM_DEV (-4)
+# endif
+# ifndef SG_EMULATED_HOST
+#  define SG_EMULATED_HOST 8707
+# endif
+# ifndef SG_FLAG_DIRECT_IO
+#  define SG_FLAG_DIRECT_IO 1
+# endif
+# ifndef SG_FLAG_LUN_INHIBIT
+#  define SG_FLAG_LUN_INHIBIT 2
+# endif
+# ifndef SG_FLAG_NO_DXFER
+#  define SG_FLAG_NO_DXFER 65536
+# endif
+# ifndef SG_GET_COMMAND_Q
+#  define SG_GET_COMMAND_Q 8816
+# endif
+# ifndef SG_GET_KEEP_ORPHAN
+#  define SG_GET_KEEP_ORPHAN 8840
+# endif
+# ifndef SG_GET_LOW_DMA
+#  define SG_GET_LOW_DMA 8826
+# endif
+# ifndef SG_GET_NUM_WAITING
+#  define SG_GET_NUM_WAITING 8829
+# endif
+# ifndef SG_GET_PACK_ID
+#  define SG_GET_PACK_ID 8828
+# endif
+# ifndef SG_GET_REQUEST_TABLE
+#  define SG_GET_REQUEST_TABLE 8838
+# endif
+# ifndef SG_GET_RESERVED_SIZE
+#  define SG_GET_RESERVED_SIZE 8818
+# endif
+# ifndef SG_GET_SCSI_ID
+#  define SG_GET_SCSI_ID 8822
+# endif
+# ifndef SG_GET_SG_TABLESIZE
+#  define SG_GET_SG_TABLESIZE 8831
+# endif
+# ifndef SG_GET_TIMEOUT
+#  define SG_GET_TIMEOUT 8706
+# endif
+# ifndef SG_GET_TRANSFORM
+#  define SG_GET_TRANSFORM 8709
+# endif
+# ifndef SG_GET_VERSION_NUM
+#  define SG_GET_VERSION_NUM 8834
+# endif
+# ifndef SG_INFO_CHECK
+#  define SG_INFO_CHECK 1
+# endif
+# ifndef SG_INFO_DIRECT_IO
+#  define SG_INFO_DIRECT_IO 2
+# endif
+# ifndef SG_INFO_DIRECT_IO_MASK
+#  define SG_INFO_DIRECT_IO_MASK 6
+# endif
+# ifndef SG_INFO_INDIRECT_IO
+#  define SG_INFO_INDIRECT_IO 0
+# endif
+# ifndef SG_INFO_MIXED_IO
+#  define SG_INFO_MIXED_IO 4
+# endif
+# ifndef SG_INFO_OK
+#  define SG_INFO_OK 0
+# endif
+# ifndef SG_INFO_OK_MASK
+#  define SG_INFO_OK_MASK 1
+# endif
+# ifndef SG_IO
+#  define SG_IO 8837
+# endif
+# ifndef SG_MAX_QUEUE
+#  define SG_MAX_QUEUE 16
+# endif
+# ifndef SG_MAX_SENSE
+#  define SG_MAX_SENSE 16
+# endif
+# ifndef SG_NEXT_CMD_LEN
+#  define SG_NEXT_CMD_LEN 8835
+# endif
+# ifndef SG_SCATTER_SZ
+#  define SG_SCATTER_SZ 32768
+# endif
+# ifndef SG_SCSI_RESET
+#  define SG_SCSI_RESET 8836
+# endif
+# ifndef SG_SCSI_RESET_BUS
+#  define SG_SCSI_RESET_BUS 2
+# endif
+# ifndef SG_SCSI_RESET_DEVICE
+#  define SG_SCSI_RESET_DEVICE 1
+# endif
+# ifndef SG_SCSI_RESET_HOST
+#  define SG_SCSI_RESET_HOST 3
+# endif
+# ifndef SG_SCSI_RESET_NOTHING
+#  define SG_SCSI_RESET_NOTHING 0
+# endif
+# ifndef SG_SET_COMMAND_Q
+#  define SG_SET_COMMAND_Q 8817
+# endif
+# ifndef SG_SET_DEBUG
+#  define SG_SET_DEBUG 8830
+# endif
+# ifndef SG_SET_FORCE_LOW_DMA
+#  define SG_SET_FORCE_LOW_DMA 8825
+# endif
+# ifndef SG_SET_FORCE_PACK_ID
+#  define SG_SET_FORCE_PACK_ID 8827
+# endif
+# ifndef SG_SET_KEEP_ORPHAN
+#  define SG_SET_KEEP_ORPHAN 8839
+# endif
+# ifndef SG_SET_RESERVED_SIZE
+#  define SG_SET_RESERVED_SIZE 8821
+# endif
+# ifndef SG_SET_TIMEOUT
+#  define SG_SET_TIMEOUT 8705
+# endif
+# ifndef SG_SET_TRANSFORM
+#  define SG_SET_TRANSFORM 8708
+# endif
+#endif
+
+/* The default command timeout, sixty seconds in the kernel's clock ticks: HZ is the program's to define (the header
+   does not), so the macro is usable only where it is. */
+#if 1
+# define SG_DEFAULT_TIMEOUT (60*HZ)
 #endif
 
 __NIJI_END_C

@@ -994,6 +994,78 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 # endif
 #endif
 
+/* The fields of an ICMPv6 message (RFC 4443 section 2.1) by name: the 32-bit word after the checksum is struct
+   icmp6_hdr's union, viewed as one 32-bit, two 16-bit or four 8-bit elements; each name is a macro for the element
+   the message format puts it in (RFC 4443 for pptr, mtu, id and seq; RFC 2710 for the MLD maximum delay). */
+/* RFC 3542 section 3.2: the ICMPv6 type filter of the ICMP6_FILTER socket option, one bit per message type `type`
+   (bit type % 32 of word type / 32), set for a type the socket blocks. WILLPASS and WILLBLOCK are 1 or 0 (an int);
+   SETPASS and SETBLOCK change one bit and are expressions; SETPASSALL and SETBLOCKALL are a compound statement (black-box
+   probe, HEADERS-NET-SYS-NAMES: not an expression, and `if (c) ICMP6_FILTER_SETPASSALL (p) else ...` compiles). */
+# define ICMP6_FILTER_WILLPASS(type, filterp) ((((filterp)->icmp6_filt[(type) >> 5]) & (1U << ((type) & 31))) == 0)
+# define ICMP6_FILTER_WILLBLOCK(type, filterp) ((((filterp)->icmp6_filt[(type) >> 5]) & (1U << ((type) & 31))) != 0)
+# define ICMP6_FILTER_SETPASS(type, filterp) (((filterp)->icmp6_filt[(type) >> 5]) &= ~(1U << ((type) & 31)))
+# define ICMP6_FILTER_SETBLOCK(type, filterp) (((filterp)->icmp6_filt[(type) >> 5]) |= (1U << ((type) & 31)))
+# define ICMP6_FILTER_SETPASSALL(filterp) { __builtin_memset ((filterp), 0, sizeof (struct icmp6_filter)); }
+# define ICMP6_FILTER_SETBLOCKALL(filterp) { __builtin_memset ((filterp), 0xff, sizeof (struct icmp6_filter)); }
+
+#if 1
+# define icmp6_data32 icmp6_dataun.icmp6_un_data32
+# define icmp6_data16 icmp6_dataun.icmp6_un_data16
+# define icmp6_data8 icmp6_dataun.icmp6_un_data8
+# define icmp6_pptr icmp6_dataun.icmp6_un_data32[0]
+# define icmp6_mtu icmp6_dataun.icmp6_un_data32[0]
+# define icmp6_id icmp6_dataun.icmp6_un_data16[0]
+# define icmp6_seq icmp6_dataun.icmp6_un_data16[1]
+# define icmp6_maxdelay icmp6_dataun.icmp6_un_data16[0]
+#endif
+/* The messages that begin with a struct icmp6_hdr (MLD, RFC 2710; neighbour discovery, RFC 4861; router renumbering,
+   RFC 2894) name its fields by their own prefix, the same way. */
+#if 1
+# define mld_type mld_icmp6_hdr.icmp6_type
+# define mld_code mld_icmp6_hdr.icmp6_code
+# define mld_cksum mld_icmp6_hdr.icmp6_cksum
+# define mld_maxdelay mld_icmp6_hdr.icmp6_dataun.icmp6_un_data16[0]
+# define mld_reserved mld_icmp6_hdr.icmp6_dataun.icmp6_un_data16[1]
+#endif
+#if 1
+# define nd_rs_type nd_rs_hdr.icmp6_type
+# define nd_rs_code nd_rs_hdr.icmp6_code
+# define nd_rs_cksum nd_rs_hdr.icmp6_cksum
+# define nd_rs_reserved nd_rs_hdr.icmp6_dataun.icmp6_un_data32[0]
+#endif
+#if 1
+# define nd_ra_type nd_ra_hdr.icmp6_type
+# define nd_ra_code nd_ra_hdr.icmp6_code
+# define nd_ra_cksum nd_ra_hdr.icmp6_cksum
+# define nd_ra_curhoplimit nd_ra_hdr.icmp6_dataun.icmp6_un_data8[0]
+# define nd_ra_flags_reserved nd_ra_hdr.icmp6_dataun.icmp6_un_data8[1]
+# define nd_ra_router_lifetime nd_ra_hdr.icmp6_dataun.icmp6_un_data16[1]
+#endif
+#if 1
+# define nd_ns_type nd_ns_hdr.icmp6_type
+# define nd_ns_code nd_ns_hdr.icmp6_code
+# define nd_ns_cksum nd_ns_hdr.icmp6_cksum
+# define nd_ns_reserved nd_ns_hdr.icmp6_dataun.icmp6_un_data32[0]
+#endif
+#if 1
+# define nd_na_type nd_na_hdr.icmp6_type
+# define nd_na_code nd_na_hdr.icmp6_code
+# define nd_na_cksum nd_na_hdr.icmp6_cksum
+# define nd_na_flags_reserved nd_na_hdr.icmp6_dataun.icmp6_un_data32[0]
+#endif
+#if 1
+# define nd_rd_type nd_rd_hdr.icmp6_type
+# define nd_rd_code nd_rd_hdr.icmp6_code
+# define nd_rd_cksum nd_rd_hdr.icmp6_cksum
+# define nd_rd_reserved nd_rd_hdr.icmp6_dataun.icmp6_un_data32[0]
+#endif
+#if 1
+# define rr_type rr_hdr.icmp6_type
+# define rr_code rr_hdr.icmp6_code
+# define rr_cksum rr_hdr.icmp6_cksum
+# define rr_seqnum rr_hdr.icmp6_dataun.icmp6_un_data32[0]
+#endif
+
 __NIJI_END_C
 
 #endif

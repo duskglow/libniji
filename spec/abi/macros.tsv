@@ -19,11 +19,15 @@ ABMON_7	langinfo.h	int	131092
 ABMON_8	langinfo.h	int	131093
 ABMON_9	langinfo.h	int	131094
 ABORT	arpa/telnet.h	int	238
+ABORTED_COMMAND	scsi/scsi.h	int	11
 ACCESSPERMS	ftw.h	int	511
 ACCOUNTING	lastlog.h	int	9
 ACK	arpa/tftp.h	int	4
 ADD	arpa/nameser.h	int	1
 ADDRB	pty.h	int	536870912
+ADDR_COMPAT_LAYOUT	sys/personality.h	int	2097152
+ADDR_LIMIT_32BIT	sys/personality.h	int	8388608
+ADDR_LIMIT_3GB	sys/personality.h	int	134217728
 ADDR_NO_RANDOMIZE	sys/personality.h	int	262144
 ADJ_ESTERROR	pthread.h	int	8
 ADJ_FREQUENCY	pthread.h	int	2
@@ -103,6 +107,7 @@ AI_NUMERICHOST	netdb.h	int	4
 AI_NUMERICSERV	netdb.h	int	1024
 AI_PASSIVE	netdb.h	int	1
 AI_V4MAPPED	netdb.h	int	8
+ALLOW_MEDIUM_REMOVAL	scsi/scsi.h	int	30
 ALLPERMS	ftw.h	int	4095
 ALTMON_1	langinfo.h	int	131183
 ALTMON_10	langinfo.h	int	131192
@@ -365,6 +370,7 @@ BC_SCALE_MAX	argp.h	int	99
 BC_STRING_MAX	argp.h	int	1000
 BIG_ENDIAN	aio.h	int	4321
 BITSPERBYTE	values.h	int	8
+BLANK_CHECK	scsi/scsi.h	int	8
 BLKBSZGET	sys/mount.h	unsigned long	2148012656
 BLKBSZSET	sys/mount.h	unsigned long	1074270833
 BLKFLSBUF	sys/mount.h	unsigned int	4705
@@ -403,8 +409,10 @@ BT_NBIPUI	thread_db.h	int	32
 BT_UIMASK	thread_db.h	int	31
 BT_UISHIFT	thread_db.h	int	5
 BUFSIZ	argp.h	int	8192
+BUSY	scsi/scsi.h	int	4
 BUS_ADRALN	arpa/nameser.h	int	1
 BUS_ADRERR	arpa/nameser.h	int	2
+BUS_DEVICE_RESET	scsi/scsi.h	int	12
 BUS_MCEERR_AO	arpa/nameser.h	int	5
 BUS_MCEERR_AR	arpa/nameser.h	int	4
 BUS_OBJERR	arpa/nameser.h	int	3
@@ -429,11 +437,13 @@ CEOL	net/if_ppp.h	char	0
 CEOT	net/if_ppp.h	int	4
 CERASE	net/if_ppp.h	int	127
 CFLUSH	net/if_ppp.h	int	15
+CHANGE_DEFINITION	scsi/scsi.h	int	64
 CHARCLASS_NAME_MAX	argp.h	int	2048
 CHAR_BIT	argp.h	int	8
 CHAR_MAX	argp.h	int	127
 CHAR_MIN	argp.h	int	-128
 CHAR_WIDTH	argp.h	int	8
+CHECK_CONDITION	scsi/scsi.h	int	1
 CHRTYPE	tar.h	char	51
 CIBAUD	pty.h	int	269418496
 CILEN_BSD_COMPRESS	net/ppp-comp.h	int	3
@@ -500,9 +510,16 @@ CMIN	net/if_ppp.h	int	1
 CMSPAR	pty.h	int	1073741824
 CODESET	langinfo.h	int	14
 COLL_WEIGHTS_MAX	argp.h	int	255
+COMMAND_COMPLETE	scsi/scsi.h	int	0
+COMMAND_TERMINATED	scsi/scsi.h	int	17
+COMPARE	scsi/scsi.h	int	57
 COMPLETE	arpa/ftp.h	int	2
+CONDITION_GOOD	scsi/scsi.h	int	2
 CONTINUE	arpa/ftp.h	int	3
 CONTTYPE	tar.h	char	55
+COPY	scsi/scsi.h	int	24
+COPY_ABORTED	scsi/scsi.h	int	10
+COPY_VERIFY	scsi/scsi.h	int	58
 CPU_SETSIZE	pthread.h	int	1024
 CQUIT	net/if_ppp.h	int	28
 CR0	pty.h	int	0
@@ -556,6 +573,7 @@ C_IXOTH	cpio.h	int	1
 C_IXUSR	cpio.h	int	64
 C_NONE	arpa/nameser.h	int	254
 DATA	arpa/tftp.h	int	3
+DATA_PROTECT	scsi/scsi.h	int	7
 DAY_1	langinfo.h	int	131079
 DAY_2	langinfo.h	int	131080
 DAY_3	langinfo.h	int	131081
@@ -613,6 +631,7 @@ DF_STATIC_TLS	elf.h	int	16
 DF_SYMBOLIC	elf.h	int	2
 DF_TEXTREL	elf.h	int	4
 DIRTYPE	tar.h	char	53
+DISCONNECT	scsi/scsi.h	int	4
 DLFO_EH_SEGMENT_TYPE	link.h	int	1685382480
 DLFO_STRUCT_HAS_EH_COUNT	dlfcn.h	int	0
 DLFO_STRUCT_HAS_EH_DBASE	dlfcn.h	int	0
@@ -1414,6 +1433,7 @@ EPROTONOSUPPORT	argp.h	int	93
 EPROTOTYPE	argp.h	int	91
 ERA	langinfo.h	int	131116
 ERANGE	argp.h	int	34
+ERASE	scsi/scsi.h	int	25
 ERA_D_FMT	langinfo.h	int	131118
 ERA_D_T_FMT	langinfo.h	int	131120
 ERA_T_FMT	langinfo.h	int	131121
@@ -1594,6 +1614,11 @@ EXIT_SUCCESS	stdlib.h	int	0
 EXPR_NEST_MAX	argp.h	int	32
 EXTA	pty.h	int	14
 EXTB	pty.h	int	15
+EXTENDED_EXTENDED_IDENTIFY	scsi/scsi.h	int	2
+EXTENDED_MESSAGE	scsi/scsi.h	int	1
+EXTENDED_MODIFY_DATA_POINTER	scsi/scsi.h	int	0
+EXTENDED_SDTR	scsi/scsi.h	int	1
+EXTENDED_WDTR	scsi/scsi.h	int	3
 EXTPROC	pty.h	int	65536
 EX_CANTCREAT	sysexits.h	int	73
 EX_CONFIG	sysexits.h	int	78
@@ -1707,6 +1732,7 @@ FAN_UNLIMITED_MARKS	sys/fanotify.h	int	32
 FAN_UNLIMITED_QUEUE	sys/fanotify.h	int	16
 FAPPEND	fcntl.h	int	1024
 FASYNC	fcntl.h	int	8192
+FDPIC_FUNCPTRS	sys/personality.h	int	524288
 FD_CLOEXEC	fcntl.h	int	1
 FD_SETSIZE	aio.h	int	1024
 FE_ALL_EXCEPT	fenv.h	int	61
@@ -1751,6 +1777,7 @@ FNM_PATHNAME	fnmatch.h	int	1
 FNM_PERIOD	fnmatch.h	int	4
 FNONBLOCK	fcntl.h	int	2048
 FOPEN_MAX	argp.h	int	16
+FORMAT_UNIT	scsi/scsi.h	int	4
 FORMERR	arpa/nameser.h	int	1
 FORM_C	arpa/ftp.h	int	3
 FORM_N	arpa/ftp.h	int	1
@@ -1947,6 +1974,7 @@ GNU_PROPERTY_X86_ISA_1_USED	elf.h	unsigned int	3221291010
 GNU_PROPERTY_X86_ISA_1_V2	elf.h	unsigned int	2
 GNU_PROPERTY_X86_ISA_1_V3	elf.h	unsigned int	4
 GNU_PROPERTY_X86_ISA_1_V4	elf.h	unsigned int	8
+GOOD	scsi/scsi.h	int	0
 GPROF_COUNT	sys/gmon.h	int	1
 GPROF_FROMS	sys/gmon.h	int	2
 GPROF_GMONPARAM	sys/gmon.h	int	4
@@ -1960,7 +1988,9 @@ GRPQUOTA	sys/quota.h	int	1
 GRP_COMDAT	elf.h	int	1
 GS	sys/reg.h	int	26
 GS_BASE	sys/reg.h	int	22
+HARDWARE_ERROR	scsi/scsi.h	int	4
 HASHFRACTION	sys/gmon.h	int	2
+HEAD_OF_QUEUE_TAG	scsi/scsi.h	int	33
 HFIXEDSZ	arpa/nameser.h	int	12
 HIBITL	values.h	long	-9223372036854775808
 HIBITS	values.h	int	-32768
@@ -2112,6 +2142,7 @@ IIF_ALL	sys/quota.h	int	7
 IIF_BGRACE	sys/quota.h	int	1
 IIF_FLAGS	sys/quota.h	int	4
 IIF_IGRACE	sys/quota.h	int	2
+ILLEGAL_REQUEST	scsi/scsi.h	int	5
 ILL_BADIADDR	arpa/nameser.h	int	9
 ILL_BADSTK	arpa/nameser.h	int	8
 ILL_COPROC	arpa/nameser.h	int	7
@@ -2138,9 +2169,12 @@ INDIR_MASK	arpa/nameser.h	int	192
 INET6_ADDRSTRLEN	arpa/inet.h	int	46
 INET_ADDRSTRLEN	arpa/inet.h	int	16
 INFINITY	math.h	float	inf
+INITIATE_RECOVERY	scsi/scsi.h	int	15
+INITIATOR_ERROR	scsi/scsi.h	int	5
 INIT_PROCESS	lastlog.h	int	5
 INLCR	pty.h	int	64
 INPCK	pty.h	int	16
+INQUIRY	scsi/scsi.h	int	18
 INT16SZ	arpa/nameser.h	int	2
 INT16_MAX	arpa/nameser.h	int	32767
 INT16_MIN	arpa/nameser.h	int	-32768
@@ -2156,6 +2190,8 @@ INT8SZ	arpa/nameser.h	int	1
 INT8_MAX	arpa/nameser.h	int	127
 INT8_MIN	arpa/nameser.h	int	-128
 INT8_WIDTH	arpa/nameser.h	int	8
+INTERMEDIATE_C_GOOD	scsi/scsi.h	int	10
+INTERMEDIATE_GOOD	scsi/scsi.h	int	8
 INTMAX_MAX	arpa/nameser.h	long	9223372036854775807
 INTMAX_MIN	arpa/nameser.h	long	-9223372036854775808
 INTMAX_WIDTH	arpa/nameser.h	int	64
@@ -2243,6 +2279,23 @@ IOC_INOUT	net/if_ppp.h	unsigned int	3221225472
 IOC_OUT	net/if_ppp.h	unsigned int	2147483648
 IOV_MAX	argp.h	int	1024
 IP	arpa/telnet.h	int	244
+IP6F_MORE_FRAG	netinet/ip6.h	int	256
+IP6F_OFF_MASK	netinet/ip6.h	int	63743
+IP6F_RESERVED_MASK	netinet/ip6.h	int	1536
+IP6OPT_JUMBO	netinet/ip6.h	int	194
+IP6OPT_JUMBO_LEN	netinet/ip6.h	int	6
+IP6OPT_NSAP_ADDR	netinet/ip6.h	int	195
+IP6OPT_PAD1	netinet/ip6.h	int	0
+IP6OPT_PADN	netinet/ip6.h	int	1
+IP6OPT_ROUTER_ALERT	netinet/ip6.h	int	5
+IP6OPT_TUNNEL_LIMIT	netinet/ip6.h	int	4
+IP6OPT_TYPE_DISCARD	netinet/ip6.h	int	64
+IP6OPT_TYPE_FORCEICMP	netinet/ip6.h	int	128
+IP6OPT_TYPE_ICMP	netinet/ip6.h	int	192
+IP6OPT_TYPE_SKIP	netinet/ip6.h	int	0
+IP6_ALERT_AN	netinet/ip6.h	int	512
+IP6_ALERT_MLD	netinet/ip6.h	int	0
+IP6_ALERT_RSVP	netinet/ip6.h	int	256
 IPC_CREAT	sys/ipc.h	int	512
 IPC_EXCL	sys/ipc.h	int	1024
 IPC_INFO	sys/ipc.h	int	3
@@ -2560,6 +2613,8 @@ LFLOW_ON	arpa/telnet.h	int	1
 LFLOW_RESTART_ANY	arpa/telnet.h	int	2
 LFLOW_RESTART_XON	arpa/telnet.h	int	3
 LINE_MAX	argp.h	int	2048
+LINKED_CMD_COMPLETE	scsi/scsi.h	int	10
+LINKED_FLG_CMD_COMPLETE	scsi/scsi.h	int	11
 LIO_NOP	aio.h	int	2
 LIO_NOWAIT	aio.h	int	1
 LIO_READ	aio.h	int	0
@@ -2596,6 +2651,7 @@ LOCK_READ	fcntl.h	int	64
 LOCK_RW	fcntl.h	int	192
 LOCK_SH	fcntl.h	int	1
 LOCK_UN	fcntl.h	int	8
+LOCK_UNLOCK_CACHE	scsi/scsi.h	int	54
 LOCK_WRITE	fcntl.h	int	128
 LOGIN_NAME_MAX	argp.h	int	256
 LOGIN_PROCESS	lastlog.h	int	6
@@ -2632,6 +2688,8 @@ LOG_ODELAY	sys/syslog.h	int	4
 LOG_PERROR	sys/syslog.h	int	32
 LOG_PID	sys/syslog.h	int	1
 LOG_PRIMASK	sys/syslog.h	int	7
+LOG_SELECT	scsi/scsi.h	int	76
+LOG_SENSE	scsi/scsi.h	int	77
 LOG_SYSLOG	sys/syslog.h	int	40
 LOG_USER	sys/syslog.h	int	8
 LOG_UUCP	sys/syslog.h	int	64
@@ -2745,6 +2803,9 @@ MCHECK_TAIL	mcheck.h	int	3
 MCL_CURRENT	sys/mman.h	int	1
 MCL_FUTURE	sys/mman.h	int	2
 MCL_ONFAULT	sys/mman.h	int	4
+MEDIUM_ERROR	scsi/scsi.h	int	3
+MEDIUM_SCAN	scsi/scsi.h	int	56
+MESSAGE_REJECT	scsi/scsi.h	int	7
 MFD_ALLOW_SEALING	sys/mman.h	unsigned int	2
 MFD_CLOEXEC	sys/mman.h	unsigned int	1
 MFD_EXEC	sys/mman.h	unsigned int	16
@@ -2794,10 +2855,12 @@ MIPS_AFL_REG_128	elf.h	int	3
 MIPS_AFL_REG_32	elf.h	int	1
 MIPS_AFL_REG_64	elf.h	int	2
 MIPS_AFL_REG_NONE	elf.h	int	0
+MISCOMPARE	scsi/scsi.h	int	14
 MLD_LISTENER_QUERY	netinet/icmp6.h	int	130
 MLD_LISTENER_REDUCTION	netinet/icmp6.h	int	132
 MLD_LISTENER_REPORT	netinet/icmp6.h	int	131
 MLOCK_ONFAULT	sys/mman.h	unsigned int	1
+MMAP_PAGE_ZERO	sys/personality.h	int	1048576
 MM_APPL	fmtmsg.h	int	8
 MM_CONSOLE	fmtmsg.h	int	512
 MM_ERROR	fmtmsg.h	int	2
@@ -2829,6 +2892,7 @@ MNTOPT_NOSUID	mntent.h	char[7]	"nosuid"
 MNTOPT_RO	mntent.h	char[3]	"ro"
 MNTOPT_RW	mntent.h	char[3]	"rw"
 MNTOPT_SUID	mntent.h	char[5]	"suid"
+MNTTAB	mntent.h	char[11]	"/etc/fstab"
 MNTTYPE_IGNORE	mntent.h	char[7]	"ignore"
 MNTTYPE_NFS	mntent.h	char[4]	"nfs"
 MNTTYPE_SWAP	mntent.h	char[5]	"swap"
@@ -2848,6 +2912,10 @@ MODE_LIT_ECHO	arpa/telnet.h	int	16
 MODE_MASK	arpa/telnet.h	int	31
 MODE_OUTBIN	arpa/telnet.h	int	2048
 MODE_S	arpa/ftp.h	int	1
+MODE_SELECT	scsi/scsi.h	int	21
+MODE_SELECT_10	scsi/scsi.h	int	85
+MODE_SENSE	scsi/scsi.h	int	26
+MODE_SENSE_10	scsi/scsi.h	int	90
 MODE_SOFT_TAB	arpa/telnet.h	int	8
 MODE_TRAPSIG	arpa/telnet.h	int	2
 MOD_CLKA	pthread.h	int	32769
@@ -2876,6 +2944,7 @@ MON_9	langinfo.h	int	131106
 MON_DECIMAL_POINT	langinfo.h	int	262146
 MON_GROUPING	langinfo.h	int	262148
 MON_THOUSANDS_SEP	langinfo.h	int	262147
+MOUNTED	mntent.h	char[10]	"/etc/mtab"
 MOUNT_ATTR_IDMAP	sys/mount.h	int	1048576
 MOUNT_ATTR_NOATIME	sys/mount.h	int	16
 MOUNT_ATTR_NODEV	sys/mount.h	int	4
@@ -2888,6 +2957,7 @@ MOUNT_ATTR_RELATIME	sys/mount.h	int	0
 MOUNT_ATTR_SIZE_VER0	sys/mount.h	int	32
 MOUNT_ATTR_STRICTATIME	sys/mount.h	int	32
 MOUNT_ATTR__ATIME	sys/mount.h	int	112
+MOVE_MEDIUM	scsi/scsi.h	int	165
 MOVE_MOUNT_BENEATH	sys/mount.h	int	512
 MOVE_MOUNT_F_AUTOMOUNTS	sys/mount.h	int	2
 MOVE_MOUNT_F_EMPTY_PATH	sys/mount.h	int	4
@@ -2918,6 +2988,7 @@ MSG_MORE	arpa/inet.h	int	32768
 MSG_NOERROR	sys/msg.h	int	4096
 MSG_NOSIGNAL	arpa/inet.h	int	16384
 MSG_OOB	arpa/inet.h	int	1
+MSG_PARITY_ERROR	scsi/scsi.h	int	9
 MSG_PEEK	arpa/inet.h	int	2
 MSG_PROXY	arpa/inet.h	int	16
 MSG_RST	arpa/inet.h	int	4096
@@ -3247,9 +3318,11 @@ NOSTR	langinfo.h	int	327683
 NOTAUTH	arpa/nameser.h	int	9
 NOTIMP	arpa/nameser.h	int	4
 NOTZONE	arpa/nameser.h	int	10
+NOT_READY	scsi/scsi.h	int	2
 NO_ADDRESS	netdb.h	int	4
 NO_DATA	netdb.h	int	4
 NO_RECOVERY	netdb.h	int	3
+NO_SENSE	scsi/scsi.h	int	0
 NR_DQHASH	sys/quota.h	int	43
 NR_DQUOTS	sys/quota.h	int	256
 NR_ICMP_TYPES	netinet/ip_icmp.h	int	18
@@ -3447,6 +3520,7 @@ OPTION_ARG_OPTIONAL	argp.h	int	1
 OPTION_DOC	argp.h	int	8
 OPTION_HIDDEN	argp.h	int	2
 OPTION_NO_USAGE	argp.h	int	16
+ORDERED_QUEUE_TAG	scsi/scsi.h	int	34
 ORIG_RAX	sys/reg.h	int	15
 O_ACCMODE	fcntl.h	int	3
 O_APPEND	fcntl.h	int	1024
@@ -3522,6 +3596,29 @@ PA_FLAG_PTR	printf.h	int	2048
 PA_FLAG_SHORT	printf.h	int	1024
 PDP_ENDIAN	aio.h	int	3412
 PENDIN	pty.h	int	16384
+PER_BSD	sys/personality.h	int	6
+PER_HPUX	sys/personality.h	int	16
+PER_IRIX32	sys/personality.h	int	67108873
+PER_IRIX64	sys/personality.h	int	67108875
+PER_IRIXN32	sys/personality.h	int	67108874
+PER_ISCR4	sys/personality.h	int	67108869
+PER_LINUX	sys/personality.h	int	0
+PER_LINUX32	sys/personality.h	int	8
+PER_LINUX32_3GB	sys/personality.h	int	134217736
+PER_LINUX_32BIT	sys/personality.h	int	8388608
+PER_LINUX_FDPIC	sys/personality.h	int	524288
+PER_MASK	sys/personality.h	int	255
+PER_OSF4	sys/personality.h	int	15
+PER_OSR5	sys/personality.h	int	100663299
+PER_RISCOS	sys/personality.h	int	12
+PER_SCOSVR3	sys/personality.h	int	117440515
+PER_SOLARIS	sys/personality.h	int	67108877
+PER_SUNOS	sys/personality.h	int	67108870
+PER_SVR3	sys/personality.h	int	83886082
+PER_SVR4	sys/personality.h	int	68157441
+PER_UW7	sys/personality.h	int	68157454
+PER_WYSEV386	sys/personality.h	int	83886084
+PER_XENIX	sys/personality.h	int	83886087
 PF_ALG	arpa/inet.h	int	38
 PF_APPLETALK	arpa/inet.h	int	5
 PF_ARM_ABS	elf.h	int	1073741824
@@ -3641,6 +3738,7 @@ PPC64_OPT_MULTI_TOC	elf.h	int	2
 PPC64_OPT_TLS	elf.h	int	1
 PPC_OPT_TLS	elf.h	int	1
 PRELIM	arpa/ftp.h	int	1
+PRE_FETCH	scsi/scsi.h	int	52
 PRIO_MAX	sys/resource.h	int	20
 PRIO_MIN	sys/resource.h	int	-20
 PRIO_PGRP	sys/resource.h	int	1
@@ -4062,6 +4160,7 @@ QIF_SPACE	sys/quota.h	int	2
 QIF_TIMES	sys/quota.h	int	48
 QIF_USAGE	sys/quota.h	int	10
 QUERY	arpa/nameser.h	int	0
+QUEUE_FULL	scsi/scsi.h	int	20
 QUOTA_NL_A_MAX	sys/quota.h	int	7
 QUOTA_NL_BHARDBELOW	sys/quota.h	int	9
 QUOTA_NL_BHARDWARN	sys/quota.h	int	4
@@ -4107,6 +4206,23 @@ RB_SW_SUSPEND	sys/reboot.h	unsigned int	3489725666
 RCX	sys/reg.h	int	11
 RDI	sys/reg.h	int	14
 RDX	sys/reg.h	int	12
+READ_10	scsi/scsi.h	int	40
+READ_12	scsi/scsi.h	int	168
+READ_6	scsi/scsi.h	int	8
+READ_BLOCK_LIMITS	scsi/scsi.h	int	5
+READ_BUFFER	scsi/scsi.h	int	60
+READ_CAPACITY	scsi/scsi.h	int	37
+READ_DEFECT_DATA	scsi/scsi.h	int	55
+READ_ELEMENT_STATUS	scsi/scsi.h	int	184
+READ_IMPLIES_EXEC	sys/personality.h	int	4194304
+READ_LONG	scsi/scsi.h	int	62
+READ_POSITION	scsi/scsi.h	int	52
+READ_REVERSE	scsi/scsi.h	int	15
+READ_TOC	scsi/scsi.h	int	67
+REASSIGN_BLOCKS	scsi/scsi.h	int	7
+RECEIVE_DIAGNOSTIC	scsi/scsi.h	int	28
+RECOVERED_ERROR	scsi/scsi.h	int	1
+RECOVER_BUFFERED_DATA	scsi/scsi.h	int	20
 REC_EOF	arpa/ftp.h	char	2
 REC_EOR	arpa/ftp.h	char	1
 REC_ESC	arpa/ftp.h	char	-1
@@ -4163,9 +4279,15 @@ REG_RSI	arpa/nameser.h	int	9
 REG_RSP	arpa/nameser.h	int	15
 REG_STARTEND	re_comp.h	int	4
 REG_TRAPNO	arpa/nameser.h	int	20
+RELEASE	scsi/scsi.h	int	23
+RELEASE_RECOVERY	scsi/scsi.h	int	16
 RENAME_EXCHANGE	argp.h	int	2
 RENAME_NOREPLACE	argp.h	int	1
 RENAME_WHITEOUT	argp.h	int	4
+REQUEST_SENSE	scsi/scsi.h	int	3
+RESERVATION_CONFLICT	scsi/scsi.h	int	12
+RESERVE	scsi/scsi.h	int	22
+RESTORE_POINTERS	scsi/scsi.h	int	3
 RES_AAONLY	resolv.h	int	4
 RES_BLAST	resolv.h	int	131072
 RES_DEBUG	resolv.h	int	2
@@ -4211,6 +4333,7 @@ RES_TRUSTAD	resolv.h	int	67108864
 RES_USEVC	resolv.h	int	8
 RES_USE_DNSSEC	resolv.h	int	8388608
 RES_USE_EDNS0	resolv.h	int	1048576
+REZERO_UNIT	scsi/scsi.h	int	1
 RE_BACKSLASH_ESCAPE_IN_LISTS	re_comp.h	unsigned long	1
 RE_BK_PLUS_QM	re_comp.h	unsigned long	2
 RE_CARET_ANCHORS_HERE	re_comp.h	unsigned long	8388608
@@ -6289,6 +6412,7 @@ R_X86_64_TLSLD	elf.h	int	20
 R_X86_64_TPOFF32	elf.h	int	23
 R_X86_64_TPOFF64	elf.h	int	18
 SARMAG	ar.h	int	8
+SAVE_POINTERS	scsi/scsi.h	int	2
 SA_INTERRUPT	arpa/nameser.h	int	536870912
 SA_NOCLDSTOP	arpa/nameser.h	int	1
 SA_NOCLDWAIT	arpa/nameser.h	int	2
@@ -6394,7 +6518,28 @@ SCNxLEAST8	inttypes.h	char[4]	"hhx"
 SCNxMAX	inttypes.h	char[3]	"lx"
 SCNxPTR	inttypes.h	char[3]	"lx"
 SCOPE_DELIMITER	netdb.h	char	37
+SCSI_IOCTL_BENCHMARK_COMMAND	scsi/scsi_ioctl.h	int	3
+SCSI_IOCTL_DOORLOCK	scsi/scsi_ioctl.h	int	21376
+SCSI_IOCTL_DOORUNLOCK	scsi/scsi_ioctl.h	int	21377
+SCSI_IOCTL_GET_BUS_NUMBER	scsi/scsi.h	int	21382
+SCSI_IOCTL_GET_IDLUN	scsi/scsi.h	int	21378
+SCSI_IOCTL_PROBE_HOST	scsi/scsi.h	int	21381
+SCSI_IOCTL_SEND_COMMAND	scsi/scsi_ioctl.h	int	1
+SCSI_IOCTL_START_UNIT	scsi/scsi_ioctl.h	int	5
+SCSI_IOCTL_STOP_UNIT	scsi/scsi_ioctl.h	int	6
+SCSI_IOCTL_SYNC	scsi/scsi_ioctl.h	int	4
+SCSI_IOCTL_TAGGED_DISABLE	scsi/scsi.h	int	21380
+SCSI_IOCTL_TAGGED_ENABLE	scsi/scsi.h	int	21379
+SCSI_IOCTL_TEST_UNIT_READY	scsi/scsi_ioctl.h	int	2
 SE	arpa/telnet.h	int	240
+SEARCH_EQUAL	scsi/scsi.h	int	49
+SEARCH_EQUAL_12	scsi/scsi.h	int	177
+SEARCH_HIGH	scsi/scsi.h	int	48
+SEARCH_HIGH_12	scsi/scsi.h	int	176
+SEARCH_LOW	scsi/scsi.h	int	50
+SEARCH_LOW_12	scsi/scsi.h	int	178
+SEEK_10	scsi/scsi.h	int	43
+SEEK_6	scsi/scsi.h	int	11
 SEEK_CUR	argp.h	int	1
 SEEK_DATA	argp.h	int	3
 SEEK_END	argp.h	int	2
@@ -6418,11 +6563,67 @@ SEM_STAT	sys/sem.h	int	18
 SEM_STAT_ANY	sys/sem.h	int	20
 SEM_UNDO	sys/sem.h	int	4096
 SEM_VALUE_MAX	argp.h	int	2147483647
+SEND_DIAGNOSTIC	scsi/scsi.h	int	29
+SEND_VOLUME_TAG	scsi/scsi.h	int	182
 SERVFAIL	arpa/nameser.h	int	2
 SETALL	sys/sem.h	int	17
 SETVAL	sys/sem.h	int	16
+SET_LIMITS	scsi/scsi.h	int	51
+SET_WINDOW	scsi/scsi.h	int	36
 SFD_CLOEXEC	sys/signalfd.h	int	524288
 SFD_NONBLOCK	sys/signalfd.h	int	2048
+SG_DEFAULT_RETRIES	scsi/sg.h	int	1
+SG_DEF_COMMAND_Q	scsi/sg.h	int	0
+SG_DEF_FORCE_LOW_DMA	scsi/sg.h	int	0
+SG_DEF_FORCE_PACK_ID	scsi/sg.h	int	0
+SG_DEF_KEEP_ORPHAN	scsi/sg.h	int	0
+SG_DEF_RESERVED_SIZE	scsi/sg.h	int	32768
+SG_DEF_UNDERRUN_FLAG	scsi/sg.h	int	0
+SG_DXFER_FROM_DEV	scsi/sg.h	int	-3
+SG_DXFER_NONE	scsi/sg.h	int	-1
+SG_DXFER_TO_DEV	scsi/sg.h	int	-2
+SG_DXFER_TO_FROM_DEV	scsi/sg.h	int	-4
+SG_EMULATED_HOST	scsi/sg.h	int	8707
+SG_FLAG_DIRECT_IO	scsi/sg.h	int	1
+SG_FLAG_LUN_INHIBIT	scsi/sg.h	int	2
+SG_FLAG_NO_DXFER	scsi/sg.h	int	65536
+SG_GET_COMMAND_Q	scsi/sg.h	int	8816
+SG_GET_KEEP_ORPHAN	scsi/sg.h	int	8840
+SG_GET_LOW_DMA	scsi/sg.h	int	8826
+SG_GET_NUM_WAITING	scsi/sg.h	int	8829
+SG_GET_PACK_ID	scsi/sg.h	int	8828
+SG_GET_REQUEST_TABLE	scsi/sg.h	int	8838
+SG_GET_RESERVED_SIZE	scsi/sg.h	int	8818
+SG_GET_SCSI_ID	scsi/sg.h	int	8822
+SG_GET_SG_TABLESIZE	scsi/sg.h	int	8831
+SG_GET_TIMEOUT	scsi/sg.h	int	8706
+SG_GET_TRANSFORM	scsi/sg.h	int	8709
+SG_GET_VERSION_NUM	scsi/sg.h	int	8834
+SG_INFO_CHECK	scsi/sg.h	int	1
+SG_INFO_DIRECT_IO	scsi/sg.h	int	2
+SG_INFO_DIRECT_IO_MASK	scsi/sg.h	int	6
+SG_INFO_INDIRECT_IO	scsi/sg.h	int	0
+SG_INFO_MIXED_IO	scsi/sg.h	int	4
+SG_INFO_OK	scsi/sg.h	int	0
+SG_INFO_OK_MASK	scsi/sg.h	int	1
+SG_IO	scsi/sg.h	int	8837
+SG_MAX_QUEUE	scsi/sg.h	int	16
+SG_MAX_SENSE	scsi/sg.h	int	16
+SG_NEXT_CMD_LEN	scsi/sg.h	int	8835
+SG_SCATTER_SZ	scsi/sg.h	int	32768
+SG_SCSI_RESET	scsi/sg.h	int	8836
+SG_SCSI_RESET_BUS	scsi/sg.h	int	2
+SG_SCSI_RESET_DEVICE	scsi/sg.h	int	1
+SG_SCSI_RESET_HOST	scsi/sg.h	int	3
+SG_SCSI_RESET_NOTHING	scsi/sg.h	int	0
+SG_SET_COMMAND_Q	scsi/sg.h	int	8817
+SG_SET_DEBUG	scsi/sg.h	int	8830
+SG_SET_FORCE_LOW_DMA	scsi/sg.h	int	8825
+SG_SET_FORCE_PACK_ID	scsi/sg.h	int	8827
+SG_SET_KEEP_ORPHAN	scsi/sg.h	int	8839
+SG_SET_RESERVED_SIZE	scsi/sg.h	int	8821
+SG_SET_TIMEOUT	scsi/sg.h	int	8705
+SG_SET_TRANSFORM	scsi/sg.h	int	8708
 SHADOW_STACK_SET_TOKEN	sys/mman.h	int	1
 SHF_ALLOC	elf.h	int	2
 SHF_ALPHA_GPREL	elf.h	int	268435456
@@ -6490,6 +6691,7 @@ SHN_PARISC_ANSI_COMMON	elf.h	int	65280
 SHN_PARISC_HUGE_COMMON	elf.h	int	65281
 SHN_UNDEF	elf.h	int	0
 SHN_XINDEX	elf.h	int	65535
+SHORT_INODE	sys/personality.h	int	16777216
 SHRT_MAX	argp.h	int	32767
 SHRT_MIN	argp.h	int	-32768
 SHRT_WIDTH	argp.h	int	16
@@ -6637,6 +6839,7 @@ SIG_HOLD	signal.h	void (*)(int)	2
 SIG_IGN	signal.h	void (*)(int)	1
 SIG_SETMASK	arpa/nameser.h	int	2
 SIG_UNBLOCK	arpa/nameser.h	int	1
+SIMPLE_QUEUE_TAG	scsi/scsi.h	int	32
 SIOCADDDLCI	net/if_ppp.h	int	35200
 SIOCADDMULTI	net/if_ppp.h	int	35121
 SIOCADDRT	net/if_ppp.h	int	35083
@@ -6791,6 +6994,7 @@ SOL_ROSE	netrose/rose.h	int	260
 SOL_RXRPC	arpa/inet.h	int	272
 SOL_SMC	arpa/inet.h	int	286
 SOL_SOCKET	arpa/inet.h	int	1
+SOL_TCP	netinet/tcp.h	int	6
 SOL_TIPC	arpa/inet.h	int	271
 SOL_TLS	arpa/inet.h	int	282
 SOL_X25	arpa/inet.h	int	262
@@ -6878,6 +7082,7 @@ SO_TXTIME	arpa/inet.h	int	61
 SO_TYPE	arpa/inet.h	int	3
 SO_WIFI_STATUS	arpa/inet.h	int	41
 SO_ZEROCOPY	arpa/inet.h	int	60
+SPACE	scsi/scsi.h	int	17
 SPLICE_F_GIFT	fcntl.h	int	8
 SPLICE_F_MORE	fcntl.h	int	4
 SPLICE_F_MOVE	fcntl.h	int	1
@@ -6886,6 +7091,7 @@ SS	sys/reg.h	int	20
 SSIZE_MAX	argp.h	long	9223372036854775807
 SS_DISABLE	arpa/nameser.h	int	2
 SS_ONSTACK	arpa/nameser.h	int	1
+START_STOP	scsi/scsi.h	int	27
 STATMOUNT_FS_TYPE	sys/mount.h	unsigned int	32
 STATMOUNT_MNT_BASIC	sys/mount.h	unsigned int	2
 STATMOUNT_MNT_POINT	sys/mount.h	unsigned int	16
@@ -6893,6 +7099,7 @@ STATMOUNT_MNT_ROOT	sys/mount.h	unsigned int	8
 STATMOUNT_PROPAGATE_FROM	sys/mount.h	unsigned int	4
 STATMOUNT_SB_BASIC	sys/mount.h	unsigned int	1
 STATUS	arpa/nameser.h	int	2
+STATUS_MASK	scsi/scsi.h	int	62
 STATX_ALL	ftw.h	unsigned int	4095
 STATX_ATIME	ftw.h	unsigned int	32
 STATX_ATTR_APPEND	ftw.h	int	32
@@ -6950,6 +7157,7 @@ STB_WEAK	elf.h	int	2
 STDERR_FILENO	arpa/nameser.h	int	2
 STDIN_FILENO	arpa/nameser.h	int	0
 STDOUT_FILENO	arpa/nameser.h	int	1
+STICKY_TIMEOUTS	sys/personality.h	int	67108864
 STN_UNDEF	elf.h	int	0
 STO_AARCH64_VARIANT_PCS	elf.h	int	128
 STO_ALPHA_NOPV	elf.h	int	128
@@ -7022,6 +7230,7 @@ SYMINFO_NONE	elf.h	int	0
 SYMINFO_NUM	elf.h	int	2
 SYMTYPE	tar.h	char	50
 SYNCH	arpa/telnet.h	int	242
+SYNCHRONIZE_CACHE	scsi/scsi.h	int	53
 SYNC_FILE_RANGE_WAIT_AFTER	fcntl.h	int	4
 SYNC_FILE_RANGE_WAIT_BEFORE	fcntl.h	int	1
 SYNC_FILE_RANGE_WRITE	fcntl.h	int	2
@@ -7076,6 +7285,101 @@ TCION	pty.h	int	3
 TCOFLUSH	pty.h	int	1
 TCOOFF	pty.h	int	0
 TCOON	pty.h	int	1
+TCPI_OPT_ECN	netinet/tcp.h	int	8
+TCPI_OPT_ECN_SEEN	netinet/tcp.h	int	16
+TCPI_OPT_SACK	netinet/tcp.h	int	2
+TCPI_OPT_SYN_DATA	netinet/tcp.h	int	32
+TCPI_OPT_TIMESTAMPS	netinet/tcp.h	int	1
+TCPI_OPT_WSCALE	netinet/tcp.h	int	4
+TCPOLEN_MAXSEG	netinet/tcp.h	int	4
+TCPOLEN_SACK_PERMITTED	netinet/tcp.h	int	2
+TCPOLEN_TIMESTAMP	netinet/tcp.h	int	10
+TCPOLEN_TSTAMP_APPA	netinet/tcp.h	int	12
+TCPOLEN_WINDOW	netinet/tcp.h	int	3
+TCPOPT_EOL	netinet/tcp.h	int	0
+TCPOPT_MAXSEG	netinet/tcp.h	int	2
+TCPOPT_NOP	netinet/tcp.h	int	1
+TCPOPT_SACK	netinet/tcp.h	int	5
+TCPOPT_SACK_PERMITTED	netinet/tcp.h	int	4
+TCPOPT_TIMESTAMP	netinet/tcp.h	int	8
+TCPOPT_TSTAMP_HDR	netinet/tcp.h	int	16844810
+TCPOPT_WINDOW	netinet/tcp.h	int	3
+TCP_CA_CWR	netinet/tcp.h	int	2
+TCP_CA_Disorder	netinet/tcp.h	int	1
+TCP_CA_Loss	netinet/tcp.h	int	4
+TCP_CA_Open	netinet/tcp.h	int	0
+TCP_CA_Recovery	netinet/tcp.h	int	3
+TCP_CC_INFO	netinet/tcp.h	int	26
+TCP_CLOSE	netinet/tcp.h	int	7
+TCP_CLOSE_WAIT	netinet/tcp.h	int	8
+TCP_CLOSING	netinet/tcp.h	int	11
+TCP_CM_INQ	netinet/tcp.h	int	36
+TCP_CONGESTION	netinet/tcp.h	int	13
+TCP_COOKIE_IN_ALWAYS	netinet/tcp.h	int	1
+TCP_COOKIE_MAX	netinet/tcp.h	int	16
+TCP_COOKIE_MIN	netinet/tcp.h	int	8
+TCP_COOKIE_OUT_NEVER	netinet/tcp.h	int	2
+TCP_COOKIE_PAIR_SIZE	netinet/tcp.h	int	32
+TCP_COOKIE_TRANSACTIONS	netinet/tcp.h	int	15
+TCP_CORK	netinet/tcp.h	int	3
+TCP_DEFER_ACCEPT	netinet/tcp.h	int	9
+TCP_ESTABLISHED	netinet/tcp.h	int	1
+TCP_FASTOPEN	netinet/tcp.h	int	23
+TCP_FASTOPEN_CONNECT	netinet/tcp.h	int	30
+TCP_FASTOPEN_KEY	netinet/tcp.h	int	33
+TCP_FASTOPEN_NO_COOKIE	netinet/tcp.h	int	34
+TCP_FIN_WAIT1	netinet/tcp.h	int	4
+TCP_FIN_WAIT2	netinet/tcp.h	int	5
+TCP_INFO	netinet/tcp.h	int	11
+TCP_INQ	netinet/tcp.h	int	36
+TCP_KEEPCNT	netinet/tcp.h	int	6
+TCP_KEEPIDLE	netinet/tcp.h	int	4
+TCP_KEEPINTVL	netinet/tcp.h	int	5
+TCP_LAST_ACK	netinet/tcp.h	int	9
+TCP_LINGER2	netinet/tcp.h	int	8
+TCP_LISTEN	netinet/tcp.h	int	10
+TCP_MAXSEG	netinet/tcp.h	int	2
+TCP_MAXWIN	netinet/tcp.h	int	65535
+TCP_MAX_WINSHIFT	netinet/tcp.h	int	14
+TCP_MD5SIG	netinet/tcp.h	int	14
+TCP_MD5SIG_EXT	netinet/tcp.h	int	32
+TCP_MD5SIG_FLAG_IFINDEX	netinet/tcp.h	int	2
+TCP_MD5SIG_FLAG_PREFIX	netinet/tcp.h	int	1
+TCP_MD5SIG_MAXKEYLEN	netinet/tcp.h	int	80
+TCP_MSS	netinet/tcp.h	int	512
+TCP_MSS_DEFAULT	netinet/tcp.h	unsigned int	536
+TCP_MSS_DESIRED	netinet/tcp.h	unsigned int	1220
+TCP_NODELAY	netinet/tcp.h	int	1
+TCP_NOTSENT_LOWAT	netinet/tcp.h	int	25
+TCP_NO_QUEUE	netinet/tcp.h	int	0
+TCP_QUEUES_NR	netinet/tcp.h	int	3
+TCP_QUEUE_SEQ	netinet/tcp.h	int	21
+TCP_QUICKACK	netinet/tcp.h	int	12
+TCP_RECV_QUEUE	netinet/tcp.h	int	1
+TCP_REPAIR	netinet/tcp.h	int	19
+TCP_REPAIR_OFF	netinet/tcp.h	int	0
+TCP_REPAIR_OFF_NO_WP	netinet/tcp.h	int	-1
+TCP_REPAIR_ON	netinet/tcp.h	int	1
+TCP_REPAIR_OPTIONS	netinet/tcp.h	int	22
+TCP_REPAIR_QUEUE	netinet/tcp.h	int	20
+TCP_REPAIR_WINDOW	netinet/tcp.h	int	29
+TCP_SAVED_SYN	netinet/tcp.h	int	28
+TCP_SAVE_SYN	netinet/tcp.h	int	27
+TCP_SEND_QUEUE	netinet/tcp.h	int	2
+TCP_SYNCNT	netinet/tcp.h	int	7
+TCP_SYN_RECV	netinet/tcp.h	int	3
+TCP_SYN_SENT	netinet/tcp.h	int	2
+TCP_S_DATA_IN	netinet/tcp.h	int	4
+TCP_S_DATA_OUT	netinet/tcp.h	int	8
+TCP_THIN_DUPACK	netinet/tcp.h	int	17
+TCP_THIN_LINEAR_TIMEOUTS	netinet/tcp.h	int	16
+TCP_TIMESTAMP	netinet/tcp.h	int	24
+TCP_TIME_WAIT	netinet/tcp.h	int	6
+TCP_TX_DELAY	netinet/tcp.h	int	37
+TCP_ULP	netinet/tcp.h	int	31
+TCP_USER_TIMEOUT	netinet/tcp.h	int	18
+TCP_WINDOW_CLAMP	netinet/tcp.h	int	10
+TCP_ZEROCOPY_RECEIVE	netinet/tcp.h	int	35
 TCSADRAIN	pty.h	int	1
 TCSAFLUSH	pty.h	int	2
 TCSANOW	pty.h	int	0
@@ -7143,6 +7447,7 @@ TELQUAL_IS	arpa/telnet.h	int	0
 TELQUAL_NAME	arpa/telnet.h	int	3
 TELQUAL_REPLY	arpa/telnet.h	int	2
 TELQUAL_SEND	arpa/telnet.h	int	1
+TEST_UNIT_READY	scsi/scsi.h	int	0
 TFD_CLOEXEC	sys/timerfd.h	int	524288
 TFD_NONBLOCK	sys/timerfd.h	int	2048
 TFD_TIMER_ABSTIME	sys/timerfd.h	int	1
@@ -7152,6 +7457,12 @@ TGREAD	tar.h	int	32
 TGWRITE	tar.h	int	16
 THOUSANDS_SEP	langinfo.h	int	65537
 THOUSEP	langinfo.h	int	65537
+TH_ACK	netinet/tcp.h	int	16
+TH_FIN	netinet/tcp.h	int	1
+TH_PUSH	netinet/tcp.h	int	8
+TH_RST	netinet/tcp.h	int	4
+TH_SYN	netinet/tcp.h	int	2
+TH_URG	netinet/tcp.h	int	32
 TIMER_ABSTIME	pthread.h	int	1
 TIME_BAD	sys/timex.h	int	5
 TIME_DEL	sys/timex.h	int	2
@@ -7262,9 +7573,19 @@ TUWRITE	tar.h	int	128
 TVERSION	tar.h	char[3]	"00"
 TVERSLEN	tar.h	int	2
 TYPE_A	arpa/ftp.h	int	1
+TYPE_DISK	scsi/scsi.h	int	0
 TYPE_E	arpa/ftp.h	int	2
+TYPE_ENCLOSURE	scsi/scsi.h	int	13
 TYPE_I	arpa/ftp.h	int	3
 TYPE_L	arpa/ftp.h	int	4
+TYPE_MEDIUM_CHANGER	scsi/scsi.h	int	8
+TYPE_MOD	scsi/scsi.h	int	7
+TYPE_NO_LUN	scsi/scsi.h	int	127
+TYPE_PROCESSOR	scsi/scsi.h	int	3
+TYPE_ROM	scsi/scsi.h	int	5
+TYPE_SCANNER	scsi/scsi.h	int	6
+TYPE_TAPE	scsi/scsi.h	int	1
+TYPE_WORM	scsi/scsi.h	int	4
 T_A	arpa/nameser.h	int	1
 T_A6	arpa/nameser.h	int	38
 T_AAAA	arpa/nameser.h	int	28
@@ -7392,7 +7713,10 @@ ULONG_WIDTH	argp.h	int	64
 UL_GETFSIZE	ulimit.h	int	1
 UL_SETFSIZE	ulimit.h	int	2
 UMOUNT_NOFOLLOW	sys/mount.h	int	8
+UNAME26	sys/personality.h	int	131072
+UNIT_ATTENTION	scsi/scsi.h	int	6
 UPAGES	proc_service.h	int	1
+UPDATE_BLOCK	scsi/scsi.h	int	61
 USER_PROCESS	lastlog.h	int	7
 USHRT_MAX	argp.h	int	65535
 USHRT_WIDTH	argp.h	int	16
@@ -7410,6 +7734,7 @@ VEOF	pty.h	int	4
 VEOL	pty.h	int	11
 VEOL2	pty.h	int	16
 VERASE	pty.h	int	2
+VERIFY	scsi/scsi.h	int	47
 VER_DEF_CURRENT	elf.h	int	1
 VER_DEF_NONE	elf.h	int	0
 VER_DEF_NUM	elf.h	int	2
@@ -7426,6 +7751,7 @@ VINTR	pty.h	int	0
 VKILL	pty.h	int	3
 VLNEXT	pty.h	int	15
 VMIN	pty.h	int	6
+VOLUME_OVERFLOW	scsi/scsi.h	int	13
 VQUIT	pty.h	int	1
 VREPRINT	pty.h	int	12
 VSTART	pty.h	int	8
@@ -7446,6 +7772,7 @@ WCONTINUED	stdlib.h	int	8
 WCOREFLAG	sys/wait.h	int	128
 WEOF	wchar.h	unsigned int	4294967295
 WEXITED	stdlib.h	int	4
+WHOLE_SECONDS	sys/personality.h	int	33554432
 WILL	arpa/telnet.h	int	251
 WINT_MAX	arpa/nameser.h	unsigned int	4294967295
 WINT_MIN	arpa/nameser.h	unsigned int	0
@@ -7465,6 +7792,16 @@ WRDE_REUSE	wordexp.h	int	8
 WRDE_SHOWERR	wordexp.h	int	16
 WRDE_SYNTAX	wordexp.h	int	5
 WRDE_UNDEF	wordexp.h	int	32
+WRITE_10	scsi/scsi.h	int	42
+WRITE_12	scsi/scsi.h	int	170
+WRITE_6	scsi/scsi.h	int	10
+WRITE_BUFFER	scsi/scsi.h	int	59
+WRITE_FILEMARKS	scsi/scsi.h	int	16
+WRITE_LONG	scsi/scsi.h	int	63
+WRITE_LONG_2	scsi/scsi.h	int	234
+WRITE_SAME	scsi/scsi.h	int	65
+WRITE_VERIFY	scsi/scsi.h	int	46
+WRITE_VERIFY_12	scsi/scsi.h	int	174
 WRQ	arpa/tftp.h	int	2
 WSTOPPED	stdlib.h	int	2
 WTMPX_FILE	utmpx.h	char[14]	"/var/log/wtmp"
