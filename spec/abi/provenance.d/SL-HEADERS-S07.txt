@@ -1,0 +1,4 @@
+---
+order: 110
+---
+Slice 7 (SL-HEADERS-S07): utime.h added to the prototype headers (utime row), struct statx_timestamp to the layout types (4 rows); abi_extract.py --layouts-only and --prototypes-only on the reference system, other rows unchanged (the two sched_*attr prototype rows of the committed table are kept: a full rerun does not produce them). callsites.tsv and noexcept.tsv: the utime rows from callsite_probe.py --names utime.

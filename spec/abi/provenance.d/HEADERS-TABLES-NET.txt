@@ -1,0 +1,12 @@
+---
+order: 170
+---
+Slice 13's network headers (HEADERS-TABLES-NET), on the reference system (ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39, GCC
+13.3). Candidate names from the RFCs, man pages and kernel UAPI headers each group of header_probe.py net_names() cites;
+visibility.tsv by header_probe.py --headers <the 35 slice 13 headers> (617 rows added, the 13356 committed rows of those
+headers reproduced unchanged); macros.tsv, constants.tsv (490 integer macros) and typedefs.tsv (25 struct tags) by
+type_probe.py --headers <the same list> (the 418 rows it gave for names already in the tables are identical);
+layouts.tsv by abi_extract.py --layouts-only with these tags in TYPES: only the 275 rows of the 25 tags and of struct
+icmp_ra_addr (a typedefs.tsv row before, laid out only as a member of struct icmp) were spliced in (the rerun
+also differs from the committed table outside them: the hand-respelled p_type rows above, and members of _fpstate,
+_libc_fpstate, __sigset_t, La_x86_64_regs and the place of struct res_sym, left as they are). enumerators.tsv unchanged.
