@@ -1,0 +1,7 @@
+# HEADERS-STAGE2-GAPS-A plants: the compiler's max_align_t in sys/un.h and sys/rseq.h (P9 include-order units) and the
+# form of the three nl_item macros of langinfo.h (s10 form rows). Each regenerates libc-include, then runs header_check.
+un-own-max-align | headers/sys/un.h.in | lit:@@owns max_align_t ==> /* max_align_t not owned */ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P9 sys/un.h
+rseq-own-max-align | headers/sys/rseq.h.in | lit:@@owns NULL max_align_t ==> @@owns NULL | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P9 sys/rseq.h
+nl-item-arg-parens | headers/langinfo.h.in | lit:(((category) << 16) ==> ((category << 16) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P1 langinfo.h _NL_ITEM forms
+nl-category-int-cast | headers/langinfo.h.in | lit:((int) (item) >> 16) ==> ((item) >> 16) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P1 langinfo.h _NL_ITEM forms
+nl-index-arg-parens | headers/langinfo.h.in | lit:((int) (item) & 0xffff) ==> ((int) item & 0xffff) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P1 langinfo.h _NL_ITEM forms
