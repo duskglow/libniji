@@ -6,3 +6,9 @@ hs2c2-udp-segment | spec/abi/macros.tsv | perl:s/^(UDP_SEGMENT\tnetinet\/udp\.h\
 hs2c2-ut-name | headers/utmp.h.in | perl:s/# define ut_name ut_user/# define ut_name ut_host/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin utmp\.h
 hs2c2-ut-time | headers/utmp.h.in | perl:s/# define ut_time ut_tv\.tv_sec/# define ut_time ut_session/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin utmp\.h
 hs2c2-ns-msg-id | headers/arpa/nameser.h.in | perl:s/define ns_msg_id\(handle\) \(\(handle\)\._id \+ 0\)/define ns_msg_id(handle) ((handle)._id)/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin arpa/nameser\.h
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hs2c2-pri-b64: CAUGHT, caught by no test the log names
+# hs2c2-udp-segment: CAUGHT, caught by no test the log names
+# hs2c2-ut-name: CAUGHT, caught by no test the log names
+# hs2c2-ut-time: CAUGHT, caught by no test the log names
+# hs2c2-ns-msg-id: CAUGHT, caught by no test the log names
