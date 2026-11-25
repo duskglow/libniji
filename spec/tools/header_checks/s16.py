@@ -68,6 +68,7 @@ def units(ctx):
         for i, n in enumerate(names))
     out += [(cid, "S16 gnu/lib-names.h", body) for cid in ctx.ids]
     out += dl_requests(ctx)
+    out += elf_info(ctx)
     levels ={r["id"]: r for r in ctx.rows("headers/levels.tsv")}
     out += [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n") for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
     return out
@@ -90,6 +91,62 @@ def dl_requests(ctx):
             body += [f"typedef char niji_di_{i}[({n}) == {vals[n]} ? 1 : -1];" for i, n in enumerate(sorted(names))]
             body += ["typedef char niji_di_ser[sizeof (((Dl_serinfo *) 0)->dls_serpath[0]) == sizeof (Dl_serpath) ? 1 : -1];"]
             out.append((cid, f"S16 dlinfo requests {h}", "\n".join(body) + "\n"))
+    return out
+
+
+# (use, C type of the result, value): black-box probes of the reference's <elf.h> (HEADERS-STAGE2-GAPS-B leg 4,
+# coordinator note for gnu-efi): which operand types reach the result and which bits survive.
+ELF_INFO = [
+    ("ELF32_R_SYM ((Elf32_Word) 0x12345678)", "unsigned int", "0x123456"), ("ELF32_R_SYM (-16)", "int", "-1"),
+    ("ELF32_R_TYPE (0x12345678)", "int", "0x78"), ("ELF32_R_TYPE (-16)", "int", "0xf0"),
+    ("ELF32_R_TYPE (2ULL)", "unsigned long long", "2"), ("ELF32_R_INFO (0x123, 0x1ff)", "int", "0x123ff"),
+    ("ELF32_R_INFO ((Elf32_Word) 0x123, (Elf32_Word) 0x1ff)", "unsigned int", "0x123ff"),
+    ("ELF32_R_INFO (1, 2ULL)", "unsigned long long", "0x102"),
+    ("ELF64_R_SYM ((Elf64_Xword) 0x123456789abcdef0ULL)", "unsigned long", "0x12345678"),
+    ("ELF64_R_SYM (0x123456789L)", "long", "1"),
+    ("ELF64_R_TYPE ((Elf64_Xword) 0x123456789abcdef0ULL)", "unsigned long", "0x9abcdef0"),
+    ("ELF64_R_TYPE (-16)", "unsigned int", "0xfffffff0"), ("ELF64_R_INFO (1, 2)", "unsigned long", "0x100000002"),
+    ("ELF64_R_INFO (1, 2ULL)", "unsigned long long", "0x100000002"),
+    ("ELF64_R_INFO ((Elf64_Xword) 0x89abcdef, (Elf64_Xword) 0x1ffffffff)", "unsigned long", "0x89abcdf0ffffffff"),
+    ("ELF64_R_INFO ((Elf64_Xword) 0x123456789abcdef0ULL, -16)", "unsigned long", "0x9abcdeeffffffff0"),
+    *[e for w in (32, 64) for e in (
+        (f"ELF{w}_ST_BIND (0x1234)", "int", "3"), (f"ELF{w}_ST_BIND (-16)", "int", "0xf"),
+        (f"ELF{w}_ST_BIND (2ULL)", "int", "0"), (f"ELF{w}_ST_TYPE (0x1234)", "int", "4"),
+        (f"ELF{w}_ST_TYPE (-16)", "int", "0"), (f"ELF{w}_ST_TYPE (2ULL)", "unsigned long long", "2"),
+        (f"ELF{w}_ST_INFO (0x1f, 0x2e)", "int", "0x1fe"), (f"ELF{w}_ST_INFO (1, 2ULL)", "unsigned long long", "0x12"),
+        (f"ELF{w}_ST_VISIBILITY (0xa7)", "int", "3"), (f"ELF{w}_ST_VISIBILITY (-16)", "int", "0"),
+        (f"ELF{w}_ST_VISIBILITY (2ULL)", "unsigned long long", "2"), (f"ELF{w}_M_SYM (-16)", "int", "-1"),
+        (f"ELF{w}_M_SIZE (0x1234L)", "unsigned char", "0x34"), (f"ELF{w}_M_SIZE (-16)", "unsigned char", "0xf0"),
+        (f"ELF{w}_M_INFO (0x123, 0x1ff)", "int", "0x123ff"), (f"ELF{w}_M_INFO (1ULL, 2)", "unsigned long long", "0x102"))],
+    ("ELF32_M_SYM ((Elf32_Word) 0x12345678)", "unsigned int", "0x123456"), ("ELF64_M_SYM (0x1234L)", "long", "0x12"),
+    ("ELF32_M_INFO (1, 2ULL)", "int", "0x102"),
+]
+
+
+def elf_info(ctx):
+    """ELF gABI "Relocation Entries" and "Symbol Table" (r_info, st_info, st_other) and the move entries' m_info
+    (no spec clause beyond the gABI; HEADERS-STAGE2-GAPS-B, gnu-efi): where <elf.h> shows the ELF32_/ELF64_ R_, ST_
+    and M_ accessors, each use in ELF_INFO is a constant expression of the recorded type and value, C and C++."""
+    names = {e.split(" ")[0] for e, _, _ in ELF_INFO}
+    shown = {}
+    for r in ctx.vis:
+        if r["header"] == "elf.h" and r["kind"] == "macro" and r["name"] in names:
+            for cid in hc.expand(r["configs"], ctx.ids):
+                shown.setdefault(cid, set()).add(r["name"])
+    out = []
+    for cid, got in sorted(shown.items()):
+        if got != names:
+            out.append((cid, "S16 elf.h info macros", f"#error visibility.tsv shows only part of {sorted(names)}\n"))
+            continue
+        body = ["#include <elf.h>"]
+        if cid.startswith("cxx"):
+            body += ["template <class A, class B> struct niji_same { enum { v = 0 }; };",
+                     "template <class A> struct niji_same<A, A> { enum { v = 1 }; };"]
+        for i, (e, t, v) in enumerate(ELF_INFO):
+            same = f"niji_same<__typeof__ ({e}), {t}>::v" if cid.startswith("cxx") else \
+                f"__builtin_types_compatible_p (__typeof__ ({e}), {t})"
+            body.append(f"typedef char niji_ei_{i}[{same} && ({e}) == ({t}) ({v}) ? 1 : -1];")
+        out.append((cid, "S16 elf.h info macros", "\n".join(body) + "\n"))
     return out
 
 

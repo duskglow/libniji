@@ -408,6 +408,10 @@ def stage2_names():
     out += ["SOL_UDP", "TCP_ENCAP_ESPINTCP", "ELFMAG"]
     out += [f"UDP_{n}" for n in ("CORK", "ENCAP", "NO_CHECK6_TX", "NO_CHECK6_RX", "SEGMENT", "GRO")]
     out += [f"UDP_ENCAP_{n}" for n in ("ESPINUDP_NON_IKE", "ESPINUDP", "L2TPINUDP", "GTP0", "GTP1U", "RXRPC")]
+    # elf.h's r_info, st_info, st_other and m_info accessors (gABI "Relocation Entries", "Symbol Table"; the move
+    # entries of the GNU toolchain), each width and the unsized spelling (gnu-efi).
+    out += [f"ELF{w}_{m}" for w in ("32", "64", "") for m in ("R_SYM", "R_TYPE", "R_INFO", "ST_BIND", "ST_TYPE",
+                                                              "ST_INFO", "ST_VISIBILITY", "M_SYM", "M_SIZE", "M_INFO")]
     return out
 
 
