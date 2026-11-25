@@ -2,6 +2,7 @@
 /* sysexits.h: exit codes for programs (sysexits.h(3head)). */
 #ifndef __NIJI_H_sysexits_h
 #define __NIJI_H_sysexits_h 1
+#define _SYSEXITS_H 1
 
 #if 1
 # ifndef EX_CANTCREAT

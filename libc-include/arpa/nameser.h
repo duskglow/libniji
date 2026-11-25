@@ -2,6 +2,7 @@
 /* arpa/nameser.h: domain name system messages (RFC 1035) */
 #ifndef __NIJI_H_arpa_nameser_h
 #define __NIJI_H_arpa_nameser_h 1
+#define _ARPA_NAMESER_H_
 
 #include <features.h>
 #include <sys/types.h>
@@ -541,6 +542,9 @@ extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW __attribute_
 # ifndef NS_RRFIXEDSZ
 #  define NS_RRFIXEDSZ 10
 # endif
+# ifndef NS_TSIG_ALG_HMAC_MD5
+#  define NS_TSIG_ALG_HMAC_MD5 "HMAC-MD5.SIG-ALG.REG.INT"
+# endif
 # ifndef NS_TSIG_ERROR_FORMERR
 #  define NS_TSIG_ERROR_FORMERR (-12)
 # endif
@@ -558,36 +562,66 @@ extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW __attribute_
 # endif
 #endif
 
-/* resolver(3) message parsing: the accessors of a parsed message (ns_initparse) and of a resource record (ns_parserr).
-   Each is a value, not an lvalue; the counts and lengths are int, the type and class are ns_type and ns_class, and a
-   record whose name is the root (empty) reads as ".". The section index is not range-checked. */
+/* Reading and writing the network-order (big-endian) fields of a DNS message, and the accessors of a parsed message
+   and record (black-box probed on the reference: GET* assign the value and advance the pointer by the field size,
+   PUT* write it and advance; the accessors yield the member, promoted as the arithmetic of the member's type, a
+   record name that is empty reads as "."; HEADERS-STAGE2-GAPS-C-2). */
+#if 1
+# define GETSHORT(s, cp) NS_GET16 (s, cp)
+#endif
+#if 1
+# define GETLONG(l, cp) NS_GET32 (l, cp)
+#endif
+#if 1
+# define PUTSHORT(s, cp) NS_PUT16 (s, cp)
+#endif
+#if 1
+# define PUTLONG(l, cp) NS_PUT32 (l, cp)
+#endif
+#if 1
+# define NS_GET16(s, cp) do { const unsigned char *__niji_p = (cp); (s) = (unsigned int) (__niji_p[0] << 8) | __niji_p[1]; (cp) += 2; } while (0)
+#endif
+#if 1
+# define NS_GET32(l, cp) do { const unsigned char *__niji_p = (cp); (l) = ((unsigned long) __niji_p[0] << 24) | ((unsigned long) __niji_p[1] << 16) | ((unsigned long) __niji_p[2] << 8) | __niji_p[3]; (cp) += 4; } while (0)
+#endif
+#if 1
+# define NS_PUT16(s, cp) do { unsigned int __niji_v = (s); unsigned char *__niji_p = (cp); __niji_p[0] = (unsigned char) (__niji_v >> 8); __niji_p[1] = (unsigned char) __niji_v; (cp) = __niji_p + 2; } while (0)
+#endif
+#if 1
+# define NS_PUT32(l, cp) do { unsigned long __niji_v = (l); unsigned char *__niji_p = (cp); __niji_p[0] = (unsigned char) (__niji_v >> 24); __niji_p[1] = (unsigned char) (__niji_v >> 16); __niji_p[2] = (unsigned char) (__niji_v >> 8); __niji_p[3] = (unsigned char) __niji_v; (cp) = __niji_p + 4; } while (0)
+#endif
 #if 1
 # define ns_msg_id(handle) ((handle)._id + 0)
-# define ns_msg_base(handle) ((handle)._msg + 0)
-# define ns_msg_end(handle) ((handle)._eom + 0)
-# define ns_msg_size(handle) ((handle)._eom - (handle)._msg)
-# define ns_msg_count(handle, section) ((handle)._counts[section] + 0)
-# define ns_rr_name(rr) (((rr).name[0] != '\0') ? (rr).name : ".")
-# define ns_rr_type(rr) ((ns_type) ((rr).type + 0))
-# define ns_rr_class(rr) ((ns_class) ((rr).rr_class + 0))
-# define ns_rr_ttl(rr) ((rr).ttl + 0)
-# define ns_rr_rdlen(rr) ((rr).rdlength + 0)
-# define ns_rr_rdata(rr) ((rr).rdata + 0)
 #endif
-
-/* RFC 1035 section 2.3.2: 16- and 32-bit fields in network byte order. GET reads one into s and PUT writes the low
-   bits of s, each advancing cp past the field; each is one statement. */
 #if 1
-# define NS_GET16(s, cp) do { const unsigned char *__niji_cp = (const unsigned char *) (cp); \
-  (s) = (unsigned short) (((unsigned int) __niji_cp[0] << 8) | __niji_cp[1]); (cp) += 2; } while (0)
-# define NS_GET32(s, cp) do { const unsigned char *__niji_cp = (const unsigned char *) (cp); \
-  (s) = ((unsigned long) __niji_cp[0] << 24) | ((unsigned long) __niji_cp[1] << 16) \
-    | ((unsigned long) __niji_cp[2] << 8) | (unsigned long) __niji_cp[3]; (cp) += 4; } while (0)
-# define NS_PUT16(s, cp) do { unsigned long __niji_v = (unsigned long) (s); unsigned char *__niji_cp = (unsigned char *) (cp); \
-  __niji_cp[0] = (unsigned char) (__niji_v >> 8); __niji_cp[1] = (unsigned char) __niji_v; (cp) += 2; } while (0)
-# define NS_PUT32(s, cp) do { unsigned long __niji_v = (unsigned long) (s); unsigned char *__niji_cp = (unsigned char *) (cp); \
-  __niji_cp[0] = (unsigned char) (__niji_v >> 24); __niji_cp[1] = (unsigned char) (__niji_v >> 16); \
-  __niji_cp[2] = (unsigned char) (__niji_v >> 8); __niji_cp[3] = (unsigned char) __niji_v; (cp) += 4; } while (0)
+# define ns_msg_base(handle) ((handle)._msg + 0)
+#endif
+#if 1
+# define ns_msg_end(handle) ((handle)._eom + 0)
+#endif
+#if 1
+# define ns_msg_size(handle) ((handle)._eom - (handle)._msg)
+#endif
+#if 1
+# define ns_msg_count(handle, section) ((handle)._counts[section] + 0)
+#endif
+#if 1
+# define ns_rr_name(rr) (((rr).name[0] != 0) ? (rr).name : ".")
+#endif
+#if 1
+# define ns_rr_type(rr) ((ns_type) ((rr).type + 0))
+#endif
+#if 1
+# define ns_rr_class(rr) ((ns_class) ((rr).rr_class + 0))
+#endif
+#if 1
+# define ns_rr_ttl(rr) ((rr).ttl + 0)
+#endif
+#if 1
+# define ns_rr_rdlen(rr) ((rr).rdlength + 0)
+#endif
+#if 1
+# define ns_rr_rdata(rr) ((rr).rdata + 0)
 #endif
 
 __NIJI_END_C

@@ -4,6 +4,7 @@
    release functions are the ones the program names in obstack_chunk_alloc and obstack_chunk_free. */
 #ifndef __NIJI_H_obstack_h
 #define __NIJI_H_obstack_h 1
+#define _OBSTACK_H 1
 
 #include <features.h>
 #include <string.h>

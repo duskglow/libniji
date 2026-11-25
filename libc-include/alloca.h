@@ -2,6 +2,7 @@
 /* alloca.h: stack allocation (alloca(3)). */
 #ifndef __NIJI_H_alloca_h
 #define __NIJI_H_alloca_h 1
+#define _ALLOCA_H 1
 
 #include <features.h>
 

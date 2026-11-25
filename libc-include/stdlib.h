@@ -3,6 +3,7 @@
    per-locale value; the wait-status macros are XSH <sys/wait.h>'s bit fields of the 16-bit status. */
 #ifndef __NIJI_H_stdlib_h
 #define __NIJI_H_stdlib_h 1
+#define _STDLIB_H 1
 
 #include <features.h>
 

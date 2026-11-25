@@ -2,6 +2,7 @@
 /* net/if_slip.h: SLIP interface */
 #ifndef __NIJI_H_net_if_slip_h
 #define __NIJI_H_net_if_slip_h 1
+#define _NET_IF_SLIP_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* proc_service.h: the callbacks a debugger implements for libthread_db.so.1 (the other side of <thread_db.h>). */
 #ifndef __NIJI_H_proc_service_h
 #define __NIJI_H_proc_service_h 1
+#define _PROC_SERVICE_H 1
 
 #include <features.h>
 #include <sys/procfs.h>

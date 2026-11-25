@@ -2,6 +2,7 @@
 /* sys/io.h: iopl(2), ioperm(2) */
 #ifndef __NIJI_H_sys_io_h
 #define __NIJI_H_sys_io_h 1
+#define _SYS_IO_H 1
 
 #include <features.h>
 

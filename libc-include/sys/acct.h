@@ -2,6 +2,7 @@
 /* sys/acct.h: acct(2), process accounting */
 #ifndef __NIJI_H_sys_acct_h
 #define __NIJI_H_sys_acct_h 1
+#define _SYS_ACCT_H 1
 
 #include <features.h>
 #include <stdint.h>

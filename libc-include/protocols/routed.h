@@ -2,6 +2,7 @@
 /* protocols/routed.h: RIP */
 #ifndef __NIJI_H_protocols_routed_h
 #define __NIJI_H_protocols_routed_h 1
+#define _PROTOCOLS_ROUTED_H 1
 
 #include <features.h>
 #include <sys/types.h>

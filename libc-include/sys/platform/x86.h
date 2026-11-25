@@ -2,6 +2,7 @@
 /* sys/platform/x86.h: the processor features of the running x86 CPU (CPUID leaves of the Intel SDM). */
 #ifndef __NIJI_H_sys_platform_x86_h
 #define __NIJI_H_sys_platform_x86_h 1
+#define _SYS_PLATFORM_X86_H
 
 #include <features.h>
 #include <stdbool.h>

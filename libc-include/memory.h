@@ -2,6 +2,7 @@
 /* memory.h: the old name of <string.h> (R-H7: shipped, 58 -dev packages include it). */
 #ifndef __NIJI_H_memory_h
 #define __NIJI_H_memory_h 1
+#define _MEMORY_H 1
 
 #include <string.h>
 

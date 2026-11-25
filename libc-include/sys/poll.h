@@ -2,6 +2,7 @@
 /* sys/poll.h: another name of <poll.h> (plan/headers.md section 1). */
 #ifndef __NIJI_H_sys_poll_h
 #define __NIJI_H_sys_poll_h 1
+#define _SYS_POLL_H 1
 
 #include <poll.h>
 

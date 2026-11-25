@@ -2,6 +2,7 @@
 /* grp.h: group database (XSH <grp.h>). */
 #ifndef __NIJI_H_grp_h
 #define __NIJI_H_grp_h 1
+#define _GRP_H 1
 
 #include <features.h>
 

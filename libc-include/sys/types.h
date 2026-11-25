@@ -2,6 +2,7 @@
 /* sys/types.h: the POSIX system data types (XBD <sys/types.h>), and the BSD set's select() and fd_set. */
 #ifndef __NIJI_H_sys_types_h
 #define __NIJI_H_sys_types_h 1
+#define _SYS_TYPES_H 1
 
 #include <features.h>
 

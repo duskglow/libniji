@@ -2,6 +2,7 @@
 /* protocols/timed.h: time daemon */
 #ifndef __NIJI_H_protocols_timed_h
 #define __NIJI_H_protocols_timed_h 1
+#define _PROTOCOLS_TIMED_H 1
 
 #include <features.h>
 #include <sys/types.h>

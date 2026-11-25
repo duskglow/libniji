@@ -2,6 +2,7 @@
 /* fstab.h: file system description file (getfsent(3)) */
 #ifndef __NIJI_H_fstab_h
 #define __NIJI_H_fstab_h 1
+#define _FSTAB_H 1
 
 #include <features.h>
 

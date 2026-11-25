@@ -36,7 +36,58 @@ def units(ctx):
     # spelling, and free for the program elsewhere. sys/types.h has no table P1 (`p1` 0 in s05.tsv), so these are its
     # rows. The reserved `__u_char` family (HEADERS-STAGE2-GAPS-E: libnsl and rpc/types.h name them) is shown in every
     # configuration that accepts the header, strict ISO included.
-    return out + ctx.exact("sys/types.h", SYS_TYPES_NAMES + U_CHAR_FAMILY)
+    out += ctx.exact("sys/types.h", SYS_TYPES_NAMES + U_CHAR_FAMILY)
+    # Spec clause: C 7.2 p3 (C11, C17: <assert.h> defines `static_assert` as `_Static_assert`; C23 makes it a keyword,
+    # and in C++ it is one) (HEADERS-STAGE2-GAPS-C, elogind): defined exactly where the reference defines it, and usable
+    # at file scope there.
+    out += ctx.exact("assert.h", ("static_assert",))
+    out += [(cid, "static_assert use", "#include <assert.h>\nstatic_assert (sizeof (int) >= 2, \"int\");\nint niji_s05_sa;\n")
+            for cid in ctx.ids if cid in shown_in(ctx, "assert.h", "static_assert")]
+    return out + guard_units(ctx)
+
+
+def shown_in(ctx, header, name):
+    """The configuration ids where visibility.tsv shows `name` in `header` (none without a row)."""
+    return set().union(*(ctx.expand(r["configs"]) for r in ctx.vis if r["header"] == header and r["name"] == name))
+
+
+def guard_units(ctx):
+    """Spec clause: no spec clause (HEADERS-STAGE2-GAPS-C, Yohane stage 2: gmp's <gmp.h> declares its `FILE *`
+    functions only when it sees a stdio include guard). Every shipped header defines exactly the include-guard names
+    (header_probe.guard_candidates) visibility.tsv shows for it, with the reference's value (`1`, or empty where the
+    reference's is empty: the spelling of the expansion, through `#`, is compared), and leaves the other candidates
+    undefined. One unit per header and distinct pattern of shown guards (C and C++ always: complex.h and tgmath.h show
+    theirs only outside C++11 and later); configurations levels.tsv rejects and headers shipped to fail are left out."""
+    rejected = {r["id"] for r in ctx.rows("headers/levels.tsv") if r["reject"] == "1"}
+    rows = {}
+    for r in ctx.vis:
+        rows.setdefault(r["header"], []).append(r)
+    out = []
+    for h in sorted({r["header"] for r in ctx.slice_rows} - ctx.must_fail):
+        hv = rows.get(h, [])
+        failing = set().union(*(ctx.expand(r["configs"]) for r in hv if r["kind"] == "include-error"))
+        cands = ctx.hp.guard_candidates(h)
+        shown = {n: set().union(*(ctx.expand(r["configs"]) for r in hv if r["name"] == n and r["kind"] == "macro")) for n in cands}
+        seen = set()
+        for cid in ctx.ids:
+            if cid in rejected or cid in failing:
+                continue
+            lang = next(c["language"] for c in ctx.cfgs if c["id"] == cid)
+            sig = (lang, frozenset(n for n in cands if cid in shown[n]))
+            if sig in seen:
+                continue
+            seen.add(sig)
+            lines = [f"#include <{h}>", "#define NIJI_G_STR2(x) #x", "#define NIJI_G_STR(x) NIJI_G_STR2(x)"]
+            for i, n in enumerate(cands):
+                if cid in shown[n]:
+                    m = ctx.macros.get(n)
+                    v = m["value"] if m else ""
+                    lines.append(f"#ifndef {n}\n#error \"{n} not defined\"\n#endif")
+                    lines.append(f"typedef char niji_guard_{i}[sizeof (NIJI_G_STR ({n})) == {len(v) + 1} ? 1 : -1];")
+                else:
+                    lines.append(f"#ifdef {n}\n#error \"{n} defined\"\n#endif")
+            out.append((cid, f"guards {h}", "\n".join(lines) + "\nint niji_guard_tu;\n"))
+    return out
 
 
 U_CHAR_FAMILY = ("__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t")
