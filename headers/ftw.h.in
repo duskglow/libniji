@@ -5,6 +5,8 @@
 
 #include <features.h>
 #include <sys/types.h>
+/* The reference's <ftw.h> shows every name of <sys/stat.h> (the S_IS* tests too: header_probe, HEADERS-STAGE2-GAPS-E). */
+#include <sys/stat.h>
 
 __NIJI_BEGIN_C
 

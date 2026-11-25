@@ -20,12 +20,16 @@ __NIJI_BEGIN_C
 # define S_ISFIFO(m) (((m) & @@value(S_IFMT)) == @@value(S_IFIFO))
 # define S_ISREG(m) (((m) & @@value(S_IFMT)) == @@value(S_IFREG))
 # define S_ISLNK(m) (((m) & @@value(S_IFMT)) == @@value(S_IFLNK))
+@@if S_ISSOCK
 # define S_ISSOCK(m) (((m) & @@value(S_IFMT)) == @@value(S_IFSOCK))
-/* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. */
+#endif
+/* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. S_TYPEISTMO (the typed memory objects option)
+   is not defined, as in the reference (visibility.tsv has no row for it). */
+@@if S_TYPEISMQ
 # define S_TYPEISMQ(buf) ((void) (buf), 0)
 # define S_TYPEISSEM(buf) ((void) (buf), 0)
 # define S_TYPEISSHM(buf) ((void) (buf), 0)
-# define S_TYPEISTMO(buf) ((void) (buf), 0)
+#endif
 /* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
 # if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
 #  define st_atime st_atim.tv_sec
