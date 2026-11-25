@@ -41,9 +41,24 @@ inttypes.h -42, netinet/if_fddi.h -40, netinet/igmp.h -36, link.h -34, elf.h -31
 arpa/nameser.h -21, sys/queue.h -13, lastlog.h/utmp.h -13, arpa/telnet.h -12. Errors (no count): regexp.h, sys/elf.h,
 sys/vm86.h (shipped to fail). Full table: scratch triage.tsv.
 
+## Commits (leg 1)
+77063f55b sources/tables/generator/templates; df1671e60 regenerated libc-include + crates/abi layout tables (abi-gen);
+then this note. Jobs: `headers-stage2-gaps-c-gen2` (headers-gen + header_check --only on the changed headers: 0 failed
+of 1440); SUPERSEDED `-gen1` (static_assert had no level condition; fixed with a `__STDC_VERSION__` condition).
+Running at leg end: `headers-stage2-gaps-c-hc1` on df1671e60's tree (headers-gen --check, FULL header_check incl. the
+form probe -> ~/work/headers-stage2-gaps-c/hc.out, `cargo test -p xtask`); script ~/work/headers-stage2-gaps-c/hc.sh.
+
+## For the report (leg 1 slips, say them)
+* One remote probe command used a bash here-string (`<<<`) and one repo edit used `sed -i` (abi_extract.py HEADERS
+  line; content correct). Both against the rules; neither was refused. Also opened generated libc-include/utime.h
+  once with cat (read only). Do not repeat.
+* RULING NEEDED: R-H2 says "exactly the names external headers and programs test"; this story (per the brief)
+  defines every probed guard of every header (213), not only tested ones. Recommend: keep (same meaning, cheap,
+  programs test unknown subsets; gmp tests _STDIO_H).
+
 ## Exact next step (leg 2)
-1. Fetch the regenerated tree from job `headers-stage2-gaps-c-gen1` (~/work/headers-stage2-gaps-c/libc-include.tar) if
-   not yet committed; read its header_check --only result in ~/logs/headers-stage2-gaps-c-gen1.log.
+1. `~/bin/jobwait headers-stage2-gaps-c-hc1`; read the summary lines of ~/logs/headers-stage2-gaps-c-hc1.log (grep,
+   never cat hc.out). Fix any FAIL/FORM-DIFF on the new names.
 2. header_check rows: a guards unit (each header's guards defined with the probed value) and DTTOIF/IFTODT, LOG_*,
    static_assert, ar_hdr form units (header_checks/s*.py of the owning slice); plants file
    handoff/HEADERS-STAGE2-GAPS-C-plants.txt (guard dropped, IFTODT unparenthesised, LOG_MAKEPRI shifted, static_assert
