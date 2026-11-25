@@ -47,9 +47,11 @@
  "next_step": "follow-up: resolv.h b64_ntop/b64_pton + __b64_* prototypes (libresolv exports both; header declares neither); openssh misc.c clears when HEADERS-NET-SYS-NAMES lands",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
  "jobs": [
-  "keke:headers-stage2-gaps-b-gate5",
   "keke:headers-stage2-gaps-b-gate5b",
   "keke:headers-stage2-gaps-b-plants3",
   "keke:headers-stage2-gaps-b-proof5"
+ ],
+ "superseded": [
+  "keke:headers-stage2-gaps-b-gate5 (rc 1 from the gencat transcript test only: role target/niji missing; rebuilt and rerun green in gate5b; header_check, aliases, clippy, static green in it)"
  ]
 }
