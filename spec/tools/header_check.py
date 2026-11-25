@@ -344,11 +344,13 @@ def main():
     # The tree and work directory of this run, for a module that compiles units of its own (header_checks/form.py).
     ctx.inc, ctx.work = inc, work
     ctx.exact = lambda header, names, types=None: exact_units(ctx, header, names, types)
+    ctx.expand = lambda configs: expand(configs, ctx.ids)
     mods = slice_checks()
     # A slice check module may name `p1_skip` ((header, name) rows its P1 units leave out) and `must_fail` (headers
     # shipped to fail in every configuration: no P5 TU, and the module's own unit asserts the failure).
     ctx.p1_skip = {x for _, mod in mods for x in getattr(mod, "p1_skip", ())}
     must_fail = {x for _, mod in mods for x in getattr(mod, "must_fail", ())}
+    ctx.must_fail = must_fail
     p1s = p1_units(ctx)
     for cid, us in compiler_order_units(ctx).items():
         p1s.setdefault(cid, []).extend(us)

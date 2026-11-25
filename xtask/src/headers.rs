@@ -544,8 +544,10 @@ impl Gen<'_> {
             if self.t.vis_row(&self.header, &n, "macro").is_some() {
                 let v = if self.t.macros.contains_key(&n) { format!(" {}", self.value(&n)) } else { String::new() };
                 // complex.h and tgmath.h: not in C++11 and later, where the C++ library's header of that name stands in.
+                // A condition tests the `__NIJI_*` levels, which <features.h> defines: the guard sits before the
+                // template's own includes, so it includes <features.h> first (both headers include it anyway).
                 let c = self.cond(&n, Some("macro"));
-                let def = if c == "1" { format!("#define {n}{v}") } else { format!("#if {c}\n# define {n}{v}\n#endif") };
+                let def = if c == "1" { format!("#define {n}{v}") } else { format!("#include <features.h>\n#if {c}\n# define {n}{v}\n#endif") };
                 out.push((n.clone(), def));
             }
         }
