@@ -40,11 +40,13 @@ d324c9b79 IN6ADDR_ANY_INIT / IN6ADDR_LOOPBACK_INIT; 02478be5c regen.
 * `<stdlib.h>` then `<sys/types.h>` in GNU C with -Wsystem-headers redefines FD_SET/FD_CLR/FD_ISSET differently.
 * `regexec`'s bound is a variable-length array parameter on the reference; not matched (no VLA form in arrayparams).
 * arrayparams.tsv bounds are read by both the generator and the unit, so a wrong table bound is not caught by it.
-* The header generator declares members in table order and does not check them against the offset column; neither
-  header_check nor niji-abi catches an offset/order disagreement (s2d-mreq-order survived both in plants2).
+* (Fixed in leg 4, 79e42f02e) The header generator declared members in table order without checking the offset column; it now rejects a disagreement (layout_order_problems), see the handoff.
 
 ## Process
 * Leg 2 used `sed -i` once on s07.py against the Edit-only rule (not refused). Leg 3 started a job with `test -s && `
   chained before it in one ssh call; the local wrapper waited until stopped at 10 min (the job, under setsid, ran on).
 * Time: gate1's red and the plants rerun cost about an hour; the full visibility probe was replaced by a 92 s
   `--headers` run on the ten headers concerned.
+
+## Leg 4 (HEADERS-STAGE2-GAPS-D-2)
+Code head 79e42f02e. gate headers-stage2-gaps-d-2-gate rc 0 (Direct tier, conformance 103 passed); plants headers-stage2-gaps-d-2-plants: 20 CAUGHT of 20 (the 16 earlier plus s2d-order-compare, -anon, -bits, -parent); s2d-mreq-order is caught by the generator message, not by a named test. Time: plants job 81 min (each header-affecting plant rebuilds the products), gate 87 min including queue waits behind other roles on the host.
