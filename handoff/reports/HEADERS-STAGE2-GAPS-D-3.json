@@ -1,0 +1,45 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "merged origin/next into the leg-4 head (5 conflicts resolved, union kept), regenerated appendix_c_layouts.rs, removed a duplicate IN_CLASS* definition the merge produced in netinet/in.h",
+ "branch": "task/headers-stage2-gaps-d-3",
+ "head": "HEAD_PLACEHOLDER",
+ "gate": {
+  "affected": "see handoff/HEADERS-STAGE2-GAPS-D-report.md; whole header_check 0 failed of 22240 before the gate",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the textual merge of netinet/in.h.in was clean but semantically wrong: both sides defined IN_CLASSA..IN_BADCLASS (887 'redefined' errors in header_check); next's definitions kept, plants re-spelled",
+  "ruling #8606 applied: perl $Config{d_bsd} differs from stock; no change",
+  "perl rebuild after the IN6ADDR fix still NOT VERIFIED end to end"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "lets HEADERS-STAGE2-GAPS-D's header changes (perl, fakechroot, faketime, glib, gperftools, icu, heimdal gaps; generator order check) land on next",
+   "before": null,
+   "after": null,
+   "unit": "story",
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "removes a duplicate (token-different) IN_CLASSA..IN_BADCLASS definition that a clean-looking textual merge created",
+   "before": 1098,
+   "after": 0,
+   "unit": "header_check failures",
+   "measured": true
+  }
+ ],
+ "improvement": "a merge of a header template should run the whole header_check before the gate: a conflict-free text merge can double-define a macro",
+ "next_step": "land; then perl rebuild proof on the next snapshot",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D.md",
+ "jobs": [
+  "headers-stage2-gaps-d-3-gate2",
+  "headers-stage2-gaps-d-3-plants2"
+ ]
+}
