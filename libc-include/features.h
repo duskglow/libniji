@@ -138,6 +138,15 @@
 # define __NIJI_FORTIFY 0
 #endif
 
+/* The nonnull attributes a declaration carries only when _FORTIFY_SOURCE is not in effect (diagattrs.tsv column
+   nonnull_nofortify, black-box probe of the reference's declarations in each configuration, HEADERS-NONNULL-MATCH):
+   in a fortified build the compiler may not assume those arguments non-null, so a caller's own checks stay. */
+#if __NIJI_FORTIFY
+# define __NIJI_NONNULL_NF(params)
+#else
+# define __NIJI_NONNULL_NF(params) __attribute__ ((__nonnull__ params))
+#endif
+
 /* Header-inline bodies (Appendix C.9 protocols, and calls a function is specified to be equivalent to): in effect when
    optimizing for speed, as GCC's predefined macros say (-O1 and up, -Og), not at -O0, -Os or -fno-inline (black-box
    probe of the reference's objects, HEADERS-O2-INLINES). The body is GNU inline: taking the function's address, or
