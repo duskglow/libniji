@@ -1,0 +1,70 @@
+{
+ "task": "NL-LOCALE-NAME-ABI",
+ "model": "opus",
+ "tokens": null,
+ "result": "_NL_LOCALE_NAME in <langinfo.h> (probed form) and static_assert in <assert.h>: perl 5.40's HS_KEY and sizeof(PerlInterpreter) under libniji's headers now equal the reference's (0xeb80487, 3768; before 0xf280487, 3880); a libniji-built XS module loads into trixie's perl on libniji; layout-macro sweep listed",
+ "branch": "task/nl-locale-name-abi",
+ "head": "e499daade",
+ "gate": {
+  "affected": "FULL: the train's (generated tables). test2 on the final code: niji-boundary s07_locale_symbols + xtask 7 suites, 742 passed / 0 failed; header_check 0 failed of 20115. hc: static_assert units + forms 0 failed of 43. lint2: clippy -D warnings + static clean",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Sweep (handoff page): only _NL_LOCALE_NAME changes a layout (perl). Reference-only, not layout: _STDIO_H (stdio.h and its includers), va_copy/__va_copy (printf.h), S_IS* (ftw.h), CHARBITS (values.h), _IOC_SIZE (sys/soundcard.h), _PATH_RESCONF (resolv.h), SPACE (scsi/scsi.h).",
+  "libniji-only: __GLIBC__, __THROW and feature macros in 8 headers that include features.h where the reference's do not; CMSG_LEN in 5 net headers; S_ISSOCK in sys/stat.h under c11.",
+  "gnulib localename (coordinator 13:20Z note): grep's stage-2 log fails on the incomplete struct __locale_struct; whether _NL_LOCALE_NAME moves it to nl_langinfo_l is NOT VERIFIED (source fetch refused).",
+  "liblocale-gettext-perl system-flavour build not run; the XS load proof (xsload3) stands in for it.",
+  "Superseded jobs: test1 and lint (ran before the s10 unit), plants (plants file not yet synced), plants3 (static_assert plants selected no P1 unit: led to the new s10 unit), perlkey1/2 and xsload/xsload2 (probe-script bugs), ref1-4/nj1/hp1/hp2/sweep1-3 are probes."
+ ],
+ "refused": [
+  "Bash: scp grep1.sh to keke, then jobrun nl-locale-name-abi-grep1 running grep1.sh (curl of grep_3.11.orig.tar.xz from deb.debian.org, configure and make of gnulib-tests/localename.o against libniji headers): denied by the auto-mode classifier [Undermining Oversight]"
+ ],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "perl XS modules built against libniji headers: handshake key equals the reference perl's (perl refused them before)",
+   "before": 3880,
+   "after": 3768,
+   "unit": "sizeof(PerlInterpreter) bytes, reference 3768",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "<assert.h> static_assert (ISO C11 7.2) defined in the reference's configurations",
+   "before": 0,
+   "after": 1,
+   "unit": "macro present",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "s10 form rows for _NL_LOCALE_NAME, the s10 static_assert unit per configuration, name-item cases in sym_nl_langinfo(_l), 6 plants",
+   "before": null,
+   "after": 10,
+   "unit": "form rows",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage-2 perl XS packages (liblocale-gettext-perl for debconf; finish line perl sources)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A per-header #ifdef sweep of the names packages test (scratch sweep.py, exit status + own-file error lines only) found the gap class in minutes; worth committing as a header_probe mode so new package corpora feed candidates automatically.",
+ "next_step": "Train landing; then _STDIO_H and printf.h va_copy rows; rebuild grep/findutils/gettext in stage 2 to settle the gnulib localename path.",
+ "report_file": "handoff/NL-LOCALE-NAME-ABI.md",
+ "jobs": [
+  "nl-locale-name-abi-test2",
+  "nl-locale-name-abi-hc",
+  "nl-locale-name-abi-plants4",
+  "nl-locale-name-abi-lint2",
+  "nl-locale-name-abi-perlkey3",
+  "nl-locale-name-abi-xsload3",
+  "nl-locale-name-abi-precheck2"
+ ]
+}

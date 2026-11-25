@@ -9,6 +9,16 @@
 __NIJI_BEGIN_C
 
 #if __NIJI_FORTIFY >= 1
+# ifndef __NIJI_D_struct___locale_struct
+#  define __NIJI_D_struct___locale_struct 1
+struct __locale_struct {
+  struct __locale_data * __locales[13];
+  const unsigned short * __ctype_b;
+  const int * __ctype_tolower;
+  const int * __ctype_toupper;
+  const char * __names[13];
+};
+# endif
 # ifndef __NIJI_D_struct_lconv
 #  define __NIJI_D_struct_lconv 1
 struct lconv {

@@ -43,6 +43,14 @@ def units(ctx):
              ("_NL_ITEM_INDEX(0xFFFFFFFFu)", 65535, "int"), ("_NL_ITEM_INDEX(0x100020005L)", 5, "int"),
              ("_NL_ITEM_INDEX(0x20005) * 2", 10, "int"), ("_NL_ITEM_INDEX(_NL_ADDRESS_COUNTRY_AB2)", 3, "int"),
              ("_NL_ITEM_CATEGORY(_NL_IDENTIFICATION_CODESET)", 12, "int")]
+    # Spec clause: nl_langinfo(3), the locale-name item (NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME`, and
+    # its interpreter layout follows). Probed form: _NL_ITEM(category, 0xffff), argument and result parenthesised, the
+    # type follows the argument.
+    forms += [("_NL_LOCALE_NAME(0)", 65535, "int"), ("_NL_LOCALE_NAME(12)", 851967, "int"), ("_NL_LOCALE_NAME(1L)", 131071, "long"),
+              ("_NL_LOCALE_NAME(1u)", 131071, "unsigned"), ("_NL_LOCALE_NAME(1) * 2", 262142, "int"),
+              ("_NL_LOCALE_NAME(2 - 1)", 131071, "int"), ("_NL_LOCALE_NAME(1 ? 3 : 4)", 262143, "int"),
+              ("-_NL_LOCALE_NAME(1)", -131071, "int"), ("_NL_ITEM_INDEX(_NL_LOCALE_NAME(5))", 65535, "int"),
+              ("_NL_ITEM_CATEGORY(_NL_LOCALE_NAME(2))", 2, "int")]
     cxx = {c["id"]: c["language"] == "c++" for c in ctx.cfgs}
     for cid in ("c89", "gnu17", "cxx98", "cxx17"):
         same = "__is_same(__typeof__({e}), {t})" if cxx[cid] else "__builtin_types_compatible_p(__typeof__({e}), {t})"
@@ -50,7 +58,7 @@ def units(ctx):
         body += "".join(f"typedef char niji_nl_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(forms))
         out.append((cid, "P1 langinfo.h _NL_ITEM forms", body))
-    return out + errcode_units(ctx) + gettext_units(ctx)
+    return out + errcode_units(ctx) + gettext_units(ctx) + locale_struct_units(ctx)
 
 
 # (expression, value, type) of __GNU_GETTEXT_SUPPORTED_REVISION, from black-box probes of the reference
@@ -91,6 +99,42 @@ def gettext_units(ctx):
         body += "".join(f"typedef char niji_gt_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(GETTEXT_FORMS))
         out.append((cid, "libintl.h __GNU_GETTEXT_SUPPORTED_REVISION forms", body))
+    return out
+
+
+# The configurations locale_struct_units samples: the lowest POSIX level with locale_t, its X/Open twin, the GNU
+# default, and one C++ mode (the struct's visibility differs per header only by the language and the feature level).
+LOCALE_STRUCT_CONFIGS = ("posix200809", "xopen700", "gnu17", "cxx17")
+# Headers left out, with the reason: complex.h shows the structure only in C++ modes, where the reference's <complex.h>
+# reaches locale_t through the C++ library's headers; libniji's complex.h includes neither, so it shows no locale_t
+# there either (an include difference of complex.h, not of this structure).
+LOCALE_STRUCT_SKIP = ("complex.h",)
+
+
+def locale_struct_units(ctx):
+    """Spec clause: Appendix C layouts, `struct __locale_struct` (NL-LOCALE-NAME-ABI-3: gnulib's localename module,
+    copied into findutils, gettext, gnutls28, grep, libunistring, m4 and sed, reads `locale->__names[category]`, and
+    each of those failed to build in Yohane's stage 2 while the tag was incomplete). In every header visibility.tsv
+    shows the structure in, for the sampled configurations where it shows it: the structure is complete, with the size,
+    alignment and member offsets of layouts.tsv, and `locale_t` points to it (headers/reserved.tsv `__locale_struct`).
+    Defects it catches: the tag left incomplete (the reserved row dropped), a member missing or moved, or the
+    structure emitted only in some of the headers that show `locale_t`."""
+    lay = [r for r in ctx.rows("spec/abi/layouts.tsv") if r["type"] == "struct __locale_struct"]
+    whole = next((r for r in lay if not r["member"]), None)
+    rows = [r for r in ctx.vis if r["name"] == "__locale_struct" and r["kind"] == "struct" and r["header"] not in LOCALE_STRUCT_SKIP]
+    if whole is None or not rows:
+        return [(ctx.ids[0], "locale_struct", "#error layouts.tsv or visibility.tsv has no struct __locale_struct row\n")]
+    asserts = [f"sizeof (struct __locale_struct) == {whole['offset_or_size']}",
+               f"__alignof__ (struct __locale_struct) == {whole['align']}"]
+    asserts += [f"__builtin_offsetof (struct __locale_struct, {r['member']}) == {r['offset_or_size']}" for r in lay if r["member"]]
+    out = []
+    for r in rows:
+        shown = header_check.expand(r["configs"], ctx.ids)
+        for cid in LOCALE_STRUCT_CONFIGS:
+            if cid not in shown:
+                continue
+            body = f"#include <{r['header']}>\n" + "".join(f"typedef char niji_ls_{i}[({a}) ? 1 : -1];\n" for i, a in enumerate(asserts))
+            out.append((cid, f"locale_struct {r['header']}", body))
     return out
 
 

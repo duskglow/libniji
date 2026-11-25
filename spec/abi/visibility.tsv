@@ -14520,6 +14520,7 @@ langinfo.h	_NL_IDENTIFICATION_TITLE	enumerator	!time64only
 langinfo.h	_NL_ITEM	macro	!time64only
 langinfo.h	_NL_ITEM_CATEGORY	macro	!time64only
 langinfo.h	_NL_ITEM_INDEX	macro	!time64only
+langinfo.h	_NL_LOCALE_NAME	macro	!time64only
 langinfo.h	_NL_MEASUREMENT_CODESET	enumerator	!time64only
 langinfo.h	_NL_MEASUREMENT_MEASUREMENT	enumerator	!time64only
 langinfo.h	_NL_MESSAGES_CODESET	enumerator	!time64only
