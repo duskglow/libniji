@@ -47,5 +47,5 @@
  "improvement": "sync_role syncs the committed HEAD only; a table fix needs a commit before the sync, and a killed gate leaves nextest children that keep the role BUSY until kill-mine --kill",
  "next_step": "none for this chain; land via the train",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
- "jobs": ["keke:headers-stage2-gaps-b-3-clippy", "keke:headers-stage2-gaps-b-3-gate2", "keke:headers-stage2-gaps-b-3-plants2"]
+ "jobs": ["keke:headers-stage2-gaps-b-3-clippy2", "keke:headers-stage2-gaps-b-3-gate2", "keke:headers-stage2-gaps-b-3-plants2"]
 }
