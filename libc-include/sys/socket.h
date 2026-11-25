@@ -987,7 +987,11 @@ enum {
 #  define SO_RCVLOWAT 18
 # endif
 # ifndef SO_RCVTIMEO
-#  define SO_RCVTIMEO 20
+#  if __NIJI_MISC
+#   define SO_RCVTIMEO SO_RCVTIMEO_OLD
+#  else
+#   define SO_RCVTIMEO 20
+#  endif
 # endif
 # ifndef SO_REUSEADDR
 #  define SO_REUSEADDR 2
@@ -999,16 +1003,32 @@ enum {
 #  define SO_SNDLOWAT 19
 # endif
 # ifndef SO_SNDTIMEO
-#  define SO_SNDTIMEO 21
+#  if __NIJI_MISC
+#   define SO_SNDTIMEO SO_SNDTIMEO_OLD
+#  else
+#   define SO_SNDTIMEO 21
+#  endif
 # endif
 # ifndef SO_TIMESTAMP
-#  define SO_TIMESTAMP 29
+#  if __NIJI_MISC
+#   define SO_TIMESTAMP SO_TIMESTAMP_OLD
+#  else
+#   define SO_TIMESTAMP 29
+#  endif
 # endif
 # ifndef SO_TIMESTAMPING
-#  define SO_TIMESTAMPING 37
+#  if __NIJI_MISC
+#   define SO_TIMESTAMPING SO_TIMESTAMPING_OLD
+#  else
+#   define SO_TIMESTAMPING 37
+#  endif
 # endif
 # ifndef SO_TIMESTAMPNS
-#  define SO_TIMESTAMPNS 35
+#  if __NIJI_MISC
+#   define SO_TIMESTAMPNS SO_TIMESTAMPNS_OLD
+#  else
+#   define SO_TIMESTAMPNS 35
+#  endif
 # endif
 # ifndef SO_TYPE
 #  define SO_TYPE 3
@@ -1022,7 +1042,7 @@ enum {
 #endif
 #if __NIJI_GNU
 # ifndef MSG_TRYHARD
-#  define MSG_TRYHARD MSG_TRYHARD
+#  define MSG_TRYHARD MSG_DONTROUTE
 # endif
 # ifndef SCM_CREDENTIALS
 #  define SCM_CREDENTIALS SCM_CREDENTIALS

@@ -391,7 +391,11 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #  define WORD_BIT 32
 # endif
 # ifndef _XOPEN_IOV_MAX
-#  define _XOPEN_IOV_MAX 16
+#  if __NIJI_ISOC >= 2023 || __NIJI_POSIX < 200112
+#   define _XOPEN_IOV_MAX _POSIX_UIO_MAXIOV
+#  else
+#   define _XOPEN_IOV_MAX 16
+#  endif
 # endif
 #endif
 

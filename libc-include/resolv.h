@@ -382,6 +382,9 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # ifndef RES_USE_EDNS0
 #  define RES_USE_EDNS0 1048576
 # endif
+# ifndef __RES
+#  define __RES 19991006
+# endif
 #endif
 
 /* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */
