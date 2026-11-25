@@ -51,7 +51,11 @@ typedef char niji_thin_udp[UDP_CORK == 1 && UDP_ENCAP == 100 && UDP_SEGMENT == 1
 """),
     ("utmp.h", "ut_xtime", """#include <utmp.h>
 #include <string.h>
-typedef char niji_thin_ut[sizeof ((struct utmp *) 0)->ut_name == 32 && sizeof ((struct utmp *) 0)->ut_time == 4 ? 1 : -1];
+typedef char niji_thin_ut[__builtin_offsetof (struct utmp, ut_name) == __builtin_offsetof (struct utmp, ut_user)
+                          && __builtin_offsetof (struct utmp, ut_time) == __builtin_offsetof (struct utmp, ut_tv)
+                          && __builtin_offsetof (struct utmp, ut_xtime) == __builtin_offsetof (struct utmp, ut_tv)
+                          && __builtin_offsetof (struct utmp, ut_addr) == __builtin_offsetof (struct utmp, ut_addr_v6)
+                          && sizeof ((struct utmp *) 0)->ut_name == 32 && sizeof ((struct utmp *) 0)->ut_time == 4 ? 1 : -1];
 int niji_thin_utmp (struct utmp *u)
 {
   u->ut_time = 5;

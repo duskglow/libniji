@@ -1,0 +1,7 @@
+# Plants for HEADERS-STAGE2-GAPS-C-2 (cargo xtask plants; docs/plants.md): the completeness pass over the thin headers.
+# Each breaks one fact the headers are generated from (or a template) and names the S13 "thin" use unit
+# (spec/tools/header_checks/s13.py) that must catch it. Spec clauses: C23 7.8.1 (PRIb*), udp(7), utmp(5).
+hs2c2-pri-b64 | spec/abi/macros.tsv | perl:s/^(PRIb64\tinttypes\.h\tchar\[3\]\t)"lb"/${1}"ld"/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin inttypes\.h
+hs2c2-udp-segment | spec/abi/macros.tsv | perl:s/^(UDP_SEGMENT\tnetinet\/udp\.h\tint\t)103/${1}104/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin netinet/udp\.h
+hs2c2-ut-name | headers/utmp.h.in | perl:s/# define ut_name ut_user/# define ut_name ut_host/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin utmp\.h
+hs2c2-ut-time | headers/utmp.h.in | perl:s/# define ut_time ut_tv\.tv_sec/# define ut_time ut_session/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 thin' | msg:FAIL S13 thin utmp\.h
