@@ -194,6 +194,7 @@ function	__ctype_tolower_loc	argp.h			int const** ()
 function	__ctype_toupper_loc	argp.h			int const** ()
 function	__cyg_profile_func_enter	-			void (void*, void*)
 function	__cyg_profile_func_exit	-			void (void*, void*)
+typedef	__daddr_t	aio.h	4	4	int
 object	__daylight	pthread.h	4	4	int
 function	__dcgettext	libintl.h			char* (char const*, char const*, int)
 typedef	__dev_t	aio.h	8	8	unsigned long

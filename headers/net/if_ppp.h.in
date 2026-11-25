@@ -7,11 +7,21 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <net/if.h>
 @@needs sys/ioctl.h
 
 __NIJI_BEGIN_C
 
+@@owns ifr_mtu
 @@emit
+
+/* The PPP header names ifr_mtu itself where <net/if.h> does not show struct ifreq's member names, as the metric
+   member (black-box form probe, HEADERS-BUSYBOX-GAPS); elsewhere the name is <net/if.h>'s. */
+@@if ifr_mtu
+# ifndef ifr_mtu
+#  define ifr_mtu ifr_ifru.ifru_metric
+# endif
+#endif
 
 __NIJI_END_C
 
