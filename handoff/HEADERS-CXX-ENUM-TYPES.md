@@ -1,52 +1,55 @@
 # HEADERS-CXX-ENUM-TYPES: enumerator and char-constant macros have the reference's C++ types (handoff)
 
-**State:** branch `task/headers-cxx-enum-types` (from origin/next 44304e709), head: see `git log -1` (code commit
-32f76996e). Role keke:~/w/r1. Scratch: ~/w/.scratch/HEADERS-CXX-ENUM-TYPES/ (probe TSVs enum2.tsv, form0.diff, form1.diff).
+**State:** branch `task/headers-cxx-enum-types` (from origin/next 44304e709); code commits 32f76996e (the change) and
+ed6a2610c (fixes found by `cargo test -p xtask`); head: `git log -1`. Role keke:~/w/r1. Scratch:
+~/w/.scratch/HEADERS-CXX-ENUM-TYPES/ (probe sources overload.cc/.c/.sh, ms.c/ms.sh). Decision: D-X.171 (new).
+Plants files: `handoff/HEADERS-CXX-ENUM-TYPES-plants.txt` (5), `handoff/HEADERS-CXX-ENUM-TYPES-plants-2.txt` (3).
 
-## Done (commit 32f76996e)
-* `spec/tools/enum_probe.py`: black-box probe of the reference (C++ program prints per name is_enum, enumeration name via
-  `__PRETTY_FUNCTION__`, group via `std::type_index`, `__underlying_type`, sizeof, value; C program: does `#if` see an
-  identifier). `--derive <probe.tsv>` writes enumerators.tsv `anon FIRST` rows (59 unnamed enumerations, 758 rows) and
-  `spec/abi/enum-macros.tsv` (897 macros -> enumerator, `not_in` headers). 37 `<langinfo.h>` macros with no same-value
-  enumerator name a new reserved `__niji_NAME` member. No reference macro is a literal in C where C++ has an enumerator.
-* Generator (`xtask/src/headers.rs`, `headers/enums.rs`, `headers/values.rs`): unnamed enumerations declared once
-  (guard `__NIJI_D_anon_FIRST`, members under own conditions, `#ifndef` per member for kernel macros); every
-  enumerators.tsv `enum TAG` goes through its whole definition (`declared_enum` no longer needs a typedefs.tsv row:
-  fixes EPOLL_EVENTS, __socket_type, __itimer_which, __priority_which, __rusage_who); a mapped macro is
-  `#define N ENUMERATOR` where the header declares it; `char` macros.tsv type -> char literal (`'0'`, `'\377'`).
-  `headers/sys/xattr.h.in` macros name their enumerators (template check allows `#define N N` for enum-macros names).
-* C2: 20 macros.tsv rows type `int` -> `char` (tar.h *TYPE, CBRK/CEOL/CSTATUS, ELFMAG1-3, REC_*, SCOPE_DELIMITER,
-  _POSIX_VDISABLE); header_check.py P1 asserts `char` values too.
-* `form.py`: new C++ facts `ut` (underlying type) and `same-as` (one type with the previous enumeration-typed macro),
-  control cases NIJI_EA/NIJI_EB; `type differs` and `enumeration differs` now FAIL (header_check module and
-  stand-alone). Exempt: MS_* (D-X.126); labelled gap NOTE: REG_* in regex.h (libniji declares no reg_errcode_t).
-* Result (cxx17 type rows): before 1198 (1159 C1 + 39 C2, job headers-cxx-enum-types-form0) -> after 45 = 27 MS_* +
-  18 REG_* (job headers-cxx-enum-types-gen5); enumeration differs 0. Other causes unchanged.
-* clippy + static clean on 32f76996e (job headers-cxx-enum-types-lint1). `affected --list`: FULL escalated
-  (generated headers): FULL is the train's; direct proof = `cargo test -p xtask` + precheck.
+## Done
+* C1 (32f76996e): `spec/tools/enum_probe.py` black-box probe -> enumerators.tsv `anon FIRST` rows (59 enumerations,
+  758 rows) and `spec/abi/enum-macros.tsv` (897 macros); generator declares unnamed enumerations once (guard
+  `__NIJI_D_anon_FIRST`), every `enum TAG` whole, a mapped macro `#define N ENUMERATOR`. 37 `<langinfo.h>` macros name
+  a reserved `__niji_NAME` member.
+* C2: 20 macros.tsv rows `int` -> `char`, emitted as char literals (`char` in C++, `int` in C).
+* form.py: `type differs` and `enumeration differs` FAIL (facts `ut`, `same-as`; controls NIJI_EA/NIJI_EB).
+  cxx17 type rows 1198 before (job headers-cxx-enum-types-form0) -> 45 after (27 MS_* D-X.126, 18 REG_* gap; job
+  headers-cxx-enum-types-gen5); enumeration differs 0.
+* ed6a2610c: (1) an unnamed enumeration is under `#if` "a member it would declare is not yet a macro" (`enum { };`
+  with `<linux/in6.h>` first: s12 network_headers_pass_header_check); (2) an enumerator emitted outside any header
+  (rows test) declares its whole enumeration; (3) rows test checks macros.tsv `char` (int in C, char in C++, value).
+  D-X.171 record; spec/abi/PROVENANCE paragraph.
+* Overload proof (job headers-cxx-enum-types-overload3, rc 0): overload set f(int)/f(unsigned)/f(char)/template
+  f(enum) picks the same overload on both libraries for _SC_ARG_MAX, _PC_LINK_MAX, _CS_PATH, CODESET, EPOLLIN, MSG_PEEK,
+  SOCK_STREAM, IPPROTO_TCP, RUSAGE_SELF (template f(enum)), REGTYPE, ELFMAG1, SCOPE_DELIMITER (f(char)); same `sizeof`
+  and same-type-as-sibling; C `_Generic`: int (unsigned for EPOLL*) on both. Output "SAME on both libraries".
+* MS_* probe (job headers-cxx-enum-types-ms): reference, both include orders of `<sys/mount.h>`/`<linux/mount.h>`, C
+  and C++, `-Wall -Wextra -Wsystem-headers`: compiles, 0 warnings; MS_RDONLY/MS_BIND/MS_NOUSER are macros expanding to
+  their own name and enumerators in C++ (MS_RMT_MASK a macro expression, MNT_FORCE enumerator). libniji: both orders
+  compile, MS_* expand to literals (`int` in C++). D-X.126's premise (an enumerator and a macro of one name cannot
+  come from two headers included in either order) does not hold for the reference. RULING NEEDED below; not
+  implemented (brief: implement only what the ruling settles).
 
-## Jobs started (keke, on 32f76996e)
-* `headers-cxx-enum-types-test1` (kind test: `cargo test -p xtask`, log has the last 40 lines only: piped through tail,
-  a slip; rerun without the pipe if the dispatcher needs the full log).
-* `headers-cxx-enum-types-plants` (5 plants in `handoff/HEADERS-CXX-ENUM-TYPES-plants.txt`, dir
-  /dev/shm/claude/headers-cxx-enum-types/plants-1).
-
-## Exact next steps
-1. `~/bin/jobwait headers-cxx-enum-types-test1 headers-cxx-enum-types-plants`; fix what they find (plants: each must
-   be CAUGHT with its msg).
-2. Overload proof (brief "Proof"): a C++ program, `void f(int)` / template `void f(T)` for enums, picks the enum
-   overload for `_SC_ARG_MAX`, `EPOLLIN`, `REGTYPE` (char overload) on both libniji (`-nostdinc -isystem libc-include`
-   + gcc include + kernel uapi, as form.py's Side flags) and the reference; record the output.
-3. MS_* RULING: reference probe says the 27 MS_* are enumerators of one unnamed enumeration (underlying `int`) in
-   C++ and macros naming them in C. D-X.126 keeps macros for include-order safety with `<linux/mount.h>`. Probe the
-   reference: `<sys/mount.h>` then `<linux/mount.h>` and the reverse, C and C++; recommend keeping D-X.126 unless the
-   reference compiles in both orders with enumerators (then propose dropping COMPAT-34 to a ruling).
-4. Report: handoff/reports/HEADERS-CXX-ENUM-TYPES.json (+ "jobs"); precheck `--jobs headers-cxx-enum-types-test1,
-   headers-cxx-enum-types-plants --head <sha>`; `ops handback-check`.
+## RULING NEEDED
+* MS_* (D-X.126 / COMPAT-34): recommend superseding D-X.126 in a follow-up story: MS_* as enumerators of one unnamed
+  enumeration (underlying int) with self-naming macros, compiling in both include orders (libniji's own design: e.g.
+  when the kernel header came first, its MS_* macros are replaced before the enumeration; when it comes after, its
+  definitions must not replace them), then retire COMPAT-34 and the differences row. Evidence above.
 
 ## Open / informational
-* REG_* (18 rows): reg_errcode_t typedef missing in libniji's `<regex.h>` (typedefs/visibility gap): follow-up story.
-* arpa/nameser.h: `ns_type`, `ns_class`, ... are opaque structs in libniji, enumerations in the reference (outside C1
-  as the audit counted it; E1 group): follow-up.
-* A D-row for the `anon` tag form and enum-macros.tsv is owed (reserve with `ops reserve --story ... D-X`), and a
-  spec/abi/PROVENANCE line for enum_probe.py.
+* REG_* (18 rows): `<regex.h>` declares no `reg_errcode_t`: follow-up (typedefs/visibility).
+* arpa/nameser.h `ns_type`, `ns_class`, ...: opaque structs in libniji, enumerations in the reference: follow-up.
+* `affected --list` escalates to FULL (generated headers): FULL is the train's; direct proof = `cargo test -p xtask`
+  + precheck.
+
+## Jobs on the final code (ed6a2610c; later commits are handoff/ only), keke
+* headers-cxx-enum-types-lint2: clippy -D warnings + `cargo xtask static`, rc 0.
+* headers-cxx-enum-types-test3: `cargo test -p xtask`, rc 0 (661 passed in the bin target; other targets green).
+* headers-cxx-enum-types-plants3: plants.txt rerun, 5/5 CAUGHT (by message: the commands run form.py, no cargo test).
+* headers-cxx-enum-types-plants4: plants-2.txt (3 plants), --timeout 1800.
+* Probes: headers-cxx-enum-types-overload3 (proof, rc 0), headers-cxx-enum-types-ms (MS_* include orders).
+* Superseded: test1 (head 32f76996e, 2 failures fixed in ed6a2610c), test2/gen6 (diagnostic reruns), plants (head
+  32f76996e), plants2 (baseline of anon-empty-enum timed out at 600 s: headers-gen + test build + s12 check under
+  load; no plant applied in that copy), overload/overload2 (probe flags: SCOPE_DELIMITER needs _GNU_SOURCE in C).
+
+## Exact next step
+Coordinator: the MS_* ruling; follow-ups REG_* and arpa/nameser.h. Nothing else is owed on this branch.
