@@ -1,6 +1,6 @@
 {"task": "HEADERS-STAGE2-GAPS-E-2", "model": "sonnet", "tokens": null,
  "result": "Merged origin/next (kept both sides in s12.py/header_probe.py; tftphdr names join the per-header MEMBER_MACROS table); regen idempotent; clippy+static clean; 12 plants caught (11 + the ftw plant rerun with its message)",
- "branch": "task/headers-stage2-gaps-e-2", "head": "HEADSHA",
+ "branch": "task/headers-stage2-gaps-e-2", "head": "9df003fa69105497ebb04f1421d1b19d1945f274",
  "jobs": ["headers-stage2-gaps-e-2-xtask2","headers-stage2-gaps-e-2-plants","headers-stage2-gaps-e-2-plants2"],
  "gate": {"affected": "cargo xtask so then cargo test -p xtask: all pass", "peak": null},
  "accepted_first_attempt": null,
