@@ -2,6 +2,7 @@
 /* resolv.h: the resolver (resolver(3)) */
 #ifndef __NIJI_H_resolv_h
 #define __NIJI_H_resolv_h 1
+#define _RESOLV_H_
 
 #include <features.h>
 #include <sys/types.h>
@@ -389,6 +390,9 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # endif
 # ifndef RES_USE_EDNS0
 #  define RES_USE_EDNS0 1048576
+# endif
+# ifndef _PATH_RESCONF
+#  define _PATH_RESCONF "/etc/resolv.conf"
 # endif
 # ifndef __RES
 #  define __RES 19991006
