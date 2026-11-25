@@ -33,6 +33,14 @@ and value), `proof.sh`/`debs.sh`/`ystage2.sh` (proof), `pfail.awk` (perl failing
 * hc6: header_check in6/exact/address-class units 0 failed of 117; in6.sh PROBE-SAME.
 * Final head jobs: gate4 (clippy -D warnings, static, header_p2_fixed_rows, full header_check), plants2 (16 plants).
 
-## Exact next step (if anything is left)
-`~/bin/jobwait headers-stage2-gaps-d-gate4 headers-stage2-gaps-d-plants2`; then precheck on the synced final head and
-handback-check. Full report: handoff/HEADERS-STAGE2-GAPS-D-report.md.
+* gate4 rc 0 on code head 02478be5c. plants2 (16 plants, still running at hand-back, 15:50Z): 7 CAUGHT so far and
+  **s2d-mreq-order SURVIVED again** with niji-abi's `abi_struct_ip_mreq_source`: an offset column that disagrees with
+  the row order in layouts.tsv is caught by neither header_check (header follows row order) nor niji-abi.
+
+## Exact next step (run ended at the wall-time limit: INCOMPLETE)
+1. `~/bin/jobwait headers-stage2-gaps-d-plants2`; read its summary (`grep -E "SURVIVED|WARN-" ~/logs/...plants2.log`).
+2. s2d-mreq-order: find what abi-gen does with the offset column (read `xtask/src/` abi-gen, not the generated file)
+   and add a check that the generator (headers-gen or abi-gen) rejects a table whose offsets disagree with its member
+   order (then the plant's msg names that error), or record `equivalent:` only if no product changes.
+3. Sync (rc 4 = BUSY while plants run), `cargo xtask precheck --jobs headers-stage2-gaps-d-gate4,<plants label> --head
+   <sha>`, handback-check. Full report: handoff/HEADERS-STAGE2-GAPS-D-report.md.
