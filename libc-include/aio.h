@@ -350,113 +350,105 @@ extern int lio_listio64 (int, struct aiocb64 *const *, int, struct sigevent *) _
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_AIO_ALLDONE
-#  define __NIJI_D_enum_AIO_ALLDONE 1
-#  ifndef AIO_ALLDONE
-enum { AIO_ALLDONE = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_AIO_CANCELED
-#  define __NIJI_D_enum_AIO_CANCELED 1
+# ifndef __NIJI_D_anon_AIO_ALLDONE
+#  define __NIJI_D_anon_AIO_ALLDONE 1
+#  if !defined AIO_CANCELED || !defined AIO_NOTCANCELED || !defined AIO_ALLDONE
+enum {
 #  ifndef AIO_CANCELED
-enum { AIO_CANCELED = 0 };
+  AIO_CANCELED = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_AIO_NOTCANCELED
-#  define __NIJI_D_enum_AIO_NOTCANCELED 1
 #  ifndef AIO_NOTCANCELED
-enum { AIO_NOTCANCELED = 1 };
+  AIO_NOTCANCELED = 1,
+#  endif
+#  ifndef AIO_ALLDONE
+  AIO_ALLDONE = 2,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_LIO_NOP
-#  define __NIJI_D_enum_LIO_NOP 1
-#  ifndef LIO_NOP
-enum { LIO_NOP = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_LIO_NOWAIT
-#  define __NIJI_D_enum_LIO_NOWAIT 1
-#  ifndef LIO_NOWAIT
-enum { LIO_NOWAIT = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_LIO_READ
-#  define __NIJI_D_enum_LIO_READ 1
+# ifndef __NIJI_D_anon_LIO_NOP
+#  define __NIJI_D_anon_LIO_NOP 1
+#  if !defined LIO_READ || !defined LIO_WRITE || !defined LIO_NOP
+enum {
 #  ifndef LIO_READ
-enum { LIO_READ = 0 };
+  LIO_READ = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_LIO_WAIT
-#  define __NIJI_D_enum_LIO_WAIT 1
-#  ifndef LIO_WAIT
-enum { LIO_WAIT = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_LIO_WRITE
-#  define __NIJI_D_enum_LIO_WRITE 1
 #  ifndef LIO_WRITE
-enum { LIO_WRITE = 1 };
+  LIO_WRITE = 1,
+#  endif
+#  ifndef LIO_NOP
+  LIO_NOP = 2,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_SIGEV_NONE
-#  define __NIJI_D_enum_SIGEV_NONE 1
-#  ifndef SIGEV_NONE
-enum { SIGEV_NONE = 1 };
+# ifndef __NIJI_D_anon_LIO_NOWAIT
+#  define __NIJI_D_anon_LIO_NOWAIT 1
+#  if !defined LIO_WAIT || !defined LIO_NOWAIT
+enum {
+#  ifndef LIO_WAIT
+  LIO_WAIT = 0,
+#  endif
+#  ifndef LIO_NOWAIT
+  LIO_NOWAIT = 1,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_SIGEV_SIGNAL
-#  define __NIJI_D_enum_SIGEV_SIGNAL 1
+# ifndef __NIJI_D_anon_SIGEV_NONE
+#  define __NIJI_D_anon_SIGEV_NONE 1
+#  if !defined SIGEV_SIGNAL || !defined SIGEV_NONE || !defined SIGEV_THREAD || !defined SIGEV_THREAD_ID
+enum {
 #  ifndef SIGEV_SIGNAL
-enum { SIGEV_SIGNAL = 0 };
+  SIGEV_SIGNAL = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SIGEV_THREAD
-#  define __NIJI_D_enum_SIGEV_THREAD 1
+#  ifndef SIGEV_NONE
+  SIGEV_NONE = 1,
+#  endif
 #  ifndef SIGEV_THREAD
-enum { SIGEV_THREAD = 2 };
+  SIGEV_THREAD = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SIGEV_THREAD_ID
-#  define __NIJI_D_enum_SIGEV_THREAD_ID 1
 #  ifndef SIGEV_THREAD_ID
-enum { SIGEV_THREAD_ID = 4 };
+  SIGEV_THREAD_ID = 4,
+#  endif
+};
 #  endif
 # endif
 # ifndef AIO_ALLDONE
-#  define AIO_ALLDONE 2
+#  define AIO_ALLDONE AIO_ALLDONE
 # endif
 # ifndef AIO_CANCELED
-#  define AIO_CANCELED 0
+#  define AIO_CANCELED AIO_CANCELED
 # endif
 # ifndef AIO_NOTCANCELED
-#  define AIO_NOTCANCELED 1
+#  define AIO_NOTCANCELED AIO_NOTCANCELED
 # endif
 # ifndef LIO_NOP
-#  define LIO_NOP 2
+#  define LIO_NOP LIO_NOP
 # endif
 # ifndef LIO_NOWAIT
-#  define LIO_NOWAIT 1
+#  define LIO_NOWAIT LIO_NOWAIT
 # endif
 # ifndef LIO_READ
-#  define LIO_READ 0
+#  define LIO_READ LIO_READ
 # endif
 # ifndef LIO_WAIT
-#  define LIO_WAIT 0
+#  define LIO_WAIT LIO_WAIT
 # endif
 # ifndef LIO_WRITE
-#  define LIO_WRITE 1
+#  define LIO_WRITE LIO_WRITE
 # endif
 # ifndef SIGEV_NONE
-#  define SIGEV_NONE 1
+#  define SIGEV_NONE SIGEV_NONE
 # endif
 # ifndef SIGEV_SIGNAL
-#  define SIGEV_SIGNAL 0
+#  define SIGEV_SIGNAL SIGEV_SIGNAL
 # endif
 # ifndef SIGEV_THREAD
-#  define SIGEV_THREAD 2
+#  define SIGEV_THREAD SIGEV_THREAD
 # endif
 # ifndef SIGEV_THREAD_ID
-#  define SIGEV_THREAD_ID 4
+#  define SIGEV_THREAD_ID SIGEV_THREAD_ID
 # endif
 #endif
 
