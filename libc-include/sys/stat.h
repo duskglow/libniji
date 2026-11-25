@@ -316,7 +316,7 @@ extern unsigned int umask (unsigned int) __NIJI_NOTHROW;
 struct statx;
 # ifndef __NIJI_D_statx
 #  define __NIJI_D_statx 1
-extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW;
+extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
 #if __NIJI_LFS64

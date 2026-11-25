@@ -174,6 +174,9 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 # ifndef UTMP_FILE
 #  define UTMP_FILE "/var/run/utmp"
 # endif
+# ifndef UTMP_FILENAME
+#  define UTMP_FILENAME "/var/run/utmp"
+# endif
 # ifndef UT_HOSTSIZE
 #  define UT_HOSTSIZE 256
 # endif
@@ -188,6 +191,9 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 # endif
 # ifndef WTMP_FILE
 #  define WTMP_FILE "/var/log/wtmp"
+# endif
+# ifndef WTMP_FILENAME
+#  define WTMP_FILENAME "/var/log/wtmp"
 # endif
 # ifndef _HAVE_UT_HOST
 #  define _HAVE_UT_HOST 1
@@ -240,6 +246,15 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 # ifndef _PATH_WTMP
 #  define _PATH_WTMP "/var/log/wtmp"
 # endif
+#endif
+
+/* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the
+   entry time's seconds, the first word of the remote host's address). */
+#if 1
+# define ut_name ut_user
+# define ut_time ut_tv.tv_sec
+# define ut_xtime ut_tv.tv_sec
+# define ut_addr ut_addr_v6[0]
 #endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */

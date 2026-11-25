@@ -10,6 +10,7 @@ __h_errno_location									const
 __pthread_unwind_next			1						
 __res_state									const
 __sched_cpualloc		1							
+__x86_get_cpuid_feature_leaf									1
 _exit			1						
 _longjmp			1						
 _obstack_memory_used									1
@@ -17,6 +18,7 @@ a64l	1	1							1
 abort			1						
 abs									const
 access	1								
+adjtimex	1								
 aio_error	1								
 aio_error64	1								
 aio_fsync	2								
@@ -70,10 +72,12 @@ basename	1
 bcmp	1,2								1
 bcopy	1,2								
 brk		1							
-bsearch	1,2	1							
+bsearch	1,2,5	1							
 bzero	1								
 calloc		1			1	1,2			
 canonicalize_file_name	1	1			1				
+catclose	1								
+catgets	1								
 catopen	1								
 cbrt									const
 cbrtf									const
@@ -121,7 +125,6 @@ creat	1
 creat64	1								
 crypt	1,2								
 daemon		1							
-dcgettext	2								
 difftime									const
 dirfd	1								
 div		1							const
@@ -140,6 +143,9 @@ ecvt	3,4	1
 ecvt_r	3,4,5								
 envz_entry									1
 envz_get									1
+epoll_pwait	2								
+epoll_pwait2	2								
+epoll_wait	2								
 erand48	1								
 erand48_r	1,2								
 erf									const
@@ -194,15 +200,12 @@ ffsl									const
 ffsll									const
 fgetc	1								
 fgetc_unlocked	1								
-fgetgrent_r	3								
 fgetpos	1								
 fgetpos64	1								
 fgetpwent	1								
 fgetpwent_r	1,2,3,5								
 fgets	3	1							
 fgets_unlocked	3	1							
-fgetsgent_r	3								
-fgetspent_r	3								
 fgetws		1							
 fgetws_unlocked		1							
 fileno	1	1							
@@ -326,16 +329,16 @@ fminmagf64x									const
 fminmagl									const
 fopen		1			1				
 fopen64		1			1				
-fprintf	1,2			printf:2:3					
+fprintf	1			printf:2:3					
 fputc	2								
 fputc_unlocked	2								
-fputs	1,2								
-fputs_unlocked	1,2								
+fputs	2								
+fputs_unlocked	2								
 fread	4	1							
 fread_unlocked	4	1							
 freopen	3	1							
 freopen64	3	1							
-fscanf	1,2	1		scanf:2:3					
+fscanf	1	1		scanf:2:3					
 fseek	1								
 fseeko	1								
 fseeko64	1								
@@ -345,16 +348,22 @@ fstat	2
 fstat64	2								
 fstatat	2,3								
 fstatat64	2,3								
+fstatfs	2								
+fstatfs64	2								
+fstatvfs	2								
+fstatvfs64	2								
 ftell	1	1							
 ftello	1	1							
 ftello64	1	1							
+ftime	1						1		
 ftruncate		1							
 ftruncate64		1							
 ftrylockfile	1	1							
-ftw	1								
-ftw64	1								
+ftw	1,2								
+ftw64	1,2								
 funlockfile	1								
-fwrite	1,4								
+fwrite	4								
+fwrite_unlocked	4								
 gcvt	3	1							
 getc	1								
 getc_unlocked	1								
@@ -364,11 +373,8 @@ getdents64	2
 getdirentries	2,4								
 getdirentries64	2,4								
 getdomainname	1	1							
-getentropy	1	1							
+getentropy		1							
 getenv	1	1							
-getgrent_r	2								
-getgrgid_r	3								
-getgrnam_r	3								
 getgroups		1							
 gethostname	1								
 getline	3	1							
@@ -383,17 +389,26 @@ getpwent_r	1,2,4
 getpwnam	1								
 getpwnam_r	1,2,3,5								
 getpwuid_r	2,3,5								
-getsgent_r	2								
-getsgnam_r	3								
-getspent_r	2								
-getspnam_r	3								
+getrandom		1							
+getrlimit	2								
+getrlimit64	2								
 getsubopt	1,2,3	1							
 gettimeofday	1								
 getw	1								
 getwd	1	1					1		
+gnu_dev_major									const
+gnu_dev_makedev									const
+gnu_dev_minor									const
 imaxabs									const
 imaxdiv									const
 index	1								1
+inet6_option_alloc							1		
+inet6_option_append							1		
+inet6_option_find							1		
+inet6_option_init							1		
+inet6_option_next							1		
+inet6_option_space							1		
+inet_neta							1		
 initstate	2								
 initstate_r	2,4								
 isinff									const
@@ -473,14 +488,14 @@ mq_timedreceive	2,5
 mq_timedsend	2,5								
 mq_unlink	1								
 mrand48_r	1,2								
-nan	1								const
-nanf	1								const
-nanf128	1								const
-nanf32	1								const
-nanf32x	1								const
-nanf64	1								const
-nanf64x	1								const
-nanl	1								const
+nan									const
+nanf									const
+nanf128									const
+nanf32									const
+nanf32x									const
+nanf64									const
+nanf64x									const
+nanl									const
 nearbyint									const
 nearbyintf									const
 nearbyintf128									const
@@ -489,14 +504,26 @@ nearbyintf32x									const
 nearbyintf64									const
 nearbyintf64x									const
 nearbyintl									const
-nftw	1								
-nftw64	1								
+nftw	1,2								
+nftw64	1,2								
 nice		1							
 nrand48	1								
 nrand48_r	1,2								
+ns_datetosecs							1		
+ns_format_ttl							1		
+ns_makecanon							1		
+ns_parse_ttl							1		
+ns_samedomain							1		
+ns_samename							1		
+ns_sprintrr							1		
+ns_sprintrrf							1		
+ns_subdomain							1		
+ntp_adjtime	1								
+ntp_gettime	1								
+ntp_gettimex	1								
 obstack_printf				printf:2:3					
 obstack_vprintf				printf:2:0					
-on_exit	1,2								
+on_exit	1								
 open	1								
 open64	1								
 open_memstream		1			1				
@@ -542,7 +569,11 @@ posix_spawnattr_setsigmask	1,2
 posix_spawnp	2,5								
 pread		1							
 pread64		1							
-printf	1			printf:1:2					
+preadv		1							
+preadv2		1							
+preadv64		1							
+preadv64v2		1							
+printf				printf:1:2					
 profil	1								
 pthread_attr_destroy	1								
 pthread_attr_getaffinity_np	1,3								
@@ -586,7 +617,7 @@ pthread_condattr_getpshared	1,2
 pthread_condattr_init	1								
 pthread_condattr_setclock	1								
 pthread_condattr_setpshared	1								
-pthread_create	1,2,3,4								
+pthread_create	1,3								
 pthread_equal									const
 pthread_exit			1						
 pthread_getaffinity_np	3								
@@ -655,26 +686,24 @@ ptsname_r	2
 putc	2								
 putc_unlocked	2								
 putenv	1								
-puts	1								
 putw	2								
 pvalloc		1			1				
-pwrite	2	1							
-pwrite64	2	1							
+pwrite		1							
+pwrite64		1							
+pwritev		1							
+pwritev2		1							
+pwritev64		1							
+pwritev64v2		1							
 qecvt	3,4	1							
 qecvt_r	3,4,5								
 qfcvt	3,4	1							
 qfcvt_r	3,4,5								
 qgcvt	3	1							
-qsort	1								
-qsort_r	1								
+qsort	1,4								
+qsort_r	1,4								
 quick_exit			1						
 random_r	1,2								
 rawmemchr	1								1
-re_compile_pattern	1								
-re_match	2								
-re_match_2	2,4								
-re_search	2								
-re_search_2	2,4								
 read		1							
 readdir	1								
 readdir64	1								
@@ -682,11 +711,10 @@ readdir64_r	1,2,3						1
 readdir_r	1,2,3						1		
 readlink	1,2	1							
 readlinkat	2,3	1							
+readv		1							
 realloc		1				2			
 reallocarray		1				2,3			
 realpath		1							
-regerror	3								
-regexec	4								
 register_printf_function							1		
 register_printf_modifier		1							
 register_printf_type		1							
@@ -724,7 +752,7 @@ scandir	1,2
 scandir64	1,2								
 scandirat	2,3								
 scandirat64	2,3								
-scanf	1	1		scanf:1:2					
+scanf		1		scanf:1:2					
 secure_getenv	1	1							
 seed48	1								
 seed48_r	1,2								
@@ -755,12 +783,12 @@ setregid		1
 setresgid		1							
 setresuid		1							
 setreuid		1							
+setrlimit	2								
+setrlimit64	2								
 setstate	1								
 setstate_r	1,2								
 setuid		1							
 setvbuf	1								
-sgetsgent_r	3								
-sgetspent_r	3								
 sigaddset	1								
 sigandset	1,2,3								
 sigblock							1		
@@ -774,6 +802,7 @@ siginterrupt							1
 sigisemptyset	1								
 sigismember	1								
 siglongjmp			1						
+signalfd	2								
 sigorset	1,2,3								
 sigpause							1		
 sigpending	1								
@@ -793,30 +822,35 @@ sinf32x									const
 sinf64									const
 sinf64x									const
 sinl									const
-snprintf	3			printf:3:4					
-sprintf	1,2			printf:2:3					
+snprintf				printf:3:4					
+sprintf				printf:2:3					
 srand48_r	2								
 srandom_r	2								
-sscanf	2			scanf:2:3					
+sscanf				scanf:2:3					
 stat	1,2								
 stat64	1,2								
+statfs	1,2								
+statfs64	1,2								
+statvfs	1,2								
+statvfs64	1,2								
+statx	2,5								
 stpcpy	1,2								
 stpncpy	1,2								
 strcasecmp	1,2								1
-strcasecmp_l	1,2								1
+strcasecmp_l	1,2,3								1
 strcasestr	1,2								1
 strcat	1,2								
 strchr	1								1
 strchrnul	1								1
 strcmp	1,2								1
 strcoll	1,2								1
-strcoll_l	1,2								1
+strcoll_l	1,2,3								1
 strcpy	1,2								
 strcspn	1,2								1
 strdup	1	1			1				
 strerror_r	2	1							
-strfmon	1,3			strfmon:3:4					
-strfmon_l	1			strfmon:4:5					
+strfmon				strfmon:3:4					
+strfmon_l				strfmon:4:5					
 strfromd	3								
 strfromf	3								
 strfromf128	3								
@@ -831,7 +865,7 @@ strlcat	1,2
 strlcpy	1,2								
 strlen	1								1
 strncasecmp	1,2								1
-strncasecmp_l	1,2								1
+strncasecmp_l	1,2,4								1
 strncat	1,2								
 strncmp	1,2								1
 strncpy	1,2								
@@ -843,36 +877,36 @@ strsep	1,2
 strspn	1,2								1
 strstr	1,2								1
 strtod	1								
-strtod_l	1								
+strtod_l	1,3								
 strtof	1								
 strtof128	1								
-strtof128_l	1								
+strtof128_l	1,3								
 strtof32	1								
-strtof32_l	1								
+strtof32_l	1,3								
 strtof32x	1								
-strtof32x_l	1								
+strtof32x_l	1,3								
 strtof64	1								
-strtof64_l	1								
+strtof64_l	1,3								
 strtof64x	1								
-strtof64x_l	1								
-strtof_l	1								
+strtof64x_l	1,3								
+strtof_l	1,3								
 strtok	2								
 strtok_r	2,3								
 strtol	1								
-strtol_l	1								
+strtol_l	1,4								
 strtold	1								
-strtold_l	1								
+strtold_l	1,3								
 strtoll	1								
-strtoll_l	1								
+strtoll_l	1,4								
 strtoq	1								
 strtoul	1								
-strtoul_l	1								
+strtoul_l	1,4								
 strtoull	1								
-strtoull_l	1								
+strtoull_l	1,4								
 strtouq	1								
 strverscmp	1,2								1
-strxfrm	1,2								
-strxfrm_l	1,2								
+strxfrm	2								
+strxfrm_l	2,4								
 swab	1,2								
 symlink	1,2	1							
 symlinkat	1,3	1							
@@ -945,13 +979,13 @@ verr			1	printf:2:0
 verrx			1	printf:2:0					
 versionsort	1,2								1
 versionsort64	1,2								1
-vfprintf	1,2			printf:2:0					
-vfscanf	1,2	1		scanf:2:0					
-vprintf	1			printf:1:0					
-vscanf	1	1		scanf:1:0					
-vsnprintf	3			printf:3:0					
-vsprintf	1,2			printf:2:0					
-vsscanf	2			scanf:2:0					
+vfprintf	1			printf:2:0					
+vfscanf	1	1		scanf:2:0					
+vprintf				printf:1:0					
+vscanf		1		scanf:1:0					
+vsnprintf				printf:3:0					
+vsprintf				printf:2:0					
+vsscanf				scanf:2:0					
 vsyslog				printf:2:0					
 vwarn				printf:1:0					
 vwarnx				printf:1:0					
@@ -980,4 +1014,5 @@ wcswcs									1
 wctomb		1							
 wmemchr									1
 wmemcmp									1
-write	2	1							
+write		1							
+writev		1							

@@ -77,22 +77,22 @@ struct timex {
 struct timex;
 # ifndef __NIJI_D_adjtimex
 #  define __NIJI_D_adjtimex 1
-extern int adjtimex (struct timex *) __NIJI_NOTHROW;
+extern int adjtimex (struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timex;
 # ifndef __NIJI_D_ntp_adjtime
 #  define __NIJI_D_ntp_adjtime 1
-extern int ntp_adjtime (struct timex *) __NIJI_NOTHROW;
+extern int ntp_adjtime (struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct ntptimeval;
 # ifndef __NIJI_D_ntp_gettime
 #  define __NIJI_D_ntp_gettime 1
-extern int ntp_gettime (struct ntptimeval *) __NIJI_NOTHROW __asm__ ("ntp_gettimex");
+extern int ntp_gettime (struct ntptimeval *) __NIJI_NOTHROW __asm__ ("ntp_gettimex") __attribute__ ((__nonnull__ (1)));
 # endif
 struct ntptimeval;
 # ifndef __NIJI_D_ntp_gettimex
 #  define __NIJI_D_ntp_gettimex 1
-extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW;
+extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef ADJ_ESTERROR
 #  define ADJ_ESTERROR 8

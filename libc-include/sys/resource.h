@@ -231,9 +231,9 @@ struct rlimit;
 # ifndef __NIJI_D_getrlimit
 #  define __NIJI_D_getrlimit 1
 #  if !__NIJI_FOB64
-extern int getrlimit (int, struct rlimit *) __NIJI_NOTHROW;
+extern int getrlimit (int, struct rlimit *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int getrlimit (int, struct rlimit *) __NIJI_NOTHROW __asm__ ("getrlimit64");
+extern int getrlimit (int, struct rlimit *) __NIJI_NOTHROW __asm__ ("getrlimit64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 struct rusage;
@@ -249,9 +249,9 @@ struct rlimit;
 # ifndef __NIJI_D_setrlimit
 #  define __NIJI_D_setrlimit 1
 #  if !__NIJI_FOB64
-extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW;
+extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW __asm__ ("setrlimit64");
+extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW __asm__ ("setrlimit64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 #endif
@@ -277,12 +277,12 @@ extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, stru
 struct rlimit64;
 # ifndef __NIJI_D_getrlimit64
 #  define __NIJI_D_getrlimit64 1
-extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW;
+extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct rlimit64;
 # ifndef __NIJI_D_setrlimit64
 #  define __NIJI_D_setrlimit64 1
-extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW;
+extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if 1

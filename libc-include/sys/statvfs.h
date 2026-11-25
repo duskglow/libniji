@@ -96,18 +96,18 @@ struct statvfs;
 # ifndef __NIJI_D_fstatvfs
 #  define __NIJI_D_fstatvfs 1
 #  if !__NIJI_FOB64
-extern int fstatvfs (int, struct statvfs *) __NIJI_NOTHROW;
+extern int fstatvfs (int, struct statvfs *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int fstatvfs (int, struct statvfs *) __NIJI_NOTHROW __asm__ ("fstatvfs64");
+extern int fstatvfs (int, struct statvfs *) __NIJI_NOTHROW __asm__ ("fstatvfs64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 struct statvfs;
 # ifndef __NIJI_D_statvfs
 #  define __NIJI_D_statvfs 1
 #  if !__NIJI_FOB64
-extern int statvfs (const char *, struct statvfs *) __NIJI_NOTHROW;
+extern int statvfs (const char *, struct statvfs *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 #  elif __NIJI_FOB64
-extern int statvfs (const char *, struct statvfs *) __NIJI_NOTHROW __asm__ ("statvfs64");
+extern int statvfs (const char *, struct statvfs *) __NIJI_NOTHROW __asm__ ("statvfs64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 #endif
@@ -115,12 +115,12 @@ extern int statvfs (const char *, struct statvfs *) __NIJI_NOTHROW __asm__ ("sta
 struct statvfs64;
 # ifndef __NIJI_D_fstatvfs64
 #  define __NIJI_D_fstatvfs64 1
-extern int fstatvfs64 (int, struct statvfs64 *) __NIJI_NOTHROW;
+extern int fstatvfs64 (int, struct statvfs64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct statvfs64;
 # ifndef __NIJI_D_statvfs64
 #  define __NIJI_D_statvfs64 1
-extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW;
+extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if 1

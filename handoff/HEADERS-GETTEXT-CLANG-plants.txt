@@ -1,0 +1,12 @@
+# HEADERS-GETTEXT-CLANG plants (each header-template plant regenerates the headers, then runs the header_check units)
+floatn-guard-128 | xtask/src/headers/values.rs | lit:Some(true) => out.extend([format!("{hash}if __NIJI_FLOAT128"), l, format!("{hash}endif")]), ==> Some(true) => out.push(l), | cargo test -p xtask --bin xtask floatn_lines_are_guarded_by_compiler_support | msg:floatn_lines_are_guarded_by_compiler_support.*FAILED|panicked
+gettext-major | headers/libintl.h.in | lit:((major) == 0 ? 1 : -1) ==> ((major) >= 0 ? 1 : -1) | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --only 'GETTEXT' | msg:FAIL.*__GNU_GETTEXT_SUPPORTED_REVISION
+utmp-addr | headers/utmp.h.in | lit:# define ut_addr ut_addr_v6[0] ==> # define ut_addr ut_addr_v6[1] | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --only 'member names utmp' | msg:FAIL.*member names utmp
+float128-clang | headers/features.h.in | lit:#if defined __FLT128_MANT_DIG__ && ==> #if 1 && | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --only 'P5 stdlib\.h clang' | msg:FAIL.*P5 stdlib\.h clang
+stdbit-cxx-bool | headers/stdbit.h.in | lit:typedef bool __niji_stdbit_bool; ==> __extension__ typedef _Bool __niji_stdbit_bool; | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --only 'P5 stdbit\.h clang-c\+\+17' | msg:FAIL.*P5 stdbit\.h clang-c\+\+17
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# floatn-guard-128: CAUGHT, caught by xtask headers::tests::floatn_lines_are_guarded_by_compiler_support
+# gettext-major: CAUGHT, caught by no test the log names
+# utmp-addr: CAUGHT, caught by no test the log names
+# float128-clang: CAUGHT, caught by no test the log names
+# stdbit-cxx-bool: CAUGHT, caught by no test the log names

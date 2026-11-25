@@ -233,7 +233,9 @@ def units(ctx):
 # reference's headers exactly for its expansion). header: {name: (tag, the nested member it names; `[k]` an element)}.
 # The names of one table come from the man page or RFC named in the header's template: netdevice(7) (<net/if.h>),
 # RFC 792 (<netinet/ip_icmp.h>), RFC 4443, 2710, 4861 and 2894 (<netinet/icmp6.h>), RFC 8200 (<netinet/ip6.h>),
-# RFC 826 (<netinet/if_ether.h>, also shown by <netinet/ether.h>), route(8) (<net/route.h>), msgctl(2) (<sys/msg.h>).
+# RFC 826 (<netinet/if_ether.h>, also shown by <netinet/ether.h>), route(8) (<net/route.h>), msgctl(2) (<sys/msg.h>),
+# getifaddrs(3) (<ifaddrs.h>, and <net/if.h>'s struct ifaddr), utmp(5) (<utmp.h>; HEADERS-GETTEXT-CLANG, the same
+# probe for each name and header).
 _ICMP6 = {"type": "icmp6_type", "code": "icmp6_code", "cksum": "icmp6_cksum"}
 _ICMP6_DATA = "icmp6_dataun.icmp6_un_data"
 _ARP = {f"arp_{m}": ("ether_arp", f"ea_hdr.ar_{m}") for m in ("hrd", "pro", "hln", "pln", "op")}
@@ -245,7 +247,11 @@ MEMBER_MACROS = {
         **{f"ifr_{m}": ("ifreq", "ifr_ifru.ifru_ivalue") for m in ("metric", "ifindex", "bandwidth", "qlen")},
         "ifc_buf": ("ifconf", "ifc_ifcu.ifcu_buf"),
         "ifc_req": ("ifconf", "ifc_ifcu.ifcu_req"),
+        **{f"ifa_{m}": ("ifaddr", f"ifa_ifu.ifu_{m}") for m in ("broadaddr", "dstaddr")},
     },
+    "ifaddrs.h": {f"ifa_{m}": ("ifaddrs", f"ifa_ifu.ifu_{m}") for m in ("broadaddr", "dstaddr")},
+    "utmp.h": {"ut_name": ("utmp", "ut_user"), "ut_time": ("utmp", "ut_tv.tv_sec"),
+               "ut_xtime": ("utmp", "ut_tv.tv_sec"), "ut_addr": ("utmp", "ut_addr_v6[0]")},
     "netinet/ip_icmp.h": {
         **{f"icmp_{m}": ("icmp", f"icmp_hun.ih_{m}") for m in ("pptr", "gwaddr", "void")},
         "icmp_id": ("icmp", "icmp_hun.ih_idseq.icd_id"), "icmp_seq": ("icmp", "icmp_hun.ih_idseq.icd_seq"),

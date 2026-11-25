@@ -9,8 +9,17 @@
 
 __NIJI_BEGIN_C
 
-@@owns FD_CLR FD_ISSET FD_ZERO
+@@owns FD_CLR FD_ISSET FD_ZERO ut_name ut_time ut_xtime ut_addr
 @@emit
+
+/* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the
+   entry time's seconds, the first word of the remote host's address). */
+@@when utmp
+# define ut_name ut_user
+# define ut_time ut_tv.tv_sec
+# define ut_xtime ut_tv.tv_sec
+# define ut_addr ut_addr_v6[0]
+#endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */
 @@if FD_SET

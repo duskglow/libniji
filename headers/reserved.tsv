@@ -79,3 +79,4 @@ __u_quad_t	emit	R-H7: Yohane stage 2, libnsl and every libtirpc user (rpc/types.
 __fd_mask	emit	R-H7: Yohane stage 2 (libev): the element type of fd_set's fds_bits, beside fd_mask
 __NFDBITS	emit	R-H7: Yohane stage 2 (libev): the bits per fd_set word, beside NFDBITS
 __FD_SETSIZE	emit	R-H7: Yohane stage 2 (libev): the descriptors one fd_set holds, beside FD_SETSIZE
+__GNU_GETTEXT_SUPPORTED_REVISION	emit	gettext.m4 AM_GNU_GETTEXT: its "GNU gettext in libc" test compiles __GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1 (tar and every package using the macro; Yohane stage 2)

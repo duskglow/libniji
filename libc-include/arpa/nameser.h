@@ -388,11 +388,11 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_ns_datetosecs
 #  define __NIJI_D_ns_datetosecs 1
-extern unsigned int ns_datetosecs (const char *, int *) __NIJI_NOTHROW;
+extern unsigned int ns_datetosecs (const char *, int *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_format_ttl
 #  define __NIJI_D_ns_format_ttl 1
-extern int ns_format_ttl (long unsigned int, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_format_ttl (long unsigned int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_get16
 #  define __NIJI_D_ns_get16 1
@@ -408,7 +408,7 @@ extern int ns_initparse (const unsigned char *, int, ns_msg *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ns_makecanon
 #  define __NIJI_D_ns_makecanon 1
-extern int ns_makecanon (const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_makecanon (const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_msg_getflag
 #  define __NIJI_D_ns_msg_getflag 1
@@ -452,7 +452,7 @@ extern int ns_name_unpack (const unsigned char *, const unsigned char *, const u
 # endif
 # ifndef __NIJI_D_ns_parse_ttl
 #  define __NIJI_D_ns_parse_ttl 1
-extern int ns_parse_ttl (const char *, long unsigned int *) __NIJI_NOTHROW;
+extern int ns_parse_ttl (const char *, long unsigned int *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_parserr
 #  define __NIJI_D_ns_parserr 1
@@ -468,11 +468,11 @@ extern void ns_put32 (long unsigned int, unsigned char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ns_samedomain
 #  define __NIJI_D_ns_samedomain 1
-extern int ns_samedomain (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_samedomain (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_samename
 #  define __NIJI_D_ns_samename 1
-extern int ns_samename (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_samename (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_skiprr
 #  define __NIJI_D_ns_skiprr 1
@@ -480,15 +480,15 @@ extern int ns_skiprr (const unsigned char *, const unsigned char *, ns_sect, int
 # endif
 # ifndef __NIJI_D_ns_sprintrr
 #  define __NIJI_D_ns_sprintrr 1
-extern int ns_sprintrr (const ns_msg *, const ns_rr *, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_sprintrr (const ns_msg *, const ns_rr *, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_sprintrrf
 #  define __NIJI_D_ns_sprintrrf 1
-extern int ns_sprintrrf (const unsigned char *, unsigned long, const char *, ns_class, ns_type, long unsigned int, const unsigned char *, unsigned long, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_sprintrrf (const unsigned char *, unsigned long, const char *, ns_class, ns_type, long unsigned int, const unsigned char *, unsigned long, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_subdomain
 #  define __NIJI_D_ns_subdomain 1
-extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef NS_CMPRSFLGS
 #  define NS_CMPRSFLGS 192
