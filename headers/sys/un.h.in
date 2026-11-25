@@ -7,8 +7,16 @@
 
 @@needs-if strlen string.h
 
+/* max_align_t, ptrdiff_t, offsetof and the rest of the compiler's <stddef.h> where the reference shows them (its misc
+   configurations): the compiler's own definition, so a program's <stddef.h> before or after this one declares the one
+   type, whatever guard macros that compiler uses. */
+@@when size_t
+# include <stddef.h>
+#endif
+
 __NIJI_BEGIN_C
 
+@@owns max_align_t
 @@owns-macro strdupa strndupa NULL
 @@emit
 

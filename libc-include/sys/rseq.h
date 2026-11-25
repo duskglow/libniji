@@ -5,6 +5,9 @@
 
 #include <features.h>
 #include <stdint.h>
+/* The compiler's <stddef.h> (max_align_t, ptrdiff_t, offsetof, ...), as the reference shows it in every configuration:
+   its own definition of max_align_t, so the program's <stddef.h> in either order declares the one type. */
+#include <stddef.h>
 
 __NIJI_BEGIN_C
 
@@ -21,17 +24,6 @@ struct __attribute__ ((__aligned__ (32))) rseq {
   char end[];
 };
 # endif
-#endif
-#if (defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)
-# ifndef __NIJI_D_max_align_t
-#  define __NIJI_D_max_align_t 1
-typedef struct {
-  long long __max_align_ll;
-  long double __max_align_ld;
-} max_align_t;
-# endif
-#endif
-#if 1
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;

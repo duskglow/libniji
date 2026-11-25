@@ -5,10 +5,13 @@
 
 #include <features.h>
 #include <stdint.h>
+/* The compiler's <stddef.h> (max_align_t, ptrdiff_t, offsetof, ...), as the reference shows it in every configuration:
+   its own definition of max_align_t, so the program's <stddef.h> in either order declares the one type. */
+#include <stddef.h>
 
 __NIJI_BEGIN_C
 
-@@owns NULL
+@@owns NULL max_align_t
 @@emit
 
 @@if NULL
