@@ -280,8 +280,14 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef UTMPX_FILE
 #  define UTMPX_FILE "/var/run/utmp"
 # endif
+# ifndef UTMPX_FILENAME
+#  define UTMPX_FILENAME "/var/run/utmp"
+# endif
 # ifndef WTMPX_FILE
 #  define WTMPX_FILE "/var/log/wtmp"
+# endif
+# ifndef WTMPX_FILENAME
+#  define WTMPX_FILENAME "/var/log/wtmp"
 # endif
 # ifndef _PATH_BSHELL
 #  define _PATH_BSHELL "/bin/sh"

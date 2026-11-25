@@ -42,6 +42,44 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+#if 1
+# ifndef SOL_UDP
+#  define SOL_UDP 17
+# endif
+# ifndef UDP_CORK
+#  define UDP_CORK 1
+# endif
+# ifndef UDP_ENCAP
+#  define UDP_ENCAP 100
+# endif
+# ifndef UDP_ENCAP_ESPINUDP
+#  define UDP_ENCAP_ESPINUDP 2
+# endif
+# ifndef UDP_ENCAP_ESPINUDP_NON_IKE
+#  define UDP_ENCAP_ESPINUDP_NON_IKE 1
+# endif
+# ifndef UDP_ENCAP_GTP0
+#  define UDP_ENCAP_GTP0 4
+# endif
+# ifndef UDP_ENCAP_GTP1U
+#  define UDP_ENCAP_GTP1U 5
+# endif
+# ifndef UDP_ENCAP_L2TPINUDP
+#  define UDP_ENCAP_L2TPINUDP 3
+# endif
+# ifndef UDP_GRO
+#  define UDP_GRO 104
+# endif
+# ifndef UDP_NO_CHECK6_RX
+#  define UDP_NO_CHECK6_RX 102
+# endif
+# ifndef UDP_NO_CHECK6_TX
+#  define UDP_NO_CHECK6_TX 101
+# endif
+# ifndef UDP_SEGMENT
+#  define UDP_SEGMENT 103
+# endif
+#endif
 
 __NIJI_END_C
 

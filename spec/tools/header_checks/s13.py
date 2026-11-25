@@ -38,6 +38,30 @@ typedef char niji_ax25_call[sizeof (ax25_address) == 7 && sizeof (rose_address) 
 typedef char niji_ax25_sa[sizeof (struct sockaddr_ax25) == 16 && sizeof (struct full_sockaddr_ax25) == 16 + 7 * AX25_MAX_DIGIS ? 1 : -1];
 """
 
+# HEADERS-STAGE2-GAPS-C-2 (completeness pass over thin headers): uses of the names it added, each only in the
+# configurations visibility.tsv shows the name in. Spec clauses: C23 7.8.1 (PRIb*, SCNb*: the binary conversions of
+# <inttypes.h>); udp(7) (the UDP socket options); utmp(5) (the older member names of a login record).
+THIN = [
+    ("inttypes.h", "PRIb64", """#include <inttypes.h>
+typedef char niji_thin_pri[sizeof (PRIb64) == 3 && sizeof (PRIB32) == 2 && sizeof (SCNb8) == 4 && sizeof (PRIbPTR) == 3 ? 1 : -1];
+"""),
+    ("netinet/udp.h", "UDP_SEGMENT", """#include <netinet/udp.h>
+typedef char niji_thin_udp[UDP_CORK == 1 && UDP_ENCAP == 100 && UDP_SEGMENT == 103 && UDP_GRO == 104 && UDP_NO_CHECK6_TX == 101
+                           && UDP_ENCAP_ESPINUDP == 2 && SOL_UDP == 17 ? 1 : -1];
+"""),
+    ("utmp.h", "ut_xtime", """#include <utmp.h>
+#include <string.h>
+typedef char niji_thin_ut[sizeof ((struct utmp *) 0)->ut_name == 32 && sizeof ((struct utmp *) 0)->ut_time == 4 ? 1 : -1];
+int niji_thin_utmp (struct utmp *u)
+{
+  u->ut_time = 5;
+  u->ut_xtime += 1;
+  u->ut_addr = 7;
+  return (int) strlen (u->ut_name) + (int) u->ut_tv.tv_sec + (int) u->ut_addr_v6[0] + (&u->ut_name[0] == &u->ut_user[0]) + (UTMP_FILENAME[0] == '/');
+}
+"""),
+]
+
 
 def members(ctx):
     out = {}
@@ -71,5 +95,9 @@ def units(ctx):
     for (h, cid), tests in sorted(per.items()):
         body = f"#include <{h}>\n" + "".join(f"typedef char niji_s13_off_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
         out.append((cid, f"S13 offsets {h}", body))
+    for h, name, body in THIN:
+        for r in ctx.vis:
+            if r["header"] == h and r["name"] == name and r["kind"] == "macro":
+                out += [(cid, f"S13 thin {h}", body) for cid in ("gnu17", "gnu2x", "cxx17") if cid in hc.expand(r["configs"], ctx.ids)]
     out += [(cid, "S13 ax25 use", USE) for cid in ("gnu17", "c99", "cxx98", "cxx17") if cid in ctx.ids]
     return out

@@ -330,6 +330,9 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef UTMP_FILE
 #  define UTMP_FILE "/var/run/utmp"
 # endif
+# ifndef UTMP_FILENAME
+#  define UTMP_FILENAME "/var/run/utmp"
+# endif
 # ifndef UT_HOSTSIZE
 #  define UT_HOSTSIZE 256
 # endif
@@ -344,6 +347,9 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 # ifndef WTMP_FILE
 #  define WTMP_FILE "/var/log/wtmp"
+# endif
+# ifndef WTMP_FILENAME
+#  define WTMP_FILENAME "/var/log/wtmp"
 # endif
 # ifndef _HAVE_UT_HOST
 #  define _HAVE_UT_HOST 1
@@ -459,6 +465,22 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef _PATH_WTMP
 #  define _PATH_WTMP "/var/log/wtmp"
 # endif
+#endif
+
+/* The older member names of a login record, as aliases of the current members (probed: the same object, the same
+   size): the user name, the time of the entry in seconds (two spellings), and the first word of the IPv6-sized address
+   (HEADERS-STAGE2-GAPS-C-2). */
+#if 1
+# define ut_name ut_user
+#endif
+#if 1
+# define ut_time ut_tv.tv_sec
+#endif
+#if 1
+# define ut_xtime ut_tv.tv_sec
+#endif
+#if 1
+# define ut_addr ut_addr_v6[0]
 #endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */
