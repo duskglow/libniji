@@ -150,16 +150,27 @@ impl Gen<'_> {
         (mmask & !emask == 0).then_some(e)
     }
 
-    /// The macro name `name` is defined as in this header (macro-aliases.tsv: `AF_INET` as `PF_INET`), when this
-    /// header shows that name, as a macro or an enumerator, in every configuration in which it shows `name`; otherwise
-    /// None and the macro keeps its value (the alias would expand to an undefined name).
-    pub(super) fn macro_alias(&mut self, name: &str) -> Option<String> {
+    /// The macro name `name` is defined as in this header (macro-aliases.tsv: `AF_INET` as `PF_INET`), with None when
+    /// this header shows that name, as a macro or an enumerator, in every configuration in which it shows `name`.
+    /// When it shows the alias in only some of them (`SO_RCVTIMEO` as `SO_RCVTIMEO_OLD`, which strict ISO C does not
+    /// show), the second field is the condition that selects those, and the macro keeps its value elsewhere (the alias
+    /// would expand to an undefined name). None when no condition over the levels separates them.
+    pub(super) fn macro_alias(&mut self, name: &str) -> Option<(String, Option<String>)> {
         let a = self.t.macro_aliases.get(&(self.header.clone(), name.to_string()))?.clone();
         let mrow = self.t.vis_row(&self.header, name, "macro")?;
         let mmask = mask_of(&self.t.lv, &mrow["configs"]).ok()?;
         let arow = self.t.vis_row(&self.header, &a, "macro").or_else(|| self.t.vis_row(&self.header, &a, "enumerator"))?;
         let amask = mask_of(&self.t.lv, &arow["configs"]).ok()?;
-        (mmask & !amask == 0).then_some(a)
+        if mmask & !amask == 0 {
+            return Some((a, None));
+        }
+        let care = mmask & !self.dont_care(name, "macro");
+        if care & amask == 0 {
+            return None;
+        }
+        let fortify = self.fortify_mask();
+        let c = condition(&self.t.lv, amask & care, care).or_else(|| condition(&self.t.lv, amask & care & !fortify, care & !fortify))?;
+        Some((a, Some(c)))
     }
 
     /// `@@enum TAG`: the enumeration `TAG` from enumerators.tsv, and each of its enumerators this header lists in

@@ -615,7 +615,13 @@ impl Gen<'_> {
                 // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
                 // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
                 // reference names it (enum-macros.tsv), where this header declares it, else its value.
-                let v = match self.macro_alias(name).or_else(|| self.enum_macro(name)) {
+                // An alias the header shows in only some of the macro's configurations names it there only.
+                if let Some((a, Some(c))) = self.macro_alias(name) {
+                    let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
+                    self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+                    return;
+                }
+                let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
                     Some(e) => e,
                     None => self.value(name),
                 };
