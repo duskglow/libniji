@@ -38,6 +38,11 @@ State: branch task/provenance-fragments, base origin/next 855efa170. Role keke:~
 * A header story cut before this lands and still edits PROVENANCE by hand will merge the same way. Whoever merges it
   moves the paragraph into a fragment. Once this lands, nothing edits PROVENANCE by hand.
 
+## Final head (after the merge of next)
+* provenance-fragments-gate-2: 699 passed, 0 failed (6 suites). provenance-fragments-plants-2: 3 of 3 CAUGHT. clippy
+  (all features, -D warnings) and `cargo xtask static`: clean (job provenance-fragments-final). These replace the
+  jobs listed above.
+
 ## Informational
 * glibc-functional-spec.md appendix C is stale against the tables (running appendix_c.py rewrites about 180 lines
   that drifted before this story). Discarded here.
