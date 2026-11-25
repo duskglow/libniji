@@ -35,7 +35,25 @@ def units(ctx):
     # them in the default mode).
     for h in HEADERS:
         out += ctx.exact(h, ["sig_t", "sighandler_t"])
+    # Spec clause: sigaction(2) (siginfo_t's si_call_addr, si_syscall, si_arch, si_lower, si_upper, si_pkey;
+    # HEADERS-APT-GAPS: apt's methods read si_syscall): each name exactly where the reference shows it, and where
+    # shown the member at the reference's offset and of its size (black-box offsetof probe, = layouts.tsv's rows).
+    names = [n for n, _, _ in SI_MEMBERS]
+    for h in HEADERS + ("sys/pidfd.h",):
+        out += ctx.exact(h, names)
+        shown = set(ctx.ids)
+        for r in ctx.vis:
+            if r["header"] == h and r["name"] in names:
+                shown &= header_check.expand(r["configs"], ctx.ids)
+        tests = "".join(f"typedef char niji_si_{n}[__builtin_offsetof (siginfo_t, {n}) == {o} "
+                        f"&& sizeof (((siginfo_t *) 0)->{n}) == {s} ? 1 : -1];\n" for n, o, s in SI_MEMBERS)
+        out.extend((cid, f"siginfo_t members in {h}", f"#include <{h}>\n{tests}int niji_si_tu;\n") for cid in sorted(shown))
     return out
+
+
+# (name, offset, size) in siginfo_t: the reference's, probed with offsetof and sizeof.
+SI_MEMBERS = (("si_call_addr", 16, 8), ("si_syscall", 24, 4), ("si_arch", 28, 4),
+              ("si_lower", 32, 8), ("si_upper", 40, 8), ("si_pkey", 32, 4))
 
 
 def dynamic_levels(ctx):

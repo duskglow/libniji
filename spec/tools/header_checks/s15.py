@@ -2,12 +2,16 @@
 
 Both headers are `p1` 0 in headers/slices/s15.tsv: the table P1 of spec/tools/header_check.py cannot assert the names
 they take from a header of a slice that is not generated yet (`fd_set`, `sigset_t` of <sys/select.h>, `f_owner_ex` and
-`O_CLOEXEC` of <fcntl.h>), and `MS_NOUSER`, which the kernel's linux/mount.h defines as `(1<<31)`, an expression that
-is not an integer constant expression for P1's array bound. This module runs the same P1 over the two headers without
-those names (DEFERRED). Slices 7 and 14 have landed (SL-HEADERS-S07-TAIL), so `f_owner_ex` is checked. Still left out:
-`MS_NOUSER`, and `OPEN_TREE_CLOEXEC`, which the kernel's linux/mount.h defines as `O_CLOEXEC`, a name <sys/mount.h>
-does not make visible in 17 strict configurations; the reference's <sys/mount.h> does not compile a use there either
-(black-box probe, HEADERS-SMALL-FIXES: all 17 rejected), so P1 has no value to assert in them.
+`O_CLOEXEC` of <fcntl.h>). This module runs the same P1 over the two headers without those names (DEFERRED). Slices
+7 and 14 have landed (SL-HEADERS-S07-TAIL), so `f_owner_ex` is checked. `MS_NOUSER` is an int enumerator now (D-X.173;
+the kernel's `(1<<31)` macro is replaced), so P1 checks it too. Still left out: `OPEN_TREE_CLOEXEC`, which the
+kernel's linux/mount.h defines as `O_CLOEXEC`, a name <sys/mount.h> does not make visible in 17 strict configurations;
+the reference's <sys/mount.h> does not compile a use there either (black-box probe, HEADERS-SMALL-FIXES: all 17
+rejected), so P1 has no value to assert in them.
+
+`enum_units` (D-X.173): each name of <sys/mount.h> that enumerators.tsv lists and enum-macros.tsv maps to itself
+(`MS_RDONLY`, `MNT_FORCE`, ...) is, after <sys/mount.h> and <linux/mount.h> in either order, a macro that expands to
+its own name, of the table's value, and in C++ of an enumeration type.
 
 `problems` (no spec clause; HEADERS-WINSIZE-TWICE): a template of this slice includes only a header libniji generates
 (a template `headers/<name>.in`), a kernel UAPI header (`linux/`, `asm/`, `asm-generic/`) or one of the compiler's
@@ -24,7 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check  # noqa: E402
 
-DEFERRED = {("sys/mount.h", "OPEN_TREE_CLOEXEC"), ("sys/mount.h", "MS_NOUSER")}
+DEFERRED = {("sys/mount.h", "OPEN_TREE_CLOEXEC")}
 HEADERS = ("sys/mount.h", "sys/timex.h")
 
 
@@ -32,7 +36,35 @@ def units(ctx):
     sub = copy.copy(ctx)
     sub.slice_rows = [{"header": h, "p1": "1", "uapi": "-"} for h in HEADERS]
     sub.vis = [r for r in ctx.vis if (r["header"], r["name"]) not in DEFERRED]
-    return [(cid, what, body) for cid, us in header_check.p1_units(sub).items() for what, body in us] + mtio_units(ctx)
+    p1 = [(cid, what, body) for cid, us in header_check.p1_units(sub).items() for what, body in us]
+    return p1 + mtio_units(ctx) + enum_units(ctx)
+
+
+def enum_units(ctx):
+    """No spec clause (mount(2) names the flags, not their form; D-X.173, form of the reference's headers by black-box
+    probe): per configuration that shows them, with <linux/mount.h> before and after <sys/mount.h>, each self-naming
+    enumerator of <sys/mount.h> is a macro whose spelling is its own name, its value is the macros.tsv value, and in
+    C++ its type is an enumeration. A plausible defect each catches: the kernel's literal macro left in place (the
+    spelling), an enumerator dropped or given the kernel's `(1<<31)` (the value), a macro of the value only (the C++
+    type), a redefinition or a second enumerator in one of the orders (the unit fails to compile under -Werror)."""
+    selfnamed = {r["name"] for r in ctx.rows("spec/abi/enum-macros.tsv") if r["name"] == r["enumerator"]}
+    rows = [r for r in ctx.vis if r["header"] == "sys/mount.h" and r["kind"] == "enumerator" and r["name"] in selfnamed]
+    if len(rows) < 31:
+        return [(ctx.ids[0], "enum sys/mount.h", "#error visibility.tsv shows fewer than 31 self-naming enumerators\n")]
+    lang = {c["id"]: c["language"] for c in ctx.cfgs}
+    res = []
+    for cid in ctx.ids:
+        names = sorted(r["name"] for r in rows if cid in header_check.expand(r["configs"], ctx.ids))
+        if not names:
+            continue
+        checks = ["#define NIJI_STR_(x) #x", "#define NIJI_STR(x) NIJI_STR_(x)"]
+        for i, n in enumerate(names):
+            checks.append(f"typedef char niji_en{i}[({n} == ({int(ctx.macros[n]['value'])}L) && sizeof NIJI_STR({n}) == sizeof \"{n}\") ? 1 : -1];")
+            if lang[cid] == "c++":
+                checks.append(f"typedef char niji_ek{i}[__is_enum(__typeof__({n})) ? 1 : -1];")
+        for first, second in (("linux/mount.h", "sys/mount.h"), ("sys/mount.h", "linux/mount.h")):
+            res.append((cid, f"enum {first} then {second}", f"#include <{first}>\n#include <{second}>\n" + "\n".join(checks) + "\n"))
+    return res
 
 
 # st(4) <sys/mtio.h>: the generic status tests, each the bit of mt_gstat it tests (black-box probe, HEADERS-BUSYBOX-GAPS:

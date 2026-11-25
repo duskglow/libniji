@@ -1017,6 +1017,22 @@ ns_rr	rr_class	1028		uint16_t
 ns_rr	ttl	1032		uint32_t	
 ns_rr	rdlength	1036		uint16_t	
 ns_rr	rdata	1040		const unsigned char *	
+HEADER		12	4		
+HEADER	id	0		unsigned int	bits 16@0
+HEADER	rd	0		unsigned int	bits 1@16
+HEADER	tc	0		unsigned int	bits 1@17
+HEADER	aa	0		unsigned int	bits 1@18
+HEADER	opcode	0		unsigned int	bits 4@19
+HEADER	qr	0		unsigned int	bits 1@23
+HEADER	rcode	0		unsigned int	bits 4@24
+HEADER	cd	0		unsigned int	bits 1@28
+HEADER	ad	0		unsigned int	bits 1@29
+HEADER	unused	0		unsigned int	bits 1@30
+HEADER	ra	0		unsigned int	bits 1@31
+HEADER	qdcount	4		unsigned int	bits 16@0
+HEADER	ancount	4		unsigned int	bits 16@16
+HEADER	nscount	8		unsigned int	bits 16@0
+HEADER	arcount	8		unsigned int	bits 16@16
 struct in_addr		4	4		
 struct in_addr	s_addr	0		in_addr_t	
 struct in6_addr		16	4		

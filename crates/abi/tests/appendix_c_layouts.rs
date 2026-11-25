@@ -1440,6 +1440,11 @@ fn abi_ns_rr() {
 }
 
 #[test]
+fn abi_header() {
+    expect_type("HEADER", size_of::<HEADER>(), align_of::<HEADER>());
+}
+
+#[test]
 fn abi_struct_in_addr() {
     expect_type("struct in_addr", size_of::<struct_in_addr>(), align_of::<struct_in_addr>());
     expect_member("struct in_addr", "s_addr", offset_of!(struct_in_addr, s_addr));

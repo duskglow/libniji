@@ -12,21 +12,222 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct___ns_class
-#  define __NIJI_D_struct___ns_class 1
-struct __ns_class { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
+# ifndef __NIJI_D_enum___ns_cert_types
+#  define __NIJI_D_enum___ns_cert_types 1
+enum __ns_cert_types {
+  cert_t_pkix = 1,
+  cert_t_spki = 2,
+  cert_t_pgp = 3,
+  cert_t_url = 253,
+  cert_t_oid = 254,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_class
+#  define __NIJI_D_enum___ns_class 1
+enum __ns_class {
+  ns_c_invalid = 0,
+  ns_c_in = 1,
+  ns_c_2 = 2,
+  ns_c_chaos = 3,
+  ns_c_hs = 4,
+  ns_c_none = 254,
+  ns_c_any = 255,
+  ns_c_max = 65536,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_flag
+#  define __NIJI_D_enum___ns_flag 1
+enum __ns_flag {
+  ns_f_qr = 0,
+  ns_f_opcode = 1,
+  ns_f_aa = 2,
+  ns_f_tc = 3,
+  ns_f_rd = 4,
+  ns_f_ra = 5,
+  ns_f_z = 6,
+  ns_f_ad = 7,
+  ns_f_cd = 8,
+  ns_f_rcode = 9,
+  ns_f_max = 10,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_opcode
+#  define __NIJI_D_enum___ns_opcode 1
+enum __ns_opcode {
+  ns_o_query = 0,
+  ns_o_iquery = 1,
+  ns_o_status = 2,
+  ns_o_notify = 4,
+  ns_o_update = 5,
+  ns_o_max = 6,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_rcode
+#  define __NIJI_D_enum___ns_rcode 1
+enum __ns_rcode {
+  ns_r_noerror = 0,
+  ns_r_formerr = 1,
+  ns_r_servfail = 2,
+  ns_r_nxdomain = 3,
+  ns_r_notimpl = 4,
+  ns_r_refused = 5,
+  ns_r_yxdomain = 6,
+  ns_r_yxrrset = 7,
+  ns_r_nxrrset = 8,
+  ns_r_notauth = 9,
+  ns_r_notzone = 10,
+  ns_r_max = 11,
+  ns_r_badvers = 16,
+  ns_r_badsig = 16,
+  ns_r_badkey = 17,
+  ns_r_badtime = 18,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_sect
+#  define __NIJI_D_enum___ns_sect 1
+enum __ns_sect {
+  ns_s_qd = 0,
+  ns_s_zn = 0,
+  ns_s_an = 1,
+  ns_s_pr = 1,
+  ns_s_ns = 2,
+  ns_s_ud = 2,
+  ns_s_ar = 3,
+  ns_s_max = 4,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_type
+#  define __NIJI_D_enum___ns_type 1
+enum __ns_type {
+  ns_t_invalid = 0,
+  ns_t_a = 1,
+  ns_t_ns = 2,
+  ns_t_md = 3,
+  ns_t_mf = 4,
+  ns_t_cname = 5,
+  ns_t_soa = 6,
+  ns_t_mb = 7,
+  ns_t_mg = 8,
+  ns_t_mr = 9,
+  ns_t_null = 10,
+  ns_t_wks = 11,
+  ns_t_ptr = 12,
+  ns_t_hinfo = 13,
+  ns_t_minfo = 14,
+  ns_t_mx = 15,
+  ns_t_txt = 16,
+  ns_t_rp = 17,
+  ns_t_afsdb = 18,
+  ns_t_x25 = 19,
+  ns_t_isdn = 20,
+  ns_t_rt = 21,
+  ns_t_nsap = 22,
+  ns_t_nsap_ptr = 23,
+  ns_t_sig = 24,
+  ns_t_key = 25,
+  ns_t_px = 26,
+  ns_t_gpos = 27,
+  ns_t_aaaa = 28,
+  ns_t_loc = 29,
+  ns_t_nxt = 30,
+  ns_t_eid = 31,
+  ns_t_nimloc = 32,
+  ns_t_srv = 33,
+  ns_t_atma = 34,
+  ns_t_naptr = 35,
+  ns_t_kx = 36,
+  ns_t_cert = 37,
+  ns_t_a6 = 38,
+  ns_t_dname = 39,
+  ns_t_sink = 40,
+  ns_t_opt = 41,
+  ns_t_apl = 42,
+  ns_t_ds = 43,
+  ns_t_sshfp = 44,
+  ns_t_ipseckey = 45,
+  ns_t_rrsig = 46,
+  ns_t_nsec = 47,
+  ns_t_dnskey = 48,
+  ns_t_dhcid = 49,
+  ns_t_nsec3 = 50,
+  ns_t_nsec3param = 51,
+  ns_t_tlsa = 52,
+  ns_t_smimea = 53,
+  ns_t_hip = 55,
+  ns_t_ninfo = 56,
+  ns_t_rkey = 57,
+  ns_t_talink = 58,
+  ns_t_cds = 59,
+  ns_t_cdnskey = 60,
+  ns_t_openpgpkey = 61,
+  ns_t_csync = 62,
+  ns_t_spf = 99,
+  ns_t_uinfo = 100,
+  ns_t_uid = 101,
+  ns_t_gid = 102,
+  ns_t_unspec = 103,
+  ns_t_nid = 104,
+  ns_t_l32 = 105,
+  ns_t_l64 = 106,
+  ns_t_lp = 107,
+  ns_t_eui48 = 108,
+  ns_t_eui64 = 109,
+  ns_t_tkey = 249,
+  ns_t_tsig = 250,
+  ns_t_ixfr = 251,
+  ns_t_axfr = 252,
+  ns_t_mailb = 253,
+  ns_t_maila = 254,
+  ns_t_any = 255,
+  ns_t_uri = 256,
+  ns_t_caa = 257,
+  ns_t_avc = 258,
+  ns_t_ta = 32768,
+  ns_t_dlv = 32769,
+  ns_t_max = 65536,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_update_operation
+#  define __NIJI_D_enum___ns_update_operation 1
+enum __ns_update_operation {
+  ns_uop_delete = 0,
+  ns_uop_add = 1,
+  ns_uop_max = 2,
+};
+# endif
+# ifndef __NIJI_D_enum___ns_class
+#  define __NIJI_D_enum___ns_class 1
+enum __ns_class {
+  ns_c_invalid = 0,
+  ns_c_in = 1,
+  ns_c_2 = 2,
+  ns_c_chaos = 3,
+  ns_c_hs = 4,
+  ns_c_none = 254,
+  ns_c_any = 255,
+  ns_c_max = 65536,
+};
 # endif
 # ifndef __NIJI_D_ns_class
 #  define __NIJI_D_ns_class 1
-typedef struct __ns_class ns_class;
+typedef enum __ns_class ns_class;
 # endif
-# ifndef __NIJI_D_struct___ns_sect
-#  define __NIJI_D_struct___ns_sect 1
-struct __ns_sect { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
+# ifndef __NIJI_D_enum___ns_sect
+#  define __NIJI_D_enum___ns_sect 1
+enum __ns_sect {
+  ns_s_qd = 0,
+  ns_s_zn = 0,
+  ns_s_an = 1,
+  ns_s_pr = 1,
+  ns_s_ns = 2,
+  ns_s_ud = 2,
+  ns_s_ar = 3,
+  ns_s_max = 4,
+};
 # endif
 # ifndef __NIJI_D_ns_sect
 #  define __NIJI_D_ns_sect 1
-typedef struct __ns_sect ns_sect;
+typedef enum __ns_sect ns_sect;
 # endif
 # ifndef __NIJI_D_struct___ns_msg
 #  define __NIJI_D_struct___ns_msg 1
@@ -61,21 +262,117 @@ struct __ns_rr {
 #  define __NIJI_D_ns_rr 1
 typedef struct __ns_rr ns_rr;
 # endif
-# ifndef __NIJI_D_struct___ns_sect
-#  define __NIJI_D_struct___ns_sect 1
-struct __ns_sect { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
+# ifndef __NIJI_D_enum___ns_sect
+#  define __NIJI_D_enum___ns_sect 1
+enum __ns_sect {
+  ns_s_qd = 0,
+  ns_s_zn = 0,
+  ns_s_an = 1,
+  ns_s_pr = 1,
+  ns_s_ns = 2,
+  ns_s_ud = 2,
+  ns_s_ar = 3,
+  ns_s_max = 4,
+};
 # endif
 # ifndef __NIJI_D_ns_sect
 #  define __NIJI_D_ns_sect 1
-typedef struct __ns_sect ns_sect;
+typedef enum __ns_sect ns_sect;
 # endif
-# ifndef __NIJI_D_struct___ns_type
-#  define __NIJI_D_struct___ns_type 1
-struct __ns_type { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
+# ifndef __NIJI_D_enum___ns_type
+#  define __NIJI_D_enum___ns_type 1
+enum __ns_type {
+  ns_t_invalid = 0,
+  ns_t_a = 1,
+  ns_t_ns = 2,
+  ns_t_md = 3,
+  ns_t_mf = 4,
+  ns_t_cname = 5,
+  ns_t_soa = 6,
+  ns_t_mb = 7,
+  ns_t_mg = 8,
+  ns_t_mr = 9,
+  ns_t_null = 10,
+  ns_t_wks = 11,
+  ns_t_ptr = 12,
+  ns_t_hinfo = 13,
+  ns_t_minfo = 14,
+  ns_t_mx = 15,
+  ns_t_txt = 16,
+  ns_t_rp = 17,
+  ns_t_afsdb = 18,
+  ns_t_x25 = 19,
+  ns_t_isdn = 20,
+  ns_t_rt = 21,
+  ns_t_nsap = 22,
+  ns_t_nsap_ptr = 23,
+  ns_t_sig = 24,
+  ns_t_key = 25,
+  ns_t_px = 26,
+  ns_t_gpos = 27,
+  ns_t_aaaa = 28,
+  ns_t_loc = 29,
+  ns_t_nxt = 30,
+  ns_t_eid = 31,
+  ns_t_nimloc = 32,
+  ns_t_srv = 33,
+  ns_t_atma = 34,
+  ns_t_naptr = 35,
+  ns_t_kx = 36,
+  ns_t_cert = 37,
+  ns_t_a6 = 38,
+  ns_t_dname = 39,
+  ns_t_sink = 40,
+  ns_t_opt = 41,
+  ns_t_apl = 42,
+  ns_t_ds = 43,
+  ns_t_sshfp = 44,
+  ns_t_ipseckey = 45,
+  ns_t_rrsig = 46,
+  ns_t_nsec = 47,
+  ns_t_dnskey = 48,
+  ns_t_dhcid = 49,
+  ns_t_nsec3 = 50,
+  ns_t_nsec3param = 51,
+  ns_t_tlsa = 52,
+  ns_t_smimea = 53,
+  ns_t_hip = 55,
+  ns_t_ninfo = 56,
+  ns_t_rkey = 57,
+  ns_t_talink = 58,
+  ns_t_cds = 59,
+  ns_t_cdnskey = 60,
+  ns_t_openpgpkey = 61,
+  ns_t_csync = 62,
+  ns_t_spf = 99,
+  ns_t_uinfo = 100,
+  ns_t_uid = 101,
+  ns_t_gid = 102,
+  ns_t_unspec = 103,
+  ns_t_nid = 104,
+  ns_t_l32 = 105,
+  ns_t_l64 = 106,
+  ns_t_lp = 107,
+  ns_t_eui48 = 108,
+  ns_t_eui64 = 109,
+  ns_t_tkey = 249,
+  ns_t_tsig = 250,
+  ns_t_ixfr = 251,
+  ns_t_axfr = 252,
+  ns_t_mailb = 253,
+  ns_t_maila = 254,
+  ns_t_any = 255,
+  ns_t_uri = 256,
+  ns_t_caa = 257,
+  ns_t_avc = 258,
+  ns_t_ta = 32768,
+  ns_t_dlv = 32769,
+  ns_t_max = 65536,
+};
 # endif
 # ifndef __NIJI_D_ns_type
 #  define __NIJI_D_ns_type 1
-typedef struct __ns_type ns_type;
+typedef enum __ns_type ns_type;
 # endif
 #endif
 #if __NIJI_POSIX >= 199309

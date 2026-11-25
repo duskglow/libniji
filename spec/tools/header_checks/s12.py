@@ -8,6 +8,7 @@ and P10, the network macros' output against the build host's own headers.
 * P10 (`python3 spec/tools/header_checks/s12.py [--include DIR] [--work DIR]`): spec/tools/p10_net.c (CMSG_*,
   IN6_IS_ADDR_*, the byte-order conversions) built on the system's headers and on libniji's (`-nostdinc`) must print the
   same bytes. The system's output is a diagnostic comparison, never read as text.
+* enum (`nameser_enum_units`): the `enum __ns_*` enumerations of <arpa/nameser.h>, their members and typedefs.
 Loaded by spec/tools/header_check.py, which lists this directory (plan/headers.md section 4, "Adding a slice").
 """
 import os
@@ -24,6 +25,39 @@ def mine():
     """The headers of headers/slices/s12.tsv."""
     with open(os.path.join(ROOT, "headers", "slices", "s12.tsv")) as f:
         return [l.split("\t")[0] for l in f if l.strip() and not l.startswith("#")][1:]
+
+
+def nameser_enum_units(ctx):
+    """No spec clause beyond RFC 1035's field values (the type of the names by black-box probe, HEADERS-ENUM-FOLLOWUPS):
+    per configuration that shows them, every enumeration `enum __ns_*` of <arpa/nameser.h> is declared with each of its
+    enumerators.tsv members at its value, a member converts to its enumeration without a cast (C++: an int or a
+    structure in its place fails), the typedefs `ns_type`, `ns_class`, `ns_sect` name those enumerations, and a DNS
+    style switch over `ns_class` compiles under -Wall -Werror. Defects it catches: an enumeration left opaque, an
+    enumeration of a reserved tag dropped with all its public members (`ns_r_servfail`), a wrong value."""
+    tags = sorted(r["name"] for r in ctx.vis if r["header"] == "arpa/nameser.h" and r["kind"] == "enum" and r["name"].startswith("__ns_"))
+    members = {}
+    for r in ctx.rows("spec/abi/enumerators.tsv"):
+        if r["tag"].startswith("enum ") and r["tag"][5:] in tags:
+            members.setdefault(r["tag"][5:], []).append((r["name"], r["value"]))
+    shown = {r["name"]: r["configs"] for r in ctx.vis if r["header"] == "arpa/nameser.h" and r["kind"] in ("enumerator", "enum", "typedef")}
+    if len(tags) < 8 or set(members) != set(tags) or not {"ns_type", "ns_class", "ns_sect"} <= set(shown):
+        return [(ctx.ids[0], "enum arpa/nameser.h", "#error the tables do not show the eight __ns_* enumerations and their typedefs\n")]
+    lang = {c["id"]: c["language"] for c in ctx.cfgs}
+    res = []
+    for cid in ctx.ids:
+        if cid not in expand(shown["ns_type"], ctx.ids):
+            continue
+        body = ["#include <arpa/nameser.h>", "ns_type niji_t = ns_t_a;", "ns_sect niji_s = ns_s_an;",
+                "int niji_ns_f (ns_class c) { switch (c) { case ns_c_in: return 1; case ns_c_chaos: return 3; default: return 0; } }"]
+        for tag in tags:
+            for i, (n, v) in enumerate(members[tag]):
+                if cid not in expand(shown.get(n, ""), ctx.ids):
+                    continue
+                body += [f"enum {tag} niji_{tag}_{i} = {n};", f"typedef char niji_v{tag}_{i}[({n}) == ({v}) ? 1 : -1];"]
+            if lang[cid] == "c++":
+                body.append(f"typedef char niji_k{tag}[__is_enum (enum {tag}) ? 1 : -1];")
+        res.append((cid, "enum arpa/nameser.h", "\n".join(body) + "\n"))
+    return res
 
 
 def expand(configs, ids):
@@ -67,7 +101,7 @@ def units(ctx):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             res.append((cid, f"P1 {h}", body))
-    res += member_names(ctx)
+    res += member_names(ctx) + nameser_enum_units(ctx)
     res += initializers(ctx)
     # P8, libc-first only (ruling #6458: the kernel header first is not supported; slice 13 measures it): <netinet/in.h>
     # with linux/in6.h, once, with the shared tags used so a missing or doubled definition fails to compile. The other
@@ -76,6 +110,25 @@ def units(ctx):
         if cid in ctx.ids:
             res.append((cid, "P8 netinet/in.h then linux/in6.h", "#include <netinet/in.h>\n#include <linux/in6.h>\n"
                         "struct in_addr a; struct in6_addr b; struct sockaddr_in c; struct sockaddr_in6 d;\nint niji_p8_tu;\n"))
+    # Spec clause: RFC 1035 4.1.1 (HEADERS-APT-GAPS: apt's SRV lookup): the DNS message header type `HEADER` exactly
+    # where the reference shows it, with its size and alignment (P1 above; its bit positions are the rows test's).
+    for h in ("arpa/nameser.h", "arpa/nameser_compat.h"):
+        res += ctx.exact(h, ["HEADER"])
+    # Spec clause: XSH <sys/socket.h> (accept, bind, connect, getpeername, getsockname, recvfrom, sendto; GNU accept4):
+    # the address argument takes a `struct sockaddr *` (`const` for the const form) and a null pointer, in C++ too,
+    # where the C transparent union does not exist (HEADERS-APT-GAPS: apt's methods, any C++ socket program).
+    cfg = {c["id"]: c for c in ctx.cfgs}
+    for cid in ctx.ids:
+        if cfg[cid]["language"] != "c++":
+            continue
+        res.append((cid, "C++ socket calls with struct sockaddr *",
+                    "#include <sys/socket.h>\n#include <netinet/in.h>\n"
+                    "int niji_sock (int s, struct sockaddr *p, const struct sockaddr *c, socklen_t l, socklen_t *pl)\n"
+                    "{\n  return connect (s, p, l) + connect (s, c, l) + bind (s, p, l) + bind (s, c, l)\n"
+                    "    + accept (s, 0, 0) + accept (s, p, pl) + accept4 (s, p, pl, 0) + accept4 (s, 0, 0, 0)\n"
+                    "    + getsockname (s, p, pl) + getpeername (s, p, pl)\n"
+                    "    + (int) recvfrom (s, 0, 0, 0, p, pl) + (int) recvfrom (s, 0, 0, 0, 0, 0)\n"
+                    "    + (int) sendto (s, 0, 0, 0, p, l) + (int) sendto (s, 0, 0, 0, c, l) + (int) sendto (s, 0, 0, 0, 0, 0);\n}\n"))
     return res
 
 

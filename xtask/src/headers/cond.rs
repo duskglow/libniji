@@ -175,9 +175,12 @@ impl Gen<'_> {
     }
 
     /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
+    /// Not a transparent union (`__SOCKADDR_ARG`): C++ has no such union, the name is the pointer macro there
+    /// (`pointer_form`), so a C++ socket call takes a `struct sockaddr *` and a null pointer.
     pub(super) fn union_tag(&self, name: &str) -> bool {
         self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
             && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
+            && !aggregates::transparent_union(self.t.layouts.get(name).and_then(|rows| rows.iter().find(|r| r["member"].is_empty())))
             && self.aggregate(name).is_some_and(|a| a.kw == "union")
     }
 

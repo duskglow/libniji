@@ -9,6 +9,11 @@
     exists; drop the entries then.
 Loaded by spec/tools/header_check.py (plan/headers.md section 4, "Adding a slice").
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import header_check  # noqa: E402
 
 import os
 import sys
@@ -66,4 +71,32 @@ def units(ctx):
         body += "".join(f"typedef char niji_nl_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(forms))
         out.append((cid, "P1 langinfo.h _NL_ITEM forms", body))
-    return out
+    return out + errcode_units(ctx)
+
+
+def errcode_units(ctx):
+    """Spec clause: regex(3) error codes (the REG_* values regcomp and regexec return); their type by black-box probe
+    (HEADERS-ENUM-FOLLOWUPS): per configuration that shows it, <regex.h> declares `reg_errcode_t`, an int-sized
+    enumeration, and each REG_* error code of enum-macros.tsv (a macro naming its `_REG_*` enumerator) converts to it
+    without a cast in C++ and has the enumerators.tsv value. Defects it catches: no `reg_errcode_t` (an int-only
+    REG_NOMATCH fails `reg_errcode_t e = REG_NOMATCH;` in C++), a structure in its place, a wrong or missing value."""
+    # The error codes only (<sys/ucontext.h>'s REG_* register names are enum-macros.tsv rows too).
+    codes = {r["name"]: r["enumerator"] for r in ctx.rows("spec/abi/enum-macros.tsv") if r["name"].startswith("REG_") and r["enumerator"] == "_" + r["name"]}
+    value = {r["name"]: r["value"] for r in ctx.rows("spec/abi/enumerators.tsv") if r["tag"] == "typedef reg_errcode_t"}
+    td = next((r for r in ctx.vis if r["header"] == "regex.h" and r["name"] == "reg_errcode_t" and r["kind"] == "typedef"), None)
+    if td is None or len(codes) < 18 or any(e not in value for e in codes.values()):
+        return [(ctx.ids[0], "reg_errcode_t regex.h", "#error the tables do not show reg_errcode_t and its 18 REG_* codes\n")]
+    lang = {c["id"]: c["language"] for c in ctx.cfgs}
+    shown = {r["name"]: r["configs"] for r in ctx.vis if r["header"] == "regex.h" and r["kind"] == "macro" and r["name"] in codes}
+    res = []
+    for cid in sorted(header_check.expand(td["configs"], ctx.ids)):
+        body = ["#include <regex.h>", "typedef char niji_re_sz[sizeof (reg_errcode_t) == 4 ? 1 : -1];"]
+        if lang[cid] == "c++":
+            body.append("typedef char niji_re_enum[__is_enum (reg_errcode_t) ? 1 : -1];")
+        for i, (n, e) in enumerate(sorted(codes.items())):
+            if cid not in header_check.expand(shown.get(n, ""), ctx.ids):
+                continue  # REG_ENOSYS is shown in some configurations only
+            body += [f"reg_errcode_t niji_re{i} = {n};", f"typedef char niji_rv{i}[({n}) == ({value[e]}) ? 1 : -1];"]
+        body.append("int niji_re_f (reg_errcode_t e) { switch (e) { case REG_NOERROR: return 0; case REG_NOMATCH: return 1; default: return 2; } }")
+        res.append((cid, "reg_errcode_t regex.h", "\n".join(body) + "\n"))
+    return res
