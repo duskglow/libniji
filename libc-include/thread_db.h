@@ -738,24 +738,12 @@ extern td_err_e td_thr_tsd (const td_thrhandle_t *, const unsigned int , void **
 #  define __NIJI_D_td_thr_validate 1
 extern td_err_e td_thr_validate (const td_thrhandle_t *);
 # endif
-# ifndef BT_NBIPUI
-#  define BT_NBIPUI 32
-# endif
-# ifndef BT_UIMASK
-#  define BT_UIMASK 31
-# endif
-# ifndef BT_UISHIFT
-#  define BT_UISHIFT 5
-# endif
-# ifndef TD_EVENTSIZE
-#  define TD_EVENTSIZE 2
-# endif
-# ifndef TD_THR_ANY_USER_FLAGS
-#  define TD_THR_ANY_USER_FLAGS 4294967295U
-# endif
-# ifndef TD_THR_LOWEST_PRIORITY
-#  define TD_THR_LOWEST_PRIORITY (-20)
-# endif
+# define BT_NBIPUI 32
+# define BT_UIMASK 31
+# define BT_UISHIFT 5
+# define TD_EVENTSIZE 2
+# define TD_THR_ANY_USER_FLAGS 4294967295U
+# define TD_THR_LOWEST_PRIORITY (-20)
 #endif
 
 #if 1

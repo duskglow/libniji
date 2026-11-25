@@ -202,36 +202,6 @@ extern int sched_setscheduler (int, int, const struct sched_param *) __NIJI_NOTH
 extern int sched_yield (void) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_clone
-#  define __NIJI_D_clone 1
-extern int clone (int (*) (void *), void *, int, void *, ...) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getcpu
-#  define __NIJI_D_getcpu 1
-extern int getcpu (unsigned int *, unsigned int *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_getaffinity
-#  define __NIJI_D_sched_getaffinity 1
-extern int sched_getaffinity (int, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_getcpu
-#  define __NIJI_D_sched_getcpu 1
-extern int sched_getcpu (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_setaffinity
-#  define __NIJI_D_sched_setaffinity 1
-extern int sched_setaffinity (int, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_setns
-#  define __NIJI_D_setns 1
-extern int setns (int, int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_unshare
-#  define __NIJI_D_unshare 1
-extern int unshare (int) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
 struct timespec;
 # ifndef __NIJI_D_timespec_get
@@ -374,116 +344,42 @@ struct itimerspec;
 extern int timer_settime (void *, int, const struct itimerspec *, struct itimerspec *) __NIJI_NOTHROW;
 # endif
 #endif
-#if 1
-# ifndef SCHED_FIFO
-#  define SCHED_FIFO 1
+#if defined __USE_GNU
+# ifndef __NIJI_D_clone
+#  define __NIJI_D_clone 1
+extern int clone (int (*) (void *), void *, int, void *, ...) __NIJI_NOTHROW;
 # endif
-# ifndef SCHED_OTHER
-#  define SCHED_OTHER 0
+# ifndef __NIJI_D_getcpu
+#  define __NIJI_D_getcpu 1
+extern int getcpu (unsigned int *, unsigned int *) __NIJI_NOTHROW;
 # endif
-# ifndef SCHED_RR
-#  define SCHED_RR 2
+# ifndef __NIJI_D_sched_getaffinity
+#  define __NIJI_D_sched_getaffinity 1
+extern int sched_getaffinity (int, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
 # endif
-# ifndef _BITS_TYPES_STRUCT_SCHED_PARAM
-#  define _BITS_TYPES_STRUCT_SCHED_PARAM 1
+# ifndef __NIJI_D_sched_getcpu
+#  define __NIJI_D_sched_getcpu 1
+extern int sched_getcpu (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_sched_setaffinity
+#  define __NIJI_D_sched_setaffinity 1
+extern int sched_setaffinity (int, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_setns
+#  define __NIJI_D_setns 1
+extern int setns (int, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_unshare
+#  define __NIJI_D_unshare 1
+extern int unshare (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef CLONE_CHILD_CLEARTID
-#  define CLONE_CHILD_CLEARTID 2097152
-# endif
-# ifndef CLONE_CHILD_SETTID
-#  define CLONE_CHILD_SETTID 16777216
-# endif
-# ifndef CLONE_DETACHED
-#  define CLONE_DETACHED 4194304
-# endif
-# ifndef CLONE_FILES
-#  define CLONE_FILES 1024
-# endif
-# ifndef CLONE_FS
-#  define CLONE_FS 512
-# endif
-# ifndef CLONE_IO
-#  define CLONE_IO 2147483648U
-# endif
-# ifndef CLONE_NEWCGROUP
-#  define CLONE_NEWCGROUP 33554432
-# endif
-# ifndef CLONE_NEWIPC
-#  define CLONE_NEWIPC 134217728
-# endif
-# ifndef CLONE_NEWNET
-#  define CLONE_NEWNET 1073741824
-# endif
-# ifndef CLONE_NEWNS
-#  define CLONE_NEWNS 131072
-# endif
-# ifndef CLONE_NEWPID
-#  define CLONE_NEWPID 536870912
-# endif
-# ifndef CLONE_NEWTIME
-#  define CLONE_NEWTIME 128
-# endif
-# ifndef CLONE_NEWUSER
-#  define CLONE_NEWUSER 268435456
-# endif
-# ifndef CLONE_NEWUTS
-#  define CLONE_NEWUTS 67108864
-# endif
-# ifndef CLONE_PARENT
-#  define CLONE_PARENT 32768
-# endif
-# ifndef CLONE_PARENT_SETTID
-#  define CLONE_PARENT_SETTID 1048576
-# endif
-# ifndef CLONE_PIDFD
-#  define CLONE_PIDFD 4096
-# endif
-# ifndef CLONE_PTRACE
-#  define CLONE_PTRACE 8192
-# endif
-# ifndef CLONE_SETTLS
-#  define CLONE_SETTLS 524288
-# endif
-# ifndef CLONE_SIGHAND
-#  define CLONE_SIGHAND 2048
-# endif
-# ifndef CLONE_SYSVSEM
-#  define CLONE_SYSVSEM 262144
-# endif
-# ifndef CLONE_THREAD
-#  define CLONE_THREAD 65536
-# endif
-# ifndef CLONE_UNTRACED
-#  define CLONE_UNTRACED 8388608
-# endif
-# ifndef CLONE_VFORK
-#  define CLONE_VFORK 16384
-# endif
-# ifndef CLONE_VM
-#  define CLONE_VM 256
-# endif
-# ifndef CPU_SETSIZE
-#  define CPU_SETSIZE 1024
-# endif
-# ifndef CSIGNAL
-#  define CSIGNAL 255
-# endif
-# ifndef SCHED_BATCH
-#  define SCHED_BATCH 3
-# endif
-# ifndef SCHED_DEADLINE
-#  define SCHED_DEADLINE 6
-# endif
-# ifndef SCHED_IDLE
-#  define SCHED_IDLE 5
-# endif
-# ifndef SCHED_ISO
-#  define SCHED_ISO 4
-# endif
-# ifndef SCHED_RESET_ON_FORK
-#  define SCHED_RESET_ON_FORK 1073741824
+#if 1
+# define SCHED_FIFO 1
+# define SCHED_OTHER 0
+# define SCHED_RR 2
+# ifndef _BITS_TYPES_STRUCT_SCHED_PARAM
+#  define _BITS_TYPES_STRUCT_SCHED_PARAM 1
 # endif
 #endif
 #if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
@@ -534,6 +430,40 @@ extern int timer_settime (void *, int, const struct itimerspec *, struct itimers
 #  define TIMER_ABSTIME 1
 # endif
 #endif
+#if defined __USE_GNU
+# define CLONE_CHILD_CLEARTID 2097152
+# define CLONE_CHILD_SETTID 16777216
+# define CLONE_DETACHED 4194304
+# define CLONE_FILES 1024
+# define CLONE_FS 512
+# define CLONE_IO 2147483648U
+# define CLONE_NEWCGROUP 33554432
+# define CLONE_NEWIPC 134217728
+# define CLONE_NEWNET 1073741824
+# define CLONE_NEWNS 131072
+# define CLONE_NEWPID 536870912
+# define CLONE_NEWTIME 128
+# define CLONE_NEWUSER 268435456
+# define CLONE_NEWUTS 67108864
+# define CLONE_PARENT 32768
+# define CLONE_PARENT_SETTID 1048576
+# define CLONE_PIDFD 4096
+# define CLONE_PTRACE 8192
+# define CLONE_SETTLS 524288
+# define CLONE_SIGHAND 2048
+# define CLONE_SYSVSEM 262144
+# define CLONE_THREAD 65536
+# define CLONE_UNTRACED 8388608
+# define CLONE_VFORK 16384
+# define CLONE_VM 256
+# define CPU_SETSIZE 1024
+# define CSIGNAL 255
+# define SCHED_BATCH 3
+# define SCHED_DEADLINE 6
+# define SCHED_IDLE 5
+# define SCHED_ISO 4
+# define SCHED_RESET_ON_FORK 1073741824
+#endif
 
 #if 1
 # ifndef NULL
@@ -546,7 +476,7 @@ extern int timer_settime (void *, int, const struct itimerspec *, struct itimers
 #endif
 
 /* CPU_SET(3). A set is an array of unsigned long words; the _S forms take its size in bytes. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define __NIJI_CPU_BITS (8 * sizeof (unsigned long))
 # define __NIJI_CPU_WORD(cpu) ((cpu) / __NIJI_CPU_BITS)
 # define __NIJI_CPU_MASK(cpu) (1UL << ((cpu) % __NIJI_CPU_BITS))

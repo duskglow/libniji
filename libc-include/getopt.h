@@ -48,15 +48,9 @@ struct option;
 #  define __NIJI_D_getopt_long_only 1
 extern int getopt_long_only (int, char *const *, const char *, const struct option *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
-# ifndef no_argument
-#  define no_argument 0
-# endif
-# ifndef optional_argument
-#  define optional_argument 2
-# endif
-# ifndef required_argument
-#  define required_argument 1
-# endif
+# define no_argument 0
+# define optional_argument 2
+# define required_argument 1
 #endif
 
 __NIJI_END_C

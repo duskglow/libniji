@@ -231,7 +231,19 @@ extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW __asm__ ("setrl
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+struct rlimit64;
+# ifndef __NIJI_D_getrlimit64
+#  define __NIJI_D_getrlimit64 1
+extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW;
+# endif
+struct rlimit64;
+# ifndef __NIJI_D_setrlimit64
+#  define __NIJI_D_setrlimit64 1
+extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_GNU
 struct rlimit;
 struct rlimit;
 # ifndef __NIJI_D_prlimit
@@ -249,119 +261,43 @@ struct rlimit64;
 extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_LFS64
-struct rlimit64;
-# ifndef __NIJI_D_getrlimit64
-#  define __NIJI_D_getrlimit64 1
-extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW;
-# endif
-struct rlimit64;
-# ifndef __NIJI_D_setrlimit64
-#  define __NIJI_D_setrlimit64 1
-extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW;
-# endif
-#endif
 #if 1
-# ifndef PRIO_MAX
-#  define PRIO_MAX 20
-# endif
-# ifndef PRIO_MIN
-#  define PRIO_MIN (-20)
-# endif
-# ifndef PRIO_PGRP
-#  define PRIO_PGRP PRIO_PGRP
-# endif
-# ifndef PRIO_PROCESS
-#  define PRIO_PROCESS PRIO_PROCESS
-# endif
-# ifndef PRIO_USER
-#  define PRIO_USER PRIO_USER
-# endif
-# ifndef RLIMIT_AS
-#  define RLIMIT_AS RLIMIT_AS
-# endif
-# ifndef RLIMIT_CORE
-#  define RLIMIT_CORE RLIMIT_CORE
-# endif
-# ifndef RLIMIT_CPU
-#  define RLIMIT_CPU RLIMIT_CPU
-# endif
-# ifndef RLIMIT_DATA
-#  define RLIMIT_DATA RLIMIT_DATA
-# endif
-# ifndef RLIMIT_FSIZE
-#  define RLIMIT_FSIZE RLIMIT_FSIZE
-# endif
-# ifndef RLIMIT_LOCKS
-#  define RLIMIT_LOCKS __RLIMIT_LOCKS
-# endif
-# ifndef RLIMIT_MEMLOCK
-#  define RLIMIT_MEMLOCK __RLIMIT_MEMLOCK
-# endif
-# ifndef RLIMIT_MSGQUEUE
-#  define RLIMIT_MSGQUEUE __RLIMIT_MSGQUEUE
-# endif
-# ifndef RLIMIT_NICE
-#  define RLIMIT_NICE __RLIMIT_NICE
-# endif
-# ifndef RLIMIT_NLIMITS
-#  define RLIMIT_NLIMITS __RLIMIT_NLIMITS
-# endif
-# ifndef RLIMIT_NOFILE
-#  define RLIMIT_NOFILE RLIMIT_NOFILE
-# endif
-# ifndef RLIMIT_NPROC
-#  define RLIMIT_NPROC __RLIMIT_NPROC
-# endif
-# ifndef RLIMIT_OFILE
-#  define RLIMIT_OFILE RLIMIT_NOFILE
-# endif
-# ifndef RLIMIT_RSS
-#  define RLIMIT_RSS __RLIMIT_RSS
-# endif
-# ifndef RLIMIT_RTPRIO
-#  define RLIMIT_RTPRIO __RLIMIT_RTPRIO
-# endif
-# ifndef RLIMIT_RTTIME
-#  define RLIMIT_RTTIME __RLIMIT_RTTIME
-# endif
-# ifndef RLIMIT_SIGPENDING
-#  define RLIMIT_SIGPENDING __RLIMIT_SIGPENDING
-# endif
-# ifndef RLIMIT_STACK
-#  define RLIMIT_STACK RLIMIT_STACK
-# endif
-# ifndef RLIM_INFINITY
-#  define RLIM_INFINITY 18446744073709551615UL
-# endif
-# ifndef RLIM_NLIMITS
-#  define RLIM_NLIMITS __RLIMIT_NLIMITS
-# endif
-# ifndef RLIM_SAVED_CUR
-#  define RLIM_SAVED_CUR 18446744073709551615UL
-# endif
-# ifndef RLIM_SAVED_MAX
-#  define RLIM_SAVED_MAX 18446744073709551615UL
-# endif
-# ifndef RUSAGE_CHILDREN
-#  define RUSAGE_CHILDREN RUSAGE_CHILDREN
-# endif
-# ifndef RUSAGE_SELF
-#  define RUSAGE_SELF RUSAGE_SELF
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef RUSAGE_LWP
-#  define RUSAGE_LWP RUSAGE_THREAD
-# endif
-# ifndef RUSAGE_THREAD
-#  define RUSAGE_THREAD RUSAGE_THREAD
-# endif
+# define PRIO_MAX 20
+# define PRIO_MIN (-20)
+# define PRIO_PGRP PRIO_PGRP
+# define PRIO_PROCESS PRIO_PROCESS
+# define PRIO_USER PRIO_USER
+# define RLIMIT_AS RLIMIT_AS
+# define RLIMIT_CORE RLIMIT_CORE
+# define RLIMIT_CPU RLIMIT_CPU
+# define RLIMIT_DATA RLIMIT_DATA
+# define RLIMIT_FSIZE RLIMIT_FSIZE
+# define RLIMIT_LOCKS __RLIMIT_LOCKS
+# define RLIMIT_MEMLOCK __RLIMIT_MEMLOCK
+# define RLIMIT_MSGQUEUE __RLIMIT_MSGQUEUE
+# define RLIMIT_NICE __RLIMIT_NICE
+# define RLIMIT_NLIMITS __RLIMIT_NLIMITS
+# define RLIMIT_NOFILE RLIMIT_NOFILE
+# define RLIMIT_NPROC __RLIMIT_NPROC
+# define RLIMIT_OFILE RLIMIT_NOFILE
+# define RLIMIT_RSS __RLIMIT_RSS
+# define RLIMIT_RTPRIO __RLIMIT_RTPRIO
+# define RLIMIT_RTTIME __RLIMIT_RTTIME
+# define RLIMIT_SIGPENDING __RLIMIT_SIGPENDING
+# define RLIMIT_STACK RLIMIT_STACK
+# define RLIM_INFINITY 18446744073709551615UL
+# define RLIM_NLIMITS __RLIMIT_NLIMITS
+# define RLIM_SAVED_CUR 18446744073709551615UL
+# define RLIM_SAVED_MAX 18446744073709551615UL
+# define RUSAGE_CHILDREN RUSAGE_CHILDREN
+# define RUSAGE_SELF RUSAGE_SELF
 #endif
 #if __NIJI_LFS64
-# ifndef RLIM64_INFINITY
-#  define RLIM64_INFINITY 18446744073709551615ULL
-# endif
+# define RLIM64_INFINITY 18446744073709551615ULL
+#endif
+#if defined __USE_GNU
+# define RUSAGE_LWP RUSAGE_THREAD
+# define RUSAGE_THREAD RUSAGE_THREAD
 #endif
 
 

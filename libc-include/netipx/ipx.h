@@ -26,9 +26,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define SOL_IPX 256
+# define _SS_SIZE 128
 #endif
 
 __NIJI_END_C

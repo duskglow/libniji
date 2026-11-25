@@ -277,7 +277,7 @@ extern _Complex long double ctanhl (_Complex long double) __NIJI_NOTHROW;
 extern _Complex long double ctanl (_Complex long double) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_cabsf128
 #  define __NIJI_D_cabsf128 1
 extern _Float128 cabsf128 (_Complex _Float128) __NIJI_NOTHROW;
@@ -773,19 +773,19 @@ __NIJI_END_C
 #if __NIJI_ISOC >= 2011
 # define CMPLXL(x, y) __builtin_complex ((long double) (x), (long double) (y))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define CMPLXF32(x, y) __builtin_complex ((_Float32) (x), (_Float32) (y))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define CMPLXF64(x, y) __builtin_complex ((_Float64) (x), (_Float64) (y))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define CMPLXF128(x, y) __builtin_complex ((_Float128) (x), (_Float128) (y))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define CMPLXF32X(x, y) __builtin_complex ((_Float32x) (x), (_Float32x) (y))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define CMPLXF64X(x, y) __builtin_complex ((_Float64x) (x), (_Float64x) (y))
 #endif
 

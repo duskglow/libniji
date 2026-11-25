@@ -122,24 +122,12 @@ extern int register_printf_specifier (int, printf_function (*), printf_arginfo_s
 #  define __NIJI_D_register_printf_type 1
 extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
-# ifndef PA_FLAG_LONG
-#  define PA_FLAG_LONG 512
-# endif
-# ifndef PA_FLAG_LONG_DOUBLE
-#  define PA_FLAG_LONG_DOUBLE 256
-# endif
-# ifndef PA_FLAG_LONG_LONG
-#  define PA_FLAG_LONG_LONG 256
-# endif
-# ifndef PA_FLAG_MASK
-#  define PA_FLAG_MASK 65280
-# endif
-# ifndef PA_FLAG_PTR
-#  define PA_FLAG_PTR 2048
-# endif
-# ifndef PA_FLAG_SHORT
-#  define PA_FLAG_SHORT 1024
-# endif
+# define PA_FLAG_LONG 512
+# define PA_FLAG_LONG_DOUBLE 256
+# define PA_FLAG_LONG_LONG 256
+# define PA_FLAG_MASK 65280
+# define PA_FLAG_PTR 2048
+# define PA_FLAG_SHORT 1024
 #endif
 
 __NIJI_END_C

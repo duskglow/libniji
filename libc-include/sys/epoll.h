@@ -143,63 +143,25 @@ enum {
 };
 #  endif
 # endif
-# ifndef EPOLLERR
-#  define EPOLLERR EPOLLERR
-# endif
-# ifndef EPOLLET
-#  define EPOLLET EPOLLET
-# endif
-# ifndef EPOLLEXCLUSIVE
-#  define EPOLLEXCLUSIVE EPOLLEXCLUSIVE
-# endif
-# ifndef EPOLLHUP
-#  define EPOLLHUP EPOLLHUP
-# endif
-# ifndef EPOLLIN
-#  define EPOLLIN EPOLLIN
-# endif
-# ifndef EPOLLMSG
-#  define EPOLLMSG EPOLLMSG
-# endif
-# ifndef EPOLLONESHOT
-#  define EPOLLONESHOT EPOLLONESHOT
-# endif
-# ifndef EPOLLOUT
-#  define EPOLLOUT EPOLLOUT
-# endif
-# ifndef EPOLLPRI
-#  define EPOLLPRI EPOLLPRI
-# endif
-# ifndef EPOLLRDBAND
-#  define EPOLLRDBAND EPOLLRDBAND
-# endif
-# ifndef EPOLLRDHUP
-#  define EPOLLRDHUP EPOLLRDHUP
-# endif
-# ifndef EPOLLRDNORM
-#  define EPOLLRDNORM EPOLLRDNORM
-# endif
-# ifndef EPOLLWAKEUP
-#  define EPOLLWAKEUP EPOLLWAKEUP
-# endif
-# ifndef EPOLLWRBAND
-#  define EPOLLWRBAND EPOLLWRBAND
-# endif
-# ifndef EPOLLWRNORM
-#  define EPOLLWRNORM EPOLLWRNORM
-# endif
-# ifndef EPOLL_CLOEXEC
-#  define EPOLL_CLOEXEC EPOLL_CLOEXEC
-# endif
-# ifndef EPOLL_CTL_ADD
-#  define EPOLL_CTL_ADD 1
-# endif
-# ifndef EPOLL_CTL_DEL
-#  define EPOLL_CTL_DEL 2
-# endif
-# ifndef EPOLL_CTL_MOD
-#  define EPOLL_CTL_MOD 3
-# endif
+# define EPOLLERR EPOLLERR
+# define EPOLLET EPOLLET
+# define EPOLLEXCLUSIVE EPOLLEXCLUSIVE
+# define EPOLLHUP EPOLLHUP
+# define EPOLLIN EPOLLIN
+# define EPOLLMSG EPOLLMSG
+# define EPOLLONESHOT EPOLLONESHOT
+# define EPOLLOUT EPOLLOUT
+# define EPOLLPRI EPOLLPRI
+# define EPOLLRDBAND EPOLLRDBAND
+# define EPOLLRDHUP EPOLLRDHUP
+# define EPOLLRDNORM EPOLLRDNORM
+# define EPOLLWAKEUP EPOLLWAKEUP
+# define EPOLLWRBAND EPOLLWRBAND
+# define EPOLLWRNORM EPOLLWRNORM
+# define EPOLL_CLOEXEC EPOLL_CLOEXEC
+# define EPOLL_CTL_ADD 1
+# define EPOLL_CTL_DEL 2
+# define EPOLL_CTL_MOD 3
 #endif
 
 __NIJI_END_C

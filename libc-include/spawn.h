@@ -167,7 +167,7 @@ extern int posix_spawnattr_setsigmask (posix_spawnattr_t *, const sigset_t *) __
 extern int posix_spawnp (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_pidfd_spawn
 #  define __NIJI_D_pidfd_spawn 1
 extern int pidfd_spawn (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (2, 5)));
@@ -202,35 +202,17 @@ extern int posix_spawnattr_setcgroup_np (posix_spawnattr_t *, int) __NIJI_NOTHRO
 # endif
 #endif
 #if 1
-# ifndef POSIX_SPAWN_RESETIDS
-#  define POSIX_SPAWN_RESETIDS 1
-# endif
-# ifndef POSIX_SPAWN_SETPGROUP
-#  define POSIX_SPAWN_SETPGROUP 2
-# endif
-# ifndef POSIX_SPAWN_SETSCHEDPARAM
-#  define POSIX_SPAWN_SETSCHEDPARAM 16
-# endif
-# ifndef POSIX_SPAWN_SETSCHEDULER
-#  define POSIX_SPAWN_SETSCHEDULER 32
-# endif
-# ifndef POSIX_SPAWN_SETSIGDEF
-#  define POSIX_SPAWN_SETSIGDEF 4
-# endif
-# ifndef POSIX_SPAWN_SETSIGMASK
-#  define POSIX_SPAWN_SETSIGMASK 8
-# endif
+# define POSIX_SPAWN_RESETIDS 1
+# define POSIX_SPAWN_SETPGROUP 2
+# define POSIX_SPAWN_SETSCHEDPARAM 16
+# define POSIX_SPAWN_SETSCHEDULER 32
+# define POSIX_SPAWN_SETSIGDEF 4
+# define POSIX_SPAWN_SETSIGMASK 8
 #endif
-#if __NIJI_GNU
-# ifndef POSIX_SPAWN_SETCGROUP
-#  define POSIX_SPAWN_SETCGROUP 256
-# endif
-# ifndef POSIX_SPAWN_SETSID
-#  define POSIX_SPAWN_SETSID 128
-# endif
-# ifndef POSIX_SPAWN_USEVFORK
-#  define POSIX_SPAWN_USEVFORK 64
-# endif
+#if defined __USE_GNU
+# define POSIX_SPAWN_SETCGROUP 256
+# define POSIX_SPAWN_SETSID 128
+# define POSIX_SPAWN_USEVFORK 64
 #endif
 
 #if 1

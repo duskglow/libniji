@@ -7,7 +7,7 @@
 #include <sys/types.h>
 /* netinet/in.h's names only where they are visible here (visibility.tsv): elsewhere the header leaves them out, and
    so does not clash with a kernel UAPI header (linux/in.h) included before it. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <netinet/in.h>
 #endif
 

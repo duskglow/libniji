@@ -32,7 +32,7 @@ __NIJI_END_C
 # endif
 #endif
 
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifdef NDEBUG
 #  define assert_perror(errnum) ((void) 0)
 # else

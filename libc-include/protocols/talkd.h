@@ -21,12 +21,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef DELETE
-#  define DELETE 0
-# endif
-# ifndef SUCCESS
-#  define SUCCESS 0
-# endif
+# define DELETE 0
+# define SUCCESS 0
 #endif
 
 __NIJI_END_C

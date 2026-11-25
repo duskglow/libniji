@@ -45,7 +45,7 @@ extern struct rpcent *getrpcent (void) __NIJI_NOTHROW;
 extern void setrpcent (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct rpcent;
 struct rpcent;
 # ifndef __NIJI_D_getrpcbyname_r

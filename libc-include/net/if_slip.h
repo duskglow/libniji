@@ -8,21 +8,11 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef SL_MODE_CSLIP
-#  define SL_MODE_CSLIP 1
-# endif
-# ifndef SL_MODE_KISS
-#  define SL_MODE_KISS 4
-# endif
-# ifndef SL_MODE_SLIP
-#  define SL_MODE_SLIP 0
-# endif
-# ifndef SL_OPT_ADAPTIVE
-#  define SL_OPT_ADAPTIVE 8
-# endif
-# ifndef SL_OPT_SIXBIT
-#  define SL_OPT_SIXBIT 2
-# endif
+# define SL_MODE_CSLIP 1
+# define SL_MODE_KISS 4
+# define SL_MODE_SLIP 0
+# define SL_OPT_ADAPTIVE 8
+# define SL_OPT_SIXBIT 2
 #endif
 
 __NIJI_END_C

@@ -25,7 +25,39 @@ struct tm {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_ISOC >= 2011
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 199309
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_itimerspec
+#  define __NIJI_D_struct_itimerspec 1
+struct itimerspec {
+  struct timespec it_interval;
+  struct timespec it_value;
+};
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_timeval
 #  define __NIJI_D_struct_timeval 1
 struct timeval {
@@ -74,38 +106,6 @@ struct timex {
   int : 32;
   int : 32;
   int : 32;
-};
-# endif
-#endif
-#if __NIJI_ISOC >= 2011
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-#endif
-#if __NIJI_POSIX >= 199309
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_itimerspec
-#  define __NIJI_D_struct_itimerspec 1
-struct itimerspec {
-  struct timespec it_interval;
-  struct timespec it_value;
 };
 # endif
 #endif
@@ -161,16 +161,6 @@ typedef struct __locale_struct * __locale_t;
 typedef struct __locale_struct * locale_t;
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D_daylight
-#  define __NIJI_D_daylight 1
-extern int daylight;
-# endif
-# ifndef __NIJI_D_timezone
-#  define __NIJI_D_timezone 1
-extern long timezone;
-# endif
-#endif
 #if __NIJI_POSIX >= 1
 # ifndef __NIJI_D_tzname
 #  define __NIJI_D_tzname 1
@@ -181,6 +171,16 @@ extern char * tzname[2];
 # ifndef __NIJI_D_getdate_err
 #  define __NIJI_D_getdate_err 1
 extern int getdate_err;
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D_daylight
+#  define __NIJI_D_daylight 1
+extern int daylight;
+# endif
+# ifndef __NIJI_D_timezone
+#  define __NIJI_D_timezone 1
+extern long timezone;
 # endif
 #endif
 #if 1
@@ -226,23 +226,6 @@ extern unsigned long strftime (char *, unsigned long, const char *, const struct
 extern long time (long *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-struct timex;
-# ifndef __NIJI_D_clock_adjtime
-#  define __NIJI_D_clock_adjtime 1
-extern int clock_adjtime (int, struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-struct tm;
-# ifndef __NIJI_D_getdate_r
-#  define __NIJI_D_getdate_r 1
-extern int getdate_r (const char *, struct tm *);
-# endif
-struct tm;
-# ifndef __NIJI_D_strptime_l
-#  define __NIJI_D_strptime_l 1
-extern char *strptime_l (const char *, const char *, struct tm *, locale_t) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC >= 2011
 struct timespec;
 # ifndef __NIJI_D_timespec_get
@@ -255,24 +238,6 @@ struct timespec;
 # ifndef __NIJI_D_timespec_getres
 #  define __NIJI_D_timespec_getres 1
 extern int timespec_getres (struct timespec *, int) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_dysize
-#  define __NIJI_D_dysize 1
-extern int dysize (int) __NIJI_NOTHROW __attribute__ ((__const__));
-# endif
-struct tm;
-# ifndef __NIJI_D_timelocal
-#  define __NIJI_D_timelocal 1
-extern long timelocal (struct tm *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_ISOC >= 2023
-struct tm;
-# ifndef __NIJI_D_timegm
-#  define __NIJI_D_timegm 1
-extern long timegm (struct tm *) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -390,178 +355,103 @@ struct tm;
 extern struct tm *getdate (const char *);
 # endif
 #endif
-#if 1
-# ifndef CLOCKS_PER_SEC
-#  define CLOCKS_PER_SEC 1000000L
+#if defined __USE_GNU
+struct timex;
+# ifndef __NIJI_D_clock_adjtime
+#  define __NIJI_D_clock_adjtime 1
+extern int clock_adjtime (int, struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+struct tm;
+# ifndef __NIJI_D_getdate_r
+#  define __NIJI_D_getdate_r 1
+extern int getdate_r (const char *, struct tm *);
+# endif
+struct tm;
+# ifndef __NIJI_D_strptime_l
+#  define __NIJI_D_strptime_l 1
+extern char *strptime_l (const char *, const char *, struct tm *, locale_t) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef ADJ_ESTERROR
-#  define ADJ_ESTERROR 8
+#if defined __USE_MISC
+# ifndef __NIJI_D_dysize
+#  define __NIJI_D_dysize 1
+extern int dysize (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
-# ifndef ADJ_FREQUENCY
-#  define ADJ_FREQUENCY 2
+struct tm;
+# ifndef __NIJI_D_timelocal
+#  define __NIJI_D_timelocal 1
+extern long timelocal (struct tm *) __NIJI_NOTHROW;
 # endif
-# ifndef ADJ_MAXERROR
-#  define ADJ_MAXERROR 4
+#endif
+#if defined __USE_MISC || __NIJI_ISOC >= 2023
+struct tm;
+# ifndef __NIJI_D_timegm
+#  define __NIJI_D_timegm 1
+extern long timegm (struct tm *) __NIJI_NOTHROW;
 # endif
-# ifndef ADJ_MICRO
-#  define ADJ_MICRO 4096
-# endif
-# ifndef ADJ_NANO
-#  define ADJ_NANO 8192
-# endif
-# ifndef ADJ_OFFSET
-#  define ADJ_OFFSET 1
-# endif
-# ifndef ADJ_OFFSET_SINGLESHOT
-#  define ADJ_OFFSET_SINGLESHOT 32769
-# endif
-# ifndef ADJ_OFFSET_SS_READ
-#  define ADJ_OFFSET_SS_READ 40961
-# endif
-# ifndef ADJ_SETOFFSET
-#  define ADJ_SETOFFSET 256
-# endif
-# ifndef ADJ_STATUS
-#  define ADJ_STATUS 16
-# endif
-# ifndef ADJ_TAI
-#  define ADJ_TAI 128
-# endif
-# ifndef ADJ_TICK
-#  define ADJ_TICK 16384
-# endif
-# ifndef ADJ_TIMECONST
-#  define ADJ_TIMECONST 32
-# endif
-# ifndef MOD_CLKA
-#  define MOD_CLKA 32769
-# endif
-# ifndef MOD_CLKB
-#  define MOD_CLKB 16384
-# endif
-# ifndef MOD_ESTERROR
-#  define MOD_ESTERROR 8
-# endif
-# ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY 2
-# endif
-# ifndef MOD_MAXERROR
-#  define MOD_MAXERROR 4
-# endif
-# ifndef MOD_MICRO
-#  define MOD_MICRO 4096
-# endif
-# ifndef MOD_NANO
-#  define MOD_NANO 8192
-# endif
-# ifndef MOD_OFFSET
-#  define MOD_OFFSET 1
-# endif
-# ifndef MOD_STATUS
-#  define MOD_STATUS 16
-# endif
-# ifndef MOD_TAI
-#  define MOD_TAI 128
-# endif
-# ifndef MOD_TIMECONST
-#  define MOD_TIMECONST 32
-# endif
-# ifndef STA_CLK
-#  define STA_CLK 32768
-# endif
-# ifndef STA_CLOCKERR
-#  define STA_CLOCKERR 4096
-# endif
-# ifndef STA_DEL
-#  define STA_DEL 32
-# endif
-# ifndef STA_FLL
-#  define STA_FLL 8
-# endif
-# ifndef STA_FREQHOLD
-#  define STA_FREQHOLD 128
-# endif
-# ifndef STA_INS
-#  define STA_INS 16
-# endif
-# ifndef STA_MODE
-#  define STA_MODE 16384
-# endif
-# ifndef STA_NANO
-#  define STA_NANO 8192
-# endif
-# ifndef STA_PLL
-#  define STA_PLL 1
-# endif
-# ifndef STA_PPSERROR
-#  define STA_PPSERROR 2048
-# endif
-# ifndef STA_PPSFREQ
-#  define STA_PPSFREQ 2
-# endif
-# ifndef STA_PPSJITTER
-#  define STA_PPSJITTER 512
-# endif
-# ifndef STA_PPSSIGNAL
-#  define STA_PPSSIGNAL 256
-# endif
-# ifndef STA_PPSTIME
-#  define STA_PPSTIME 4
-# endif
-# ifndef STA_PPSWANDER
-#  define STA_PPSWANDER 1024
-# endif
-# ifndef STA_RONLY
-#  define STA_RONLY 65280
-# endif
-# ifndef STA_UNSYNC
-#  define STA_UNSYNC 64
-# endif
+#endif
+#if 1
+# define CLOCKS_PER_SEC 1000000L
 #endif
 #if __NIJI_ISOC >= 2011
-# ifndef TIME_UTC
-#  define TIME_UTC 1
-# endif
+# define TIME_UTC 1
 #endif
 #if __NIJI_POSIX >= 199309
-# ifndef CLOCK_BOOTTIME
-#  define CLOCK_BOOTTIME 7
-# endif
-# ifndef CLOCK_BOOTTIME_ALARM
-#  define CLOCK_BOOTTIME_ALARM 9
-# endif
-# ifndef CLOCK_MONOTONIC
-#  define CLOCK_MONOTONIC 1
-# endif
-# ifndef CLOCK_MONOTONIC_COARSE
-#  define CLOCK_MONOTONIC_COARSE 6
-# endif
-# ifndef CLOCK_MONOTONIC_RAW
-#  define CLOCK_MONOTONIC_RAW 4
-# endif
-# ifndef CLOCK_PROCESS_CPUTIME_ID
-#  define CLOCK_PROCESS_CPUTIME_ID 2
-# endif
-# ifndef CLOCK_REALTIME
-#  define CLOCK_REALTIME 0
-# endif
-# ifndef CLOCK_REALTIME_ALARM
-#  define CLOCK_REALTIME_ALARM 8
-# endif
-# ifndef CLOCK_REALTIME_COARSE
-#  define CLOCK_REALTIME_COARSE 5
-# endif
-# ifndef CLOCK_TAI
-#  define CLOCK_TAI 11
-# endif
-# ifndef CLOCK_THREAD_CPUTIME_ID
-#  define CLOCK_THREAD_CPUTIME_ID 3
-# endif
-# ifndef TIMER_ABSTIME
-#  define TIMER_ABSTIME 1
-# endif
+# define CLOCK_BOOTTIME 7
+# define CLOCK_BOOTTIME_ALARM 9
+# define CLOCK_MONOTONIC 1
+# define CLOCK_MONOTONIC_COARSE 6
+# define CLOCK_MONOTONIC_RAW 4
+# define CLOCK_PROCESS_CPUTIME_ID 2
+# define CLOCK_REALTIME 0
+# define CLOCK_REALTIME_ALARM 8
+# define CLOCK_REALTIME_COARSE 5
+# define CLOCK_TAI 11
+# define CLOCK_THREAD_CPUTIME_ID 3
+# define TIMER_ABSTIME 1
+#endif
+#if defined __USE_GNU
+# define ADJ_ESTERROR 8
+# define ADJ_FREQUENCY 2
+# define ADJ_MAXERROR 4
+# define ADJ_MICRO 4096
+# define ADJ_NANO 8192
+# define ADJ_OFFSET 1
+# define ADJ_OFFSET_SINGLESHOT 32769
+# define ADJ_OFFSET_SS_READ 40961
+# define ADJ_SETOFFSET 256
+# define ADJ_STATUS 16
+# define ADJ_TAI 128
+# define ADJ_TICK 16384
+# define ADJ_TIMECONST 32
+# define MOD_CLKA 32769
+# define MOD_CLKB 16384
+# define MOD_ESTERROR 8
+# define MOD_FREQUENCY 2
+# define MOD_MAXERROR 4
+# define MOD_MICRO 4096
+# define MOD_NANO 8192
+# define MOD_OFFSET 1
+# define MOD_STATUS 16
+# define MOD_TAI 128
+# define MOD_TIMECONST 32
+# define STA_CLK 32768
+# define STA_CLOCKERR 4096
+# define STA_DEL 32
+# define STA_FLL 8
+# define STA_FREQHOLD 128
+# define STA_INS 16
+# define STA_MODE 16384
+# define STA_NANO 8192
+# define STA_PLL 1
+# define STA_PPSERROR 2048
+# define STA_PPSFREQ 2
+# define STA_PPSJITTER 512
+# define STA_PPSSIGNAL 256
+# define STA_PPSTIME 4
+# define STA_PPSWANDER 1024
+# define STA_RONLY 65280
+# define STA_UNSYNC 64
 #endif
 
 #if 1

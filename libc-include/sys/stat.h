@@ -71,7 +71,59 @@ struct stat {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_stat64
+#  define __NIJI_D_struct_stat64 1
+struct stat64 {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  struct timespec st_atim;
+  struct timespec st_mtim;
+  struct timespec st_ctim;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_statx_timestamp
 #  define __NIJI_D_struct_statx_timestamp 1
 struct statx_timestamp {
@@ -139,58 +191,6 @@ struct statx_timestamp {
   long long tv_sec;
   unsigned int tv_nsec;
   int __reserved;
-};
-# endif
-#endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_stat64
-#  define __NIJI_D_struct_stat64 1
-struct stat64 {
-  unsigned long st_dev;
-  unsigned long st_ino;
-  unsigned long st_nlink;
-  unsigned int st_mode;
-  unsigned int st_uid;
-  unsigned int st_gid;
-  int __pad0;
-  unsigned long st_rdev;
-  long st_size;
-  long st_blksize;
-  long st_blocks;
-  struct timespec st_atim;
-  struct timespec st_mtim;
-  struct timespec st_ctim;
-  long __glibc_reserved[3];
-};
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
 };
 # endif
 #endif
@@ -288,13 +288,6 @@ extern int stat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("stat64") 
 extern unsigned int umask (unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-struct statx;
-# ifndef __NIJI_D_statx
-#  define __NIJI_D_statx 1
-extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_LFS64
 struct stat64;
 # ifndef __NIJI_D_fstat64
@@ -315,24 +308,6 @@ struct stat64;
 # ifndef __NIJI_D_stat64
 #  define __NIJI_D_stat64 1
 extern int stat64 (const char *, struct stat64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_lchmod
-#  define __NIJI_D_lchmod 1
-extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef __NIJI_D_mknod
-#  define __NIJI_D_mknod 1
-extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 700
-# ifndef __NIJI_D_mknodat
-#  define __NIJI_D_mknodat 1
-extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
@@ -389,194 +364,101 @@ struct timespec;
 extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
+#if defined __USE_GNU
+struct statx;
+# ifndef __NIJI_D_statx
+#  define __NIJI_D_statx 1
+extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_lchmod
+#  define __NIJI_D_lchmod 1
+extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# ifndef __NIJI_D_mknod
+#  define __NIJI_D_mknod 1
+extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 700
+# ifndef __NIJI_D_mknodat
+#  define __NIJI_D_mknodat 1
+extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+#endif
 #if 1
-# ifndef S_IRGRP
-#  define S_IRGRP 32
-# endif
-# ifndef S_IROTH
-#  define S_IROTH 4
-# endif
-# ifndef S_IRUSR
-#  define S_IRUSR 256
-# endif
-# ifndef S_IRWXG
-#  define S_IRWXG 56
-# endif
-# ifndef S_IRWXO
-#  define S_IRWXO 7
-# endif
-# ifndef S_IRWXU
-#  define S_IRWXU 448
-# endif
-# ifndef S_ISGID
-#  define S_ISGID 1024
-# endif
-# ifndef S_ISUID
-#  define S_ISUID 2048
-# endif
-# ifndef S_IWGRP
-#  define S_IWGRP 16
-# endif
-# ifndef S_IWOTH
-#  define S_IWOTH 2
-# endif
-# ifndef S_IWUSR
-#  define S_IWUSR 128
-# endif
-# ifndef S_IXGRP
-#  define S_IXGRP 8
-# endif
-# ifndef S_IXOTH
-#  define S_IXOTH 1
-# endif
-# ifndef S_IXUSR
-#  define S_IXUSR 64
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef STATX_ALL
-#  define STATX_ALL 4095U
-# endif
-# ifndef STATX_ATIME
-#  define STATX_ATIME 32U
-# endif
-# ifndef STATX_ATTR_APPEND
-#  define STATX_ATTR_APPEND 32
-# endif
-# ifndef STATX_ATTR_AUTOMOUNT
-#  define STATX_ATTR_AUTOMOUNT 4096
-# endif
-# ifndef STATX_ATTR_COMPRESSED
-#  define STATX_ATTR_COMPRESSED 4
-# endif
-# ifndef STATX_ATTR_DAX
-#  define STATX_ATTR_DAX 2097152
-# endif
-# ifndef STATX_ATTR_ENCRYPTED
-#  define STATX_ATTR_ENCRYPTED 2048
-# endif
-# ifndef STATX_ATTR_IMMUTABLE
-#  define STATX_ATTR_IMMUTABLE 16
-# endif
-# ifndef STATX_ATTR_MOUNT_ROOT
-#  define STATX_ATTR_MOUNT_ROOT 8192
-# endif
-# ifndef STATX_ATTR_NODUMP
-#  define STATX_ATTR_NODUMP 64
-# endif
-# ifndef STATX_ATTR_VERITY
-#  define STATX_ATTR_VERITY 1048576
-# endif
-# ifndef STATX_BASIC_STATS
-#  define STATX_BASIC_STATS 2047U
-# endif
-# ifndef STATX_BLOCKS
-#  define STATX_BLOCKS 1024U
-# endif
-# ifndef STATX_BTIME
-#  define STATX_BTIME 2048U
-# endif
-# ifndef STATX_CTIME
-#  define STATX_CTIME 128U
-# endif
-# ifndef STATX_DIOALIGN
-#  define STATX_DIOALIGN 8192U
-# endif
-# ifndef STATX_GID
-#  define STATX_GID 16U
-# endif
-# ifndef STATX_INO
-#  define STATX_INO 256U
-# endif
-# ifndef STATX_MNT_ID
-#  define STATX_MNT_ID 4096U
-# endif
-# ifndef STATX_MNT_ID_UNIQUE
-#  define STATX_MNT_ID_UNIQUE 16384U
-# endif
-# ifndef STATX_MODE
-#  define STATX_MODE 2U
-# endif
-# ifndef STATX_MTIME
-#  define STATX_MTIME 64U
-# endif
-# ifndef STATX_NLINK
-#  define STATX_NLINK 4U
-# endif
-# ifndef STATX_SIZE
-#  define STATX_SIZE 512U
-# endif
-# ifndef STATX_TYPE
-#  define STATX_TYPE 1U
-# endif
-# ifndef STATX_UID
-#  define STATX_UID 8U
-# endif
-# ifndef STATX__RESERVED
-#  define STATX__RESERVED 2147483648U
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef ACCESSPERMS
-#  define ACCESSPERMS 511
-# endif
-# ifndef ALLPERMS
-#  define ALLPERMS 4095
-# endif
-# ifndef DEFFILEMODE
-#  define DEFFILEMODE 438
-# endif
-# ifndef S_BLKSIZE
-#  define S_BLKSIZE 512
-# endif
-# ifndef S_IEXEC
-#  define S_IEXEC 64
-# endif
-# ifndef S_IREAD
-#  define S_IREAD 256
-# endif
-# ifndef S_IWRITE
-#  define S_IWRITE 128
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef S_IFBLK
-#  define S_IFBLK 24576
-# endif
-# ifndef S_IFCHR
-#  define S_IFCHR 8192
-# endif
-# ifndef S_IFDIR
-#  define S_IFDIR 16384
-# endif
-# ifndef S_IFIFO
-#  define S_IFIFO 4096
-# endif
-# ifndef S_IFLNK
-#  define S_IFLNK 40960
-# endif
-# ifndef S_IFMT
-#  define S_IFMT 61440
-# endif
-# ifndef S_IFREG
-#  define S_IFREG 32768
-# endif
-# ifndef S_ISVTX
-#  define S_ISVTX 512
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef S_IFSOCK
-#  define S_IFSOCK 49152
-# endif
+# define S_IRGRP 32
+# define S_IROTH 4
+# define S_IRUSR 256
+# define S_IRWXG 56
+# define S_IRWXO 7
+# define S_IRWXU 448
+# define S_ISGID 1024
+# define S_ISUID 2048
+# define S_IWGRP 16
+# define S_IWOTH 2
+# define S_IWUSR 128
+# define S_IXGRP 8
+# define S_IXOTH 1
+# define S_IXUSR 64
 #endif
 #if __NIJI_POSIX >= 200809
-# ifndef UTIME_NOW
-#  define UTIME_NOW 1073741823L
-# endif
-# ifndef UTIME_OMIT
-#  define UTIME_OMIT 1073741822L
-# endif
+# define UTIME_NOW 1073741823L
+# define UTIME_OMIT 1073741822L
+#endif
+#if defined __USE_GNU
+# define STATX_ALL 4095U
+# define STATX_ATIME 32U
+# define STATX_ATTR_APPEND 32
+# define STATX_ATTR_AUTOMOUNT 4096
+# define STATX_ATTR_COMPRESSED 4
+# define STATX_ATTR_DAX 2097152
+# define STATX_ATTR_ENCRYPTED 2048
+# define STATX_ATTR_IMMUTABLE 16
+# define STATX_ATTR_MOUNT_ROOT 8192
+# define STATX_ATTR_NODUMP 64
+# define STATX_ATTR_VERITY 1048576
+# define STATX_BASIC_STATS 2047U
+# define STATX_BLOCKS 1024U
+# define STATX_BTIME 2048U
+# define STATX_CTIME 128U
+# define STATX_DIOALIGN 8192U
+# define STATX_GID 16U
+# define STATX_INO 256U
+# define STATX_MNT_ID 4096U
+# define STATX_MNT_ID_UNIQUE 16384U
+# define STATX_MODE 2U
+# define STATX_MTIME 64U
+# define STATX_NLINK 4U
+# define STATX_SIZE 512U
+# define STATX_TYPE 1U
+# define STATX_UID 8U
+# define STATX__RESERVED 2147483648U
+#endif
+#if defined __USE_MISC
+# define ACCESSPERMS 511
+# define ALLPERMS 4095
+# define DEFFILEMODE 438
+# define S_BLKSIZE 512
+# define S_IEXEC 64
+# define S_IREAD 256
+# define S_IWRITE 128
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# define S_IFBLK 24576
+# define S_IFCHR 8192
+# define S_IFDIR 16384
+# define S_IFIFO 4096
+# define S_IFLNK 40960
+# define S_IFMT 61440
+# define S_IFREG 32768
+# define S_ISVTX 512
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# define S_IFSOCK 49152
 #endif
 
 /* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. The bits are spelled as values, not as the

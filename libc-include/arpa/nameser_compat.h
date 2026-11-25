@@ -4,7 +4,7 @@
 #define __NIJI_H_arpa_nameser_compat_h 1
 
 #include <features.h>
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <endian.h>
 #endif
 
@@ -31,381 +31,131 @@ typedef struct {
   unsigned int arcount : 16;
 } HEADER;
 # endif
-# ifndef ADD
-#  define ADD 1
-# endif
-# ifndef C_ANY
-#  define C_ANY 255
-# endif
-# ifndef C_CHAOS
-#  define C_CHAOS 3
-# endif
-# ifndef C_HS
-#  define C_HS 4
-# endif
-# ifndef C_IN
-#  define C_IN 1
-# endif
-# ifndef C_NONE
-#  define C_NONE 254
-# endif
-# ifndef DELETE
-#  define DELETE 0
-# endif
-# ifndef FORMERR
-#  define FORMERR 1
-# endif
-# ifndef HFIXEDSZ
-#  define HFIXEDSZ 12
-# endif
-# ifndef IN6ADDRSZ
-#  define IN6ADDRSZ 16
-# endif
-# ifndef INADDRSZ
-#  define INADDRSZ 4
-# endif
-# ifndef INDIR_MASK
-#  define INDIR_MASK 192
-# endif
-# ifndef INT16SZ
-#  define INT16SZ 2
-# endif
-# ifndef INT32SZ
-#  define INT32SZ 4
-# endif
-# ifndef INT8SZ
-#  define INT8SZ 1
-# endif
-# ifndef IQUERY
-#  define IQUERY 1
-# endif
-# ifndef MAXCDNAME
-#  define MAXCDNAME 255
-# endif
-# ifndef MAXDNAME
-#  define MAXDNAME 1025
-# endif
-# ifndef MAXLABEL
-#  define MAXLABEL 63
-# endif
-# ifndef NAMESERVER_PORT
-#  define NAMESERVER_PORT 53
-# endif
-# ifndef NOERROR
-#  define NOERROR 0
-# endif
-# ifndef NOTAUTH
-#  define NOTAUTH 9
-# endif
-# ifndef NOTIMP
-#  define NOTIMP 4
-# endif
-# ifndef NOTZONE
-#  define NOTZONE 10
-# endif
-# ifndef NS_NOTIFY_OP
-#  define NS_NOTIFY_OP 4
-# endif
-# ifndef NS_UPDATE_OP
-#  define NS_UPDATE_OP 5
-# endif
-# ifndef NXDOMAIN
-#  define NXDOMAIN 3
-# endif
-# ifndef NXRRSET
-#  define NXRRSET 8
-# endif
-# ifndef PACKETSZ
-#  define PACKETSZ 512
-# endif
-# ifndef QFIXEDSZ
-#  define QFIXEDSZ 4
-# endif
-# ifndef QUERY
-#  define QUERY 0
-# endif
-# ifndef REFUSED
-#  define REFUSED 5
-# endif
-# ifndef RRFIXEDSZ
-#  define RRFIXEDSZ 10
-# endif
-# ifndef SERVFAIL
-#  define SERVFAIL 2
-# endif
-# ifndef STATUS
-#  define STATUS 2
-# endif
-# ifndef S_ADDT
-#  define S_ADDT 3
-# endif
-# ifndef S_PREREQ
-#  define S_PREREQ 1
-# endif
-# ifndef S_UPDATE
-#  define S_UPDATE 2
-# endif
-# ifndef S_ZONE
-#  define S_ZONE 0
-# endif
-# ifndef T_A
-#  define T_A 1
-# endif
-# ifndef T_A6
-#  define T_A6 38
-# endif
-# ifndef T_AAAA
-#  define T_AAAA 28
-# endif
-# ifndef T_AFSDB
-#  define T_AFSDB 18
-# endif
-# ifndef T_ANY
-#  define T_ANY 255
-# endif
-# ifndef T_APL
-#  define T_APL 42
-# endif
-# ifndef T_ATMA
-#  define T_ATMA 34
-# endif
-# ifndef T_AVC
-#  define T_AVC 258
-# endif
-# ifndef T_AXFR
-#  define T_AXFR 252
-# endif
-# ifndef T_CAA
-#  define T_CAA 257
-# endif
-# ifndef T_CDNSKEY
-#  define T_CDNSKEY 60
-# endif
-# ifndef T_CDS
-#  define T_CDS 59
-# endif
-# ifndef T_CERT
-#  define T_CERT 37
-# endif
-# ifndef T_CNAME
-#  define T_CNAME 5
-# endif
-# ifndef T_CSYNC
-#  define T_CSYNC 62
-# endif
-# ifndef T_DHCID
-#  define T_DHCID 49
-# endif
-# ifndef T_DLV
-#  define T_DLV 32769
-# endif
-# ifndef T_DNAME
-#  define T_DNAME 39
-# endif
-# ifndef T_DNSKEY
-#  define T_DNSKEY 48
-# endif
-# ifndef T_DS
-#  define T_DS 43
-# endif
-# ifndef T_EID
-#  define T_EID 31
-# endif
-# ifndef T_EUI48
-#  define T_EUI48 108
-# endif
-# ifndef T_EUI64
-#  define T_EUI64 109
-# endif
-# ifndef T_GID
-#  define T_GID 102
-# endif
-# ifndef T_GPOS
-#  define T_GPOS 27
-# endif
-# ifndef T_HINFO
-#  define T_HINFO 13
-# endif
-# ifndef T_HIP
-#  define T_HIP 55
-# endif
-# ifndef T_IPSECKEY
-#  define T_IPSECKEY 45
-# endif
-# ifndef T_ISDN
-#  define T_ISDN 20
-# endif
-# ifndef T_IXFR
-#  define T_IXFR 251
-# endif
-# ifndef T_KEY
-#  define T_KEY 25
-# endif
-# ifndef T_KX
-#  define T_KX 36
-# endif
-# ifndef T_L32
-#  define T_L32 105
-# endif
-# ifndef T_L64
-#  define T_L64 106
-# endif
-# ifndef T_LOC
-#  define T_LOC 29
-# endif
-# ifndef T_LP
-#  define T_LP 107
-# endif
-# ifndef T_MAILA
-#  define T_MAILA 254
-# endif
-# ifndef T_MAILB
-#  define T_MAILB 253
-# endif
-# ifndef T_MB
-#  define T_MB 7
-# endif
-# ifndef T_MD
-#  define T_MD 3
-# endif
-# ifndef T_MF
-#  define T_MF 4
-# endif
-# ifndef T_MG
-#  define T_MG 8
-# endif
-# ifndef T_MINFO
-#  define T_MINFO 14
-# endif
-# ifndef T_MR
-#  define T_MR 9
-# endif
-# ifndef T_MX
-#  define T_MX 15
-# endif
-# ifndef T_NAPTR
-#  define T_NAPTR 35
-# endif
-# ifndef T_NID
-#  define T_NID 104
-# endif
-# ifndef T_NIMLOC
-#  define T_NIMLOC 32
-# endif
-# ifndef T_NINFO
-#  define T_NINFO 56
-# endif
-# ifndef T_NS
-#  define T_NS 2
-# endif
-# ifndef T_NSAP
-#  define T_NSAP 22
-# endif
-# ifndef T_NSAP_PTR
-#  define T_NSAP_PTR 23
-# endif
-# ifndef T_NSEC
-#  define T_NSEC 47
-# endif
-# ifndef T_NSEC3
-#  define T_NSEC3 50
-# endif
-# ifndef T_NSEC3PARAM
-#  define T_NSEC3PARAM 51
-# endif
-# ifndef T_NULL
-#  define T_NULL 10
-# endif
-# ifndef T_NXT
-#  define T_NXT 30
-# endif
-# ifndef T_OPENPGPKEY
-#  define T_OPENPGPKEY 61
-# endif
-# ifndef T_OPT
-#  define T_OPT 41
-# endif
-# ifndef T_PTR
-#  define T_PTR 12
-# endif
-# ifndef T_PX
-#  define T_PX 26
-# endif
-# ifndef T_RKEY
-#  define T_RKEY 57
-# endif
-# ifndef T_RP
-#  define T_RP 17
-# endif
-# ifndef T_RRSIG
-#  define T_RRSIG 46
-# endif
-# ifndef T_RT
-#  define T_RT 21
-# endif
-# ifndef T_SIG
-#  define T_SIG 24
-# endif
-# ifndef T_SINK
-#  define T_SINK 40
-# endif
-# ifndef T_SMIMEA
-#  define T_SMIMEA 53
-# endif
-# ifndef T_SOA
-#  define T_SOA 6
-# endif
-# ifndef T_SPF
-#  define T_SPF 99
-# endif
-# ifndef T_SRV
-#  define T_SRV 33
-# endif
-# ifndef T_SSHFP
-#  define T_SSHFP 44
-# endif
-# ifndef T_TA
-#  define T_TA 32768
-# endif
-# ifndef T_TALINK
-#  define T_TALINK 58
-# endif
-# ifndef T_TKEY
-#  define T_TKEY 249
-# endif
-# ifndef T_TLSA
-#  define T_TLSA 52
-# endif
-# ifndef T_TSIG
-#  define T_TSIG 250
-# endif
-# ifndef T_TXT
-#  define T_TXT 16
-# endif
-# ifndef T_UID
-#  define T_UID 101
-# endif
-# ifndef T_UINFO
-#  define T_UINFO 100
-# endif
-# ifndef T_UNSPEC
-#  define T_UNSPEC 103
-# endif
-# ifndef T_URI
-#  define T_URI 256
-# endif
-# ifndef T_WKS
-#  define T_WKS 11
-# endif
-# ifndef T_X25
-#  define T_X25 19
-# endif
-# ifndef YXDOMAIN
-#  define YXDOMAIN 6
-# endif
-# ifndef YXRRSET
-#  define YXRRSET 7
-# endif
+# define ADD 1
+# define C_ANY 255
+# define C_CHAOS 3
+# define C_HS 4
+# define C_IN 1
+# define C_NONE 254
+# define DELETE 0
+# define FORMERR 1
+# define HFIXEDSZ 12
+# define IN6ADDRSZ 16
+# define INADDRSZ 4
+# define INDIR_MASK 192
+# define INT16SZ 2
+# define INT32SZ 4
+# define INT8SZ 1
+# define IQUERY 1
+# define MAXCDNAME 255
+# define MAXDNAME 1025
+# define MAXLABEL 63
+# define NAMESERVER_PORT 53
+# define NOERROR 0
+# define NOTAUTH 9
+# define NOTIMP 4
+# define NOTZONE 10
+# define NS_NOTIFY_OP 4
+# define NS_UPDATE_OP 5
+# define NXDOMAIN 3
+# define NXRRSET 8
+# define PACKETSZ 512
+# define QFIXEDSZ 4
+# define QUERY 0
+# define REFUSED 5
+# define RRFIXEDSZ 10
+# define SERVFAIL 2
+# define STATUS 2
+# define S_ADDT 3
+# define S_PREREQ 1
+# define S_UPDATE 2
+# define S_ZONE 0
+# define T_A 1
+# define T_A6 38
+# define T_AAAA 28
+# define T_AFSDB 18
+# define T_ANY 255
+# define T_APL 42
+# define T_ATMA 34
+# define T_AVC 258
+# define T_AXFR 252
+# define T_CAA 257
+# define T_CDNSKEY 60
+# define T_CDS 59
+# define T_CERT 37
+# define T_CNAME 5
+# define T_CSYNC 62
+# define T_DHCID 49
+# define T_DLV 32769
+# define T_DNAME 39
+# define T_DNSKEY 48
+# define T_DS 43
+# define T_EID 31
+# define T_EUI48 108
+# define T_EUI64 109
+# define T_GID 102
+# define T_GPOS 27
+# define T_HINFO 13
+# define T_HIP 55
+# define T_IPSECKEY 45
+# define T_ISDN 20
+# define T_IXFR 251
+# define T_KEY 25
+# define T_KX 36
+# define T_L32 105
+# define T_L64 106
+# define T_LOC 29
+# define T_LP 107
+# define T_MAILA 254
+# define T_MAILB 253
+# define T_MB 7
+# define T_MD 3
+# define T_MF 4
+# define T_MG 8
+# define T_MINFO 14
+# define T_MR 9
+# define T_MX 15
+# define T_NAPTR 35
+# define T_NID 104
+# define T_NIMLOC 32
+# define T_NINFO 56
+# define T_NS 2
+# define T_NSAP 22
+# define T_NSAP_PTR 23
+# define T_NSEC 47
+# define T_NSEC3 50
+# define T_NSEC3PARAM 51
+# define T_NULL 10
+# define T_NXT 30
+# define T_OPENPGPKEY 61
+# define T_OPT 41
+# define T_PTR 12
+# define T_PX 26
+# define T_RKEY 57
+# define T_RP 17
+# define T_RRSIG 46
+# define T_RT 21
+# define T_SIG 24
+# define T_SINK 40
+# define T_SMIMEA 53
+# define T_SOA 6
+# define T_SPF 99
+# define T_SRV 33
+# define T_SSHFP 44
+# define T_TA 32768
+# define T_TALINK 58
+# define T_TKEY 249
+# define T_TLSA 52
+# define T_TSIG 250
+# define T_TXT 16
+# define T_UID 101
+# define T_UINFO 100
+# define T_UNSPEC 103
+# define T_URI 256
+# define T_WKS 11
+# define T_X25 19
+# define YXDOMAIN 6
+# define YXRRSET 7
 #endif
 
 __NIJI_END_C

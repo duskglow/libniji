@@ -41,15 +41,9 @@ enum {
 };
 #  endif
 # endif
-# ifndef EFD_CLOEXEC
-#  define EFD_CLOEXEC EFD_CLOEXEC
-# endif
-# ifndef EFD_NONBLOCK
-#  define EFD_NONBLOCK EFD_NONBLOCK
-# endif
-# ifndef EFD_SEMAPHORE
-#  define EFD_SEMAPHORE EFD_SEMAPHORE
-# endif
+# define EFD_CLOEXEC EFD_CLOEXEC
+# define EFD_NONBLOCK EFD_NONBLOCK
+# define EFD_SEMAPHORE EFD_SEMAPHORE
 #endif
 
 __NIJI_END_C

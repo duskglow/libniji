@@ -38,9 +38,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 # endif
 #endif
 #if 1
-# ifndef RSEQ_SIG
-#  define RSEQ_SIG 1392848979
-# endif
+# define RSEQ_SIG 1392848979
 #endif
 
 #if 1

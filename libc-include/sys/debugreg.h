@@ -5,84 +5,32 @@
 #define __NIJI_H_sys_debugreg_h 1
 
 #if 1
-# ifndef DR_CONTROL
-#  define DR_CONTROL 7
-# endif
-# ifndef DR_CONTROL_SHIFT
-#  define DR_CONTROL_SHIFT 16
-# endif
-# ifndef DR_CONTROL_SIZE
-#  define DR_CONTROL_SIZE 4
-# endif
-# ifndef DR_ENABLE_SIZE
-#  define DR_ENABLE_SIZE 2
-# endif
-# ifndef DR_FIRSTADDR
-#  define DR_FIRSTADDR 0
-# endif
-# ifndef DR_GLOBAL_ENABLE_MASK
-#  define DR_GLOBAL_ENABLE_MASK 170
-# endif
-# ifndef DR_GLOBAL_ENABLE_SHIFT
-#  define DR_GLOBAL_ENABLE_SHIFT 1
-# endif
-# ifndef DR_GLOBAL_SLOWDOWN
-#  define DR_GLOBAL_SLOWDOWN 512
-# endif
-# ifndef DR_LASTADDR
-#  define DR_LASTADDR 3
-# endif
-# ifndef DR_LEN_1
-#  define DR_LEN_1 0
-# endif
-# ifndef DR_LEN_2
-#  define DR_LEN_2 4
-# endif
-# ifndef DR_LEN_4
-#  define DR_LEN_4 12
-# endif
-# ifndef DR_LEN_8
-#  define DR_LEN_8 8
-# endif
-# ifndef DR_LOCAL_ENABLE_MASK
-#  define DR_LOCAL_ENABLE_MASK 85
-# endif
-# ifndef DR_LOCAL_ENABLE_SHIFT
-#  define DR_LOCAL_ENABLE_SHIFT 0
-# endif
-# ifndef DR_LOCAL_SLOWDOWN
-#  define DR_LOCAL_SLOWDOWN 256
-# endif
-# ifndef DR_RW_EXECUTE
-#  define DR_RW_EXECUTE 0
-# endif
-# ifndef DR_RW_READ
-#  define DR_RW_READ 3
-# endif
-# ifndef DR_RW_WRITE
-#  define DR_RW_WRITE 1
-# endif
-# ifndef DR_STATUS
-#  define DR_STATUS 6
-# endif
-# ifndef DR_STEP
-#  define DR_STEP 16384
-# endif
-# ifndef DR_SWITCH
-#  define DR_SWITCH 32768
-# endif
-# ifndef DR_TRAP0
-#  define DR_TRAP0 1
-# endif
-# ifndef DR_TRAP1
-#  define DR_TRAP1 2
-# endif
-# ifndef DR_TRAP2
-#  define DR_TRAP2 4
-# endif
-# ifndef DR_TRAP3
-#  define DR_TRAP3 8
-# endif
+# define DR_CONTROL 7
+# define DR_CONTROL_SHIFT 16
+# define DR_CONTROL_SIZE 4
+# define DR_ENABLE_SIZE 2
+# define DR_FIRSTADDR 0
+# define DR_GLOBAL_ENABLE_MASK 170
+# define DR_GLOBAL_ENABLE_SHIFT 1
+# define DR_GLOBAL_SLOWDOWN 512
+# define DR_LASTADDR 3
+# define DR_LEN_1 0
+# define DR_LEN_2 4
+# define DR_LEN_4 12
+# define DR_LEN_8 8
+# define DR_LOCAL_ENABLE_MASK 85
+# define DR_LOCAL_ENABLE_SHIFT 0
+# define DR_LOCAL_SLOWDOWN 256
+# define DR_RW_EXECUTE 0
+# define DR_RW_READ 3
+# define DR_RW_WRITE 1
+# define DR_STATUS 6
+# define DR_STEP 16384
+# define DR_SWITCH 32768
+# define DR_TRAP0 1
+# define DR_TRAP1 2
+# define DR_TRAP2 4
+# define DR_TRAP3 8
 #endif
 
 #endif

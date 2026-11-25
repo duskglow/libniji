@@ -95,7 +95,7 @@ struct timex {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_timezone
 #  define __NIJI_D_struct_timezone 1
 struct timezone {
@@ -155,14 +155,14 @@ struct timeval;
 extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
 extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct timeval;
 struct timeval;
 # ifndef __NIJI_D_adjtime
@@ -187,165 +187,65 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # endif
 #endif
 #if 1
-# ifndef ADJ_ESTERROR
-#  define ADJ_ESTERROR 8
-# endif
-# ifndef ADJ_FREQUENCY
-#  define ADJ_FREQUENCY 2
-# endif
-# ifndef ADJ_MAXERROR
-#  define ADJ_MAXERROR 4
-# endif
-# ifndef ADJ_MICRO
-#  define ADJ_MICRO 4096
-# endif
-# ifndef ADJ_NANO
-#  define ADJ_NANO 8192
-# endif
-# ifndef ADJ_OFFSET
-#  define ADJ_OFFSET 1
-# endif
-# ifndef ADJ_OFFSET_SINGLESHOT
-#  define ADJ_OFFSET_SINGLESHOT 32769
-# endif
-# ifndef ADJ_OFFSET_SS_READ
-#  define ADJ_OFFSET_SS_READ 40961
-# endif
-# ifndef ADJ_SETOFFSET
-#  define ADJ_SETOFFSET 256
-# endif
-# ifndef ADJ_STATUS
-#  define ADJ_STATUS 16
-# endif
-# ifndef ADJ_TAI
-#  define ADJ_TAI 128
-# endif
-# ifndef ADJ_TICK
-#  define ADJ_TICK 16384
-# endif
-# ifndef ADJ_TIMECONST
-#  define ADJ_TIMECONST 32
-# endif
-# ifndef ITIMER_PROF
-#  define ITIMER_PROF ITIMER_PROF
-# endif
-# ifndef ITIMER_REAL
-#  define ITIMER_REAL ITIMER_REAL
-# endif
-# ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
-# endif
-# ifndef MAXTC
-#  define MAXTC 6
-# endif
-# ifndef MOD_CLKA
-#  define MOD_CLKA 32769
-# endif
-# ifndef MOD_CLKB
-#  define MOD_CLKB 16384
-# endif
-# ifndef MOD_ESTERROR
-#  define MOD_ESTERROR 8
-# endif
-# ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY 2
-# endif
-# ifndef MOD_MAXERROR
-#  define MOD_MAXERROR 4
-# endif
-# ifndef MOD_MICRO
-#  define MOD_MICRO 4096
-# endif
-# ifndef MOD_NANO
-#  define MOD_NANO 8192
-# endif
-# ifndef MOD_OFFSET
-#  define MOD_OFFSET 1
-# endif
-# ifndef MOD_STATUS
-#  define MOD_STATUS 16
-# endif
-# ifndef MOD_TAI
-#  define MOD_TAI 128
-# endif
-# ifndef MOD_TIMECONST
-#  define MOD_TIMECONST 32
-# endif
-# ifndef NTP_API
-#  define NTP_API 4
-# endif
-# ifndef STA_CLK
-#  define STA_CLK 32768
-# endif
-# ifndef STA_CLOCKERR
-#  define STA_CLOCKERR 4096
-# endif
-# ifndef STA_DEL
-#  define STA_DEL 32
-# endif
-# ifndef STA_FLL
-#  define STA_FLL 8
-# endif
-# ifndef STA_FREQHOLD
-#  define STA_FREQHOLD 128
-# endif
-# ifndef STA_INS
-#  define STA_INS 16
-# endif
-# ifndef STA_MODE
-#  define STA_MODE 16384
-# endif
-# ifndef STA_NANO
-#  define STA_NANO 8192
-# endif
-# ifndef STA_PLL
-#  define STA_PLL 1
-# endif
-# ifndef STA_PPSERROR
-#  define STA_PPSERROR 2048
-# endif
-# ifndef STA_PPSFREQ
-#  define STA_PPSFREQ 2
-# endif
-# ifndef STA_PPSJITTER
-#  define STA_PPSJITTER 512
-# endif
-# ifndef STA_PPSSIGNAL
-#  define STA_PPSSIGNAL 256
-# endif
-# ifndef STA_PPSTIME
-#  define STA_PPSTIME 4
-# endif
-# ifndef STA_PPSWANDER
-#  define STA_PPSWANDER 1024
-# endif
-# ifndef STA_RONLY
-#  define STA_RONLY 65280
-# endif
-# ifndef STA_UNSYNC
-#  define STA_UNSYNC 64
-# endif
-# ifndef TIME_BAD
-#  define TIME_BAD 5
-# endif
-# ifndef TIME_DEL
-#  define TIME_DEL 2
-# endif
-# ifndef TIME_ERROR
-#  define TIME_ERROR 5
-# endif
-# ifndef TIME_INS
-#  define TIME_INS 1
-# endif
-# ifndef TIME_OK
-#  define TIME_OK 0
-# endif
-# ifndef TIME_OOP
-#  define TIME_OOP 3
-# endif
-# ifndef TIME_WAIT
-#  define TIME_WAIT 4
-# endif
+# define ADJ_ESTERROR 8
+# define ADJ_FREQUENCY 2
+# define ADJ_MAXERROR 4
+# define ADJ_MICRO 4096
+# define ADJ_NANO 8192
+# define ADJ_OFFSET 1
+# define ADJ_OFFSET_SINGLESHOT 32769
+# define ADJ_OFFSET_SS_READ 40961
+# define ADJ_SETOFFSET 256
+# define ADJ_STATUS 16
+# define ADJ_TAI 128
+# define ADJ_TICK 16384
+# define ADJ_TIMECONST 32
+# define ITIMER_PROF ITIMER_PROF
+# define ITIMER_REAL ITIMER_REAL
+# define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# define MAXTC 6
+# define MOD_CLKA 32769
+# define MOD_CLKB 16384
+# define MOD_ESTERROR 8
+# define MOD_FREQUENCY 2
+# define MOD_MAXERROR 4
+# define MOD_MICRO 4096
+# define MOD_NANO 8192
+# define MOD_OFFSET 1
+# define MOD_STATUS 16
+# define MOD_TAI 128
+# define MOD_TIMECONST 32
+# define NTP_API 4
+# define STA_CLK 32768
+# define STA_CLOCKERR 4096
+# define STA_DEL 32
+# define STA_FLL 8
+# define STA_FREQHOLD 128
+# define STA_INS 16
+# define STA_MODE 16384
+# define STA_NANO 8192
+# define STA_PLL 1
+# define STA_PPSERROR 2048
+# define STA_PPSFREQ 2
+# define STA_PPSJITTER 512
+# define STA_PPSSIGNAL 256
+# define STA_PPSTIME 4
+# define STA_PPSWANDER 1024
+# define STA_RONLY 65280
+# define STA_UNSYNC 64
+# define TIME_BAD 5
+# define TIME_DEL 2
+# define TIME_ERROR 5
+# define TIME_INS 1
+# define TIME_OK 0
+# define TIME_OOP 3
+# define TIME_WAIT 4
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 __NIJI_END_C

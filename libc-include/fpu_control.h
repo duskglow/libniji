@@ -17,54 +17,22 @@ typedef unsigned short fpu_control_t;
 #  define __NIJI_D___fpu_control 1
 extern unsigned short __fpu_control;
 # endif
-# ifndef _FPU_DEFAULT
-#  define _FPU_DEFAULT 895
-# endif
-# ifndef _FPU_DOUBLE
-#  define _FPU_DOUBLE 512
-# endif
-# ifndef _FPU_EXTENDED
-#  define _FPU_EXTENDED 768
-# endif
-# ifndef _FPU_IEEE
-#  define _FPU_IEEE 895
-# endif
-# ifndef _FPU_MASK_DM
-#  define _FPU_MASK_DM 2
-# endif
-# ifndef _FPU_MASK_IM
-#  define _FPU_MASK_IM 1
-# endif
-# ifndef _FPU_MASK_OM
-#  define _FPU_MASK_OM 8
-# endif
-# ifndef _FPU_MASK_PM
-#  define _FPU_MASK_PM 32
-# endif
-# ifndef _FPU_MASK_UM
-#  define _FPU_MASK_UM 16
-# endif
-# ifndef _FPU_MASK_ZM
-#  define _FPU_MASK_ZM 4
-# endif
-# ifndef _FPU_RC_DOWN
-#  define _FPU_RC_DOWN 1024
-# endif
-# ifndef _FPU_RC_NEAREST
-#  define _FPU_RC_NEAREST 0
-# endif
-# ifndef _FPU_RC_UP
-#  define _FPU_RC_UP 2048
-# endif
-# ifndef _FPU_RC_ZERO
-#  define _FPU_RC_ZERO 3072
-# endif
-# ifndef _FPU_RESERVED
-#  define _FPU_RESERVED 61632
-# endif
-# ifndef _FPU_SINGLE
-#  define _FPU_SINGLE 0
-# endif
+# define _FPU_DEFAULT 895
+# define _FPU_DOUBLE 512
+# define _FPU_EXTENDED 768
+# define _FPU_IEEE 895
+# define _FPU_MASK_DM 2
+# define _FPU_MASK_IM 1
+# define _FPU_MASK_OM 8
+# define _FPU_MASK_PM 32
+# define _FPU_MASK_UM 16
+# define _FPU_MASK_ZM 4
+# define _FPU_RC_DOWN 1024
+# define _FPU_RC_NEAREST 0
+# define _FPU_RC_UP 2048
+# define _FPU_RC_ZERO 3072
+# define _FPU_RESERVED 61632
+# define _FPU_SINGLE 0
 #endif
 
 # define _FPU_GETCW(cw) __asm__ __volatile__ ("fnstcw %0" : "=m" (*&(cw)))

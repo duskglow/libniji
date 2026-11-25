@@ -30,7 +30,7 @@ struct re_pattern_buffer {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_re_registers
 #  define __NIJI_D_struct_re_registers 1
 struct re_registers {
@@ -136,7 +136,7 @@ extern int regexec (const regex_t *, const char *, unsigned long, regmatch_t *, 
 extern void regfree (regex_t *);
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct re_pattern_buffer;
 # ifndef __NIJI_D_re_compile_fastmap
 #  define __NIJI_D_re_compile_fastmap 1
@@ -183,224 +183,86 @@ extern unsigned long re_set_syntax (unsigned long);
 # endif
 #endif
 #if 1
-# ifndef REG_BADBR
-#  define REG_BADBR _REG_BADBR
-# endif
-# ifndef REG_BADPAT
-#  define REG_BADPAT _REG_BADPAT
-# endif
-# ifndef REG_BADRPT
-#  define REG_BADRPT _REG_BADRPT
-# endif
-# ifndef REG_EBRACE
-#  define REG_EBRACE _REG_EBRACE
-# endif
-# ifndef REG_EBRACK
-#  define REG_EBRACK _REG_EBRACK
-# endif
-# ifndef REG_ECOLLATE
-#  define REG_ECOLLATE _REG_ECOLLATE
-# endif
-# ifndef REG_ECTYPE
-#  define REG_ECTYPE _REG_ECTYPE
-# endif
-# ifndef REG_EEND
-#  define REG_EEND _REG_EEND
-# endif
-# ifndef REG_EESCAPE
-#  define REG_EESCAPE _REG_EESCAPE
-# endif
-# ifndef REG_EPAREN
-#  define REG_EPAREN _REG_EPAREN
-# endif
-# ifndef REG_ERANGE
-#  define REG_ERANGE _REG_ERANGE
-# endif
-# ifndef REG_ERPAREN
-#  define REG_ERPAREN _REG_ERPAREN
-# endif
-# ifndef REG_ESIZE
-#  define REG_ESIZE _REG_ESIZE
-# endif
-# ifndef REG_ESPACE
-#  define REG_ESPACE _REG_ESPACE
-# endif
-# ifndef REG_ESUBREG
-#  define REG_ESUBREG _REG_ESUBREG
-# endif
-# ifndef REG_EXTENDED
-#  define REG_EXTENDED 1
-# endif
-# ifndef REG_ICASE
-#  define REG_ICASE 2
-# endif
-# ifndef REG_NEWLINE
-#  define REG_NEWLINE 4
-# endif
-# ifndef REG_NOERROR
-#  define REG_NOERROR _REG_NOERROR
-# endif
-# ifndef REG_NOMATCH
-#  define REG_NOMATCH _REG_NOMATCH
-# endif
-# ifndef REG_NOSUB
-#  define REG_NOSUB 8
-# endif
-# ifndef REG_NOTBOL
-#  define REG_NOTBOL 1
-# endif
-# ifndef REG_NOTEOL
-#  define REG_NOTEOL 2
-# endif
-# ifndef REG_STARTEND
-#  define REG_STARTEND 4
-# endif
+# define REG_BADBR _REG_BADBR
+# define REG_BADPAT _REG_BADPAT
+# define REG_BADRPT _REG_BADRPT
+# define REG_EBRACE _REG_EBRACE
+# define REG_EBRACK _REG_EBRACK
+# define REG_ECOLLATE _REG_ECOLLATE
+# define REG_ECTYPE _REG_ECTYPE
+# define REG_EEND _REG_EEND
+# define REG_EESCAPE _REG_EESCAPE
+# define REG_EPAREN _REG_EPAREN
+# define REG_ERANGE _REG_ERANGE
+# define REG_ERPAREN _REG_ERPAREN
+# define REG_ESIZE _REG_ESIZE
+# define REG_ESPACE _REG_ESPACE
+# define REG_ESUBREG _REG_ESUBREG
+# define REG_EXTENDED 1
+# define REG_ICASE 2
+# define REG_NEWLINE 4
+# define REG_NOERROR _REG_NOERROR
+# define REG_NOMATCH _REG_NOMATCH
+# define REG_NOSUB 8
+# define REG_NOTBOL 1
+# define REG_NOTEOL 2
+# define REG_STARTEND 4
 #endif
-#if __NIJI_GNU
-# ifndef REGS_FIXED
-#  define REGS_FIXED 2
-# endif
-# ifndef REGS_REALLOCATE
-#  define REGS_REALLOCATE 1
-# endif
-# ifndef REGS_UNALLOCATED
-#  define REGS_UNALLOCATED 0
-# endif
-# ifndef RE_BACKSLASH_ESCAPE_IN_LISTS
-#  define RE_BACKSLASH_ESCAPE_IN_LISTS 1UL
-# endif
-# ifndef RE_BK_PLUS_QM
-#  define RE_BK_PLUS_QM 2UL
-# endif
-# ifndef RE_CARET_ANCHORS_HERE
-#  define RE_CARET_ANCHORS_HERE 8388608UL
-# endif
-# ifndef RE_CHAR_CLASSES
-#  define RE_CHAR_CLASSES 4UL
-# endif
-# ifndef RE_CONTEXT_INDEP_ANCHORS
-#  define RE_CONTEXT_INDEP_ANCHORS 8UL
-# endif
-# ifndef RE_CONTEXT_INDEP_OPS
-#  define RE_CONTEXT_INDEP_OPS 16UL
-# endif
-# ifndef RE_CONTEXT_INVALID_DUP
-#  define RE_CONTEXT_INVALID_DUP 16777216UL
-# endif
-# ifndef RE_CONTEXT_INVALID_OPS
-#  define RE_CONTEXT_INVALID_OPS 32UL
-# endif
-# ifndef RE_DEBUG
-#  define RE_DEBUG 1048576UL
-# endif
-# ifndef RE_DOT_NEWLINE
-#  define RE_DOT_NEWLINE 64UL
-# endif
-# ifndef RE_DOT_NOT_NULL
-#  define RE_DOT_NOT_NULL 128UL
-# endif
-# ifndef RE_DUP_MAX
-#  define RE_DUP_MAX 32767
-# endif
-# ifndef RE_HAT_LISTS_NOT_NEWLINE
-#  define RE_HAT_LISTS_NOT_NEWLINE 256UL
-# endif
-# ifndef RE_ICASE
-#  define RE_ICASE 4194304UL
-# endif
-# ifndef RE_INTERVALS
-#  define RE_INTERVALS 512UL
-# endif
-# ifndef RE_INVALID_INTERVAL_ORD
-#  define RE_INVALID_INTERVAL_ORD 2097152UL
-# endif
-# ifndef RE_LIMITED_OPS
-#  define RE_LIMITED_OPS 1024UL
-# endif
-# ifndef RE_NEWLINE_ALT
-#  define RE_NEWLINE_ALT 2048UL
-# endif
-# ifndef RE_NO_BK_BRACES
-#  define RE_NO_BK_BRACES 4096UL
-# endif
-# ifndef RE_NO_BK_PARENS
-#  define RE_NO_BK_PARENS 8192UL
-# endif
-# ifndef RE_NO_BK_REFS
-#  define RE_NO_BK_REFS 16384UL
-# endif
-# ifndef RE_NO_BK_VBAR
-#  define RE_NO_BK_VBAR 32768UL
-# endif
-# ifndef RE_NO_EMPTY_RANGES
-#  define RE_NO_EMPTY_RANGES 65536UL
-# endif
-# ifndef RE_NO_GNU_OPS
-#  define RE_NO_GNU_OPS 524288UL
-# endif
-# ifndef RE_NO_POSIX_BACKTRACKING
-#  define RE_NO_POSIX_BACKTRACKING 262144UL
-# endif
-# ifndef RE_NO_SUB
-#  define RE_NO_SUB 33554432UL
-# endif
+#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
+# define REG_ENOSYS _REG_ENOSYS
+#endif
+#if defined __USE_GNU
+# define REGS_FIXED 2
+# define REGS_REALLOCATE 1
+# define REGS_UNALLOCATED 0
+# define RE_BACKSLASH_ESCAPE_IN_LISTS 1UL
+# define RE_BK_PLUS_QM 2UL
+# define RE_CARET_ANCHORS_HERE 8388608UL
+# define RE_CHAR_CLASSES 4UL
+# define RE_CONTEXT_INDEP_ANCHORS 8UL
+# define RE_CONTEXT_INDEP_OPS 16UL
+# define RE_CONTEXT_INVALID_DUP 16777216UL
+# define RE_CONTEXT_INVALID_OPS 32UL
+# define RE_DEBUG 1048576UL
+# define RE_DOT_NEWLINE 64UL
+# define RE_DOT_NOT_NULL 128UL
+# define RE_DUP_MAX 32767
+# define RE_HAT_LISTS_NOT_NEWLINE 256UL
+# define RE_ICASE 4194304UL
+# define RE_INTERVALS 512UL
+# define RE_INVALID_INTERVAL_ORD 2097152UL
+# define RE_LIMITED_OPS 1024UL
+# define RE_NEWLINE_ALT 2048UL
+# define RE_NO_BK_BRACES 4096UL
+# define RE_NO_BK_PARENS 8192UL
+# define RE_NO_BK_REFS 16384UL
+# define RE_NO_BK_VBAR 32768UL
+# define RE_NO_EMPTY_RANGES 65536UL
+# define RE_NO_GNU_OPS 524288UL
+# define RE_NO_POSIX_BACKTRACKING 262144UL
+# define RE_NO_SUB 33554432UL
 # ifndef RE_NREGS
 #  define RE_NREGS 30
 # endif
-# ifndef RE_SYNTAX_AWK
-#  define RE_SYNTAX_AWK 778445UL
-# endif
-# ifndef RE_SYNTAX_ED
-#  define RE_SYNTAX_ED 16843462UL
-# endif
-# ifndef RE_SYNTAX_EGREP
-#  define RE_SYNTAX_EGREP 2341468UL
-# endif
-# ifndef RE_SYNTAX_EMACS
-#  define RE_SYNTAX_EMACS 0
-# endif
-# ifndef RE_SYNTAX_GNU_AWK
-#  define RE_SYNTAX_GNU_AWK 2339405UL
-# endif
-# ifndef RE_SYNTAX_GREP
-#  define RE_SYNTAX_GREP 68166UL
-# endif
-# ifndef RE_SYNTAX_POSIX_AWK
-#  define RE_SYNTAX_POSIX_AWK 2863869UL
-# endif
-# ifndef RE_SYNTAX_POSIX_BASIC
-#  define RE_SYNTAX_POSIX_BASIC 16843462UL
-# endif
-# ifndef RE_SYNTAX_POSIX_EGREP
-#  define RE_SYNTAX_POSIX_EGREP 2341468UL
-# endif
-# ifndef RE_SYNTAX_POSIX_EXTENDED
-#  define RE_SYNTAX_POSIX_EXTENDED 242428UL
-# endif
-# ifndef RE_SYNTAX_POSIX_MINIMAL_BASIC
-#  define RE_SYNTAX_POSIX_MINIMAL_BASIC 67268UL
-# endif
-# ifndef RE_SYNTAX_POSIX_MINIMAL_EXTENDED
-#  define RE_SYNTAX_POSIX_MINIMAL_EXTENDED 258796UL
-# endif
-# ifndef RE_SYNTAX_SED
-#  define RE_SYNTAX_SED 16843462UL
-# endif
-# ifndef RE_UNMATCHED_RIGHT_PAREN_ORD
-#  define RE_UNMATCHED_RIGHT_PAREN_ORD 131072UL
-# endif
-# ifndef _RE_SYNTAX_POSIX_COMMON
-#  define _RE_SYNTAX_POSIX_COMMON 66244UL
-# endif
-#endif
-#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
-# ifndef REG_ENOSYS
-#  define REG_ENOSYS _REG_ENOSYS
-# endif
+# define RE_SYNTAX_AWK 778445UL
+# define RE_SYNTAX_ED 16843462UL
+# define RE_SYNTAX_EGREP 2341468UL
+# define RE_SYNTAX_EMACS 0
+# define RE_SYNTAX_GNU_AWK 2339405UL
+# define RE_SYNTAX_GREP 68166UL
+# define RE_SYNTAX_POSIX_AWK 2863869UL
+# define RE_SYNTAX_POSIX_BASIC 16843462UL
+# define RE_SYNTAX_POSIX_EGREP 2341468UL
+# define RE_SYNTAX_POSIX_EXTENDED 242428UL
+# define RE_SYNTAX_POSIX_MINIMAL_BASIC 67268UL
+# define RE_SYNTAX_POSIX_MINIMAL_EXTENDED 258796UL
+# define RE_SYNTAX_SED 16843462UL
+# define RE_UNMATCHED_RIGHT_PAREN_ORD 131072UL
+# define _RE_SYNTAX_POSIX_COMMON 66244UL
 #endif
 
 /* The type of a pattern buffer's translation table (its `translate` member), for programs that declare one. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define RE_TRANSLATE_TYPE unsigned char *
 #endif
 

@@ -17,7 +17,7 @@ struct pollfd {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -32,7 +32,7 @@ struct timespec {
 typedef unsigned long nfds_t;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
@@ -57,7 +57,7 @@ struct pollfd;
 extern int poll (struct pollfd *, unsigned long, int);
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
 typedef struct {
@@ -72,49 +72,23 @@ extern int ppoll (struct pollfd *, unsigned long, const struct timespec *, const
 # endif
 #endif
 #if 1
-# ifndef POLLERR
-#  define POLLERR 8
-# endif
-# ifndef POLLHUP
-#  define POLLHUP 16
-# endif
-# ifndef POLLIN
-#  define POLLIN 1
-# endif
-# ifndef POLLNVAL
-#  define POLLNVAL 32
-# endif
-# ifndef POLLOUT
-#  define POLLOUT 4
-# endif
-# ifndef POLLPRI
-#  define POLLPRI 2
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef POLLMSG
-#  define POLLMSG 1024
-# endif
-# ifndef POLLRDHUP
-#  define POLLRDHUP 8192
-# endif
-# ifndef POLLREMOVE
-#  define POLLREMOVE 4096
-# endif
+# define POLLERR 8
+# define POLLHUP 16
+# define POLLIN 1
+# define POLLNVAL 32
+# define POLLOUT 4
+# define POLLPRI 2
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
-# ifndef POLLRDBAND
-#  define POLLRDBAND 128
-# endif
-# ifndef POLLRDNORM
-#  define POLLRDNORM 64
-# endif
-# ifndef POLLWRBAND
-#  define POLLWRBAND 512
-# endif
-# ifndef POLLWRNORM
-#  define POLLWRNORM 256
-# endif
+# define POLLRDBAND 128
+# define POLLRDNORM 64
+# define POLLWRBAND 512
+# define POLLWRNORM 256
+#endif
+#if defined __USE_GNU
+# define POLLMSG 1024
+# define POLLRDHUP 8192
+# define POLLREMOVE 4096
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -162,7 +136,7 @@ typedef struct {
   unsigned long __val[16];
 } __sigset_t;
 # endif
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_ppoll
 #  define __NIJI_F_ppoll 1
 #  ifndef __NIJI_D___ppoll_chk

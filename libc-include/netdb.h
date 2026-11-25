@@ -47,7 +47,22 @@ struct servent {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_struct_addrinfo
+#  define __NIJI_D_struct_addrinfo 1
+struct addrinfo {
+  int ai_flags;
+  int ai_family;
+  int ai_socktype;
+  int ai_protocol;
+  unsigned int ai_addrlen;
+  struct sockaddr * ai_addr;
+  char * ai_canonname;
+  struct addrinfo * ai_next;
+};
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_gaicb
 #  define __NIJI_D_struct_gaicb 1
 struct gaicb {
@@ -99,7 +114,7 @@ struct sigevent {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_rpcent
 #  define __NIJI_D_struct_rpcent 1
 struct rpcent {
@@ -110,22 +125,7 @@ struct rpcent {
 };
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_struct_addrinfo
-#  define __NIJI_D_struct_addrinfo 1
-struct addrinfo {
-  int ai_flags;
-  int ai_family;
-  int ai_socktype;
-  int ai_protocol;
-  unsigned int ai_addrlen;
-  struct sockaddr * ai_addr;
-  char * ai_canonname;
-  struct addrinfo * ai_next;
-};
-# endif
-#endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval {
@@ -133,6 +133,18 @@ union sigval {
   void * sival_ptr;
 };
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval {
@@ -175,16 +187,6 @@ struct sigevent {
 # ifndef __NIJI_D_sigevent_t
 #  define __NIJI_D_sigevent_t 1
 typedef struct sigevent sigevent_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199506
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
@@ -281,7 +283,29 @@ extern void setprotoent (int);
 extern void setservent (int);
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+struct addrinfo;
+# ifndef __NIJI_D_freeaddrinfo
+#  define __NIJI_D_freeaddrinfo 1
+extern void freeaddrinfo (struct addrinfo *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_gai_strerror
+#  define __NIJI_D_gai_strerror 1
+extern const char *gai_strerror (int) __NIJI_NOTHROW;
+# endif
+struct addrinfo;
+struct addrinfo;
+# ifndef __NIJI_D_getaddrinfo
+#  define __NIJI_D_getaddrinfo 1
+extern int getaddrinfo (const char *, const char *, const struct addrinfo *, struct addrinfo **);
+# endif
+struct sockaddr;
+# ifndef __NIJI_D_getnameinfo
+#  define __NIJI_D_getnameinfo 1
+extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned int, char *, unsigned int, int);
+# endif
+#endif
+#if defined __USE_GNU
 struct gaicb;
 # ifndef __NIJI_D_gai_cancel
 #  define __NIJI_D_gai_cancel 1
@@ -305,7 +329,7 @@ struct sigevent;
 extern int getaddrinfo_a (int, struct gaicb **, int, struct sigevent *);
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_endnetgrent
 #  define __NIJI_D_endnetgrent 1
 extern void endnetgrent (void);
@@ -499,201 +523,77 @@ extern int setnetgrent (const char *);
 extern void setrpcent (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_POSIX < 200809
+#if defined __USE_MISC || __NIJI_POSIX < 200809
 # ifndef __NIJI_D___h_errno_location
 #  define __NIJI_D___h_errno_location 1
 extern int *__h_errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-struct addrinfo;
-# ifndef __NIJI_D_freeaddrinfo
-#  define __NIJI_D_freeaddrinfo 1
-extern void freeaddrinfo (struct addrinfo *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_gai_strerror
-#  define __NIJI_D_gai_strerror 1
-extern const char *gai_strerror (int) __NIJI_NOTHROW;
-# endif
-struct addrinfo;
-struct addrinfo;
-# ifndef __NIJI_D_getaddrinfo
-#  define __NIJI_D_getaddrinfo 1
-extern int getaddrinfo (const char *, const char *, const struct addrinfo *, struct addrinfo **);
-# endif
-struct sockaddr;
-# ifndef __NIJI_D_getnameinfo
-#  define __NIJI_D_getnameinfo 1
-extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned int, char *, unsigned int, int);
-# endif
-#endif
 #if 1
-# ifndef _PATH_SERVICES
-#  define _PATH_SERVICES "/etc/services"
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef AI_CANONIDN
-#  define AI_CANONIDN 128
-# endif
-# ifndef AI_IDN
-#  define AI_IDN 64
-# endif
-# ifndef AI_IDN_ALLOW_UNASSIGNED
-#  define AI_IDN_ALLOW_UNASSIGNED 256
-# endif
-# ifndef AI_IDN_USE_STD3_ASCII_RULES
-#  define AI_IDN_USE_STD3_ASCII_RULES 512
-# endif
-# ifndef EAI_ADDRFAMILY
-#  define EAI_ADDRFAMILY (-9)
-# endif
-# ifndef EAI_ALLDONE
-#  define EAI_ALLDONE (-103)
-# endif
-# ifndef EAI_CANCELED
-#  define EAI_CANCELED (-101)
-# endif
-# ifndef EAI_IDN_ENCODE
-#  define EAI_IDN_ENCODE (-105)
-# endif
-# ifndef EAI_INPROGRESS
-#  define EAI_INPROGRESS (-100)
-# endif
-# ifndef EAI_INTR
-#  define EAI_INTR (-104)
-# endif
-# ifndef EAI_NODATA
-#  define EAI_NODATA (-5)
-# endif
-# ifndef EAI_NOTCANCELED
-#  define EAI_NOTCANCELED (-102)
-# endif
-# ifndef GAI_NOWAIT
-#  define GAI_NOWAIT 1
-# endif
-# ifndef GAI_WAIT
-#  define GAI_WAIT 0
-# endif
-# ifndef NI_IDN
-#  define NI_IDN 32
-# endif
-# ifndef NI_IDN_ALLOW_UNASSIGNED
-#  define NI_IDN_ALLOW_UNASSIGNED 64
-# endif
-# ifndef NI_IDN_USE_STD3_ASCII_RULES
-#  define NI_IDN_USE_STD3_ASCII_RULES 128
-# endif
-# ifndef SCOPE_DELIMITER
-#  define SCOPE_DELIMITER '%'
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef NETDB_INTERNAL
-#  define NETDB_INTERNAL (-1)
-# endif
-# ifndef NETDB_SUCCESS
-#  define NETDB_SUCCESS 0
-# endif
-# ifndef NI_MAXHOST
-#  define NI_MAXHOST 1025
-# endif
-# ifndef NI_MAXSERV
-#  define NI_MAXSERV 32
-# endif
-# ifndef NO_ADDRESS
-#  define NO_ADDRESS 4
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_POSIX < 200809
-# ifndef HOST_NOT_FOUND
-#  define HOST_NOT_FOUND 1
-# endif
-# ifndef NO_DATA
-#  define NO_DATA 4
-# endif
-# ifndef NO_RECOVERY
-#  define NO_RECOVERY 3
-# endif
-# ifndef TRY_AGAIN
-#  define TRY_AGAIN 2
-# endif
+# define _PATH_SERVICES "/etc/services"
 #endif
 #if __NIJI_POSIX >= 200112
-# ifndef AI_ADDRCONFIG
-#  define AI_ADDRCONFIG 32
-# endif
-# ifndef AI_ALL
-#  define AI_ALL 16
-# endif
-# ifndef AI_CANONNAME
-#  define AI_CANONNAME 2
-# endif
-# ifndef AI_NUMERICHOST
-#  define AI_NUMERICHOST 4
-# endif
-# ifndef AI_NUMERICSERV
-#  define AI_NUMERICSERV 1024
-# endif
-# ifndef AI_PASSIVE
-#  define AI_PASSIVE 1
-# endif
-# ifndef AI_V4MAPPED
-#  define AI_V4MAPPED 8
-# endif
-# ifndef EAI_AGAIN
-#  define EAI_AGAIN (-3)
-# endif
-# ifndef EAI_BADFLAGS
-#  define EAI_BADFLAGS (-1)
-# endif
-# ifndef EAI_FAIL
-#  define EAI_FAIL (-4)
-# endif
-# ifndef EAI_FAMILY
-#  define EAI_FAMILY (-6)
-# endif
-# ifndef EAI_MEMORY
-#  define EAI_MEMORY (-10)
-# endif
-# ifndef EAI_NONAME
-#  define EAI_NONAME (-2)
-# endif
-# ifndef EAI_OVERFLOW
-#  define EAI_OVERFLOW (-12)
-# endif
-# ifndef EAI_SERVICE
-#  define EAI_SERVICE (-8)
-# endif
-# ifndef EAI_SOCKTYPE
-#  define EAI_SOCKTYPE (-7)
-# endif
-# ifndef EAI_SYSTEM
-#  define EAI_SYSTEM (-11)
-# endif
-# ifndef NI_DGRAM
-#  define NI_DGRAM 16
-# endif
-# ifndef NI_NAMEREQD
-#  define NI_NAMEREQD 8
-# endif
-# ifndef NI_NOFQDN
-#  define NI_NOFQDN 4
-# endif
-# ifndef NI_NUMERICHOST
-#  define NI_NUMERICHOST 1
-# endif
-# ifndef NI_NUMERICSERV
-#  define NI_NUMERICSERV 2
-# endif
+# define AI_ADDRCONFIG 32
+# define AI_ALL 16
+# define AI_CANONNAME 2
+# define AI_NUMERICHOST 4
+# define AI_NUMERICSERV 1024
+# define AI_PASSIVE 1
+# define AI_V4MAPPED 8
+# define EAI_AGAIN (-3)
+# define EAI_BADFLAGS (-1)
+# define EAI_FAIL (-4)
+# define EAI_FAMILY (-6)
+# define EAI_MEMORY (-10)
+# define EAI_NONAME (-2)
+# define EAI_OVERFLOW (-12)
+# define EAI_SERVICE (-8)
+# define EAI_SOCKTYPE (-7)
+# define EAI_SYSTEM (-11)
+# define NI_DGRAM 16
+# define NI_NAMEREQD 8
+# define NI_NOFQDN 4
+# define NI_NUMERICHOST 1
+# define NI_NUMERICSERV 2
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 450
-# ifndef IPPORT_RESERVED
-#  define IPPORT_RESERVED 1024
-# endif
+# define IPPORT_RESERVED 1024
+#endif
+#if defined __USE_GNU
+# define AI_CANONIDN 128
+# define AI_IDN 64
+# define AI_IDN_ALLOW_UNASSIGNED 256
+# define AI_IDN_USE_STD3_ASCII_RULES 512
+# define EAI_ADDRFAMILY (-9)
+# define EAI_ALLDONE (-103)
+# define EAI_CANCELED (-101)
+# define EAI_IDN_ENCODE (-105)
+# define EAI_INPROGRESS (-100)
+# define EAI_INTR (-104)
+# define EAI_NODATA (-5)
+# define EAI_NOTCANCELED (-102)
+# define GAI_NOWAIT 1
+# define GAI_WAIT 0
+# define NI_IDN 32
+# define NI_IDN_ALLOW_UNASSIGNED 64
+# define NI_IDN_USE_STD3_ASCII_RULES 128
+# define SCOPE_DELIMITER '%'
+#endif
+#if defined __USE_MISC
+# define NETDB_INTERNAL (-1)
+# define NETDB_SUCCESS 0
+# define NI_MAXHOST 1025
+# define NI_MAXSERV 32
+# define NO_ADDRESS 4
+#endif
+#if defined __USE_MISC || __NIJI_POSIX < 200809
+# define HOST_NOT_FOUND 1
+# define NO_DATA 4
+# define NO_RECOVERY 3
+# define TRY_AGAIN 2
 #endif
 
-#if __NIJI_MISC || __NIJI_POSIX < 200809
+#if defined __USE_MISC || __NIJI_POSIX < 200809
 # define h_errno (*__h_errno_location ())
 #endif
 

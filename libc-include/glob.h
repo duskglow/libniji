@@ -53,12 +53,6 @@ extern void globfree (glob_t *) __NIJI_NOTHROW __asm__ ("globfree64");
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_glob_pattern_p
-#  define __NIJI_D_glob_pattern_p 1
-extern int glob_pattern_p (const char *, int) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_LFS64 || __NIJI_FOB64
 # ifndef __NIJI_D_glob64
 #  define __NIJI_D_glob64 1
@@ -69,71 +63,37 @@ extern int glob64 (const char *, int, int (*) (const char *, int), glob64_t *) _
 extern void globfree64 (glob64_t *) __NIJI_NOTHROW;
 # endif
 #endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_glob_pattern_p
+#  define __NIJI_D_glob_pattern_p 1
+extern int glob_pattern_p (const char *, int) __NIJI_NOTHROW;
+# endif
+#endif
 #if 1
-# ifndef GLOB_ABORTED
-#  define GLOB_ABORTED 2
-# endif
-# ifndef GLOB_APPEND
-#  define GLOB_APPEND 32
-# endif
-# ifndef GLOB_DOOFFS
-#  define GLOB_DOOFFS 8
-# endif
-# ifndef GLOB_ERR
-#  define GLOB_ERR 1
-# endif
-# ifndef GLOB_MARK
-#  define GLOB_MARK 2
-# endif
-# ifndef GLOB_NOCHECK
-#  define GLOB_NOCHECK 16
-# endif
-# ifndef GLOB_NOESCAPE
-#  define GLOB_NOESCAPE 64
-# endif
-# ifndef GLOB_NOMATCH
-#  define GLOB_NOMATCH 3
-# endif
-# ifndef GLOB_NOSORT
-#  define GLOB_NOSORT 4
-# endif
-# ifndef GLOB_NOSPACE
-#  define GLOB_NOSPACE 1
-# endif
-# ifndef GLOB_NOSYS
-#  define GLOB_NOSYS 4
-# endif
-# ifndef GLOB_PERIOD
-#  define GLOB_PERIOD 128
-# endif
+# define GLOB_ABORTED 2
+# define GLOB_APPEND 32
+# define GLOB_DOOFFS 8
+# define GLOB_ERR 1
+# define GLOB_MARK 2
+# define GLOB_NOCHECK 16
+# define GLOB_NOESCAPE 64
+# define GLOB_NOMATCH 3
+# define GLOB_NOSORT 4
+# define GLOB_NOSPACE 1
+# define GLOB_NOSYS 4
+# define GLOB_PERIOD 128
 #endif
-#if __NIJI_GNU
-# ifndef GLOB_ABEND
-#  define GLOB_ABEND 2
-# endif
+#if defined __USE_GNU
+# define GLOB_ABEND 2
 #endif
-#if __NIJI_MISC || __NIJI_POSIX < 2
-# ifndef GLOB_ALTDIRFUNC
-#  define GLOB_ALTDIRFUNC 512
-# endif
-# ifndef GLOB_BRACE
-#  define GLOB_BRACE 1024
-# endif
-# ifndef GLOB_MAGCHAR
-#  define GLOB_MAGCHAR 256
-# endif
-# ifndef GLOB_NOMAGIC
-#  define GLOB_NOMAGIC 2048
-# endif
-# ifndef GLOB_ONLYDIR
-#  define GLOB_ONLYDIR 8192
-# endif
-# ifndef GLOB_TILDE
-#  define GLOB_TILDE 4096
-# endif
-# ifndef GLOB_TILDE_CHECK
-#  define GLOB_TILDE_CHECK 16384
-# endif
+#if defined __USE_MISC || __NIJI_POSIX < 2
+# define GLOB_ALTDIRFUNC 512
+# define GLOB_BRACE 1024
+# define GLOB_MAGCHAR 256
+# define GLOB_NOMAGIC 2048
+# define GLOB_ONLYDIR 8192
+# define GLOB_TILDE 4096
+# define GLOB_TILDE_CHECK 16384
 #endif
 
 __NIJI_END_C

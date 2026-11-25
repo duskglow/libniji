@@ -40,7 +40,7 @@ struct shmid_ds {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_shm_info
 #  define __NIJI_D_struct_shm_info 1
 struct shm_info {
@@ -105,53 +105,23 @@ extern int shmdt (const void *) __NIJI_NOTHROW;
 #  define __NIJI_D_shmget 1
 extern int shmget (int, unsigned long, int) __NIJI_NOTHROW;
 # endif
-# ifndef SHM_EXEC
-#  define SHM_EXEC 32768
-# endif
-# ifndef SHM_LOCK
-#  define SHM_LOCK 11
-# endif
-# ifndef SHM_R
-#  define SHM_R 256
-# endif
-# ifndef SHM_RDONLY
-#  define SHM_RDONLY 4096
-# endif
-# ifndef SHM_REMAP
-#  define SHM_REMAP 16384
-# endif
-# ifndef SHM_RND
-#  define SHM_RND 8192
-# endif
-# ifndef SHM_UNLOCK
-#  define SHM_UNLOCK 12
-# endif
-# ifndef SHM_W
-#  define SHM_W 128
-# endif
+# define SHM_EXEC 32768
+# define SHM_LOCK 11
+# define SHM_R 256
+# define SHM_RDONLY 4096
+# define SHM_REMAP 16384
+# define SHM_RND 8192
+# define SHM_UNLOCK 12
+# define SHM_W 128
 #endif
-#if __NIJI_MISC
-# ifndef SHM_DEST
-#  define SHM_DEST 512
-# endif
-# ifndef SHM_HUGETLB
-#  define SHM_HUGETLB 2048
-# endif
-# ifndef SHM_INFO
-#  define SHM_INFO 14
-# endif
-# ifndef SHM_LOCKED
-#  define SHM_LOCKED 1024
-# endif
-# ifndef SHM_NORESERVE
-#  define SHM_NORESERVE 4096
-# endif
-# ifndef SHM_STAT
-#  define SHM_STAT 13
-# endif
-# ifndef SHM_STAT_ANY
-#  define SHM_STAT_ANY 15
-# endif
+#if defined __USE_MISC
+# define SHM_DEST 512
+# define SHM_HUGETLB 2048
+# define SHM_INFO 14
+# define SHM_LOCKED 1024
+# define SHM_NORESERVE 4096
+# define SHM_STAT 13
+# define SHM_STAT_ANY 15
 #endif
 
 /* shmat(2): the attach address multiple is the page size. */

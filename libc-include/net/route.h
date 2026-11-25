@@ -97,120 +97,44 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef RTCF_DIRECTSRC
-#  define RTCF_DIRECTSRC 67108864
-# endif
-# ifndef RTCF_DOREDIRECT
-#  define RTCF_DOREDIRECT 16777216
-# endif
-# ifndef RTCF_MASQ
-#  define RTCF_MASQ 4194304
-# endif
-# ifndef RTCF_NAT
-#  define RTCF_NAT 8388608
-# endif
-# ifndef RTF_ADDRCLASSMASK
-#  define RTF_ADDRCLASSMASK 4160749568U
-# endif
-# ifndef RTF_ADDRCONF
-#  define RTF_ADDRCONF 262144
-# endif
-# ifndef RTF_ALLONLINK
-#  define RTF_ALLONLINK 131072
-# endif
-# ifndef RTF_BROADCAST
-#  define RTF_BROADCAST 268435456
-# endif
-# ifndef RTF_CACHE
-#  define RTF_CACHE 16777216
-# endif
-# ifndef RTF_DEFAULT
-#  define RTF_DEFAULT 65536
-# endif
-# ifndef RTF_DYNAMIC
-#  define RTF_DYNAMIC 16
-# endif
-# ifndef RTF_FLOW
-#  define RTF_FLOW 33554432
-# endif
-# ifndef RTF_GATEWAY
-#  define RTF_GATEWAY 2
-# endif
-# ifndef RTF_HOST
-#  define RTF_HOST 4
-# endif
-# ifndef RTF_INTERFACE
-#  define RTF_INTERFACE 1073741824
-# endif
-# ifndef RTF_IRTT
-#  define RTF_IRTT 256
-# endif
-# ifndef RTF_LINKRT
-#  define RTF_LINKRT 1048576
-# endif
-# ifndef RTF_LOCAL
-#  define RTF_LOCAL 2147483648U
-# endif
-# ifndef RTF_MODIFIED
-#  define RTF_MODIFIED 32
-# endif
-# ifndef RTF_MSS
-#  define RTF_MSS 64
-# endif
-# ifndef RTF_MTU
-#  define RTF_MTU 64
-# endif
-# ifndef RTF_MULTICAST
-#  define RTF_MULTICAST 536870912
-# endif
-# ifndef RTF_NAT
-#  define RTF_NAT 134217728
-# endif
-# ifndef RTF_NOFORWARD
-#  define RTF_NOFORWARD 4096
-# endif
-# ifndef RTF_NONEXTHOP
-#  define RTF_NONEXTHOP 2097152
-# endif
-# ifndef RTF_NOPMTUDISC
-#  define RTF_NOPMTUDISC 16384
-# endif
-# ifndef RTF_POLICY
-#  define RTF_POLICY 67108864
-# endif
-# ifndef RTF_REINSTATE
-#  define RTF_REINSTATE 8
-# endif
-# ifndef RTF_REJECT
-#  define RTF_REJECT 512
-# endif
-# ifndef RTF_STATIC
-#  define RTF_STATIC 1024
-# endif
-# ifndef RTF_THROW
-#  define RTF_THROW 8192
-# endif
-# ifndef RTF_UP
-#  define RTF_UP 1
-# endif
-# ifndef RTF_WINDOW
-#  define RTF_WINDOW 128
-# endif
-# ifndef RTF_XRESOLVE
-#  define RTF_XRESOLVE 2048
-# endif
-# ifndef RTMSG_DELDEVICE
-#  define RTMSG_DELDEVICE 18
-# endif
-# ifndef RTMSG_DELROUTE
-#  define RTMSG_DELROUTE 34
-# endif
-# ifndef RTMSG_NEWDEVICE
-#  define RTMSG_NEWDEVICE 17
-# endif
-# ifndef RTMSG_NEWROUTE
-#  define RTMSG_NEWROUTE 33
-# endif
+# define RTCF_DIRECTSRC 67108864
+# define RTCF_DOREDIRECT 16777216
+# define RTCF_MASQ 4194304
+# define RTCF_NAT 8388608
+# define RTF_ADDRCLASSMASK 4160749568U
+# define RTF_ADDRCONF 262144
+# define RTF_ALLONLINK 131072
+# define RTF_BROADCAST 268435456
+# define RTF_CACHE 16777216
+# define RTF_DEFAULT 65536
+# define RTF_DYNAMIC 16
+# define RTF_FLOW 33554432
+# define RTF_GATEWAY 2
+# define RTF_HOST 4
+# define RTF_INTERFACE 1073741824
+# define RTF_IRTT 256
+# define RTF_LINKRT 1048576
+# define RTF_LOCAL 2147483648U
+# define RTF_MODIFIED 32
+# define RTF_MSS 64
+# define RTF_MTU 64
+# define RTF_MULTICAST 536870912
+# define RTF_NAT 134217728
+# define RTF_NOFORWARD 4096
+# define RTF_NONEXTHOP 2097152
+# define RTF_NOPMTUDISC 16384
+# define RTF_POLICY 67108864
+# define RTF_REINSTATE 8
+# define RTF_REJECT 512
+# define RTF_STATIC 1024
+# define RTF_THROW 8192
+# define RTF_UP 1
+# define RTF_WINDOW 128
+# define RTF_XRESOLVE 2048
+# define RTMSG_DELDEVICE 18
+# define RTMSG_DELROUTE 34
+# define RTMSG_NEWDEVICE 17
+# define RTMSG_NEWROUTE 33
 #endif
 
 /* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */

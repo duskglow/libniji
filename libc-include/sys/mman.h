@@ -77,7 +77,19 @@ extern int shm_open (const char *, int, unsigned int);
 extern int shm_unlink (const char *);
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_mmap64
+#  define __NIJI_D_mmap64 1
+extern void *mmap64 (void *, unsigned long, int, int, int, long) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_posix_madvise
+#  define __NIJI_D_posix_madvise 1
+extern int posix_madvise (void *, unsigned long, int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_memfd_create
 #  define __NIJI_D_memfd_create 1
 extern int memfd_create (const char *, unsigned int) __NIJI_NOTHROW;
@@ -124,13 +136,7 @@ extern int process_mrelease (int, unsigned int) __NIJI_NOTHROW;
 extern int remap_file_pages (void *, unsigned long, int, unsigned long, int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_mmap64
-#  define __NIJI_D_mmap64 1
-extern void *mmap64 (void *, unsigned long, int, int, int, long) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_madvise
 #  define __NIJI_D_madvise 1
 extern int madvise (void *, unsigned long, int) __NIJI_NOTHROW;
@@ -140,250 +146,100 @@ extern int madvise (void *, unsigned long, int) __NIJI_NOTHROW;
 extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_posix_madvise
-#  define __NIJI_D_posix_madvise 1
-extern int posix_madvise (void *, unsigned long, int) __NIJI_NOTHROW;
-# endif
-#endif
 #if 1
-# ifndef MAP_32BIT
-#  define MAP_32BIT 64
-# endif
-# ifndef MAP_ABOVE4G
-#  define MAP_ABOVE4G 128
-# endif
-# ifndef MAP_ANON
-#  define MAP_ANON 32
-# endif
-# ifndef MAP_ANONYMOUS
-#  define MAP_ANONYMOUS 32
-# endif
-# ifndef MAP_DENYWRITE
-#  define MAP_DENYWRITE 2048
-# endif
-# ifndef MAP_EXECUTABLE
-#  define MAP_EXECUTABLE 4096
-# endif
-# ifndef MAP_FAILED
-#  define MAP_FAILED ((void *) (-1L))
-# endif
-# ifndef MAP_FILE
-#  define MAP_FILE 0
-# endif
-# ifndef MAP_FIXED
-#  define MAP_FIXED 16
-# endif
-# ifndef MAP_FIXED_NOREPLACE
-#  define MAP_FIXED_NOREPLACE 1048576
-# endif
-# ifndef MAP_GROWSDOWN
-#  define MAP_GROWSDOWN 256
-# endif
-# ifndef MAP_HUGETLB
-#  define MAP_HUGETLB 262144
-# endif
-# ifndef MAP_HUGE_MASK
-#  define MAP_HUGE_MASK 63
-# endif
-# ifndef MAP_HUGE_SHIFT
-#  define MAP_HUGE_SHIFT 26
-# endif
-# ifndef MAP_LOCKED
-#  define MAP_LOCKED 8192
-# endif
-# ifndef MAP_NONBLOCK
-#  define MAP_NONBLOCK 65536
-# endif
-# ifndef MAP_NORESERVE
-#  define MAP_NORESERVE 16384
-# endif
-# ifndef MAP_POPULATE
-#  define MAP_POPULATE 32768
-# endif
-# ifndef MAP_PRIVATE
-#  define MAP_PRIVATE 2
-# endif
-# ifndef MAP_SHARED
-#  define MAP_SHARED 1
-# endif
-# ifndef MAP_SHARED_VALIDATE
-#  define MAP_SHARED_VALIDATE 3
-# endif
-# ifndef MAP_STACK
-#  define MAP_STACK 131072
-# endif
-# ifndef MAP_SYNC
-#  define MAP_SYNC 524288
-# endif
-# ifndef MAP_TYPE
-#  define MAP_TYPE 15
-# endif
+# define MAP_32BIT 64
+# define MAP_ABOVE4G 128
+# define MAP_ANON 32
+# define MAP_ANONYMOUS 32
+# define MAP_DENYWRITE 2048
+# define MAP_EXECUTABLE 4096
+# define MAP_FAILED ((void *) (-1L))
+# define MAP_FILE 0
+# define MAP_FIXED 16
+# define MAP_FIXED_NOREPLACE 1048576
+# define MAP_GROWSDOWN 256
+# define MAP_HUGETLB 262144
+# define MAP_HUGE_MASK 63
+# define MAP_HUGE_SHIFT 26
+# define MAP_LOCKED 8192
+# define MAP_NONBLOCK 65536
+# define MAP_NORESERVE 16384
+# define MAP_POPULATE 32768
+# define MAP_PRIVATE 2
+# define MAP_SHARED 1
+# define MAP_SHARED_VALIDATE 3
+# define MAP_STACK 131072
+# define MAP_SYNC 524288
+# define MAP_TYPE 15
 # ifndef MCL_CURRENT
 #  define MCL_CURRENT 1
 # endif
-# ifndef MCL_FUTURE
-#  define MCL_FUTURE 2
-# endif
-# ifndef MCL_ONFAULT
-#  define MCL_ONFAULT 4
-# endif
-# ifndef MS_ASYNC
-#  define MS_ASYNC 1
-# endif
-# ifndef MS_INVALIDATE
-#  define MS_INVALIDATE 2
-# endif
-# ifndef MS_SYNC
-#  define MS_SYNC 4
-# endif
-# ifndef PROT_EXEC
-#  define PROT_EXEC 4
-# endif
-# ifndef PROT_GROWSDOWN
-#  define PROT_GROWSDOWN 16777216
-# endif
-# ifndef PROT_GROWSUP
-#  define PROT_GROWSUP 33554432
-# endif
-# ifndef PROT_NONE
-#  define PROT_NONE 0
-# endif
-# ifndef PROT_READ
-#  define PROT_READ 1
-# endif
-# ifndef PROT_WRITE
-#  define PROT_WRITE 2
-# endif
+# define MCL_FUTURE 2
+# define MCL_ONFAULT 4
+# define MS_ASYNC 1
+# define MS_INVALIDATE 2
+# define MS_SYNC 4
+# define PROT_EXEC 4
+# define PROT_GROWSDOWN 16777216
+# define PROT_GROWSUP 33554432
+# define PROT_NONE 0
+# define PROT_READ 1
+# define PROT_WRITE 2
 #endif
-#if __NIJI_GNU
-# ifndef MFD_ALLOW_SEALING
-#  define MFD_ALLOW_SEALING 2U
-# endif
+#if __NIJI_POSIX >= 200112
+# define POSIX_MADV_DONTNEED 4
+# define POSIX_MADV_NORMAL 0
+# define POSIX_MADV_RANDOM 1
+# define POSIX_MADV_SEQUENTIAL 2
+# define POSIX_MADV_WILLNEED 3
+#endif
+#if defined __USE_GNU
+# define MFD_ALLOW_SEALING 2U
 # ifndef MFD_CLOEXEC
 #  define MFD_CLOEXEC 1U
 # endif
-# ifndef MFD_EXEC
-#  define MFD_EXEC 16U
-# endif
-# ifndef MFD_HUGETLB
-#  define MFD_HUGETLB 4U
-# endif
+# define MFD_EXEC 16U
+# define MFD_HUGETLB 4U
 # ifndef MFD_NOEXEC_SEAL
 #  define MFD_NOEXEC_SEAL 8U
 # endif
 # ifndef MLOCK_ONFAULT
 #  define MLOCK_ONFAULT 1U
 # endif
-# ifndef MREMAP_DONTUNMAP
-#  define MREMAP_DONTUNMAP 4
-# endif
-# ifndef MREMAP_FIXED
-#  define MREMAP_FIXED 2
-# endif
-# ifndef MREMAP_MAYMOVE
-#  define MREMAP_MAYMOVE 1
-# endif
+# define MREMAP_DONTUNMAP 4
+# define MREMAP_FIXED 2
+# define MREMAP_MAYMOVE 1
 # ifndef PKEY_DISABLE_ACCESS
 #  define PKEY_DISABLE_ACCESS 1
 # endif
-# ifndef PKEY_DISABLE_WRITE
-#  define PKEY_DISABLE_WRITE 2
-# endif
+# define PKEY_DISABLE_WRITE 2
 #endif
-#if __NIJI_MISC
-# ifndef MADV_COLD
-#  define MADV_COLD 20
-# endif
-# ifndef MADV_COLLAPSE
-#  define MADV_COLLAPSE 25
-# endif
-# ifndef MADV_DODUMP
-#  define MADV_DODUMP 17
-# endif
-# ifndef MADV_DOFORK
-#  define MADV_DOFORK 11
-# endif
-# ifndef MADV_DONTDUMP
-#  define MADV_DONTDUMP 16
-# endif
-# ifndef MADV_DONTFORK
-#  define MADV_DONTFORK 10
-# endif
-# ifndef MADV_DONTNEED
-#  define MADV_DONTNEED 4
-# endif
-# ifndef MADV_DONTNEED_LOCKED
-#  define MADV_DONTNEED_LOCKED 24
-# endif
-# ifndef MADV_FREE
-#  define MADV_FREE 8
-# endif
-# ifndef MADV_HUGEPAGE
-#  define MADV_HUGEPAGE 14
-# endif
-# ifndef MADV_HWPOISON
-#  define MADV_HWPOISON 100
-# endif
-# ifndef MADV_KEEPONFORK
-#  define MADV_KEEPONFORK 19
-# endif
-# ifndef MADV_MERGEABLE
-#  define MADV_MERGEABLE 12
-# endif
-# ifndef MADV_NOHUGEPAGE
-#  define MADV_NOHUGEPAGE 15
-# endif
-# ifndef MADV_NORMAL
-#  define MADV_NORMAL 0
-# endif
-# ifndef MADV_PAGEOUT
-#  define MADV_PAGEOUT 21
-# endif
-# ifndef MADV_POPULATE_READ
-#  define MADV_POPULATE_READ 22
-# endif
-# ifndef MADV_POPULATE_WRITE
-#  define MADV_POPULATE_WRITE 23
-# endif
-# ifndef MADV_RANDOM
-#  define MADV_RANDOM 1
-# endif
-# ifndef MADV_REMOVE
-#  define MADV_REMOVE 9
-# endif
-# ifndef MADV_SEQUENTIAL
-#  define MADV_SEQUENTIAL 2
-# endif
-# ifndef MADV_UNMERGEABLE
-#  define MADV_UNMERGEABLE 13
-# endif
-# ifndef MADV_WILLNEED
-#  define MADV_WILLNEED 3
-# endif
-# ifndef MADV_WIPEONFORK
-#  define MADV_WIPEONFORK 18
-# endif
-# ifndef SHADOW_STACK_SET_TOKEN
-#  define SHADOW_STACK_SET_TOKEN 1
-# endif
-#endif
-#if __NIJI_POSIX >= 200112
-# ifndef POSIX_MADV_DONTNEED
-#  define POSIX_MADV_DONTNEED 4
-# endif
-# ifndef POSIX_MADV_NORMAL
-#  define POSIX_MADV_NORMAL 0
-# endif
-# ifndef POSIX_MADV_RANDOM
-#  define POSIX_MADV_RANDOM 1
-# endif
-# ifndef POSIX_MADV_SEQUENTIAL
-#  define POSIX_MADV_SEQUENTIAL 2
-# endif
-# ifndef POSIX_MADV_WILLNEED
-#  define POSIX_MADV_WILLNEED 3
-# endif
+#if defined __USE_MISC
+# define MADV_COLD 20
+# define MADV_COLLAPSE 25
+# define MADV_DODUMP 17
+# define MADV_DOFORK 11
+# define MADV_DONTDUMP 16
+# define MADV_DONTFORK 10
+# define MADV_DONTNEED 4
+# define MADV_DONTNEED_LOCKED 24
+# define MADV_FREE 8
+# define MADV_HUGEPAGE 14
+# define MADV_HWPOISON 100
+# define MADV_KEEPONFORK 19
+# define MADV_MERGEABLE 12
+# define MADV_NOHUGEPAGE 15
+# define MADV_NORMAL 0
+# define MADV_PAGEOUT 21
+# define MADV_POPULATE_READ 22
+# define MADV_POPULATE_WRITE 23
+# define MADV_RANDOM 1
+# define MADV_REMOVE 9
+# define MADV_SEQUENTIAL 2
+# define MADV_UNMERGEABLE 13
+# define MADV_WILLNEED 3
+# define MADV_WIPEONFORK 18
+# define SHADOW_STACK_SET_TOKEN 1
 #endif
 
 __NIJI_END_C

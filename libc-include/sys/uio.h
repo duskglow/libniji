@@ -39,7 +39,19 @@ struct iovec;
 extern long writev (int, const struct iovec *, int);
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+struct iovec;
+# ifndef __NIJI_D_preadv64
+#  define __NIJI_D_preadv64 1
+extern long preadv64 (int, const struct iovec *, int, long);
+# endif
+struct iovec;
+# ifndef __NIJI_D_pwritev64
+#  define __NIJI_D_pwritev64 1
+extern long pwritev64 (int, const struct iovec *, int, long);
+# endif
+#endif
+#if defined __USE_GNU
 struct iovec;
 # ifndef __NIJI_D_preadv2
 #  define __NIJI_D_preadv2 1
@@ -81,23 +93,11 @@ struct iovec;
 extern long pwritev64v2 (int, const struct iovec *, int, long, int);
 # endif
 #endif
-#if __NIJI_LFS64
-struct iovec;
-# ifndef __NIJI_D_preadv64
-#  define __NIJI_D_preadv64 1
-extern long preadv64 (int, const struct iovec *, int, long);
-# endif
-struct iovec;
-# ifndef __NIJI_D_pwritev64
-#  define __NIJI_D_pwritev64 1
-extern long pwritev64 (int, const struct iovec *, int, long);
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct iovec;
 # ifndef __NIJI_D_preadv
 #  define __NIJI_D_preadv 1
-#  if __NIJI_MISC && !__NIJI_FOB64
+#  if defined __USE_MISC && !__NIJI_FOB64
 extern long preadv (int, const struct iovec *, int, long);
 #  elif __NIJI_FOB64
 extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64");
@@ -106,7 +106,7 @@ extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64");
 struct iovec;
 # ifndef __NIJI_D_pwritev
 #  define __NIJI_D_pwritev 1
-#  if __NIJI_MISC && !__NIJI_FOB64
+#  if defined __USE_MISC && !__NIJI_FOB64
 extern long pwritev (int, const struct iovec *, int, long);
 #  elif __NIJI_FOB64
 extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64");
@@ -114,26 +114,14 @@ extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64")
 # endif
 #endif
 #if 1
-# ifndef UIO_MAXIOV
-#  define UIO_MAXIOV 1024
-# endif
+# define UIO_MAXIOV 1024
 #endif
-#if __NIJI_GNU
-# ifndef RWF_APPEND
-#  define RWF_APPEND 16
-# endif
-# ifndef RWF_DSYNC
-#  define RWF_DSYNC 2
-# endif
-# ifndef RWF_HIPRI
-#  define RWF_HIPRI 1
-# endif
-# ifndef RWF_NOWAIT
-#  define RWF_NOWAIT 8
-# endif
-# ifndef RWF_SYNC
-#  define RWF_SYNC 4
-# endif
+#if defined __USE_GNU
+# define RWF_APPEND 16
+# define RWF_DSYNC 2
+# define RWF_HIPRI 1
+# define RWF_NOWAIT 8
+# define RWF_SYNC 4
 #endif
 
 

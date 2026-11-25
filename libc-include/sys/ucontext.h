@@ -269,7 +269,7 @@ struct ucontext_t {
 typedef struct ucontext_t ucontext_t;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_anon_REG_CR2
 #  define __NIJI_D_anon_REG_CR2 1
 #  if !defined REG_R8 || !defined REG_R9 || !defined REG_R10 || !defined REG_R11 || !defined REG_R12 || !defined REG_R13 \
@@ -349,80 +349,32 @@ enum {
 };
 #  endif
 # endif
-# ifndef REG_CR2
-#  define REG_CR2 REG_CR2
-# endif
-# ifndef REG_CSGSFS
-#  define REG_CSGSFS REG_CSGSFS
-# endif
-# ifndef REG_EFL
-#  define REG_EFL REG_EFL
-# endif
-# ifndef REG_ERR
-#  define REG_ERR REG_ERR
-# endif
-# ifndef REG_OLDMASK
-#  define REG_OLDMASK REG_OLDMASK
-# endif
-# ifndef REG_R10
-#  define REG_R10 REG_R10
-# endif
-# ifndef REG_R11
-#  define REG_R11 REG_R11
-# endif
-# ifndef REG_R12
-#  define REG_R12 REG_R12
-# endif
-# ifndef REG_R13
-#  define REG_R13 REG_R13
-# endif
-# ifndef REG_R14
-#  define REG_R14 REG_R14
-# endif
-# ifndef REG_R15
-#  define REG_R15 REG_R15
-# endif
-# ifndef REG_R8
-#  define REG_R8 REG_R8
-# endif
-# ifndef REG_R9
-#  define REG_R9 REG_R9
-# endif
-# ifndef REG_RAX
-#  define REG_RAX REG_RAX
-# endif
-# ifndef REG_RBP
-#  define REG_RBP REG_RBP
-# endif
-# ifndef REG_RBX
-#  define REG_RBX REG_RBX
-# endif
-# ifndef REG_RCX
-#  define REG_RCX REG_RCX
-# endif
-# ifndef REG_RDI
-#  define REG_RDI REG_RDI
-# endif
-# ifndef REG_RDX
-#  define REG_RDX REG_RDX
-# endif
-# ifndef REG_RIP
-#  define REG_RIP REG_RIP
-# endif
-# ifndef REG_RSI
-#  define REG_RSI REG_RSI
-# endif
-# ifndef REG_RSP
-#  define REG_RSP REG_RSP
-# endif
-# ifndef REG_TRAPNO
-#  define REG_TRAPNO REG_TRAPNO
-# endif
+# define REG_CR2 REG_CR2
+# define REG_CSGSFS REG_CSGSFS
+# define REG_EFL REG_EFL
+# define REG_ERR REG_ERR
+# define REG_OLDMASK REG_OLDMASK
+# define REG_R10 REG_R10
+# define REG_R11 REG_R11
+# define REG_R12 REG_R12
+# define REG_R13 REG_R13
+# define REG_R14 REG_R14
+# define REG_R15 REG_R15
+# define REG_R8 REG_R8
+# define REG_R9 REG_R9
+# define REG_RAX REG_RAX
+# define REG_RBP REG_RBP
+# define REG_RBX REG_RBX
+# define REG_RCX REG_RCX
+# define REG_RDI REG_RDI
+# define REG_RDX REG_RDX
+# define REG_RIP REG_RIP
+# define REG_RSI REG_RSI
+# define REG_RSP REG_RSP
+# define REG_TRAPNO REG_TRAPNO
 #endif
-#if __NIJI_MISC
-# ifndef NGREG
-#  define NGREG 23
-# endif
+#if defined __USE_MISC
+# define NGREG 23
 #endif
 
 __NIJI_END_C

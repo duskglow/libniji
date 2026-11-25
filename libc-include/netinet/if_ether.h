@@ -10,7 +10,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_arphdr
 #  define __NIJI_D_struct_arphdr 1
 struct arphdr {
@@ -45,7 +45,7 @@ typedef union pthread_attr_t pthread_attr_t;
 
 /* The fixed fields of an ARP packet (RFC 826) by name: struct ether_arp begins with a struct arphdr, and each name is a
    macro for its member. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define arp_hrd ea_hdr.ar_hrd
 # define arp_pro ea_hdr.ar_pro
 # define arp_hln ea_hdr.ar_hln

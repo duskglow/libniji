@@ -7,7 +7,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_dl_find_object
 #  define __NIJI_D_struct_dl_find_object 1
 struct dl_find_object {
@@ -26,7 +26,7 @@ struct dl_find_object {
 typedef unsigned long size_t;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_Dl_info
 #  define __NIJI_D_Dl_info 1
 typedef struct {
@@ -94,7 +94,7 @@ extern void *dlopen (const char *, int) __NIJI_NOTHROW;
 extern void *dlsym (void *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct dl_find_object;
 # ifndef __NIJI_D__dl_find_object
 #  define __NIJI_D__dl_find_object 1
@@ -126,44 +126,20 @@ extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW __attrib
 # endif
 #endif
 #if 1
-# ifndef RTLD_BINDING_MASK
-#  define RTLD_BINDING_MASK 3
-# endif
-# ifndef RTLD_DEEPBIND
-#  define RTLD_DEEPBIND 8
-# endif
-# ifndef RTLD_GLOBAL
-#  define RTLD_GLOBAL 256
-# endif
-# ifndef RTLD_LAZY
-#  define RTLD_LAZY 1
-# endif
-# ifndef RTLD_LOCAL
-#  define RTLD_LOCAL 0
-# endif
-# ifndef RTLD_NODELETE
-#  define RTLD_NODELETE 4096
-# endif
-# ifndef RTLD_NOLOAD
-#  define RTLD_NOLOAD 4
-# endif
-# ifndef RTLD_NOW
-#  define RTLD_NOW 2
-# endif
+# define RTLD_BINDING_MASK 3
+# define RTLD_DEEPBIND 8
+# define RTLD_GLOBAL 256
+# define RTLD_LAZY 1
+# define RTLD_LOCAL 0
+# define RTLD_NODELETE 4096
+# define RTLD_NOLOAD 4
+# define RTLD_NOW 2
 #endif
-#if __NIJI_GNU
-# ifndef DLFO_STRUCT_HAS_EH_COUNT
-#  define DLFO_STRUCT_HAS_EH_COUNT 0
-# endif
-# ifndef DLFO_STRUCT_HAS_EH_DBASE
-#  define DLFO_STRUCT_HAS_EH_DBASE 0
-# endif
-# ifndef LM_ID_BASE
-#  define LM_ID_BASE 0
-# endif
-# ifndef LM_ID_NEWLM
-#  define LM_ID_NEWLM (-1)
-# endif
+#if defined __USE_GNU
+# define DLFO_STRUCT_HAS_EH_COUNT 0
+# define DLFO_STRUCT_HAS_EH_DBASE 0
+# define LM_ID_BASE 0
+# define LM_ID_NEWLM (-1)
 #endif
 
 /* dlsym(3): the pseudo-handles. RTLD_DEFAULT searches the global scope; RTLD_NEXT the objects after the caller. */
@@ -173,7 +149,7 @@ extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW __attrib
 #endif
 
 /* dl_find_object(3): the segment type that carries the exception-handling frame table (PT_GNU_EH_FRAME). */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define DLFO_EH_SEGMENT_TYPE 1685382480
 #endif
 

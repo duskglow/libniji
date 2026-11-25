@@ -76,21 +76,21 @@ struct utmp {
 };
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_timezone
-#  define __NIJI_D_struct_timezone 1
-struct timezone {
-  int tz_minuteswest;
-  int tz_dsttime;
-};
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
   long tv_sec;
   long tv_nsec;
+};
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_timezone
+#  define __NIJI_D_struct_timezone 1
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
 };
 # endif
 #endif
@@ -219,14 +219,27 @@ extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attrib
 extern int utmpname (const char *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+#endif
+#if defined __USE_GNU
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
 extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct timeval;
 struct timeval;
 # ifndef __NIJI_D_adjtime
@@ -270,131 +283,50 @@ struct timezone;
 extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-struct timespec;
-# ifndef __NIJI_D_pselect
-#  define __NIJI_D_pselect 1
-extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
-# endif
-#endif
 #if 1
-# ifndef ACCOUNTING
-#  define ACCOUNTING 9
-# endif
-# ifndef BOOT_TIME
-#  define BOOT_TIME 2
-# endif
-# ifndef DEAD_PROCESS
-#  define DEAD_PROCESS 8
-# endif
-# ifndef EMPTY
-#  define EMPTY 0
-# endif
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
-# ifndef INIT_PROCESS
-#  define INIT_PROCESS 5
-# endif
-# ifndef ITIMER_PROF
-#  define ITIMER_PROF ITIMER_PROF
-# endif
-# ifndef ITIMER_REAL
-#  define ITIMER_REAL ITIMER_REAL
-# endif
-# ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
-# endif
-# ifndef LOGIN_PROCESS
-#  define LOGIN_PROCESS 6
-# endif
-# ifndef NEW_TIME
-#  define NEW_TIME 3
-# endif
-# ifndef OLD_TIME
-#  define OLD_TIME 4
-# endif
-# ifndef RUN_LVL
-#  define RUN_LVL 1
-# endif
-# ifndef USER_PROCESS
-#  define USER_PROCESS 7
-# endif
-# ifndef UTMP_FILE
-#  define UTMP_FILE "/var/run/utmp"
-# endif
-# ifndef UT_HOSTSIZE
-#  define UT_HOSTSIZE 256
-# endif
-# ifndef UT_LINESIZE
-#  define UT_LINESIZE 32
-# endif
-# ifndef UT_NAMESIZE
-#  define UT_NAMESIZE 32
-# endif
-# ifndef UT_UNKNOWN
-#  define UT_UNKNOWN 0
-# endif
-# ifndef WTMP_FILE
-#  define WTMP_FILE "/var/log/wtmp"
-# endif
-# ifndef _HAVE_UT_HOST
-#  define _HAVE_UT_HOST 1
-# endif
-# ifndef _HAVE_UT_ID
-#  define _HAVE_UT_ID 1
-# endif
-# ifndef _HAVE_UT_PID
-#  define _HAVE_UT_PID 1
-# endif
-# ifndef _HAVE_UT_TV
-#  define _HAVE_UT_TV 1
-# endif
-# ifndef _HAVE_UT_TYPE
-#  define _HAVE_UT_TYPE 1
-# endif
-# ifndef _PATH_BSHELL
-#  define _PATH_BSHELL "/bin/sh"
-# endif
-# ifndef _PATH_DEFPATH
-#  define _PATH_DEFPATH "/usr/bin:/bin"
-# endif
-# ifndef _PATH_DEV
-#  define _PATH_DEV "/dev/"
-# endif
-# ifndef _PATH_GSHADOW
-#  define _PATH_GSHADOW "/etc/gshadow"
-# endif
-# ifndef _PATH_KLOG
-#  define _PATH_KLOG "/proc/kmsg"
-# endif
-# ifndef _PATH_MNTTAB
-#  define _PATH_MNTTAB "/etc/fstab"
-# endif
-# ifndef _PATH_MOUNTED
-#  define _PATH_MOUNTED "/etc/mtab"
-# endif
-# ifndef _PATH_SHADOW
-#  define _PATH_SHADOW "/etc/shadow"
-# endif
-# ifndef _PATH_TMP
-#  define _PATH_TMP "/tmp/"
-# endif
-# ifndef _PATH_TTY
-#  define _PATH_TTY "/dev/tty"
-# endif
-# ifndef _PATH_UTMP
-#  define _PATH_UTMP "/var/run/utmp"
-# endif
-# ifndef _PATH_WTMP
-#  define _PATH_WTMP "/var/log/wtmp"
-# endif
+# define ACCOUNTING 9
+# define BOOT_TIME 2
+# define DEAD_PROCESS 8
+# define EMPTY 0
+# define FD_SETSIZE 1024
+# define INIT_PROCESS 5
+# define ITIMER_PROF ITIMER_PROF
+# define ITIMER_REAL ITIMER_REAL
+# define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# define LOGIN_PROCESS 6
+# define NEW_TIME 3
+# define OLD_TIME 4
+# define RUN_LVL 1
+# define USER_PROCESS 7
+# define UTMP_FILE "/var/run/utmp"
+# define UT_HOSTSIZE 256
+# define UT_LINESIZE 32
+# define UT_NAMESIZE 32
+# define UT_UNKNOWN 0
+# define WTMP_FILE "/var/log/wtmp"
+# define _HAVE_UT_HOST 1
+# define _HAVE_UT_ID 1
+# define _HAVE_UT_PID 1
+# define _HAVE_UT_TV 1
+# define _HAVE_UT_TYPE 1
+# define _PATH_BSHELL "/bin/sh"
+# define _PATH_DEFPATH "/usr/bin:/bin"
+# define _PATH_DEV "/dev/"
+# define _PATH_GSHADOW "/etc/gshadow"
+# define _PATH_KLOG "/proc/kmsg"
+# define _PATH_MNTTAB "/etc/fstab"
+# define _PATH_MOUNTED "/etc/mtab"
+# define _PATH_SHADOW "/etc/shadow"
+# define _PATH_TMP "/tmp/"
+# define _PATH_TTY "/dev/tty"
+# define _PATH_UTMP "/var/run/utmp"
+# define _PATH_WTMP "/var/log/wtmp"
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */

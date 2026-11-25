@@ -82,14 +82,10 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 #endif
 #if 1
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
+# define FD_SETSIZE 1024
 #endif
-#if __NIJI_MISC
-# ifndef NFDBITS
-#  define NFDBITS 64
-# endif
+#if defined __USE_MISC
+# define NFDBITS 64
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */

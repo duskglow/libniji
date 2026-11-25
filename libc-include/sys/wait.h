@@ -138,58 +138,40 @@ extern int wait (int *);
 extern int waitpid (int, int *, int);
 # endif
 #endif
-#if __NIJI_MISC
-struct rusage;
-# ifndef __NIJI_D_wait4
-#  define __NIJI_D_wait4 1
-extern int wait4 (int, int *, int, struct rusage *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 450)
-struct rusage;
-# ifndef __NIJI_D_wait3
-#  define __NIJI_D_wait3 1
-extern int wait3 (int *, int, struct rusage *) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # ifndef __NIJI_D_waitid
 #  define __NIJI_D_waitid 1
 extern int waitid (idtype_t, unsigned int, siginfo_t *, int);
 # endif
 #endif
-#if 1
-# ifndef WNOHANG
-#  define WNOHANG 1
-# endif
-# ifndef WUNTRACED
-#  define WUNTRACED 2
+#if defined __USE_MISC
+struct rusage;
+# ifndef __NIJI_D_wait4
+#  define __NIJI_D_wait4 1
+extern int wait4 (int, int *, int, struct rusage *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef WAIT_ANY
-#  define WAIT_ANY (-1)
+#if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 450)
+struct rusage;
+# ifndef __NIJI_D_wait3
+#  define __NIJI_D_wait3 1
+extern int wait3 (int *, int, struct rusage *) __NIJI_NOTHROW;
 # endif
-# ifndef WAIT_MYPGRP
-#  define WAIT_MYPGRP 0
-# endif
-# ifndef WCOREFLAG
-#  define WCOREFLAG 128
-# endif
+#endif
+#if 1
+# define WNOHANG 1
+# define WUNTRACED 2
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# ifndef WCONTINUED
-#  define WCONTINUED 8
-# endif
-# ifndef WEXITED
-#  define WEXITED 4
-# endif
-# ifndef WNOWAIT
-#  define WNOWAIT 16777216
-# endif
-# ifndef WSTOPPED
-#  define WSTOPPED 2
-# endif
+# define WCONTINUED 8
+# define WEXITED 4
+# define WNOWAIT 16777216
+# define WSTOPPED 2
+#endif
+#if defined __USE_MISC
+# define WAIT_ANY (-1)
+# define WAIT_MYPGRP 0
+# define WCOREFLAG 128
 #endif
 
 #if __NIJI_DYNSTACK
@@ -219,7 +201,7 @@ extern int waitid (idtype_t, unsigned int, siginfo_t *, int);
 # define WIFCONTINUED(status) ((status) == 0xffff)
 #endif
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define WCOREDUMP(status) ((status) & WCOREFLAG)
 #endif
 

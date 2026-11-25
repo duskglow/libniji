@@ -18,7 +18,7 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct ether_addr;
 # ifndef __NIJI_D_ether_aton
 #  define __NIJI_D_ether_aton 1

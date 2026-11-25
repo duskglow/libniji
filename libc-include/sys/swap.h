@@ -16,18 +16,10 @@ extern int swapoff (const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_swapon 1
 extern int swapon (const char *, int) __NIJI_NOTHROW;
 # endif
-# ifndef SWAP_FLAG_DISCARD
-#  define SWAP_FLAG_DISCARD 65536
-# endif
-# ifndef SWAP_FLAG_PREFER
-#  define SWAP_FLAG_PREFER 32768
-# endif
-# ifndef SWAP_FLAG_PRIO_MASK
-#  define SWAP_FLAG_PRIO_MASK 32767
-# endif
-# ifndef SWAP_FLAG_PRIO_SHIFT
-#  define SWAP_FLAG_PRIO_SHIFT 0
-# endif
+# define SWAP_FLAG_DISCARD 65536
+# define SWAP_FLAG_PREFER 32768
+# define SWAP_FLAG_PRIO_MASK 32767
+# define SWAP_FLAG_PRIO_SHIFT 0
 #endif
 
 __NIJI_END_C

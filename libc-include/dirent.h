@@ -53,12 +53,6 @@ typedef long __off_t;
 typedef int __pid_t;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_ino64_t
-#  define __NIJI_D_ino64_t 1
-typedef unsigned long ino64_t;
-# endif
-#endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
@@ -69,6 +63,12 @@ typedef unsigned long size_t;
 # ifndef __NIJI_D_ino_t
 #  define __NIJI_D_ino_t 1
 typedef unsigned long ino_t;
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_ino64_t
+#  define __NIJI_D_ino64_t 1
+typedef unsigned long ino64_t;
 # endif
 #endif
 #if 1
@@ -100,7 +100,68 @@ extern void rewinddir (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 extern long int __sysconf (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_getdirentries64
+#  define __NIJI_D_getdirentries64 1
+extern long getdirentries64 (int, char *, unsigned long, long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
+# endif
+struct dirent64;
+# ifndef __NIJI_D_readdir64
+#  define __NIJI_D_readdir64 1
+extern struct dirent64 *readdir64 (DIR *) __attribute__ ((__nonnull__ (1)));
+# endif
+struct dirent64;
+struct dirent64;
+# ifndef __NIJI_D_readdir64_r
+#  define __NIJI_D_readdir64_r 1
+extern int readdir64_r (DIR *, struct dirent64 *, struct dirent64 **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
+# endif
+#endif
+#if __NIJI_POSIX >= 1
+struct dirent;
+struct dirent;
+# ifndef __NIJI_D_readdir_r
+#  define __NIJI_D_readdir_r 1
+#  if __NIJI_FOB64
+extern int readdir_r (DIR *, struct dirent *, struct dirent **) __asm__ ("readdir64_r") __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
+#  elif __NIJI_POSIX >= 1 && !__NIJI_FOB64
+extern int readdir_r (DIR *, struct dirent *, struct dirent **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
+#  endif
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+struct dirent;
+struct dirent;
+# ifndef __NIJI_D_alphasort
+#  define __NIJI_D_alphasort 1
+#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
+extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+#  elif __NIJI_FOB64
+extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("alphasort64") __attribute__ ((__nonnull__ (1, 2), __pure__));
+#  endif
+# endif
+# ifndef __NIJI_D_dirfd
+#  define __NIJI_D_dirfd 1
+extern int dirfd (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_fdopendir
+#  define __NIJI_D_fdopendir 1
+extern DIR *fdopendir (int) __attribute__ ((__malloc__));
+# endif
+struct dirent;
+struct dirent;
+struct dirent;
+struct dirent;
+# ifndef __NIJI_D_scandir
+#  define __NIJI_D_scandir 1
+#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
+extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __attribute__ ((__nonnull__ (1, 2)));
+#  elif __NIJI_FOB64
+extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandir64") __attribute__ ((__nonnull__ (1, 2)));
+#  endif
+# endif
+#endif
+#if defined __USE_GNU
 struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_alphasort64
@@ -156,34 +217,17 @@ struct dirent64;
 extern int versionsort64 (const struct dirent64 **, const struct dirent64 **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_getdirentries64
-#  define __NIJI_D_getdirentries64 1
-extern long getdirentries64 (int, char *, unsigned long, long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
-# endif
-struct dirent64;
-# ifndef __NIJI_D_readdir64
-#  define __NIJI_D_readdir64 1
-extern struct dirent64 *readdir64 (DIR *) __attribute__ ((__nonnull__ (1)));
-# endif
-struct dirent64;
-struct dirent64;
-# ifndef __NIJI_D_readdir64_r
-#  define __NIJI_D_readdir64_r 1
-extern int readdir64_r (DIR *, struct dirent64 *, struct dirent64 **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_getdirentries
 #  define __NIJI_D_getdirentries 1
-#  if __NIJI_MISC && !__NIJI_FOB64
+#  if defined __USE_MISC && !__NIJI_FOB64
 extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
 #  elif __NIJI_FOB64
 extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW __asm__ ("getdirentries64") __attribute__ ((__nonnull__ (2, 4)));
 #  endif
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # ifndef __NIJI_D_seekdir
 #  define __NIJI_D_seekdir 1
 extern void seekdir (DIR *, long int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
@@ -193,51 +237,7 @@ extern void seekdir (DIR *, long int) __NIJI_NOTHROW __attribute__ ((__nonnull__
 extern long int telldir (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_POSIX >= 1
-struct dirent;
-struct dirent;
-# ifndef __NIJI_D_readdir_r
-#  define __NIJI_D_readdir_r 1
-#  if __NIJI_FOB64
-extern int readdir_r (DIR *, struct dirent *, struct dirent **) __asm__ ("readdir64_r") __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
-#  elif __NIJI_POSIX >= 1 && !__NIJI_FOB64
-extern int readdir_r (DIR *, struct dirent *, struct dirent **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
-#  endif
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-struct dirent;
-struct dirent;
-# ifndef __NIJI_D_alphasort
-#  define __NIJI_D_alphasort 1
-#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
-#  elif __NIJI_FOB64
-extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("alphasort64") __attribute__ ((__nonnull__ (1, 2), __pure__));
-#  endif
-# endif
-# ifndef __NIJI_D_dirfd
-#  define __NIJI_D_dirfd 1
-extern int dirfd (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_fdopendir
-#  define __NIJI_D_fdopendir 1
-extern DIR *fdopendir (int) __attribute__ ((__malloc__));
-# endif
-struct dirent;
-struct dirent;
-struct dirent;
-struct dirent;
-# ifndef __NIJI_D_scandir
-#  define __NIJI_D_scandir 1
-#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __attribute__ ((__nonnull__ (1, 2)));
-#  elif __NIJI_FOB64
-extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandir64") __attribute__ ((__nonnull__ (1, 2)));
-#  endif
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_anon_DT_BLK
 #  define __NIJI_D_anon_DT_BLK 1
 #  if !defined DT_UNKNOWN || !defined DT_FIFO || !defined DT_CHR || !defined DT_DIR || !defined DT_BLK || !defined DT_REG \
@@ -275,219 +275,87 @@ enum {
 # endif
 #endif
 #if 1
-# ifndef _DIRENT_MATCHES_DIRENT64
-#  define _DIRENT_MATCHES_DIRENT64 1
-# endif
+# define _DIRENT_MATCHES_DIRENT64 1
 #endif
-#if __NIJI_GNU
-# ifndef _POSIX_FD_SETSIZE
-#  define _POSIX_FD_SETSIZE 20
-# endif
-# ifndef _POSIX_HIWAT
-#  define _POSIX_HIWAT 512
-# endif
-# ifndef _POSIX_QLIMIT
-#  define _POSIX_QLIMIT 1
-# endif
-# ifndef _POSIX_UIO_MAXIOV
-#  define _POSIX_UIO_MAXIOV 16
-# endif
+#if defined __USE_GNU
+# define _POSIX_FD_SETSIZE 20
+# define _POSIX_HIWAT 512
+# define _POSIX_QLIMIT 1
+# define _POSIX_UIO_MAXIOV 16
 #endif
-#if __NIJI_MISC
-# ifndef AIO_PRIO_DELTA_MAX
-#  define AIO_PRIO_DELTA_MAX 20
-# endif
-# ifndef DELAYTIMER_MAX
-#  define DELAYTIMER_MAX 2147483647
-# endif
-# ifndef DT_BLK
-#  define DT_BLK DT_BLK
-# endif
-# ifndef DT_CHR
-#  define DT_CHR DT_CHR
-# endif
-# ifndef DT_DIR
-#  define DT_DIR DT_DIR
-# endif
-# ifndef DT_FIFO
-#  define DT_FIFO DT_FIFO
-# endif
-# ifndef DT_LNK
-#  define DT_LNK DT_LNK
-# endif
-# ifndef DT_REG
-#  define DT_REG DT_REG
-# endif
-# ifndef DT_SOCK
-#  define DT_SOCK DT_SOCK
-# endif
-# ifndef DT_UNKNOWN
-#  define DT_UNKNOWN DT_UNKNOWN
-# endif
-# ifndef DT_WHT
-#  define DT_WHT DT_WHT
-# endif
-# ifndef HOST_NAME_MAX
-#  define HOST_NAME_MAX 64
-# endif
-# ifndef LOGIN_NAME_MAX
-#  define LOGIN_NAME_MAX 256
-# endif
+#if defined __USE_MISC
+# define AIO_PRIO_DELTA_MAX 20
+# define DELAYTIMER_MAX 2147483647
+# define DT_BLK DT_BLK
+# define DT_CHR DT_CHR
+# define DT_DIR DT_DIR
+# define DT_FIFO DT_FIFO
+# define DT_LNK DT_LNK
+# define DT_REG DT_REG
+# define DT_SOCK DT_SOCK
+# define DT_UNKNOWN DT_UNKNOWN
+# define DT_WHT DT_WHT
+# define HOST_NAME_MAX 64
+# define LOGIN_NAME_MAX 256
 # ifndef MAXNAMLEN
 #  define MAXNAMLEN 255
 # endif
-# ifndef MAX_CANON
-#  define MAX_CANON 255
-# endif
-# ifndef MAX_INPUT
-#  define MAX_INPUT 255
-# endif
-# ifndef MQ_PRIO_MAX
-#  define MQ_PRIO_MAX 32768
-# endif
-# ifndef NAME_MAX
-#  define NAME_MAX 255
-# endif
-# ifndef NGROUPS_MAX
-#  define NGROUPS_MAX 65536
-# endif
-# ifndef PATH_MAX
-#  define PATH_MAX 4096
-# endif
-# ifndef PIPE_BUF
-#  define PIPE_BUF 4096
-# endif
-# ifndef PTHREAD_DESTRUCTOR_ITERATIONS
-#  define PTHREAD_DESTRUCTOR_ITERATIONS 4
-# endif
-# ifndef PTHREAD_KEYS_MAX
-#  define PTHREAD_KEYS_MAX 1024
-# endif
-# ifndef RTSIG_MAX
-#  define RTSIG_MAX 32
-# endif
-# ifndef SEM_VALUE_MAX
-#  define SEM_VALUE_MAX 2147483647
-# endif
+# define MAX_CANON 255
+# define MAX_INPUT 255
+# define MQ_PRIO_MAX 32768
+# define NAME_MAX 255
+# define NGROUPS_MAX 65536
+# define PATH_MAX 4096
+# define PIPE_BUF 4096
+# define PTHREAD_DESTRUCTOR_ITERATIONS 4
+# define PTHREAD_KEYS_MAX 1024
+# define RTSIG_MAX 32
+# define SEM_VALUE_MAX 2147483647
 # ifndef SSIZE_MAX
 #  define SSIZE_MAX 9223372036854775807L
 # endif
-# ifndef TTY_NAME_MAX
-#  define TTY_NAME_MAX 32
-# endif
-# ifndef XATTR_LIST_MAX
-#  define XATTR_LIST_MAX 65536
-# endif
-# ifndef XATTR_NAME_MAX
-#  define XATTR_NAME_MAX 255
-# endif
-# ifndef XATTR_SIZE_MAX
-#  define XATTR_SIZE_MAX 65536
-# endif
-# ifndef _POSIX_AIO_LISTIO_MAX
-#  define _POSIX_AIO_LISTIO_MAX 2
-# endif
-# ifndef _POSIX_AIO_MAX
-#  define _POSIX_AIO_MAX 1
-# endif
-# ifndef _POSIX_ARG_MAX
-#  define _POSIX_ARG_MAX 4096
-# endif
-# ifndef _POSIX_CHILD_MAX
-#  define _POSIX_CHILD_MAX 25
-# endif
-# ifndef _POSIX_CLOCKRES_MIN
-#  define _POSIX_CLOCKRES_MIN 20000000
-# endif
-# ifndef _POSIX_DELAYTIMER_MAX
-#  define _POSIX_DELAYTIMER_MAX 32
-# endif
-# ifndef _POSIX_HOST_NAME_MAX
-#  define _POSIX_HOST_NAME_MAX 255
-# endif
-# ifndef _POSIX_LINK_MAX
-#  define _POSIX_LINK_MAX 8
-# endif
-# ifndef _POSIX_LOGIN_NAME_MAX
-#  define _POSIX_LOGIN_NAME_MAX 9
-# endif
-# ifndef _POSIX_MAX_CANON
-#  define _POSIX_MAX_CANON 255
-# endif
-# ifndef _POSIX_MAX_INPUT
-#  define _POSIX_MAX_INPUT 255
-# endif
-# ifndef _POSIX_MQ_OPEN_MAX
-#  define _POSIX_MQ_OPEN_MAX 8
-# endif
-# ifndef _POSIX_MQ_PRIO_MAX
-#  define _POSIX_MQ_PRIO_MAX 32
-# endif
-# ifndef _POSIX_NAME_MAX
-#  define _POSIX_NAME_MAX 14
-# endif
-# ifndef _POSIX_NGROUPS_MAX
-#  define _POSIX_NGROUPS_MAX 8
-# endif
-# ifndef _POSIX_OPEN_MAX
-#  define _POSIX_OPEN_MAX 20
-# endif
-# ifndef _POSIX_PATH_MAX
-#  define _POSIX_PATH_MAX 256
-# endif
-# ifndef _POSIX_PIPE_BUF
-#  define _POSIX_PIPE_BUF 512
-# endif
-# ifndef _POSIX_RE_DUP_MAX
-#  define _POSIX_RE_DUP_MAX 255
-# endif
-# ifndef _POSIX_RTSIG_MAX
-#  define _POSIX_RTSIG_MAX 8
-# endif
-# ifndef _POSIX_SEM_NSEMS_MAX
-#  define _POSIX_SEM_NSEMS_MAX 256
-# endif
-# ifndef _POSIX_SEM_VALUE_MAX
-#  define _POSIX_SEM_VALUE_MAX 32767
-# endif
-# ifndef _POSIX_SIGQUEUE_MAX
-#  define _POSIX_SIGQUEUE_MAX 32
-# endif
-# ifndef _POSIX_SSIZE_MAX
-#  define _POSIX_SSIZE_MAX 32767
-# endif
-# ifndef _POSIX_STREAM_MAX
-#  define _POSIX_STREAM_MAX 8
-# endif
-# ifndef _POSIX_SYMLINK_MAX
-#  define _POSIX_SYMLINK_MAX 255
-# endif
-# ifndef _POSIX_SYMLOOP_MAX
-#  define _POSIX_SYMLOOP_MAX 8
-# endif
-# ifndef _POSIX_THREAD_DESTRUCTOR_ITERATIONS
-#  define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
-# endif
-# ifndef _POSIX_THREAD_KEYS_MAX
-#  define _POSIX_THREAD_KEYS_MAX 128
-# endif
-# ifndef _POSIX_THREAD_THREADS_MAX
-#  define _POSIX_THREAD_THREADS_MAX 64
-# endif
-# ifndef _POSIX_TIMER_MAX
-#  define _POSIX_TIMER_MAX 32
-# endif
-# ifndef _POSIX_TTY_NAME_MAX
-#  define _POSIX_TTY_NAME_MAX 9
-# endif
-# ifndef _POSIX_TZNAME_MAX
-#  define _POSIX_TZNAME_MAX 6
-# endif
+# define TTY_NAME_MAX 32
+# define XATTR_LIST_MAX 65536
+# define XATTR_NAME_MAX 255
+# define XATTR_SIZE_MAX 65536
+# define _POSIX_AIO_LISTIO_MAX 2
+# define _POSIX_AIO_MAX 1
+# define _POSIX_ARG_MAX 4096
+# define _POSIX_CHILD_MAX 25
+# define _POSIX_CLOCKRES_MIN 20000000
+# define _POSIX_DELAYTIMER_MAX 32
+# define _POSIX_HOST_NAME_MAX 255
+# define _POSIX_LINK_MAX 8
+# define _POSIX_LOGIN_NAME_MAX 9
+# define _POSIX_MAX_CANON 255
+# define _POSIX_MAX_INPUT 255
+# define _POSIX_MQ_OPEN_MAX 8
+# define _POSIX_MQ_PRIO_MAX 32
+# define _POSIX_NAME_MAX 14
+# define _POSIX_NGROUPS_MAX 8
+# define _POSIX_OPEN_MAX 20
+# define _POSIX_PATH_MAX 256
+# define _POSIX_PIPE_BUF 512
+# define _POSIX_RE_DUP_MAX 255
+# define _POSIX_RTSIG_MAX 8
+# define _POSIX_SEM_NSEMS_MAX 256
+# define _POSIX_SEM_VALUE_MAX 32767
+# define _POSIX_SIGQUEUE_MAX 32
+# define _POSIX_SSIZE_MAX 32767
+# define _POSIX_STREAM_MAX 8
+# define _POSIX_SYMLINK_MAX 255
+# define _POSIX_SYMLOOP_MAX 8
+# define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
+# define _POSIX_THREAD_KEYS_MAX 128
+# define _POSIX_THREAD_THREADS_MAX 64
+# define _POSIX_TIMER_MAX 32
+# define _POSIX_TTY_NAME_MAX 9
+# define _POSIX_TZNAME_MAX 6
 #endif
 
 /* PTHREAD_STACK_MIN in <limits.h>'s form: the run-time sysconf(3) value under _DYNAMIC_STACK_SIZE_SOURCE (implied by
    _GNU_SOURCE and C++), the constant otherwise. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # if __NIJI_DYNSTACK
 #  define PTHREAD_STACK_MIN __sysconf (75)
 # else

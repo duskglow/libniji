@@ -12,9 +12,8 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
 # endif
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define SOL_AX25 257
+# define _SS_SIZE 128
 #endif
 
 __NIJI_END_C

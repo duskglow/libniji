@@ -7,7 +7,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_error_t
 #  define __NIJI_D_error_t 1
 typedef int error_t;
@@ -26,408 +26,142 @@ extern char * program_invocation_short_name;
 #  define __NIJI_D___errno_location 1
 extern int *__errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
-# ifndef E2BIG
-#  define E2BIG 7
-# endif
-# ifndef EACCES
-#  define EACCES 13
-# endif
-# ifndef EADDRINUSE
-#  define EADDRINUSE 98
-# endif
-# ifndef EADDRNOTAVAIL
-#  define EADDRNOTAVAIL 99
-# endif
-# ifndef EADV
-#  define EADV 68
-# endif
-# ifndef EAFNOSUPPORT
-#  define EAFNOSUPPORT 97
-# endif
-# ifndef EAGAIN
-#  define EAGAIN 11
-# endif
-# ifndef EALREADY
-#  define EALREADY 114
-# endif
-# ifndef EBADE
-#  define EBADE 52
-# endif
-# ifndef EBADF
-#  define EBADF 9
-# endif
-# ifndef EBADFD
-#  define EBADFD 77
-# endif
-# ifndef EBADMSG
-#  define EBADMSG 74
-# endif
-# ifndef EBADR
-#  define EBADR 53
-# endif
-# ifndef EBADRQC
-#  define EBADRQC 56
-# endif
-# ifndef EBADSLT
-#  define EBADSLT 57
-# endif
-# ifndef EBFONT
-#  define EBFONT 59
-# endif
-# ifndef EBUSY
-#  define EBUSY 16
-# endif
-# ifndef ECANCELED
-#  define ECANCELED 125
-# endif
-# ifndef ECHILD
-#  define ECHILD 10
-# endif
-# ifndef ECHRNG
-#  define ECHRNG 44
-# endif
-# ifndef ECOMM
-#  define ECOMM 70
-# endif
-# ifndef ECONNABORTED
-#  define ECONNABORTED 103
-# endif
-# ifndef ECONNREFUSED
-#  define ECONNREFUSED 111
-# endif
-# ifndef ECONNRESET
-#  define ECONNRESET 104
-# endif
-# ifndef EDEADLK
-#  define EDEADLK 35
-# endif
-# ifndef EDEADLOCK
-#  define EDEADLOCK 35
-# endif
-# ifndef EDESTADDRREQ
-#  define EDESTADDRREQ 89
-# endif
-# ifndef EDOM
-#  define EDOM 33
-# endif
-# ifndef EDOTDOT
-#  define EDOTDOT 73
-# endif
-# ifndef EDQUOT
-#  define EDQUOT 122
-# endif
-# ifndef EEXIST
-#  define EEXIST 17
-# endif
-# ifndef EFAULT
-#  define EFAULT 14
-# endif
-# ifndef EFBIG
-#  define EFBIG 27
-# endif
-# ifndef EHOSTDOWN
-#  define EHOSTDOWN 112
-# endif
-# ifndef EHOSTUNREACH
-#  define EHOSTUNREACH 113
-# endif
-# ifndef EHWPOISON
-#  define EHWPOISON 133
-# endif
-# ifndef EIDRM
-#  define EIDRM 43
-# endif
-# ifndef EILSEQ
-#  define EILSEQ 84
-# endif
-# ifndef EINPROGRESS
-#  define EINPROGRESS 115
-# endif
-# ifndef EINTR
-#  define EINTR 4
-# endif
-# ifndef EINVAL
-#  define EINVAL 22
-# endif
-# ifndef EIO
-#  define EIO 5
-# endif
-# ifndef EISCONN
-#  define EISCONN 106
-# endif
-# ifndef EISDIR
-#  define EISDIR 21
-# endif
-# ifndef EISNAM
-#  define EISNAM 120
-# endif
-# ifndef EKEYEXPIRED
-#  define EKEYEXPIRED 127
-# endif
-# ifndef EKEYREJECTED
-#  define EKEYREJECTED 129
-# endif
-# ifndef EKEYREVOKED
-#  define EKEYREVOKED 128
-# endif
-# ifndef EL2HLT
-#  define EL2HLT 51
-# endif
-# ifndef EL2NSYNC
-#  define EL2NSYNC 45
-# endif
-# ifndef EL3HLT
-#  define EL3HLT 46
-# endif
-# ifndef EL3RST
-#  define EL3RST 47
-# endif
-# ifndef ELIBACC
-#  define ELIBACC 79
-# endif
-# ifndef ELIBBAD
-#  define ELIBBAD 80
-# endif
-# ifndef ELIBEXEC
-#  define ELIBEXEC 83
-# endif
-# ifndef ELIBMAX
-#  define ELIBMAX 82
-# endif
-# ifndef ELIBSCN
-#  define ELIBSCN 81
-# endif
-# ifndef ELNRNG
-#  define ELNRNG 48
-# endif
-# ifndef ELOOP
-#  define ELOOP 40
-# endif
-# ifndef EMEDIUMTYPE
-#  define EMEDIUMTYPE 124
-# endif
-# ifndef EMFILE
-#  define EMFILE 24
-# endif
-# ifndef EMLINK
-#  define EMLINK 31
-# endif
-# ifndef EMSGSIZE
-#  define EMSGSIZE 90
-# endif
-# ifndef EMULTIHOP
-#  define EMULTIHOP 72
-# endif
-# ifndef ENAMETOOLONG
-#  define ENAMETOOLONG 36
-# endif
-# ifndef ENAVAIL
-#  define ENAVAIL 119
-# endif
-# ifndef ENETDOWN
-#  define ENETDOWN 100
-# endif
-# ifndef ENETRESET
-#  define ENETRESET 102
-# endif
-# ifndef ENETUNREACH
-#  define ENETUNREACH 101
-# endif
-# ifndef ENFILE
-#  define ENFILE 23
-# endif
-# ifndef ENOANO
-#  define ENOANO 55
-# endif
-# ifndef ENOBUFS
-#  define ENOBUFS 105
-# endif
-# ifndef ENOCSI
-#  define ENOCSI 50
-# endif
-# ifndef ENODATA
-#  define ENODATA 61
-# endif
-# ifndef ENODEV
-#  define ENODEV 19
-# endif
-# ifndef ENOENT
-#  define ENOENT 2
-# endif
-# ifndef ENOEXEC
-#  define ENOEXEC 8
-# endif
-# ifndef ENOKEY
-#  define ENOKEY 126
-# endif
-# ifndef ENOLCK
-#  define ENOLCK 37
-# endif
-# ifndef ENOLINK
-#  define ENOLINK 67
-# endif
-# ifndef ENOMEDIUM
-#  define ENOMEDIUM 123
-# endif
-# ifndef ENOMEM
-#  define ENOMEM 12
-# endif
-# ifndef ENOMSG
-#  define ENOMSG 42
-# endif
-# ifndef ENONET
-#  define ENONET 64
-# endif
-# ifndef ENOPKG
-#  define ENOPKG 65
-# endif
-# ifndef ENOPROTOOPT
-#  define ENOPROTOOPT 92
-# endif
-# ifndef ENOSPC
-#  define ENOSPC 28
-# endif
-# ifndef ENOSR
-#  define ENOSR 63
-# endif
-# ifndef ENOSTR
-#  define ENOSTR 60
-# endif
-# ifndef ENOSYS
-#  define ENOSYS 38
-# endif
-# ifndef ENOTBLK
-#  define ENOTBLK 15
-# endif
-# ifndef ENOTCONN
-#  define ENOTCONN 107
-# endif
-# ifndef ENOTDIR
-#  define ENOTDIR 20
-# endif
-# ifndef ENOTEMPTY
-#  define ENOTEMPTY 39
-# endif
-# ifndef ENOTNAM
-#  define ENOTNAM 118
-# endif
-# ifndef ENOTRECOVERABLE
-#  define ENOTRECOVERABLE 131
-# endif
-# ifndef ENOTSOCK
-#  define ENOTSOCK 88
-# endif
+# define E2BIG 7
+# define EACCES 13
+# define EADDRINUSE 98
+# define EADDRNOTAVAIL 99
+# define EADV 68
+# define EAFNOSUPPORT 97
+# define EAGAIN 11
+# define EALREADY 114
+# define EBADE 52
+# define EBADF 9
+# define EBADFD 77
+# define EBADMSG 74
+# define EBADR 53
+# define EBADRQC 56
+# define EBADSLT 57
+# define EBFONT 59
+# define EBUSY 16
+# define ECANCELED 125
+# define ECHILD 10
+# define ECHRNG 44
+# define ECOMM 70
+# define ECONNABORTED 103
+# define ECONNREFUSED 111
+# define ECONNRESET 104
+# define EDEADLK 35
+# define EDEADLOCK 35
+# define EDESTADDRREQ 89
+# define EDOM 33
+# define EDOTDOT 73
+# define EDQUOT 122
+# define EEXIST 17
+# define EFAULT 14
+# define EFBIG 27
+# define EHOSTDOWN 112
+# define EHOSTUNREACH 113
+# define EHWPOISON 133
+# define EIDRM 43
+# define EILSEQ 84
+# define EINPROGRESS 115
+# define EINTR 4
+# define EINVAL 22
+# define EIO 5
+# define EISCONN 106
+# define EISDIR 21
+# define EISNAM 120
+# define EKEYEXPIRED 127
+# define EKEYREJECTED 129
+# define EKEYREVOKED 128
+# define EL2HLT 51
+# define EL2NSYNC 45
+# define EL3HLT 46
+# define EL3RST 47
+# define ELIBACC 79
+# define ELIBBAD 80
+# define ELIBEXEC 83
+# define ELIBMAX 82
+# define ELIBSCN 81
+# define ELNRNG 48
+# define ELOOP 40
+# define EMEDIUMTYPE 124
+# define EMFILE 24
+# define EMLINK 31
+# define EMSGSIZE 90
+# define EMULTIHOP 72
+# define ENAMETOOLONG 36
+# define ENAVAIL 119
+# define ENETDOWN 100
+# define ENETRESET 102
+# define ENETUNREACH 101
+# define ENFILE 23
+# define ENOANO 55
+# define ENOBUFS 105
+# define ENOCSI 50
+# define ENODATA 61
+# define ENODEV 19
+# define ENOENT 2
+# define ENOEXEC 8
+# define ENOKEY 126
+# define ENOLCK 37
+# define ENOLINK 67
+# define ENOMEDIUM 123
+# define ENOMEM 12
+# define ENOMSG 42
+# define ENONET 64
+# define ENOPKG 65
+# define ENOPROTOOPT 92
+# define ENOSPC 28
+# define ENOSR 63
+# define ENOSTR 60
+# define ENOSYS 38
+# define ENOTBLK 15
+# define ENOTCONN 107
+# define ENOTDIR 20
+# define ENOTEMPTY 39
+# define ENOTNAM 118
+# define ENOTRECOVERABLE 131
+# define ENOTSOCK 88
 # ifndef ENOTSUP
 #  define ENOTSUP 95
 # endif
-# ifndef ENOTTY
-#  define ENOTTY 25
-# endif
-# ifndef ENOTUNIQ
-#  define ENOTUNIQ 76
-# endif
-# ifndef ENXIO
-#  define ENXIO 6
-# endif
-# ifndef EOPNOTSUPP
-#  define EOPNOTSUPP 95
-# endif
-# ifndef EOVERFLOW
-#  define EOVERFLOW 75
-# endif
-# ifndef EOWNERDEAD
-#  define EOWNERDEAD 130
-# endif
-# ifndef EPERM
-#  define EPERM 1
-# endif
-# ifndef EPFNOSUPPORT
-#  define EPFNOSUPPORT 96
-# endif
-# ifndef EPIPE
-#  define EPIPE 32
-# endif
-# ifndef EPROTO
-#  define EPROTO 71
-# endif
-# ifndef EPROTONOSUPPORT
-#  define EPROTONOSUPPORT 93
-# endif
-# ifndef EPROTOTYPE
-#  define EPROTOTYPE 91
-# endif
-# ifndef ERANGE
-#  define ERANGE 34
-# endif
-# ifndef EREMCHG
-#  define EREMCHG 78
-# endif
-# ifndef EREMOTE
-#  define EREMOTE 66
-# endif
-# ifndef EREMOTEIO
-#  define EREMOTEIO 121
-# endif
-# ifndef ERESTART
-#  define ERESTART 85
-# endif
-# ifndef ERFKILL
-#  define ERFKILL 132
-# endif
-# ifndef EROFS
-#  define EROFS 30
-# endif
-# ifndef ESHUTDOWN
-#  define ESHUTDOWN 108
-# endif
-# ifndef ESOCKTNOSUPPORT
-#  define ESOCKTNOSUPPORT 94
-# endif
-# ifndef ESPIPE
-#  define ESPIPE 29
-# endif
-# ifndef ESRCH
-#  define ESRCH 3
-# endif
-# ifndef ESRMNT
-#  define ESRMNT 69
-# endif
-# ifndef ESTALE
-#  define ESTALE 116
-# endif
-# ifndef ESTRPIPE
-#  define ESTRPIPE 86
-# endif
-# ifndef ETIME
-#  define ETIME 62
-# endif
-# ifndef ETIMEDOUT
-#  define ETIMEDOUT 110
-# endif
-# ifndef ETOOMANYREFS
-#  define ETOOMANYREFS 109
-# endif
-# ifndef ETXTBSY
-#  define ETXTBSY 26
-# endif
-# ifndef EUCLEAN
-#  define EUCLEAN 117
-# endif
-# ifndef EUNATCH
-#  define EUNATCH 49
-# endif
-# ifndef EUSERS
-#  define EUSERS 87
-# endif
-# ifndef EWOULDBLOCK
-#  define EWOULDBLOCK 11
-# endif
-# ifndef EXDEV
-#  define EXDEV 18
-# endif
-# ifndef EXFULL
-#  define EXFULL 54
-# endif
+# define ENOTTY 25
+# define ENOTUNIQ 76
+# define ENXIO 6
+# define EOPNOTSUPP 95
+# define EOVERFLOW 75
+# define EOWNERDEAD 130
+# define EPERM 1
+# define EPFNOSUPPORT 96
+# define EPIPE 32
+# define EPROTO 71
+# define EPROTONOSUPPORT 93
+# define EPROTOTYPE 91
+# define ERANGE 34
+# define EREMCHG 78
+# define EREMOTE 66
+# define EREMOTEIO 121
+# define ERESTART 85
+# define ERFKILL 132
+# define EROFS 30
+# define ESHUTDOWN 108
+# define ESOCKTNOSUPPORT 94
+# define ESPIPE 29
+# define ESRCH 3
+# define ESRMNT 69
+# define ESTALE 116
+# define ESTRPIPE 86
+# define ETIME 62
+# define ETIMEDOUT 110
+# define ETOOMANYREFS 109
+# define ETXTBSY 26
+# define EUCLEAN 117
+# define EUNATCH 49
+# define EUSERS 87
+# define EWOULDBLOCK 11
+# define EXDEV 18
+# define EXFULL 54
 #endif
 
 /* errno is the calling thread's own (Appendix C.9). */

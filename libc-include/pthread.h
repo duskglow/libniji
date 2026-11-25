@@ -513,124 +513,6 @@ extern void __pthread_unwind_next (__pthread_unwind_buf_t *) __attribute__ ((__n
 extern long int __sysconf (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_pthread_attr_getaffinity_np
-#  define __NIJI_D_pthread_attr_getaffinity_np 1
-extern int pthread_attr_getaffinity_np (const pthread_attr_t *, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
-# endif
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-# ifndef __NIJI_D_pthread_attr_getsigmask_np
-#  define __NIJI_D_pthread_attr_getsigmask_np 1
-extern int pthread_attr_getsigmask_np (const pthread_attr_t *, __sigset_t *);
-# endif
-# ifndef __NIJI_D_pthread_attr_setaffinity_np
-#  define __NIJI_D_pthread_attr_setaffinity_np 1
-extern int pthread_attr_setaffinity_np (pthread_attr_t *, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
-# endif
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-# ifndef __NIJI_D_pthread_attr_setsigmask_np
-#  define __NIJI_D_pthread_attr_setsigmask_np 1
-extern int pthread_attr_setsigmask_np (pthread_attr_t *, const __sigset_t *);
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_clockjoin_np
-#  define __NIJI_D_pthread_clockjoin_np 1
-extern int pthread_clockjoin_np (unsigned long, void **, int, const struct timespec *);
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_cond_clockwait
-#  define __NIJI_D_pthread_cond_clockwait 1
-extern int pthread_cond_clockwait (pthread_cond_t *, pthread_mutex_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 2, 4)));
-# endif
-# ifndef __NIJI_D_pthread_getaffinity_np
-#  define __NIJI_D_pthread_getaffinity_np 1
-extern int pthread_getaffinity_np (unsigned long, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
-# endif
-# ifndef __NIJI_D_pthread_getattr_default_np
-#  define __NIJI_D_pthread_getattr_default_np 1
-extern int pthread_getattr_default_np (pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_pthread_getattr_np
-#  define __NIJI_D_pthread_getattr_np 1
-extern int pthread_getattr_np (unsigned long, pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-# ifndef __NIJI_D_pthread_getname_np
-#  define __NIJI_D_pthread_getname_np 1
-extern int pthread_getname_np (unsigned long, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_mutex_clocklock
-#  define __NIJI_D_pthread_mutex_clocklock 1
-extern int pthread_mutex_clocklock (pthread_mutex_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
-# endif
-# ifndef __NIJI_D_pthread_mutex_consistent_np
-#  define __NIJI_D_pthread_mutex_consistent_np 1
-extern int pthread_mutex_consistent_np (pthread_mutex_t *) __NIJI_NOTHROW __asm__ ("pthread_mutex_consistent") __attribute__ ((__nonnull__ (1), __deprecated__));
-# endif
-# ifndef __NIJI_D_pthread_mutexattr_getrobust_np
-#  define __NIJI_D_pthread_mutexattr_getrobust_np 1
-extern int pthread_mutexattr_getrobust_np (pthread_mutexattr_t *, int *) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_getrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
-# endif
-# ifndef __NIJI_D_pthread_mutexattr_setrobust_np
-#  define __NIJI_D_pthread_mutexattr_setrobust_np 1
-extern int pthread_mutexattr_setrobust_np (pthread_mutexattr_t *, int) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_setrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_rwlock_clockrdlock
-#  define __NIJI_D_pthread_rwlock_clockrdlock 1
-extern int pthread_rwlock_clockrdlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_rwlock_clockwrlock
-#  define __NIJI_D_pthread_rwlock_clockwrlock 1
-extern int pthread_rwlock_clockwrlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
-# endif
-# ifndef __NIJI_D_pthread_setaffinity_np
-#  define __NIJI_D_pthread_setaffinity_np 1
-extern int pthread_setaffinity_np (unsigned long, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
-# endif
-# ifndef __NIJI_D_pthread_setattr_default_np
-#  define __NIJI_D_pthread_setattr_default_np 1
-extern int pthread_setattr_default_np (const pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_pthread_setname_np
-#  define __NIJI_D_pthread_setname_np 1
-extern int pthread_setname_np (unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-struct timespec;
-# ifndef __NIJI_D_pthread_timedjoin_np
-#  define __NIJI_D_pthread_timedjoin_np 1
-extern int pthread_timedjoin_np (unsigned long, void **, const struct timespec *);
-# endif
-# ifndef __NIJI_D_pthread_tryjoin_np
-#  define __NIJI_D_pthread_tryjoin_np 1
-extern int pthread_tryjoin_np (unsigned long, void **) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_pthread_yield
-#  define __NIJI_D_pthread_yield 1
-extern int pthread_yield (void) __NIJI_NOTHROW __asm__ ("sched_yield") __attribute__ ((__deprecated__));
-# endif
-#endif
-#if __NIJI_GNU && __NIJI_CXX < 1
-# ifndef __NIJI_D___pthread_register_cancel_defer
-#  define __NIJI_D___pthread_register_cancel_defer 1
-extern void __pthread_register_cancel_defer (__pthread_unwind_buf_t *);
-# endif
-# ifndef __NIJI_D___pthread_unregister_cancel_restore
-#  define __NIJI_D___pthread_unregister_cancel_restore 1
-extern void __pthread_unregister_cancel_restore (__pthread_unwind_buf_t *);
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_pthread_attr_getstack
 #  define __NIJI_D_pthread_attr_getstack 1
@@ -802,6 +684,124 @@ extern int pthread_getconcurrency (void) __NIJI_NOTHROW;
 # ifndef __NIJI_D_pthread_setconcurrency
 #  define __NIJI_D_pthread_setconcurrency 1
 extern int pthread_setconcurrency (int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_pthread_attr_getaffinity_np
+#  define __NIJI_D_pthread_attr_getaffinity_np 1
+extern int pthread_attr_getaffinity_np (const pthread_attr_t *, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_pthread_attr_getsigmask_np
+#  define __NIJI_D_pthread_attr_getsigmask_np 1
+extern int pthread_attr_getsigmask_np (const pthread_attr_t *, __sigset_t *);
+# endif
+# ifndef __NIJI_D_pthread_attr_setaffinity_np
+#  define __NIJI_D_pthread_attr_setaffinity_np 1
+extern int pthread_attr_setaffinity_np (pthread_attr_t *, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_pthread_attr_setsigmask_np
+#  define __NIJI_D_pthread_attr_setsigmask_np 1
+extern int pthread_attr_setsigmask_np (pthread_attr_t *, const __sigset_t *);
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_clockjoin_np
+#  define __NIJI_D_pthread_clockjoin_np 1
+extern int pthread_clockjoin_np (unsigned long, void **, int, const struct timespec *);
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_cond_clockwait
+#  define __NIJI_D_pthread_cond_clockwait 1
+extern int pthread_cond_clockwait (pthread_cond_t *, pthread_mutex_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 2, 4)));
+# endif
+# ifndef __NIJI_D_pthread_getaffinity_np
+#  define __NIJI_D_pthread_getaffinity_np 1
+extern int pthread_getaffinity_np (unsigned long, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+# endif
+# ifndef __NIJI_D_pthread_getattr_default_np
+#  define __NIJI_D_pthread_getattr_default_np 1
+extern int pthread_getattr_default_np (pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_pthread_getattr_np
+#  define __NIJI_D_pthread_getattr_np 1
+extern int pthread_getattr_np (unsigned long, pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+# ifndef __NIJI_D_pthread_getname_np
+#  define __NIJI_D_pthread_getname_np 1
+extern int pthread_getname_np (unsigned long, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_mutex_clocklock
+#  define __NIJI_D_pthread_mutex_clocklock 1
+extern int pthread_mutex_clocklock (pthread_mutex_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+# endif
+# ifndef __NIJI_D_pthread_mutex_consistent_np
+#  define __NIJI_D_pthread_mutex_consistent_np 1
+extern int pthread_mutex_consistent_np (pthread_mutex_t *) __NIJI_NOTHROW __asm__ ("pthread_mutex_consistent") __attribute__ ((__nonnull__ (1), __deprecated__));
+# endif
+# ifndef __NIJI_D_pthread_mutexattr_getrobust_np
+#  define __NIJI_D_pthread_mutexattr_getrobust_np 1
+extern int pthread_mutexattr_getrobust_np (pthread_mutexattr_t *, int *) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_getrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
+# endif
+# ifndef __NIJI_D_pthread_mutexattr_setrobust_np
+#  define __NIJI_D_pthread_mutexattr_setrobust_np 1
+extern int pthread_mutexattr_setrobust_np (pthread_mutexattr_t *, int) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_setrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_rwlock_clockrdlock
+#  define __NIJI_D_pthread_rwlock_clockrdlock 1
+extern int pthread_rwlock_clockrdlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_rwlock_clockwrlock
+#  define __NIJI_D_pthread_rwlock_clockwrlock 1
+extern int pthread_rwlock_clockwrlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
+# endif
+# ifndef __NIJI_D_pthread_setaffinity_np
+#  define __NIJI_D_pthread_setaffinity_np 1
+extern int pthread_setaffinity_np (unsigned long, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
+# endif
+# ifndef __NIJI_D_pthread_setattr_default_np
+#  define __NIJI_D_pthread_setattr_default_np 1
+extern int pthread_setattr_default_np (const pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_pthread_setname_np
+#  define __NIJI_D_pthread_setname_np 1
+extern int pthread_setname_np (unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+struct timespec;
+# ifndef __NIJI_D_pthread_timedjoin_np
+#  define __NIJI_D_pthread_timedjoin_np 1
+extern int pthread_timedjoin_np (unsigned long, void **, const struct timespec *);
+# endif
+# ifndef __NIJI_D_pthread_tryjoin_np
+#  define __NIJI_D_pthread_tryjoin_np 1
+extern int pthread_tryjoin_np (unsigned long, void **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_pthread_yield
+#  define __NIJI_D_pthread_yield 1
+extern int pthread_yield (void) __NIJI_NOTHROW __asm__ ("sched_yield") __attribute__ ((__deprecated__));
+# endif
+#endif
+#if defined __USE_GNU && __NIJI_CXX < 1
+# ifndef __NIJI_D___pthread_register_cancel_defer
+#  define __NIJI_D___pthread_register_cancel_defer 1
+extern void __pthread_register_cancel_defer (__pthread_unwind_buf_t *);
+# endif
+# ifndef __NIJI_D___pthread_unregister_cancel_restore
+#  define __NIJI_D___pthread_unregister_cancel_restore 1
+extern void __pthread_unregister_cancel_restore (__pthread_unwind_buf_t *);
 # endif
 #endif
 #if 1
@@ -978,55 +978,25 @@ enum {
 # endif
 #endif
 #if 1
-# ifndef PTHREAD_CANCEL_ASYNCHRONOUS
-#  define PTHREAD_CANCEL_ASYNCHRONOUS PTHREAD_CANCEL_ASYNCHRONOUS
-# endif
-# ifndef PTHREAD_CANCEL_DEFERRED
-#  define PTHREAD_CANCEL_DEFERRED PTHREAD_CANCEL_DEFERRED
-# endif
-# ifndef PTHREAD_CANCEL_DISABLE
-#  define PTHREAD_CANCEL_DISABLE PTHREAD_CANCEL_DISABLE
-# endif
-# ifndef PTHREAD_CANCEL_ENABLE
-#  define PTHREAD_CANCEL_ENABLE PTHREAD_CANCEL_ENABLE
-# endif
-# ifndef PTHREAD_CREATE_DETACHED
-#  define PTHREAD_CREATE_DETACHED PTHREAD_CREATE_DETACHED
-# endif
-# ifndef PTHREAD_CREATE_JOINABLE
-#  define PTHREAD_CREATE_JOINABLE PTHREAD_CREATE_JOINABLE
-# endif
-# ifndef PTHREAD_EXPLICIT_SCHED
-#  define PTHREAD_EXPLICIT_SCHED PTHREAD_EXPLICIT_SCHED
-# endif
-# ifndef PTHREAD_INHERIT_SCHED
-#  define PTHREAD_INHERIT_SCHED PTHREAD_INHERIT_SCHED
-# endif
-# ifndef PTHREAD_ONCE_INIT
-#  define PTHREAD_ONCE_INIT 0
-# endif
-# ifndef PTHREAD_PROCESS_PRIVATE
-#  define PTHREAD_PROCESS_PRIVATE PTHREAD_PROCESS_PRIVATE
-# endif
-# ifndef PTHREAD_PROCESS_SHARED
-#  define PTHREAD_PROCESS_SHARED PTHREAD_PROCESS_SHARED
-# endif
-# ifndef PTHREAD_SCOPE_PROCESS
-#  define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_PROCESS
-# endif
-# ifndef PTHREAD_SCOPE_SYSTEM
-#  define PTHREAD_SCOPE_SYSTEM PTHREAD_SCOPE_SYSTEM
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef PTHREAD_ATTR_NO_SIGMASK_NP
-#  define PTHREAD_ATTR_NO_SIGMASK_NP (-1)
-# endif
+# define PTHREAD_CANCEL_ASYNCHRONOUS PTHREAD_CANCEL_ASYNCHRONOUS
+# define PTHREAD_CANCEL_DEFERRED PTHREAD_CANCEL_DEFERRED
+# define PTHREAD_CANCEL_DISABLE PTHREAD_CANCEL_DISABLE
+# define PTHREAD_CANCEL_ENABLE PTHREAD_CANCEL_ENABLE
+# define PTHREAD_CREATE_DETACHED PTHREAD_CREATE_DETACHED
+# define PTHREAD_CREATE_JOINABLE PTHREAD_CREATE_JOINABLE
+# define PTHREAD_EXPLICIT_SCHED PTHREAD_EXPLICIT_SCHED
+# define PTHREAD_INHERIT_SCHED PTHREAD_INHERIT_SCHED
+# define PTHREAD_ONCE_INIT 0
+# define PTHREAD_PROCESS_PRIVATE PTHREAD_PROCESS_PRIVATE
+# define PTHREAD_PROCESS_SHARED PTHREAD_PROCESS_SHARED
+# define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_PROCESS
+# define PTHREAD_SCOPE_SYSTEM PTHREAD_SCOPE_SYSTEM
 #endif
 #if __NIJI_POSIX >= 200112
-# ifndef PTHREAD_BARRIER_SERIAL_THREAD
-#  define PTHREAD_BARRIER_SERIAL_THREAD (-1)
-# endif
+# define PTHREAD_BARRIER_SERIAL_THREAD (-1)
+#endif
+#if defined __USE_GNU
+# define PTHREAD_ATTR_NO_SIGMASK_NP (-1)
 #endif
 
 #if 1
@@ -1034,7 +1004,7 @@ enum {
 #endif
 
 /* PTHREAD_STACK_MIN in <limits.h>'s form (see the header comment). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # if __NIJI_DYNSTACK
 #  define PTHREAD_STACK_MIN __sysconf (75)
 # else
@@ -1046,7 +1016,7 @@ enum {
 #if 1
 # define PTHREAD_MUTEX_INITIALIZER { { 0, 0, 0, 0, 0, 0, 0, { 0, 0 } } }
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 1, 0, 0, { 0, 0 } } }
 # define PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 2, 0, 0, { 0, 0 } } }
 # define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 3, 0, 0, { 0, 0 } } }
@@ -1054,7 +1024,7 @@ enum {
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # define PTHREAD_RWLOCK_INITIALIZER { { 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }, 0, 0 } }
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP { { 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }, 0, 2 } }
 #endif
 #if 1

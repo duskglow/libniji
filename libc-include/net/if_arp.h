@@ -105,243 +105,85 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef ARPD_FLUSH
-#  define ARPD_FLUSH 3
-# endif
-# ifndef ARPD_LOOKUP
-#  define ARPD_LOOKUP 2
-# endif
-# ifndef ARPD_UPDATE
-#  define ARPD_UPDATE 1
-# endif
-# ifndef ARPHRD_ADAPT
-#  define ARPHRD_ADAPT 264
-# endif
-# ifndef ARPHRD_APPLETLK
-#  define ARPHRD_APPLETLK 8
-# endif
-# ifndef ARPHRD_ARCNET
-#  define ARPHRD_ARCNET 7
-# endif
-# ifndef ARPHRD_ASH
-#  define ARPHRD_ASH 781
-# endif
-# ifndef ARPHRD_ATM
-#  define ARPHRD_ATM 19
-# endif
-# ifndef ARPHRD_AX25
-#  define ARPHRD_AX25 3
-# endif
-# ifndef ARPHRD_BIF
-#  define ARPHRD_BIF 775
-# endif
-# ifndef ARPHRD_CAN
-#  define ARPHRD_CAN 280
-# endif
-# ifndef ARPHRD_CHAOS
-#  define ARPHRD_CHAOS 5
-# endif
-# ifndef ARPHRD_CISCO
-#  define ARPHRD_CISCO 513
-# endif
-# ifndef ARPHRD_CSLIP
-#  define ARPHRD_CSLIP 257
-# endif
-# ifndef ARPHRD_CSLIP6
-#  define ARPHRD_CSLIP6 259
-# endif
-# ifndef ARPHRD_DDCMP
-#  define ARPHRD_DDCMP 517
-# endif
-# ifndef ARPHRD_DLCI
-#  define ARPHRD_DLCI 15
-# endif
-# ifndef ARPHRD_ECONET
-#  define ARPHRD_ECONET 782
-# endif
-# ifndef ARPHRD_EETHER
-#  define ARPHRD_EETHER 2
-# endif
-# ifndef ARPHRD_ETHER
-#  define ARPHRD_ETHER 1
-# endif
-# ifndef ARPHRD_EUI64
-#  define ARPHRD_EUI64 27
-# endif
-# ifndef ARPHRD_FCAL
-#  define ARPHRD_FCAL 785
-# endif
-# ifndef ARPHRD_FCFABRIC
-#  define ARPHRD_FCFABRIC 787
-# endif
-# ifndef ARPHRD_FCPL
-#  define ARPHRD_FCPL 786
-# endif
-# ifndef ARPHRD_FCPP
-#  define ARPHRD_FCPP 784
-# endif
-# ifndef ARPHRD_FDDI
-#  define ARPHRD_FDDI 774
-# endif
-# ifndef ARPHRD_FRAD
-#  define ARPHRD_FRAD 770
-# endif
-# ifndef ARPHRD_HDLC
-#  define ARPHRD_HDLC 513
-# endif
-# ifndef ARPHRD_HIPPI
-#  define ARPHRD_HIPPI 780
-# endif
-# ifndef ARPHRD_HWX25
-#  define ARPHRD_HWX25 272
-# endif
-# ifndef ARPHRD_IEEE1394
-#  define ARPHRD_IEEE1394 24
-# endif
-# ifndef ARPHRD_IEEE802
-#  define ARPHRD_IEEE802 6
-# endif
-# ifndef ARPHRD_IEEE80211
-#  define ARPHRD_IEEE80211 801
-# endif
-# ifndef ARPHRD_IEEE80211_PRISM
-#  define ARPHRD_IEEE80211_PRISM 802
-# endif
-# ifndef ARPHRD_IEEE80211_RADIOTAP
-#  define ARPHRD_IEEE80211_RADIOTAP 803
-# endif
-# ifndef ARPHRD_IEEE802154
-#  define ARPHRD_IEEE802154 804
-# endif
-# ifndef ARPHRD_IEEE802154_PHY
-#  define ARPHRD_IEEE802154_PHY 805
-# endif
-# ifndef ARPHRD_IEEE802_TR
-#  define ARPHRD_IEEE802_TR 800
-# endif
-# ifndef ARPHRD_INFINIBAND
-#  define ARPHRD_INFINIBAND 32
-# endif
-# ifndef ARPHRD_IPDDP
-#  define ARPHRD_IPDDP 777
-# endif
-# ifndef ARPHRD_IPGRE
-#  define ARPHRD_IPGRE 778
-# endif
-# ifndef ARPHRD_IRDA
-#  define ARPHRD_IRDA 783
-# endif
-# ifndef ARPHRD_LAPB
-#  define ARPHRD_LAPB 516
-# endif
-# ifndef ARPHRD_LOCALTLK
-#  define ARPHRD_LOCALTLK 773
-# endif
-# ifndef ARPHRD_LOOPBACK
-#  define ARPHRD_LOOPBACK 772
-# endif
-# ifndef ARPHRD_MCTP
-#  define ARPHRD_MCTP 290
-# endif
-# ifndef ARPHRD_METRICOM
-#  define ARPHRD_METRICOM 23
-# endif
-# ifndef ARPHRD_NETROM
-#  define ARPHRD_NETROM 0
-# endif
-# ifndef ARPHRD_NONE
-#  define ARPHRD_NONE 65534
-# endif
-# ifndef ARPHRD_PIMREG
-#  define ARPHRD_PIMREG 779
-# endif
-# ifndef ARPHRD_PPP
-#  define ARPHRD_PPP 512
-# endif
-# ifndef ARPHRD_PRONET
-#  define ARPHRD_PRONET 4
-# endif
-# ifndef ARPHRD_RAWHDLC
-#  define ARPHRD_RAWHDLC 518
-# endif
-# ifndef ARPHRD_RAWIP
-#  define ARPHRD_RAWIP 519
-# endif
-# ifndef ARPHRD_ROSE
-#  define ARPHRD_ROSE 270
-# endif
-# ifndef ARPHRD_RSRVD
-#  define ARPHRD_RSRVD 260
-# endif
-# ifndef ARPHRD_SIT
-#  define ARPHRD_SIT 776
-# endif
-# ifndef ARPHRD_SKIP
-#  define ARPHRD_SKIP 771
-# endif
-# ifndef ARPHRD_SLIP
-#  define ARPHRD_SLIP 256
-# endif
-# ifndef ARPHRD_SLIP6
-#  define ARPHRD_SLIP6 258
-# endif
-# ifndef ARPHRD_TUNNEL
-#  define ARPHRD_TUNNEL 768
-# endif
-# ifndef ARPHRD_TUNNEL6
-#  define ARPHRD_TUNNEL6 769
-# endif
-# ifndef ARPHRD_VOID
-#  define ARPHRD_VOID 65535
-# endif
-# ifndef ARPHRD_X25
-#  define ARPHRD_X25 271
-# endif
-# ifndef ARPOP_InREPLY
-#  define ARPOP_InREPLY 9
-# endif
-# ifndef ARPOP_InREQUEST
-#  define ARPOP_InREQUEST 8
-# endif
-# ifndef ARPOP_NAK
-#  define ARPOP_NAK 10
-# endif
-# ifndef ARPOP_REPLY
-#  define ARPOP_REPLY 2
-# endif
-# ifndef ARPOP_REQUEST
-#  define ARPOP_REQUEST 1
-# endif
-# ifndef ARPOP_RREPLY
-#  define ARPOP_RREPLY 4
-# endif
-# ifndef ARPOP_RREQUEST
-#  define ARPOP_RREQUEST 3
-# endif
-# ifndef ATF_COM
-#  define ATF_COM 2
-# endif
-# ifndef ATF_DONTPUB
-#  define ATF_DONTPUB 64
-# endif
-# ifndef ATF_MAGIC
-#  define ATF_MAGIC 128
-# endif
-# ifndef ATF_NETMASK
-#  define ATF_NETMASK 32
-# endif
-# ifndef ATF_PERM
-#  define ATF_PERM 4
-# endif
-# ifndef ATF_PUBL
-#  define ATF_PUBL 8
-# endif
-# ifndef ATF_USETRAILERS
-#  define ATF_USETRAILERS 16
-# endif
-# ifndef MAX_ADDR_LEN
-#  define MAX_ADDR_LEN 7
-# endif
+# define ARPD_FLUSH 3
+# define ARPD_LOOKUP 2
+# define ARPD_UPDATE 1
+# define ARPHRD_ADAPT 264
+# define ARPHRD_APPLETLK 8
+# define ARPHRD_ARCNET 7
+# define ARPHRD_ASH 781
+# define ARPHRD_ATM 19
+# define ARPHRD_AX25 3
+# define ARPHRD_BIF 775
+# define ARPHRD_CAN 280
+# define ARPHRD_CHAOS 5
+# define ARPHRD_CISCO 513
+# define ARPHRD_CSLIP 257
+# define ARPHRD_CSLIP6 259
+# define ARPHRD_DDCMP 517
+# define ARPHRD_DLCI 15
+# define ARPHRD_ECONET 782
+# define ARPHRD_EETHER 2
+# define ARPHRD_ETHER 1
+# define ARPHRD_EUI64 27
+# define ARPHRD_FCAL 785
+# define ARPHRD_FCFABRIC 787
+# define ARPHRD_FCPL 786
+# define ARPHRD_FCPP 784
+# define ARPHRD_FDDI 774
+# define ARPHRD_FRAD 770
+# define ARPHRD_HDLC 513
+# define ARPHRD_HIPPI 780
+# define ARPHRD_HWX25 272
+# define ARPHRD_IEEE1394 24
+# define ARPHRD_IEEE802 6
+# define ARPHRD_IEEE80211 801
+# define ARPHRD_IEEE80211_PRISM 802
+# define ARPHRD_IEEE80211_RADIOTAP 803
+# define ARPHRD_IEEE802154 804
+# define ARPHRD_IEEE802154_PHY 805
+# define ARPHRD_IEEE802_TR 800
+# define ARPHRD_INFINIBAND 32
+# define ARPHRD_IPDDP 777
+# define ARPHRD_IPGRE 778
+# define ARPHRD_IRDA 783
+# define ARPHRD_LAPB 516
+# define ARPHRD_LOCALTLK 773
+# define ARPHRD_LOOPBACK 772
+# define ARPHRD_MCTP 290
+# define ARPHRD_METRICOM 23
+# define ARPHRD_NETROM 0
+# define ARPHRD_NONE 65534
+# define ARPHRD_PIMREG 779
+# define ARPHRD_PPP 512
+# define ARPHRD_PRONET 4
+# define ARPHRD_RAWHDLC 518
+# define ARPHRD_RAWIP 519
+# define ARPHRD_ROSE 270
+# define ARPHRD_RSRVD 260
+# define ARPHRD_SIT 776
+# define ARPHRD_SKIP 771
+# define ARPHRD_SLIP 256
+# define ARPHRD_SLIP6 258
+# define ARPHRD_TUNNEL 768
+# define ARPHRD_TUNNEL6 769
+# define ARPHRD_VOID 65535
+# define ARPHRD_X25 271
+# define ARPOP_InREPLY 9
+# define ARPOP_InREQUEST 8
+# define ARPOP_NAK 10
+# define ARPOP_REPLY 2
+# define ARPOP_REQUEST 1
+# define ARPOP_RREPLY 4
+# define ARPOP_RREQUEST 3
+# define ATF_COM 2
+# define ATF_DONTPUB 64
+# define ATF_MAGIC 128
+# define ATF_NETMASK 32
+# define ATF_PERM 4
+# define ATF_PUBL 8
+# define ATF_USETRAILERS 16
+# define MAX_ADDR_LEN 7
 #endif
 
 __NIJI_END_C

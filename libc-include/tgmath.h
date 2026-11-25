@@ -13,13 +13,13 @@
 
 /* The functions of one macro, each followed by a comma: float, double and long double, then the _FloatN and _FloatNx
    functions where math.h and complex.h declare them (the configurations of the _FloatN narrowing macros). */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define __NIJI_TGN(fn) fn##f32, fn##f64, fn##f128, fn##f32x, fn##f64x,
 #else
 # define __NIJI_TGN(fn)
 #endif
 /* log10 of a complex argument: clog10, a GNU extension, where complex.h declares it. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define __NIJI_TGLOG10C __NIJI_TGR (clog10)
 #else
 # define __NIJI_TGLOG10C
@@ -242,17 +242,17 @@
 #if __NIJI_ISOC >= 2023
 # define ufromfpx(x, r, w) __builtin_tgmath (__NIJI_TGR (ufromfpx) x, r, w)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define fmaxmag(x, y) __builtin_tgmath (__NIJI_TGR (fmaxmag) x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define fminmag(x, y) __builtin_tgmath (__NIJI_TGR (fminmag) x, y)
 #endif
 /* nexttoward and scalb (XSI, obsolete) take float, double and long double only. */
 #if 1
 # define nexttoward(x, y) __builtin_tgmath (nexttowardf, nexttoward, nexttowardl, x, y)
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define scalb(x, n) __builtin_tgmath (scalbf, scalb, scalbl, x, n)
 #endif
 /* C 7.25 p6: complex functions only; a real argument is taken as complex. */
@@ -281,16 +281,16 @@
 #if __NIJI_ISOC >= 2023
 # define dadd(x, y) daddl (x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32add(x, y) __builtin_tgmath (f32addf64, f32addf32x, f32addf128, f32addf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xadd(x, y) __builtin_tgmath (f32xaddf64x, f32xaddf64, f32xaddf128, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64add(x, y) __builtin_tgmath (f64addf128, f64addf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xadd(x, y) f64xaddf128 (x, y)
 #endif
 #if __NIJI_ISOC >= 2023
@@ -299,16 +299,16 @@
 #if __NIJI_ISOC >= 2023
 # define dsub(x, y) dsubl (x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32sub(x, y) __builtin_tgmath (f32subf64, f32subf32x, f32subf128, f32subf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xsub(x, y) __builtin_tgmath (f32xsubf64x, f32xsubf64, f32xsubf128, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64sub(x, y) __builtin_tgmath (f64subf128, f64subf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xsub(x, y) f64xsubf128 (x, y)
 #endif
 #if __NIJI_ISOC >= 2023
@@ -317,16 +317,16 @@
 #if __NIJI_ISOC >= 2023
 # define dmul(x, y) dmull (x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32mul(x, y) __builtin_tgmath (f32mulf64, f32mulf32x, f32mulf128, f32mulf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xmul(x, y) __builtin_tgmath (f32xmulf64x, f32xmulf64, f32xmulf128, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64mul(x, y) __builtin_tgmath (f64mulf128, f64mulf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xmul(x, y) f64xmulf128 (x, y)
 #endif
 #if __NIJI_ISOC >= 2023
@@ -335,16 +335,16 @@
 #if __NIJI_ISOC >= 2023
 # define ddiv(x, y) ddivl (x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32div(x, y) __builtin_tgmath (f32divf64, f32divf32x, f32divf128, f32divf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xdiv(x, y) __builtin_tgmath (f32xdivf64x, f32xdivf64, f32xdivf128, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64div(x, y) __builtin_tgmath (f64divf128, f64divf64x, x, y)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xdiv(x, y) f64xdivf128 (x, y)
 #endif
 #if __NIJI_ISOC >= 2023
@@ -353,16 +353,16 @@
 #if __NIJI_ISOC >= 2023
 # define dsqrt(x) dsqrtl (x)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32sqrt(x) __builtin_tgmath (f32sqrtf64, f32sqrtf32x, f32sqrtf128, f32sqrtf64x, x)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xsqrt(x) __builtin_tgmath (f32xsqrtf64x, f32xsqrtf64, f32xsqrtf128, x)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64sqrt(x) __builtin_tgmath (f64sqrtf128, f64sqrtf64x, x)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xsqrt(x) f64xsqrtf128 (x)
 #endif
 #if __NIJI_ISOC >= 2023
@@ -371,16 +371,16 @@
 #if __NIJI_ISOC >= 2023
 # define dfma(x, y, z) dfmal (x, y, z)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32fma(x, y, z) __builtin_tgmath (f32fmaf64, f32fmaf32x, f32fmaf128, f32fmaf64x, x, y, z)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f32xfma(x, y, z) __builtin_tgmath (f32xfmaf64x, f32xfmaf64, f32xfmaf128, x, y, z)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64fma(x, y, z) __builtin_tgmath (f64fmaf128, f64fmaf64x, x, y, z)
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define f64xfma(x, y, z) f64xfmaf128 (x, y, z)
 #endif
 

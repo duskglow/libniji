@@ -40,32 +40,16 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_fnmatch 1
 extern int fnmatch (const char *, const char *, int);
 # endif
-# ifndef FNM_NOESCAPE
-#  define FNM_NOESCAPE 2
-# endif
-# ifndef FNM_NOMATCH
-#  define FNM_NOMATCH 1
-# endif
-# ifndef FNM_PATHNAME
-#  define FNM_PATHNAME 1
-# endif
-# ifndef FNM_PERIOD
-#  define FNM_PERIOD 4
-# endif
+# define FNM_NOESCAPE 2
+# define FNM_NOMATCH 1
+# define FNM_PATHNAME 1
+# define FNM_PERIOD 4
 #endif
-#if __NIJI_MISC || __NIJI_POSIX < 2 || __NIJI_XSI >= 400
-# ifndef FNM_CASEFOLD
-#  define FNM_CASEFOLD 16
-# endif
-# ifndef FNM_EXTMATCH
-#  define FNM_EXTMATCH 32
-# endif
-# ifndef FNM_FILE_NAME
-#  define FNM_FILE_NAME 1
-# endif
-# ifndef FNM_LEADING_DIR
-#  define FNM_LEADING_DIR 8
-# endif
+#if defined __USE_MISC || __NIJI_POSIX < 2 || __NIJI_XSI >= 400
+# define FNM_CASEFOLD 16
+# define FNM_EXTMATCH 32
+# define FNM_FILE_NAME 1
+# define FNM_LEADING_DIR 8
 #endif
 
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400

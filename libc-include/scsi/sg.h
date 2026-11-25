@@ -214,162 +214,58 @@ typedef struct sg_req_info sg_req_info_t;
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
-# ifndef SG_DEFAULT_RETRIES
-#  define SG_DEFAULT_RETRIES 1
-# endif
-# ifndef SG_DEF_COMMAND_Q
-#  define SG_DEF_COMMAND_Q 0
-# endif
-# ifndef SG_DEF_FORCE_LOW_DMA
-#  define SG_DEF_FORCE_LOW_DMA 0
-# endif
-# ifndef SG_DEF_FORCE_PACK_ID
-#  define SG_DEF_FORCE_PACK_ID 0
-# endif
-# ifndef SG_DEF_KEEP_ORPHAN
-#  define SG_DEF_KEEP_ORPHAN 0
-# endif
-# ifndef SG_DEF_RESERVED_SIZE
-#  define SG_DEF_RESERVED_SIZE 32768
-# endif
-# ifndef SG_DEF_UNDERRUN_FLAG
-#  define SG_DEF_UNDERRUN_FLAG 0
-# endif
-# ifndef SG_DXFER_FROM_DEV
-#  define SG_DXFER_FROM_DEV (-3)
-# endif
-# ifndef SG_DXFER_NONE
-#  define SG_DXFER_NONE (-1)
-# endif
-# ifndef SG_DXFER_TO_DEV
-#  define SG_DXFER_TO_DEV (-2)
-# endif
-# ifndef SG_DXFER_TO_FROM_DEV
-#  define SG_DXFER_TO_FROM_DEV (-4)
-# endif
-# ifndef SG_EMULATED_HOST
-#  define SG_EMULATED_HOST 8707
-# endif
-# ifndef SG_FLAG_DIRECT_IO
-#  define SG_FLAG_DIRECT_IO 1
-# endif
-# ifndef SG_FLAG_LUN_INHIBIT
-#  define SG_FLAG_LUN_INHIBIT 2
-# endif
-# ifndef SG_FLAG_NO_DXFER
-#  define SG_FLAG_NO_DXFER 65536
-# endif
-# ifndef SG_GET_COMMAND_Q
-#  define SG_GET_COMMAND_Q 8816
-# endif
-# ifndef SG_GET_KEEP_ORPHAN
-#  define SG_GET_KEEP_ORPHAN 8840
-# endif
-# ifndef SG_GET_LOW_DMA
-#  define SG_GET_LOW_DMA 8826
-# endif
-# ifndef SG_GET_NUM_WAITING
-#  define SG_GET_NUM_WAITING 8829
-# endif
-# ifndef SG_GET_PACK_ID
-#  define SG_GET_PACK_ID 8828
-# endif
-# ifndef SG_GET_REQUEST_TABLE
-#  define SG_GET_REQUEST_TABLE 8838
-# endif
-# ifndef SG_GET_RESERVED_SIZE
-#  define SG_GET_RESERVED_SIZE 8818
-# endif
-# ifndef SG_GET_SCSI_ID
-#  define SG_GET_SCSI_ID 8822
-# endif
-# ifndef SG_GET_SG_TABLESIZE
-#  define SG_GET_SG_TABLESIZE 8831
-# endif
-# ifndef SG_GET_TIMEOUT
-#  define SG_GET_TIMEOUT 8706
-# endif
-# ifndef SG_GET_TRANSFORM
-#  define SG_GET_TRANSFORM 8709
-# endif
-# ifndef SG_GET_VERSION_NUM
-#  define SG_GET_VERSION_NUM 8834
-# endif
-# ifndef SG_INFO_CHECK
-#  define SG_INFO_CHECK 1
-# endif
-# ifndef SG_INFO_DIRECT_IO
-#  define SG_INFO_DIRECT_IO 2
-# endif
-# ifndef SG_INFO_DIRECT_IO_MASK
-#  define SG_INFO_DIRECT_IO_MASK 6
-# endif
-# ifndef SG_INFO_INDIRECT_IO
-#  define SG_INFO_INDIRECT_IO 0
-# endif
-# ifndef SG_INFO_MIXED_IO
-#  define SG_INFO_MIXED_IO 4
-# endif
-# ifndef SG_INFO_OK
-#  define SG_INFO_OK 0
-# endif
-# ifndef SG_INFO_OK_MASK
-#  define SG_INFO_OK_MASK 1
-# endif
-# ifndef SG_IO
-#  define SG_IO 8837
-# endif
-# ifndef SG_MAX_QUEUE
-#  define SG_MAX_QUEUE 16
-# endif
-# ifndef SG_MAX_SENSE
-#  define SG_MAX_SENSE 16
-# endif
-# ifndef SG_NEXT_CMD_LEN
-#  define SG_NEXT_CMD_LEN 8835
-# endif
-# ifndef SG_SCATTER_SZ
-#  define SG_SCATTER_SZ 32768
-# endif
-# ifndef SG_SCSI_RESET
-#  define SG_SCSI_RESET 8836
-# endif
-# ifndef SG_SCSI_RESET_BUS
-#  define SG_SCSI_RESET_BUS 2
-# endif
-# ifndef SG_SCSI_RESET_DEVICE
-#  define SG_SCSI_RESET_DEVICE 1
-# endif
-# ifndef SG_SCSI_RESET_HOST
-#  define SG_SCSI_RESET_HOST 3
-# endif
-# ifndef SG_SCSI_RESET_NOTHING
-#  define SG_SCSI_RESET_NOTHING 0
-# endif
-# ifndef SG_SET_COMMAND_Q
-#  define SG_SET_COMMAND_Q 8817
-# endif
-# ifndef SG_SET_DEBUG
-#  define SG_SET_DEBUG 8830
-# endif
-# ifndef SG_SET_FORCE_LOW_DMA
-#  define SG_SET_FORCE_LOW_DMA 8825
-# endif
-# ifndef SG_SET_FORCE_PACK_ID
-#  define SG_SET_FORCE_PACK_ID 8827
-# endif
-# ifndef SG_SET_KEEP_ORPHAN
-#  define SG_SET_KEEP_ORPHAN 8839
-# endif
-# ifndef SG_SET_RESERVED_SIZE
-#  define SG_SET_RESERVED_SIZE 8821
-# endif
-# ifndef SG_SET_TIMEOUT
-#  define SG_SET_TIMEOUT 8705
-# endif
-# ifndef SG_SET_TRANSFORM
-#  define SG_SET_TRANSFORM 8708
-# endif
+# define SG_DEFAULT_RETRIES 1
+# define SG_DEF_COMMAND_Q 0
+# define SG_DEF_FORCE_LOW_DMA 0
+# define SG_DEF_FORCE_PACK_ID 0
+# define SG_DEF_KEEP_ORPHAN 0
+# define SG_DEF_RESERVED_SIZE 32768
+# define SG_DEF_UNDERRUN_FLAG 0
+# define SG_DXFER_FROM_DEV (-3)
+# define SG_DXFER_NONE (-1)
+# define SG_DXFER_TO_DEV (-2)
+# define SG_DXFER_TO_FROM_DEV (-4)
+# define SG_EMULATED_HOST 8707
+# define SG_FLAG_DIRECT_IO 1
+# define SG_FLAG_LUN_INHIBIT 2
+# define SG_FLAG_NO_DXFER 65536
+# define SG_GET_COMMAND_Q 8816
+# define SG_GET_KEEP_ORPHAN 8840
+# define SG_GET_LOW_DMA 8826
+# define SG_GET_NUM_WAITING 8829
+# define SG_GET_PACK_ID 8828
+# define SG_GET_REQUEST_TABLE 8838
+# define SG_GET_RESERVED_SIZE 8818
+# define SG_GET_SCSI_ID 8822
+# define SG_GET_SG_TABLESIZE 8831
+# define SG_GET_TIMEOUT 8706
+# define SG_GET_TRANSFORM 8709
+# define SG_GET_VERSION_NUM 8834
+# define SG_INFO_CHECK 1
+# define SG_INFO_DIRECT_IO 2
+# define SG_INFO_DIRECT_IO_MASK 6
+# define SG_INFO_INDIRECT_IO 0
+# define SG_INFO_MIXED_IO 4
+# define SG_INFO_OK 0
+# define SG_INFO_OK_MASK 1
+# define SG_IO 8837
+# define SG_MAX_QUEUE 16
+# define SG_MAX_SENSE 16
+# define SG_NEXT_CMD_LEN 8835
+# define SG_SCATTER_SZ 32768
+# define SG_SCSI_RESET 8836
+# define SG_SCSI_RESET_BUS 2
+# define SG_SCSI_RESET_DEVICE 1
+# define SG_SCSI_RESET_HOST 3
+# define SG_SCSI_RESET_NOTHING 0
+# define SG_SET_COMMAND_Q 8817
+# define SG_SET_DEBUG 8830
+# define SG_SET_FORCE_LOW_DMA 8825
+# define SG_SET_FORCE_PACK_ID 8827
+# define SG_SET_KEEP_ORPHAN 8839
+# define SG_SET_RESERVED_SIZE 8821
+# define SG_SET_TIMEOUT 8705
+# define SG_SET_TRANSFORM 8708
 #endif
 
 /* The default command timeout, sixty seconds in the kernel's clock ticks: HZ is the program's to define (the header

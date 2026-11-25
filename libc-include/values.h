@@ -11,59 +11,25 @@ __NIJI_BEGIN_C
 
 /* INFINITY and NAN are the compiler's <float.h> macros (C2X mode). */
 #if 1
-# ifndef DMAXEXP
-#  define DMAXEXP 1024
-# endif
-# ifndef DMINEXP
-#  define DMINEXP (-1021)
-# endif
-# ifndef FMAXEXP
-#  define FMAXEXP 128
-# endif
-# ifndef FMINEXP
-#  define FMINEXP (-125)
-# endif
-# ifndef HIBITL
-#  define HIBITL (-9223372036854775807L-1)
-# endif
-# ifndef HIBITS
-#  define HIBITS (-32768)
-# endif
-# ifndef MAXDOUBLE
-#  define MAXDOUBLE (1.7976931348623157e+308)
-# endif
-# ifndef MAXFLOAT
-#  define MAXFLOAT (3.40282347e+38f)
-# endif
-# ifndef MAXINT
-#  define MAXINT 2147483647
-# endif
-# ifndef MAXLONG
-#  define MAXLONG 9223372036854775807L
-# endif
-# ifndef MAXSHORT
-#  define MAXSHORT 32767
-# endif
-# ifndef MINDOUBLE
-#  define MINDOUBLE (2.2250738585072014e-308)
-# endif
-# ifndef MINFLOAT
-#  define MINFLOAT (1.17549435e-38f)
-# endif
-# ifndef MININT
-#  define MININT (-2147483647-1)
-# endif
-# ifndef MINLONG
-#  define MINLONG (-9223372036854775807L-1)
-# endif
-# ifndef MINSHORT
-#  define MINSHORT (-32768)
-# endif
+# define DMAXEXP 1024
+# define DMINEXP (-1021)
+# define FMAXEXP 128
+# define FMINEXP (-125)
+# define HIBITL (-9223372036854775807L-1)
+# define HIBITS (-32768)
+# define MAXDOUBLE (1.7976931348623157e+308)
+# define MAXFLOAT (3.40282347e+38f)
+# define MAXINT 2147483647
+# define MAXLONG 9223372036854775807L
+# define MAXSHORT 32767
+# define MINDOUBLE (2.2250738585072014e-308)
+# define MINFLOAT (1.17549435e-38f)
+# define MININT (-2147483647-1)
+# define MINLONG (-9223372036854775807L-1)
+# define MINSHORT (-32768)
 #endif
-#if __NIJI_MISC
-# ifndef BITSPERBYTE
-#  define BITSPERBYTE 8
-# endif
+#if defined __USE_MISC
+# define BITSPERBYTE 8
 #endif
 
 __NIJI_END_C

@@ -7,7 +7,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
@@ -20,22 +20,14 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
-# ifndef BIG_ENDIAN
-#  define BIG_ENDIAN 4321
-# endif
-# ifndef BYTE_ORDER
-#  define BYTE_ORDER 1234
-# endif
-# ifndef LITTLE_ENDIAN
-#  define LITTLE_ENDIAN 1234
-# endif
-# ifndef PDP_ENDIAN
-#  define PDP_ENDIAN 3412
-# endif
+# define BIG_ENDIAN 4321
+# define BYTE_ORDER 1234
+# define LITTLE_ENDIAN 1234
+# define PDP_ENDIAN 3412
 #endif
 
 /* endian(3): host to and from big- and little-endian order (the levels that show the conversion macros). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 # define htobe16(x) __builtin_bswap16 (x)
 # define htole16(x) ((__typeof__ (__builtin_bswap16 (x))) (x))

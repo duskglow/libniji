@@ -49,21 +49,21 @@ struct timeval {
 };
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_timezone
-#  define __NIJI_D_struct_timezone 1
-struct timezone {
-  int tz_minuteswest;
-  int tz_dsttime;
-};
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
   long tv_sec;
   long tv_nsec;
+};
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_timezone
+#  define __NIJI_D_struct_timezone 1
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
 };
 # endif
 #endif
@@ -141,14 +141,27 @@ struct timeval;
 extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+#endif
+#if defined __USE_GNU
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
 extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct timeval;
 struct timeval;
 # ifndef __NIJI_D_adjtime
@@ -172,32 +185,17 @@ struct timezone;
 extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-struct timespec;
-# ifndef __NIJI_D_pselect
-#  define __NIJI_D_pselect 1
-extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
-# endif
-#endif
 #if 1
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
-# ifndef ITIMER_PROF
-#  define ITIMER_PROF ITIMER_PROF
-# endif
-# ifndef ITIMER_REAL
-#  define ITIMER_REAL ITIMER_REAL
-# endif
-# ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
-# endif
+# define FD_SETSIZE 1024
+# define ITIMER_PROF ITIMER_PROF
+# define ITIMER_REAL ITIMER_REAL
+# define ITIMER_VIRTUAL ITIMER_VIRTUAL
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 __NIJI_END_C

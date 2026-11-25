@@ -48,87 +48,33 @@ enum {
 };
 #  endif
 # endif
-# ifndef IN_ACCESS
-#  define IN_ACCESS 1
-# endif
-# ifndef IN_ALL_EVENTS
-#  define IN_ALL_EVENTS 4095
-# endif
-# ifndef IN_ATTRIB
-#  define IN_ATTRIB 4
-# endif
-# ifndef IN_CLOEXEC
-#  define IN_CLOEXEC IN_CLOEXEC
-# endif
-# ifndef IN_CLOSE
-#  define IN_CLOSE 24
-# endif
-# ifndef IN_CLOSE_NOWRITE
-#  define IN_CLOSE_NOWRITE 16
-# endif
-# ifndef IN_CLOSE_WRITE
-#  define IN_CLOSE_WRITE 8
-# endif
-# ifndef IN_CREATE
-#  define IN_CREATE 256
-# endif
-# ifndef IN_DELETE
-#  define IN_DELETE 512
-# endif
-# ifndef IN_DELETE_SELF
-#  define IN_DELETE_SELF 1024
-# endif
-# ifndef IN_DONT_FOLLOW
-#  define IN_DONT_FOLLOW 33554432
-# endif
-# ifndef IN_EXCL_UNLINK
-#  define IN_EXCL_UNLINK 67108864
-# endif
-# ifndef IN_IGNORED
-#  define IN_IGNORED 32768
-# endif
-# ifndef IN_ISDIR
-#  define IN_ISDIR 1073741824
-# endif
-# ifndef IN_MASK_ADD
-#  define IN_MASK_ADD 536870912
-# endif
-# ifndef IN_MASK_CREATE
-#  define IN_MASK_CREATE 268435456
-# endif
-# ifndef IN_MODIFY
-#  define IN_MODIFY 2
-# endif
-# ifndef IN_MOVE
-#  define IN_MOVE 192
-# endif
-# ifndef IN_MOVED_FROM
-#  define IN_MOVED_FROM 64
-# endif
-# ifndef IN_MOVED_TO
-#  define IN_MOVED_TO 128
-# endif
-# ifndef IN_MOVE_SELF
-#  define IN_MOVE_SELF 2048
-# endif
-# ifndef IN_NONBLOCK
-#  define IN_NONBLOCK IN_NONBLOCK
-# endif
-# ifndef IN_ONESHOT
-#  define IN_ONESHOT 2147483648U
-# endif
-# ifndef IN_ONLYDIR
-#  define IN_ONLYDIR 16777216
-# endif
-# ifndef IN_OPEN
-#  define IN_OPEN 32
-# endif
-# ifndef IN_Q_OVERFLOW
-#  define IN_Q_OVERFLOW 16384
-# endif
-# ifndef IN_UNMOUNT
-#  define IN_UNMOUNT 8192
-# endif
+# define IN_ACCESS 1
+# define IN_ALL_EVENTS 4095
+# define IN_ATTRIB 4
+# define IN_CLOEXEC IN_CLOEXEC
+# define IN_CLOSE 24
+# define IN_CLOSE_NOWRITE 16
+# define IN_CLOSE_WRITE 8
+# define IN_CREATE 256
+# define IN_DELETE 512
+# define IN_DELETE_SELF 1024
+# define IN_DONT_FOLLOW 33554432
+# define IN_EXCL_UNLINK 67108864
+# define IN_IGNORED 32768
+# define IN_ISDIR 1073741824
+# define IN_MASK_ADD 536870912
+# define IN_MASK_CREATE 268435456
+# define IN_MODIFY 2
+# define IN_MOVE 192
+# define IN_MOVED_FROM 64
+# define IN_MOVED_TO 128
+# define IN_MOVE_SELF 2048
+# define IN_NONBLOCK IN_NONBLOCK
+# define IN_ONESHOT 2147483648U
+# define IN_ONLYDIR 16777216
+# define IN_OPEN 32
+# define IN_Q_OVERFLOW 16384
+# define IN_UNMOUNT 8192
 #endif
 
 __NIJI_END_C

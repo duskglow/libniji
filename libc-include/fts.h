@@ -169,105 +169,39 @@ extern int fts64_set (FTS64 *, FTSENT64 *, int) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef FTS_AGAIN
-#  define FTS_AGAIN 1
-# endif
-# ifndef FTS_COMFOLLOW
-#  define FTS_COMFOLLOW 1
-# endif
-# ifndef FTS_D
-#  define FTS_D 1
-# endif
-# ifndef FTS_DC
-#  define FTS_DC 2
-# endif
-# ifndef FTS_DEFAULT
-#  define FTS_DEFAULT 3
-# endif
-# ifndef FTS_DNR
-#  define FTS_DNR 4
-# endif
-# ifndef FTS_DONTCHDIR
-#  define FTS_DONTCHDIR 1
-# endif
-# ifndef FTS_DOT
-#  define FTS_DOT 5
-# endif
-# ifndef FTS_DP
-#  define FTS_DP 6
-# endif
-# ifndef FTS_ERR
-#  define FTS_ERR 7
-# endif
-# ifndef FTS_F
-#  define FTS_F 8
-# endif
-# ifndef FTS_FOLLOW
-#  define FTS_FOLLOW 2
-# endif
-# ifndef FTS_INIT
-#  define FTS_INIT 9
-# endif
-# ifndef FTS_LOGICAL
-#  define FTS_LOGICAL 2
-# endif
-# ifndef FTS_NAMEONLY
-#  define FTS_NAMEONLY 256
-# endif
-# ifndef FTS_NOCHDIR
-#  define FTS_NOCHDIR 4
-# endif
-# ifndef FTS_NOINSTR
-#  define FTS_NOINSTR 3
-# endif
-# ifndef FTS_NOSTAT
-#  define FTS_NOSTAT 8
-# endif
-# ifndef FTS_NS
-#  define FTS_NS 10
-# endif
-# ifndef FTS_NSOK
-#  define FTS_NSOK 11
-# endif
-# ifndef FTS_OPTIONMASK
-#  define FTS_OPTIONMASK 255
-# endif
-# ifndef FTS_PHYSICAL
-#  define FTS_PHYSICAL 16
-# endif
-# ifndef FTS_ROOTLEVEL
-#  define FTS_ROOTLEVEL 0
-# endif
-# ifndef FTS_ROOTPARENTLEVEL
-#  define FTS_ROOTPARENTLEVEL (-1)
-# endif
-# ifndef FTS_SEEDOT
-#  define FTS_SEEDOT 32
-# endif
-# ifndef FTS_SKIP
-#  define FTS_SKIP 4
-# endif
-# ifndef FTS_SL
-#  define FTS_SL 12
-# endif
-# ifndef FTS_SLNONE
-#  define FTS_SLNONE 13
-# endif
-# ifndef FTS_STOP
-#  define FTS_STOP 512
-# endif
-# ifndef FTS_SYMFOLLOW
-#  define FTS_SYMFOLLOW 2
-# endif
-# ifndef FTS_W
-#  define FTS_W 14
-# endif
-# ifndef FTS_WHITEOUT
-#  define FTS_WHITEOUT 128
-# endif
-# ifndef FTS_XDEV
-#  define FTS_XDEV 64
-# endif
+# define FTS_AGAIN 1
+# define FTS_COMFOLLOW 1
+# define FTS_D 1
+# define FTS_DC 2
+# define FTS_DEFAULT 3
+# define FTS_DNR 4
+# define FTS_DONTCHDIR 1
+# define FTS_DOT 5
+# define FTS_DP 6
+# define FTS_ERR 7
+# define FTS_F 8
+# define FTS_FOLLOW 2
+# define FTS_INIT 9
+# define FTS_LOGICAL 2
+# define FTS_NAMEONLY 256
+# define FTS_NOCHDIR 4
+# define FTS_NOINSTR 3
+# define FTS_NOSTAT 8
+# define FTS_NS 10
+# define FTS_NSOK 11
+# define FTS_OPTIONMASK 255
+# define FTS_PHYSICAL 16
+# define FTS_ROOTLEVEL 0
+# define FTS_ROOTPARENTLEVEL (-1)
+# define FTS_SEEDOT 32
+# define FTS_SKIP 4
+# define FTS_SL 12
+# define FTS_SLNONE 13
+# define FTS_STOP 512
+# define FTS_SYMFOLLOW 2
+# define FTS_W 14
+# define FTS_WHITEOUT 128
+# define FTS_XDEV 64
 #endif
 
 __NIJI_END_C

@@ -102,9 +102,9 @@ extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_ST_APPEND
 #  define __NIJI_D_anon_ST_APPEND 1
-#  if !defined ST_RDONLY || !defined ST_NOSUID || ((__NIJI_GNU) && !defined ST_NODEV) || ((__NIJI_GNU) && !defined ST_NOEXEC) || ((__NIJI_GNU) && !defined ST_SYNCHRONOUS) || ((__NIJI_GNU) && !defined ST_MANDLOCK) \
-    || ((__NIJI_GNU) && !defined ST_WRITE) || ((__NIJI_GNU) && !defined ST_APPEND) || ((__NIJI_GNU) && !defined ST_IMMUTABLE) || ((__NIJI_GNU) && !defined ST_NOATIME) || ((__NIJI_GNU) && !defined ST_NODIRATIME) || ((__NIJI_GNU) && !defined ST_RELATIME) \
-    || ((__NIJI_GNU) && !defined ST_NOSYMFOLLOW)
+#  if !defined ST_RDONLY || !defined ST_NOSUID || ((defined __USE_GNU) && !defined ST_NODEV) || ((defined __USE_GNU) && !defined ST_NOEXEC) || ((defined __USE_GNU) && !defined ST_SYNCHRONOUS) || ((defined __USE_GNU) && !defined ST_MANDLOCK) \
+    || ((defined __USE_GNU) && !defined ST_WRITE) || ((defined __USE_GNU) && !defined ST_APPEND) || ((defined __USE_GNU) && !defined ST_IMMUTABLE) || ((defined __USE_GNU) && !defined ST_NOATIME) || ((defined __USE_GNU) && !defined ST_NODIRATIME) || ((defined __USE_GNU) && !defined ST_RELATIME) \
+    || ((defined __USE_GNU) && !defined ST_NOSYMFOLLOW)
 enum {
 #  ifndef ST_RDONLY
   ST_RDONLY = 1,
@@ -112,57 +112,57 @@ enum {
 #  ifndef ST_NOSUID
   ST_NOSUID = 2,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_NODEV
   ST_NODEV = 4,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_NOEXEC
   ST_NOEXEC = 8,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_SYNCHRONOUS
   ST_SYNCHRONOUS = 16,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_MANDLOCK
   ST_MANDLOCK = 64,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_WRITE
   ST_WRITE = 128,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_APPEND
   ST_APPEND = 256,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_IMMUTABLE
   ST_IMMUTABLE = 512,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_NOATIME
   ST_NOATIME = 1024,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_NODIRATIME
   ST_NODIRATIME = 2048,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_RELATIME
   ST_RELATIME = 4096,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef ST_NOSYMFOLLOW
   ST_NOSYMFOLLOW = 8192,
 #  endif
@@ -170,47 +170,21 @@ enum {
 };
 #  endif
 # endif
-# ifndef ST_NOSUID
-#  define ST_NOSUID ST_NOSUID
-# endif
-# ifndef ST_RDONLY
-#  define ST_RDONLY ST_RDONLY
-# endif
+# define ST_NOSUID ST_NOSUID
+# define ST_RDONLY ST_RDONLY
 #endif
-#if __NIJI_GNU
-# ifndef ST_APPEND
-#  define ST_APPEND ST_APPEND
-# endif
-# ifndef ST_IMMUTABLE
-#  define ST_IMMUTABLE ST_IMMUTABLE
-# endif
-# ifndef ST_MANDLOCK
-#  define ST_MANDLOCK ST_MANDLOCK
-# endif
-# ifndef ST_NOATIME
-#  define ST_NOATIME ST_NOATIME
-# endif
-# ifndef ST_NODEV
-#  define ST_NODEV ST_NODEV
-# endif
-# ifndef ST_NODIRATIME
-#  define ST_NODIRATIME ST_NODIRATIME
-# endif
-# ifndef ST_NOEXEC
-#  define ST_NOEXEC ST_NOEXEC
-# endif
-# ifndef ST_NOSYMFOLLOW
-#  define ST_NOSYMFOLLOW ST_NOSYMFOLLOW
-# endif
-# ifndef ST_RELATIME
-#  define ST_RELATIME ST_RELATIME
-# endif
-# ifndef ST_SYNCHRONOUS
-#  define ST_SYNCHRONOUS ST_SYNCHRONOUS
-# endif
-# ifndef ST_WRITE
-#  define ST_WRITE ST_WRITE
-# endif
+#if defined __USE_GNU
+# define ST_APPEND ST_APPEND
+# define ST_IMMUTABLE ST_IMMUTABLE
+# define ST_MANDLOCK ST_MANDLOCK
+# define ST_NOATIME ST_NOATIME
+# define ST_NODEV ST_NODEV
+# define ST_NODIRATIME ST_NODIRATIME
+# define ST_NOEXEC ST_NOEXEC
+# define ST_NOSYMFOLLOW ST_NOSYMFOLLOW
+# define ST_RELATIME ST_RELATIME
+# define ST_SYNCHRONOUS ST_SYNCHRONOUS
+# define ST_WRITE ST_WRITE
 #endif
 
 
