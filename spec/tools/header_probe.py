@@ -110,8 +110,9 @@ def c_integer_names():
         out += [f"int{n}_t", f"uint{n}_t", f"int_least{n}_t", f"uint_least{n}_t", f"int_fast{n}_t", f"uint_fast{n}_t",
                 f"INT{n}_C", f"UINT{n}_C"]
     sizes = [f"{k}{n}" for k in kinds for n in (8, 16, 32, 64)] + ["MAX", "PTR"]
-    out += [f"PRI{c}{s}" for c in "diouxX" for s in sizes]
-    out += [f"SCN{c}{s}" for c in "diouxX" if c != "X" for s in sizes]
+    # C23 7.8.1 adds the binary conversions `b` and `B` (PRIb*, PRIB*, SCNb*).
+    out += [f"PRI{c}{s}" for c in "diouxXbB" for s in sizes]
+    out += [f"SCN{c}{s}" for c in "diouxXb" if c != "X" for s in sizes]
     return out
 
 
@@ -454,6 +455,90 @@ def radio_names():
     return ax + nr + ro + ipx + ec + ["ax25_address", "rose_address"], tags
 
 
+def thin_names():
+    """(names, tags) of the completeness pass over the thin headers (HEADERS-STAGE2-GAPS-C-2: the triage counts of
+    non-reserved macros showed these headers with fewer names than the reference system's). Each group names its
+    specification; a candidate is only a name to test, which header shows it, its value and its form are probed.
+    * utmp.h, lastlog.h, utmpx.h: utmp(5) and utmpx.h of XSH (record types, field sizes, the file-name macros and
+      the compatibility member names).
+    * sys/queue.h: queue(3) (the list, singly-linked list, simple queue, tail queue and circular queue families).
+    * sys/timex.h: adjtimex(2) (the mode bits ADJ_*, the legacy MOD_* names, the status bits STA_*, the clock
+      states TIME_*) and the kernel UAPI header linux/timex.h.
+    * sys/pidfd.h: pidfd_open(2), pidfd_send_signal(2) and the kernel UAPI header linux/pidfd.h.
+    * netinet/udp.h: udp(7) and the kernel UAPI header linux/udp.h (socket options, encapsulation types)."""
+    out = ["UT_LINESIZE", "UT_NAMESIZE", "UT_HOSTSIZE", "EMPTY", "RUN_LVL", "BOOT_TIME", "NEW_TIME", "OLD_TIME",
+           "INIT_PROCESS", "LOGIN_PROCESS", "USER_PROCESS", "DEAD_PROCESS", "ACCOUNTING", "ut_name", "ut_time",
+           "ut_xtime", "ut_addr", "ut_addr_v6", "UTMP_FILE", "UTMP_FILENAME", "WTMP_FILE", "WTMP_FILENAME",
+           "UTMPX_FILE", "UTMPX_FILENAME", "WTMPX_FILE", "WTMPX_FILENAME", "_PATH_UTMP", "_PATH_WTMP", "_PATH_UTMPX",
+           "_PATH_WTMPX", "_PATH_LASTLOG", "ll_time", "ll_line", "ll_host"]
+    ops = {
+        "LIST": ["EMPTY", "ENTRY", "FIRST", "FOREACH", "HEAD", "HEAD_INITIALIZER", "INIT", "INSERT_AFTER",
+                 "INSERT_BEFORE", "INSERT_HEAD", "NEXT", "REMOVE", "SWAP", "FOREACH_FROM", "FOREACH_SAFE",
+                 "FOREACH_FROM_SAFE", "PREV", "LAST"],
+        "SLIST": ["EMPTY", "ENTRY", "FIRST", "FOREACH", "HEAD", "HEAD_INITIALIZER", "INIT", "INSERT_AFTER",
+                  "INSERT_HEAD", "NEXT", "REMOVE", "REMOVE_AFTER", "REMOVE_HEAD", "FOREACH_SAFE", "FOREACH_PREVPTR",
+                  "SWAP", "FOREACH_FROM", "FOREACH_FROM_SAFE"],
+        "STAILQ": ["CONCAT", "EMPTY", "ENTRY", "FIRST", "FOREACH", "HEAD", "HEAD_INITIALIZER", "INIT", "INSERT_AFTER",
+                   "INSERT_HEAD", "INSERT_TAIL", "LAST", "NEXT", "REMOVE", "REMOVE_AFTER", "REMOVE_HEAD",
+                   "FOREACH_SAFE", "SWAP", "FOREACH_FROM", "FOREACH_FROM_SAFE"],
+        "TAILQ": ["CONCAT", "EMPTY", "ENTRY", "FIRST", "FOREACH", "FOREACH_REVERSE", "HEAD", "HEAD_INITIALIZER",
+                  "INIT", "INSERT_AFTER", "INSERT_BEFORE", "INSERT_HEAD", "INSERT_TAIL", "LAST", "NEXT", "PREV",
+                  "REMOVE", "FOREACH_SAFE", "FOREACH_REVERSE_SAFE", "SWAP", "FOREACH_FROM", "FOREACH_FROM_SAFE",
+                  "FOREACH_REVERSE_FROM", "FOREACH_REVERSE_FROM_SAFE"],
+        "CIRCLEQ": ["EMPTY", "ENTRY", "FIRST", "FOREACH", "FOREACH_REVERSE", "HEAD", "HEAD_INITIALIZER", "INIT",
+                    "INSERT_AFTER", "INSERT_BEFORE", "INSERT_HEAD", "INSERT_TAIL", "LAST", "LOOP_NEXT", "LOOP_PREV",
+                    "NEXT", "PREV", "REMOVE"],
+    }
+    out += [f"{fam}_{o}" for fam, os_ in ops.items() for o in os_]
+    out += ["QMD_TRACE_ELEM", "TRACEBUF", "TRASHIT", "QUEUE_MACRO_DEBUG"]
+    out += ["ADJ_" + n for n in ("OFFSET", "FREQUENCY", "MAXERROR", "ESTERROR", "STATUS", "TIMECONST", "TAI",
+                                 "SETOFFSET", "MICRO", "NANO", "TICK", "OFFSET_SINGLESHOT", "OFFSET_SS_READ")]
+    out += ["MOD_" + n for n in ("OFFSET", "FREQUENCY", "MAXERROR", "ESTERROR", "STATUS", "TIMECONST", "CLKB",
+                                 "CLKA", "TAI", "MICRO", "NANO")]
+    out += ["STA_" + n for n in ("PLL", "PPSFREQ", "PPSTIME", "FLL", "INS", "DEL", "UNSYNC", "FREQHOLD", "PPSSIGNAL",
+                                 "PPSJITTER", "PPSWANDER", "PPSERROR", "CLOCKERR", "NANO", "MODE", "CLK")]
+    out += ["TIME_" + n for n in ("OK", "INS", "DEL", "OOP", "WAIT", "ERROR", "BAD")]
+    out += ["NTP_API", "MAXPHASE", "MAXFREQ", "MINSEC", "MAXSEC", "MAXTC", "SHIFT_USEC", "SHIFT_PLL",
+            "SHIFT_FLL", "PPS_FAVG", "PPS_FREQ", "PPS_TIME"]
+    out += ["PIDFD_" + n for n in ("NONBLOCK", "THREAD", "SIGNAL_THREAD", "SIGNAL_THREAD_GROUP",
+                                   "SIGNAL_PROCESS_GROUP", "GET_CGROUP_NAMESPACE", "GET_IPC_NAMESPACE",
+                                   "GET_MNT_NAMESPACE", "GET_NET_NAMESPACE", "GET_PID_NAMESPACE",
+                                   "GET_PID_FOR_CHILDREN_NAMESPACE", "GET_TIME_NAMESPACE",
+                                   "GET_TIME_FOR_CHILDREN_NAMESPACE", "GET_USER_NAMESPACE", "GET_UTS_NAMESPACE",
+                                   "GET_INFO", "INFO_PID", "INFO_CREDS", "INFO_CGROUPID", "INFO_EXIT", "INFO_SIZE_VER0",
+                                   "SELF", "SELF_THREAD", "SELF_THREAD_GROUP", "SELF_PROCESS", "EXITED")]
+    out += ["UDP_" + n for n in ("CORK", "ENCAP", "NO_CHECK6_TX", "NO_CHECK6_RX", "SEGMENT", "GRO", "MAX_SEGMENTS",
+                                 "ENCAP_ESPINUDP_NON_IKE", "ENCAP_ESPINUDP", "ENCAP_L2TPINUDP", "ENCAP_GTP0",
+                                 "ENCAP_GTP1U", "ENCAP_RXRPC", "ENCAP_ESPINTCP")]
+    out += ["SOL_UDP", "SOL_UDPLITE", "UDPLITE_SEND_CSCOV", "UDPLITE_RECV_CSCOV", "UDP_ENCAP_SPECIAL"]
+    # arpa/telnet.h: the TELNET commands (RFC 854), the option codes of the IANA TELNET option registry (TELOPT_*, RFCs
+    # 856-1184, 1572), the subnegotiation qualifiers and the LINEMODE and flow-control values (RFCs 1073, 1091, 1184).
+    out += ["IAC", "DONT", "DO", "WONT", "WILL", "SB", "GA", "EL", "EC", "AYT", "AO", "IP", "BREAK", "DM", "NOP", "SE",
+            "EOR", "ABORT", "SUSP", "xEOF", "SYNCH", "TELCMD_FIRST", "TELCMD_LAST", "TELCMD_OK", "TELCMD", "telcmds",
+            "TELOPT_FIRST", "TELOPT_LAST", "TELOPT_OK", "TELOPT", "telopts", "TELQUAL_IS", "TELQUAL_SEND",
+            "TELQUAL_INFO", "TELQUAL_REPLY", "TELQUAL_NAME", "LFLOW_OFF", "LFLOW_ON", "LFLOW_RESTART_ANY",
+            "LFLOW_RESTART_XON", "LM_MODE", "LM_FORWARDMASK", "LM_SLC", "MODE_EDIT", "MODE_TRAPSIG", "MODE_ACK",
+            "MODE_SOFT_TAB", "MODE_LIT_ECHO", "MODE_MASK", "MODE_FLOW", "MODE_INBIN", "MODE_OUTBIN", "MODE_FORCE",
+            "SLC_SYNCH", "SLC_BRK", "SLC_IP", "SLC_AO", "SLC_AYT", "SLC_EOR", "SLC_ABORT", "SLC_EOF", "SLC_SUSP",
+            "SLC_EC", "SLC_EL", "SLC_EW", "SLC_RP", "SLC_LNEXT", "SLC_XON", "SLC_XOFF", "SLC_FORW1", "SLC_FORW2",
+            "SLC_MCL", "SLC_MCR", "SLC_MCWL", "SLC_MCWR", "SLC_MCBOL", "SLC_MCEOL", "SLC_INSRT", "SLC_OVER",
+            "SLC_ECR", "SLC_EWR", "SLC_EBOL", "SLC_EEOL", "NSLC", "SLC_NOSUPPORT", "SLC_CANTCHANGE", "SLC_VARIABLE",
+            "SLC_DEFAULT", "SLC_LEVELBITS", "SLC_FUNC", "SLC_FLAGS", "SLC_VALUE", "SLC_ACK", "SLC_FLUSHIN",
+            "SLC_FLUSHOUT", "OLD_ENV_VAR", "OLD_ENV_VALUE", "NEW_ENV_VAR", "NEW_ENV_VALUE", "ENV_ESC", "ENV_USERVAR",
+            "AUTH_WHO_CLIENT", "AUTH_WHO_SERVER", "AUTH_WHO_MASK", "AUTH_HOW_ONE_WAY", "AUTH_HOW_MUTUAL",
+            "AUTH_HOW_MASK", "AUTHTYPE_NULL", "AUTHTYPE_KERBEROS_V4", "AUTHTYPE_KERBEROS_V5", "AUTHTYPE_SPX",
+            "AUTHTYPE_MINK", "AUTHTYPE_CNT", "AUTHTYPE_TEST", "ENCRYPT_IS", "ENCRYPT_SUPPORT", "ENCRYPT_REPLY",
+            "ENCRYPT_START", "ENCRYPT_END", "ENCRYPT_REQSTART", "ENCRYPT_REQEND", "ENCRYPT_ENC_KEYID",
+            "ENCRYPT_DEC_KEYID", "ENCRYPT_CNT", "ENCTYPE_ANY", "ENCTYPE_DES_CFB64", "ENCTYPE_DES_OFB64",
+            "ENCTYPE_CNT"]
+    out += ["TELOPT_" + n for n in (
+        "BINARY", "ECHO", "RCP", "SGA", "NAMS", "STATUS", "TM", "RCTE", "NAOL", "NAOP", "NAOCRD", "NAOHTS", "NAOHTD",
+        "NAOFFD", "NAOVTS", "NAOVTD", "NAOLFD", "XASCII", "LOGOUT", "BM", "DET", "SUPDUP", "SUPDUPOUTPUT", "SNDLOC",
+        "TTYPE", "EOR", "TUID", "OUTMRK", "TTYLOC", "3270REGIME", "X3PAD", "NAWS", "TSPEED", "LFLOW", "LINEMODE",
+        "XDISPLOC", "OLD_ENVIRON", "AUTHENTICATION", "ENCRYPT", "NEW_ENVIRON", "EXOPL", "ENVIRON")]
+    return out, []
+
+
 def net_sys_names():
     """(names, tags) the rest of a static busybox build against libniji's headers failed on (HEADERS-NET-SYS-NAMES:
     networking/ftpd.c, nbd-client.c, ping.c, traceroute.c, route.c, zcip.c, udhcp/d6_*.c, sysklogd/*.c,
@@ -605,6 +690,9 @@ def candidates():
     rn, r_tags = radio_names()
     names.update(rn)
     tags.update(r_tags)
+    tn, tn_tags = thin_names()
+    names.update(tn)
+    tags.update(tn_tags)
     ns, ns_tags = net_sys_names()
     names.update(ns)
     tags.update(ns_tags)
