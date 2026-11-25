@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-COMPLEX-TGMATH-2", "model": "sonnet", "tokens": null,
+ "result": "Merged next, regenerated stale libc-include/complex.h, added libc6-dev manifest rows for complex.h and tgmath.h (the real cause of the earlier gate red); gate, plants and header_check green",
+ "branch": "task/sl-headers-complex-tgmath-2", "head": "1905d3c20",
+ "gate": {"affected": "722 passed / 0 failed", "peak": "see log"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["First gate red: the xtask product-build lint test needs a manifest row for every shipped header; fixed in tools/deb/manifest.tsv. First plants run hit its 600 s baseline timeout (header_check on two concurrent copies), rerun with --timeout 2400 --copies 1 passed (baseline about 40 min total incl. product build)."],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "complex.h/tgmath.h compile with niji-cc after slice 20 default switch", "before": null, "after": null, "unit": "headers", "measured": false}],
+ "improvement": "plants' default 600 s baseline timeout is too short for header_check-based plants files; default or documented larger value would save a rerun",
+ "next_step": "land",
+ "report_file": "handoff/SL-HEADERS-COMPLEX-TGMATH.md",
+ "jobs": ["keke:sl-headers-complex-tgmath-2-lint2", "keke:sl-headers-complex-tgmath-2-gate2", "keke:sl-headers-complex-tgmath-2-plants3"]}

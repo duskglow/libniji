@@ -53,6 +53,12 @@ typedef long __off_t;
 typedef int __pid_t;
 # endif
 #endif
+#if __NIJI_GNU
+# ifndef __NIJI_D_ino64_t
+#  define __NIJI_D_ino64_t 1
+typedef unsigned long ino64_t;
+# endif
+#endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1

@@ -527,6 +527,11 @@ struct sockaddr;
 extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned int, char *, unsigned int, int);
 # endif
 #endif
+#if 1
+# ifndef _PATH_SERVICES
+#  define _PATH_SERVICES "/etc/services"
+# endif
+#endif
 #if __NIJI_GNU
 # ifndef AI_CANONIDN
 #  define AI_CANONIDN 128

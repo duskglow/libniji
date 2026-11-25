@@ -117,6 +117,52 @@ def expand(configs, ids):
     return set(configs.split(","))
 
 
+STRING_MACRO = re.compile(r"char\[(\d+)\]")
+
+
+def exact_units(ctx, header, names, types=None):
+    """Units for slice check modules: each name of `names` in <header> exactly where visibility.tsv shows it there
+    (no row: nowhere), one unit per configuration. Where shown: a macro is defined, a `char[N]` macros.tsv row has
+    size N (and, C++11 on, its characters), a type-valued macro (`types`: name -> type) names that type, and a
+    typedef has its typedefs.tsv size and alignment (C++: the `cxx` spelling, which enters linkage names). Where not
+    shown: the macro is not defined, and the typedef name is free for the program (`extern int NAME;` compiles)."""
+    types = types or {}
+    vis = {r["name"]: r for r in ctx.vis if r["header"] == header and r["name"] in names}
+    cfg = {c["id"]: c for c in ctx.cfgs}
+    out = []
+    for cid in ctx.ids:
+        cxx, cxx11 = cfg[cid]["language"] == "c++", cfg[cid]["language"] == "c++" and cid != "cxx98"
+        lines = [f"#include <{header}>"]
+        if cxx11:
+            lines.append("constexpr bool niji_streq(const char *a, const char *b) "
+                         "{ return *a == *b && (*a == 0 || niji_streq(a + 1, b + 1)); }")
+        for i, n in enumerate(names):
+            r = vis.get(n)
+            shown = r is not None and cid in expand(r["configs"], ctx.ids)
+            kind = r["kind"] if r else ("typedef" if n in ctx.typedefs else "macro")
+            tests = []
+            if kind == "macro":
+                lines.append(f"#if{'n' if shown else ''}def {n}\n#error \"{n} {'not ' if shown else ''}defined\"\n#endif")
+                m = ctx.macros.get(n)
+                size = STRING_MACRO.fullmatch(m["type"]) if m else None
+                if shown and size:
+                    tests.append(f"sizeof({n}) == {size.group(1)}")
+                    if cxx11:
+                        lines.append(f"static_assert(niji_streq({n}, {m['value']}), \"{n}\");")
+                if shown and n in types:
+                    tests.append(f"__is_same({n}, {types[n]})" if cxx else f"__builtin_types_compatible_p({n}, {types[n]})")
+            elif shown:
+                t = ctx.typedefs[n]
+                tests += [f"sizeof({n}) == {t['size']}", f"__alignof__({n}) == {t['align']}"]
+                if cxx:
+                    tests.append(f"__is_same({n}, {t['cxx']})")
+            else:
+                lines.append(f"extern int {n};")
+            lines += [f"typedef char niji_exact_{i}_{j}[({x}) ? 1 : -1];" for j, x in enumerate(tests)]
+        out.append((cid, f"exact {header}", "\n".join(lines) + "\nint niji_exact_tu;\n"))
+    return out
+
+
 def p1_units(ctx):
     """P1 (plan/headers.md section 3) of the headers whose slice row has `p1` 1: per (header, configuration) one unit
     that includes the header and asserts, for what the header makes visible there, every macros.tsv integer value
@@ -270,6 +316,7 @@ def main():
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # The tree and work directory of this run, for a module that compiles units of its own (header_checks/form.py).
     ctx.inc, ctx.work = inc, work
+    ctx.exact = lambda header, names, types=None: exact_units(ctx, header, names, types)
     mods = slice_checks()
     # A slice check module may name `p1_skip` ((header, name) rows its P1 units leave out) and `must_fail` (headers
     # shipped to fail in every configuration: no P5 TU, and the module's own unit asserts the failure).

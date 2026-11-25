@@ -60,6 +60,14 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D_fsblkcnt_t
+#  define __NIJI_D_fsblkcnt_t 1
+typedef unsigned long fsblkcnt_t;
+# endif
+# ifndef __NIJI_D_fsfilcnt_t
+#  define __NIJI_D_fsfilcnt_t 1
+typedef unsigned long fsfilcnt_t;
+# endif
 struct statvfs;
 # ifndef __NIJI_D_fstatvfs
 #  define __NIJI_D_fstatvfs 1

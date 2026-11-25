@@ -247,6 +247,10 @@ typedef unsigned int uid_t;
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
 # endif
+# ifndef __NIJI_D_blksize_t
+#  define __NIJI_D_blksize_t 1
+typedef long blksize_t;
+# endif
 #endif
 #if 1
 # ifndef __NIJI_D_chmod
@@ -575,14 +579,15 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 # endif
 #endif
 
-/* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. */
-# define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
-# define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
-# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-# define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
-# define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-# define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
-# define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+/* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. The bits are spelled as values, not as the
+   S_IF* names: the tests are visible in configurations where those names belong to the program (strict POSIX). */
+# define S_ISBLK(m) (((m) & 61440) == 24576)
+# define S_ISCHR(m) (((m) & 61440) == 8192)
+# define S_ISDIR(m) (((m) & 61440) == 16384)
+# define S_ISFIFO(m) (((m) & 61440) == 4096)
+# define S_ISREG(m) (((m) & 61440) == 32768)
+# define S_ISLNK(m) (((m) & 61440) == 40960)
+# define S_ISSOCK(m) (((m) & 61440) == 49152)
 /* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. */
 # define S_TYPEISMQ(buf) ((void) (buf), 0)
 # define S_TYPEISSEM(buf) ((void) (buf), 0)

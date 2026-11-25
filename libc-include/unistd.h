@@ -58,6 +58,10 @@ typedef int pid_t;
 #  define __NIJI_D_uid_t 1
 typedef unsigned int uid_t;
 # endif
+# ifndef __NIJI_D_useconds_t
+#  define __NIJI_D_useconds_t 1
+typedef unsigned int useconds_t;
+# endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 450
 # ifndef __NIJI_D_intptr_t

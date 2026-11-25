@@ -30,4 +30,15 @@ def problems(ctx):
 
 def units(ctx):
     types = [(n, ctx.typedefs[n]) for n in wanted(ctx) if n in ctx.typedefs]
-    return [(c["id"], "P1 stdint", identity_unit(c["language"] == "c++", types)) for c in ctx.cfgs if c["id"] not in NO_STATIC_ASSERT]
+    out = [(c["id"], "P1 stdint", identity_unit(c["language"] == "c++", types)) for c in ctx.cfgs if c["id"] not in NO_STATIC_ASSERT]
+    # Spec clause: XBD <sys/types.h> and the BSD/System V names beside them (HEADERS-SNAPSHOT-GAPS): each shown exactly
+    # where the reference shows it (tree's build used u_long in the default mode), with its size, alignment and C++
+    # spelling, and free for the program elsewhere. sys/types.h has no table P1 (`p1` 0 in s05.tsv), so these are its
+    # rows.
+    return out + ctx.exact("sys/types.h", SYS_TYPES_NAMES)
+
+
+SYS_TYPES_NAMES = ("u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t", "fsid_t",
+                   "loff_t", "daddr_t", "caddr_t", "register_t", "u_int8_t", "u_int16_t", "u_int32_t", "u_int64_t",
+                   "blksize_t", "blkcnt64_t", "fsblkcnt_t", "fsblkcnt64_t", "fsfilcnt_t", "fsfilcnt64_t", "ino64_t",
+                   "suseconds_t", "useconds_t")

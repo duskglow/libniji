@@ -1,0 +1,21 @@
+{"task": "HEADERS-SNAPSHOT-GAPS", "model": "opus", "tokens": null,
+ "result": "u_long family, RE_TRANSLATE_TYPE, utmp/wtmp path macros, S_IS* (xxhash) and sig_t (apt) shown exactly where the reference shows them; tree and xxhash now build on libniji (7 of 7 ypk packages); docs describe the shipped headers",
+ "branch": "task/headers-snapshot-gaps", "head": "fc5f5b84a",
+ "gate": {"affected": "FULL: the train's (generated-table inputs); header_check 0 failed of 17579 (form probe on); clippy + static rc 0", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "busybox static (system flavour) now stops on gaps outside this story: <net/if.h> struct ifreq member names ifr_name/ifr_hwaddr/ifr_flags/ifr_ifindex (arp.c, arping.c, libbb/xconnect.c); <netpacket/packet.h> PACKET_HOST/BROADCAST/MULTICAST (arping.c); <sys/mtio.h> struct mtop/mtpos, MTWEOF, MTWSM, MTUNLOCK (mt.c). Recommend a follow-up header story.",
+   "Header plants rebuild the products per plant (shell cmd) and the copies' product builds took ~30 min each on a loaded Zen 1 host; plants ran with --timeout 900 so a slow header_check is not counted CAUGHT by timeout."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "tree and xxhash Debian packages build against libniji's headers (were FAIL in snapshot 24.2)", "before": 5, "after": 7, "unit": "ypk packages built of 7", "measured": true},
+   {"kind": "correctness", "what": "busybox static build: u_long, RE_TRANSLATE_TYPE, wtmp path and S_IFMT errors gone (next stop: net/if.h, netpacket/packet.h, sys/mtio.h)", "before": null, "after": 0, "unit": "error lines on these names", "measured": true},
+   {"kind": "unblock", "what": "apt's configure check for sig_t or sighandler_t (Yohane R-H7)", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "coverage", "what": "header_check exact-visibility units (s05, s07, s08, s10) and plants", "before": 0, "after": 8, "unit": "plants caught", "measured": true}
+ ],
+ "jobs": ["keke:headers-snapshot-gaps-hc2", "keke:headers-snapshot-gaps-plants1", "keke:headers-snapshot-gaps-debs1", "keke:headers-snapshot-gaps-lint1", "mei:headers-snapshot-gaps-ypk1", "mei:headers-snapshot-gaps-hp1"],
+ "improvement": "header plants spend most of their time rebuilding products the header checks never read; a plants command form that marks a command as not using the products (beyond the plain cargo test rule) would cut a header plants run from ~50 min to ~15",
+ "next_step": "land; follow-up story for busybox's net/if.h, netpacket/packet.h and sys/mtio.h gaps",
+ "report_file": "handoff/HEADERS-SNAPSHOT-GAPS-report.md"}

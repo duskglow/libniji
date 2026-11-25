@@ -54,6 +54,10 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
+# ifndef __NIJI_D_suseconds_t
+#  define __NIJI_D_suseconds_t 1
+typedef long suseconds_t;
+# endif
 # ifndef __NIJI_D_time_t
 #  define __NIJI_D_time_t 1
 typedef long time_t;

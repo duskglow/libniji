@@ -143,6 +143,9 @@ extern void vsyslog (int, const char *, __builtin_va_list) __attribute__ ((__for
 # ifndef LOG_WARNING
 #  define LOG_WARNING 4
 # endif
+# ifndef _PATH_LOG
+#  define _PATH_LOG "/dev/log"
+# endif
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS

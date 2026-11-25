@@ -16,6 +16,26 @@ import re
 HAS_INCLUDE = re.compile(r"__has_include\s*\(\s*<([^>]+)>\s*\)")
 
 
+def units(ctx):
+    """Spec clause: XSH <sys/stat.h>, the file type test macros (HEADERS-SNAPSHOT-GAPS). In every configuration that
+    accepts <sys/stat.h>, each S_IS* test the header defines compiles on a mode, also where the S_IF* names are the
+    program's (strict POSIX: a build that defined _POSIX_C_SOURCE 200809L failed on S_ISDIR)."""
+    tests = ("S_ISBLK", "S_ISCHR", "S_ISDIR", "S_ISFIFO", "S_ISREG", "S_ISLNK", "S_ISSOCK")
+    body = "#include <sys/stat.h>\n" + "".join(
+        f"#ifdef {t}\nint niji_s07_{t.lower()} (unsigned int m) {{ return {t} (m); }}\n#endif\n" for t in tests)
+    out = [(cid, "S_IS* tests of sys/stat.h", body + "int niji_s07_tu;\n") for cid in ctx.ids]
+    # Spec clause: utmp(5), utmpx(5), paths.h's _PATH_* names (HEADERS-SNAPSHOT-GAPS): the utmp and wtmp path macros
+    # in each header of the family, exactly where the reference shows them, with its values (tree's build used
+    # _PATH_WTMP; a header that shows another family member is caught by the "not defined" side).
+    for h in UTMP_HEADERS:
+        out += ctx.exact(h, UTMP_PATHS)
+    return out
+
+
+UTMP_HEADERS = ("paths.h", "utmp.h", "utmpx.h", "lastlog.h")
+UTMP_PATHS = ("_PATH_UTMP", "_PATH_WTMP", "_PATH_UTMPX", "_PATH_WTMPX", "UTMP_FILE", "WTMP_FILE", "UTMPX_FILE", "WTMPX_FILE")
+
+
 def problems(ctx):
     out = []
     base = os.path.join(ctx.root, "libc-include")
