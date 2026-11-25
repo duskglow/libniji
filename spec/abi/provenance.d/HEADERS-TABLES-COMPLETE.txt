@@ -1,0 +1,8 @@
+---
+order: 160
+---
+enumerators.tsv, layouts.tsv (HEADERS-TABLES-COMPLETE): abi_extract.py --layouts-only on the reference system (ldd (Ubuntu
+GLIBC 2.39-0ubuntu8.9) 2.39, GCC 13.3), one DWARF probe: members at every depth and the first element of arrays of
+aggregates (48 rows added), bit-field positions `bits W@P` from DW_AT_bit_offset/byte_size (38 rows changed, the
+other 1874 rows unchanged), 310 enumerators of the named enumerations. The script before the change reproduced the
+committed layouts.tsv byte for byte on the same system.
