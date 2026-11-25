@@ -1,0 +1,8 @@
+---
+order: 180
+---
+prototypes.tsv, prototypes.sha256 (SPEC-PROTOTYPES-ADDITIONS): abi_extract.py --prototypes-only on the reference system
+(ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39, GCC 13.3): the `_GNU_SOURCE` pass plus the functions only other configurations
+declare (gets, bsd_signal; formerly the separate --prototypes-missing step), 3781 reference rows, merged with
+prototypes-additions.tsv (sched_getattr, sched_setattr, D-24.12; formerly hand rows, now in sorted place). The full run
+and --prototypes-missing write the same two files byte for byte; the rows are the committed table's, reordered only.

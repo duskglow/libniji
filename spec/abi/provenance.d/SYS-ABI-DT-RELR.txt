@@ -1,0 +1,4 @@
+---
+order: 70
+---
+empty-versions.tsv: abi_extract.py --empty-versions-only (ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39): 3 version definitions no exported symbol carries.

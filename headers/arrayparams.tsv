@@ -1,0 +1,13 @@
+# Function parameters a header declares in the array form of an array typedef (`prgregset_t`, `T [N]`) where
+# prototypes.tsv spells the decayed pointer (`elf_greg_t *`). Both are the same type, but GCC compares the form
+# (-Warray-parameter): a definition with the array parameter is an error under -Werror against a pointer
+# declaration, and one with the pointer against an array declaration. `param` is 1-based; the generator checks
+# that the declared parameter is a pointer to the typedef's element type (`const` kept).
+# Source: black-box probe of the reference's headers (a definition of each function after its header, with the
+# array and then the pointer parameter, compiled with -Werror=array-parameter: the array form passes, the pointer
+# form fails), and gdb's proc_service callbacks, which define ps_lgetregs/ps_lsetregs with prgregset_t.
+function	param	typedef	source
+ps_lgetregs	3	prgregset_t	probe
+ps_lsetregs	3	prgregset_t	probe
+td_thr_getgregs	2	prgregset_t	probe
+td_thr_setgregs	2	prgregset_t	probe

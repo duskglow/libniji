@@ -60,8 +60,9 @@ ABI = os.path.join(ROOT, "spec", "abi")
 SKIP_HEADERS = {"features.h", "features-time64.h", "stdc-predef.h", "gnu-versions.h", "assert.h", "libgen.h"}
 OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security"]
 # open and kin take an optional mode, not a sentinel list: the reference's checking wrappers report an error, inside a
-# header and so on no test line, for a call with extra arguments. They get no sentinel test.
-NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64"}
+# header and so on no test line, for a call with extra arguments. They get no sentinel test. mq_open likewise (its
+# optional mode and attribute pair: a call with 3 arguments is the error, and the whole corpus would not build).
+NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64", "mq_open"}
 # The tests that read back a marker function (mk_<kind>_<line>) from the object.
 MARKED = ("nr", "nz", "nv", "ma", "as", "ct", "e")
 

@@ -7,6 +7,16 @@
 
 __NIJI_BEGIN_C
 
+/* The item number of index I in locale category C (the nl_langinfo items are numbered so: spec/abi/langinfo.tsv),
+   and its category and index. Black-box probes of the reference settle the form: _NL_ITEM is usable in #if and its
+   type follows its arguments; the other two convert their argument to int first, so they are not usable in #if,
+   their type is int, a category above 32767 reads back negative and an index is the low 16 bits. */
+#if 1
+# define _NL_ITEM(category, index) (((category) << 16) | (index))
+# define _NL_ITEM_CATEGORY(item) ((int) (item) >> 16)
+# define _NL_ITEM_INDEX(item) ((int) (item) & 0xffff)
+#endif
+
 #if 1
 # ifndef __NIJI_D_nl_catd
 #  define __NIJI_D_nl_catd 1
@@ -52,779 +62,1874 @@ extern char *nl_langinfo_l (int, locale_t);
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_ABDAY_1
-#  define __NIJI_D_enum_ABDAY_1 1
-#  ifndef ABDAY_1
-enum { ABDAY_1 = 131072 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_1
+#  define __NIJI_D_enum__NL_ABALTMON_1 1
+#  ifndef _NL_ABALTMON_1
+enum { _NL_ABALTMON_1 = 131207 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_2
-#  define __NIJI_D_enum_ABDAY_2 1
-#  ifndef ABDAY_2
-enum { ABDAY_2 = 131073 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_10
+#  define __NIJI_D_enum__NL_ABALTMON_10 1
+#  ifndef _NL_ABALTMON_10
+enum { _NL_ABALTMON_10 = 131216 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_3
-#  define __NIJI_D_enum_ABDAY_3 1
-#  ifndef ABDAY_3
-enum { ABDAY_3 = 131074 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_11
+#  define __NIJI_D_enum__NL_ABALTMON_11 1
+#  ifndef _NL_ABALTMON_11
+enum { _NL_ABALTMON_11 = 131217 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_4
-#  define __NIJI_D_enum_ABDAY_4 1
-#  ifndef ABDAY_4
-enum { ABDAY_4 = 131075 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_12
+#  define __NIJI_D_enum__NL_ABALTMON_12 1
+#  ifndef _NL_ABALTMON_12
+enum { _NL_ABALTMON_12 = 131218 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_5
-#  define __NIJI_D_enum_ABDAY_5 1
-#  ifndef ABDAY_5
-enum { ABDAY_5 = 131076 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_2
+#  define __NIJI_D_enum__NL_ABALTMON_2 1
+#  ifndef _NL_ABALTMON_2
+enum { _NL_ABALTMON_2 = 131208 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_6
-#  define __NIJI_D_enum_ABDAY_6 1
-#  ifndef ABDAY_6
-enum { ABDAY_6 = 131077 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_3
+#  define __NIJI_D_enum__NL_ABALTMON_3 1
+#  ifndef _NL_ABALTMON_3
+enum { _NL_ABALTMON_3 = 131209 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABDAY_7
-#  define __NIJI_D_enum_ABDAY_7 1
-#  ifndef ABDAY_7
-enum { ABDAY_7 = 131078 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_4
+#  define __NIJI_D_enum__NL_ABALTMON_4 1
+#  ifndef _NL_ABALTMON_4
+enum { _NL_ABALTMON_4 = 131210 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_1
-#  define __NIJI_D_enum_ABMON_1 1
-#  ifndef ABMON_1
-enum { ABMON_1 = 131086 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_5
+#  define __NIJI_D_enum__NL_ABALTMON_5 1
+#  ifndef _NL_ABALTMON_5
+enum { _NL_ABALTMON_5 = 131211 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_10
-#  define __NIJI_D_enum_ABMON_10 1
-#  ifndef ABMON_10
-enum { ABMON_10 = 131095 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_6
+#  define __NIJI_D_enum__NL_ABALTMON_6 1
+#  ifndef _NL_ABALTMON_6
+enum { _NL_ABALTMON_6 = 131212 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_11
-#  define __NIJI_D_enum_ABMON_11 1
-#  ifndef ABMON_11
-enum { ABMON_11 = 131096 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_7
+#  define __NIJI_D_enum__NL_ABALTMON_7 1
+#  ifndef _NL_ABALTMON_7
+enum { _NL_ABALTMON_7 = 131213 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_12
-#  define __NIJI_D_enum_ABMON_12 1
-#  ifndef ABMON_12
-enum { ABMON_12 = 131097 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_8
+#  define __NIJI_D_enum__NL_ABALTMON_8 1
+#  ifndef _NL_ABALTMON_8
+enum { _NL_ABALTMON_8 = 131214 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_2
-#  define __NIJI_D_enum_ABMON_2 1
-#  ifndef ABMON_2
-enum { ABMON_2 = 131087 };
+# ifndef __NIJI_D_enum__NL_ABALTMON_9
+#  define __NIJI_D_enum__NL_ABALTMON_9 1
+#  ifndef _NL_ABALTMON_9
+enum { _NL_ABALTMON_9 = 131215 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_3
-#  define __NIJI_D_enum_ABMON_3 1
-#  ifndef ABMON_3
-enum { ABMON_3 = 131088 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_CODESET
+#  define __NIJI_D_enum__NL_ADDRESS_CODESET 1
+#  ifndef _NL_ADDRESS_CODESET
+enum { _NL_ADDRESS_CODESET = 589836 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_4
-#  define __NIJI_D_enum_ABMON_4 1
-#  ifndef ABMON_4
-enum { ABMON_4 = 131089 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_AB2
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_AB2 1
+#  ifndef _NL_ADDRESS_COUNTRY_AB2
+enum { _NL_ADDRESS_COUNTRY_AB2 = 589827 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_5
-#  define __NIJI_D_enum_ABMON_5 1
-#  ifndef ABMON_5
-enum { ABMON_5 = 131090 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_AB3
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_AB3 1
+#  ifndef _NL_ADDRESS_COUNTRY_AB3
+enum { _NL_ADDRESS_COUNTRY_AB3 = 589828 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_6
-#  define __NIJI_D_enum_ABMON_6 1
-#  ifndef ABMON_6
-enum { ABMON_6 = 131091 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_CAR
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_CAR 1
+#  ifndef _NL_ADDRESS_COUNTRY_CAR
+enum { _NL_ADDRESS_COUNTRY_CAR = 589829 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_7
-#  define __NIJI_D_enum_ABMON_7 1
-#  ifndef ABMON_7
-enum { ABMON_7 = 131092 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_ISBN
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_ISBN 1
+#  ifndef _NL_ADDRESS_COUNTRY_ISBN
+enum { _NL_ADDRESS_COUNTRY_ISBN = 589831 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_8
-#  define __NIJI_D_enum_ABMON_8 1
-#  ifndef ABMON_8
-enum { ABMON_8 = 131093 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_NAME
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_NAME 1
+#  ifndef _NL_ADDRESS_COUNTRY_NAME
+enum { _NL_ADDRESS_COUNTRY_NAME = 589825 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ABMON_9
-#  define __NIJI_D_enum_ABMON_9 1
-#  ifndef ABMON_9
-enum { ABMON_9 = 131094 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_POST
+#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_POST 1
+#  ifndef _NL_ADDRESS_COUNTRY_POST
+enum { _NL_ADDRESS_COUNTRY_POST = 589826 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ALT_DIGITS
-#  define __NIJI_D_enum_ALT_DIGITS 1
-#  ifndef ALT_DIGITS
-enum { ALT_DIGITS = 131119 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_LANG_AB
+#  define __NIJI_D_enum__NL_ADDRESS_LANG_AB 1
+#  ifndef _NL_ADDRESS_LANG_AB
+enum { _NL_ADDRESS_LANG_AB = 589833 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_AM_STR
-#  define __NIJI_D_enum_AM_STR 1
-#  ifndef AM_STR
-enum { AM_STR = 131110 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_LANG_LIB
+#  define __NIJI_D_enum__NL_ADDRESS_LANG_LIB 1
+#  ifndef _NL_ADDRESS_LANG_LIB
+enum { _NL_ADDRESS_LANG_LIB = 589835 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_CODESET
-#  define __NIJI_D_enum_CODESET 1
-#  ifndef CODESET
-enum { CODESET = 14 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_LANG_NAME
+#  define __NIJI_D_enum__NL_ADDRESS_LANG_NAME 1
+#  ifndef _NL_ADDRESS_LANG_NAME
+enum { _NL_ADDRESS_LANG_NAME = 589832 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_1
-#  define __NIJI_D_enum_DAY_1 1
-#  ifndef DAY_1
-enum { DAY_1 = 131079 };
+# ifndef __NIJI_D_enum__NL_ADDRESS_LANG_TERM
+#  define __NIJI_D_enum__NL_ADDRESS_LANG_TERM 1
+#  ifndef _NL_ADDRESS_LANG_TERM
+enum { _NL_ADDRESS_LANG_TERM = 589834 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_2
-#  define __NIJI_D_enum_DAY_2 1
-#  ifndef DAY_2
-enum { DAY_2 = 131080 };
+# ifndef __NIJI_D_enum__NL_COLLATE_CODESET
+#  define __NIJI_D_enum__NL_COLLATE_CODESET 1
+#  ifndef _NL_COLLATE_CODESET
+enum { _NL_COLLATE_CODESET = 196626 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_3
-#  define __NIJI_D_enum_DAY_3 1
-#  ifndef DAY_3
-enum { DAY_3 = 131081 };
+# ifndef __NIJI_D_enum__NL_CTYPE_CODESET_NAME
+#  define __NIJI_D_enum__NL_CTYPE_CODESET_NAME 1
+#  ifndef _NL_CTYPE_CODESET_NAME
+enum { _NL_CTYPE_CODESET_NAME = 14 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_4
-#  define __NIJI_D_enum_DAY_4 1
-#  ifndef DAY_4
-enum { DAY_4 = 131082 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS0_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS0_MB 1
+#  ifndef _NL_CTYPE_INDIGITS0_MB
+enum { _NL_CTYPE_INDIGITS0_MB = 20 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_5
-#  define __NIJI_D_enum_DAY_5 1
-#  ifndef DAY_5
-enum { DAY_5 = 131083 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS0_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS0_WC 1
+#  ifndef _NL_CTYPE_INDIGITS0_WC
+enum { _NL_CTYPE_INDIGITS0_WC = 31 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_6
-#  define __NIJI_D_enum_DAY_6 1
-#  ifndef DAY_6
-enum { DAY_6 = 131084 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS1_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS1_MB 1
+#  ifndef _NL_CTYPE_INDIGITS1_MB
+enum { _NL_CTYPE_INDIGITS1_MB = 21 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_DAY_7
-#  define __NIJI_D_enum_DAY_7 1
-#  ifndef DAY_7
-enum { DAY_7 = 131085 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS1_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS1_WC 1
+#  ifndef _NL_CTYPE_INDIGITS1_WC
+enum { _NL_CTYPE_INDIGITS1_WC = 32 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_D_FMT
-#  define __NIJI_D_enum_D_FMT 1
-#  ifndef D_FMT
-enum { D_FMT = 131113 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS2_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS2_MB 1
+#  ifndef _NL_CTYPE_INDIGITS2_MB
+enum { _NL_CTYPE_INDIGITS2_MB = 22 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_D_T_FMT
-#  define __NIJI_D_enum_D_T_FMT 1
-#  ifndef D_T_FMT
-enum { D_T_FMT = 131112 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS2_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS2_WC 1
+#  ifndef _NL_CTYPE_INDIGITS2_WC
+enum { _NL_CTYPE_INDIGITS2_WC = 33 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ERA
-#  define __NIJI_D_enum_ERA 1
-#  ifndef ERA
-enum { ERA = 131116 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS3_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS3_MB 1
+#  ifndef _NL_CTYPE_INDIGITS3_MB
+enum { _NL_CTYPE_INDIGITS3_MB = 23 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ERA_D_FMT
-#  define __NIJI_D_enum_ERA_D_FMT 1
-#  ifndef ERA_D_FMT
-enum { ERA_D_FMT = 131118 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS3_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS3_WC 1
+#  ifndef _NL_CTYPE_INDIGITS3_WC
+enum { _NL_CTYPE_INDIGITS3_WC = 34 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ERA_D_T_FMT
-#  define __NIJI_D_enum_ERA_D_T_FMT 1
-#  ifndef ERA_D_T_FMT
-enum { ERA_D_T_FMT = 131120 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS4_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS4_MB 1
+#  ifndef _NL_CTYPE_INDIGITS4_MB
+enum { _NL_CTYPE_INDIGITS4_MB = 24 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ERA_T_FMT
-#  define __NIJI_D_enum_ERA_T_FMT 1
-#  ifndef ERA_T_FMT
-enum { ERA_T_FMT = 131121 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS4_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS4_WC 1
+#  ifndef _NL_CTYPE_INDIGITS4_WC
+enum { _NL_CTYPE_INDIGITS4_WC = 35 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_1
-#  define __NIJI_D_enum_MON_1 1
-#  ifndef MON_1
-enum { MON_1 = 131098 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS5_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS5_MB 1
+#  ifndef _NL_CTYPE_INDIGITS5_MB
+enum { _NL_CTYPE_INDIGITS5_MB = 25 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_10
-#  define __NIJI_D_enum_MON_10 1
-#  ifndef MON_10
-enum { MON_10 = 131107 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS5_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS5_WC 1
+#  ifndef _NL_CTYPE_INDIGITS5_WC
+enum { _NL_CTYPE_INDIGITS5_WC = 36 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_11
-#  define __NIJI_D_enum_MON_11 1
-#  ifndef MON_11
-enum { MON_11 = 131108 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS6_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS6_MB 1
+#  ifndef _NL_CTYPE_INDIGITS6_MB
+enum { _NL_CTYPE_INDIGITS6_MB = 26 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_12
-#  define __NIJI_D_enum_MON_12 1
-#  ifndef MON_12
-enum { MON_12 = 131109 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS6_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS6_WC 1
+#  ifndef _NL_CTYPE_INDIGITS6_WC
+enum { _NL_CTYPE_INDIGITS6_WC = 37 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_2
-#  define __NIJI_D_enum_MON_2 1
-#  ifndef MON_2
-enum { MON_2 = 131099 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS7_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS7_MB 1
+#  ifndef _NL_CTYPE_INDIGITS7_MB
+enum { _NL_CTYPE_INDIGITS7_MB = 27 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_3
-#  define __NIJI_D_enum_MON_3 1
-#  ifndef MON_3
-enum { MON_3 = 131100 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS7_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS7_WC 1
+#  ifndef _NL_CTYPE_INDIGITS7_WC
+enum { _NL_CTYPE_INDIGITS7_WC = 38 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_4
-#  define __NIJI_D_enum_MON_4 1
-#  ifndef MON_4
-enum { MON_4 = 131101 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS8_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS8_MB 1
+#  ifndef _NL_CTYPE_INDIGITS8_MB
+enum { _NL_CTYPE_INDIGITS8_MB = 28 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_5
-#  define __NIJI_D_enum_MON_5 1
-#  ifndef MON_5
-enum { MON_5 = 131102 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS8_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS8_WC 1
+#  ifndef _NL_CTYPE_INDIGITS8_WC
+enum { _NL_CTYPE_INDIGITS8_WC = 39 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_6
-#  define __NIJI_D_enum_MON_6 1
-#  ifndef MON_6
-enum { MON_6 = 131103 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS9_MB
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS9_MB 1
+#  ifndef _NL_CTYPE_INDIGITS9_MB
+enum { _NL_CTYPE_INDIGITS9_MB = 29 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_7
-#  define __NIJI_D_enum_MON_7 1
-#  ifndef MON_7
-enum { MON_7 = 131104 };
+# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS9_WC
+#  define __NIJI_D_enum__NL_CTYPE_INDIGITS9_WC 1
+#  ifndef _NL_CTYPE_INDIGITS9_WC
+enum { _NL_CTYPE_INDIGITS9_WC = 40 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_8
-#  define __NIJI_D_enum_MON_8 1
-#  ifndef MON_8
-enum { MON_8 = 131105 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT0_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT0_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT0_MB
+enum { _NL_CTYPE_OUTDIGIT0_MB = 41 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MON_9
-#  define __NIJI_D_enum_MON_9 1
-#  ifndef MON_9
-enum { MON_9 = 131106 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT1_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT1_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT1_MB
+enum { _NL_CTYPE_OUTDIGIT1_MB = 42 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_PM_STR
-#  define __NIJI_D_enum_PM_STR 1
-#  ifndef PM_STR
-enum { PM_STR = 131111 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT1_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT1_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT1_WC
+enum { _NL_CTYPE_OUTDIGIT1_WC = 52 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_RADIXCHAR
-#  define __NIJI_D_enum_RADIXCHAR 1
-#  ifndef RADIXCHAR
-enum { RADIXCHAR = 65536 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT2_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT2_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT2_MB
+enum { _NL_CTYPE_OUTDIGIT2_MB = 43 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_THOUSEP
-#  define __NIJI_D_enum_THOUSEP 1
-#  ifndef THOUSEP
-enum { THOUSEP = 65537 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT2_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT2_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT2_WC
+enum { _NL_CTYPE_OUTDIGIT2_WC = 53 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_T_FMT
-#  define __NIJI_D_enum_T_FMT 1
-#  ifndef T_FMT
-enum { T_FMT = 131114 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT3_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT3_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT3_MB
+enum { _NL_CTYPE_OUTDIGIT3_MB = 44 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_T_FMT_AMPM
-#  define __NIJI_D_enum_T_FMT_AMPM 1
-#  ifndef T_FMT_AMPM
-enum { T_FMT_AMPM = 131115 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT3_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT3_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT3_WC
+enum { _NL_CTYPE_OUTDIGIT3_WC = 54 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__DATE_FMT
-#  define __NIJI_D_enum__DATE_FMT 1
-#  ifndef _DATE_FMT
-enum { _DATE_FMT = 131180 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT4_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT4_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT4_MB
+enum { _NL_CTYPE_OUTDIGIT4_MB = 45 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_ADDRESS_COUNTRY_NUM
-#  define __NIJI_D_enum__NL_ADDRESS_COUNTRY_NUM 1
-#  ifndef _NL_ADDRESS_COUNTRY_NUM
-enum { _NL_ADDRESS_COUNTRY_NUM = 589830 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT4_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT4_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT4_WC
+enum { _NL_CTYPE_OUTDIGIT4_WC = 55 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_ADDRESS_POSTAL_FMT
-#  define __NIJI_D_enum__NL_ADDRESS_POSTAL_FMT 1
-#  ifndef _NL_ADDRESS_POSTAL_FMT
-enum { _NL_ADDRESS_POSTAL_FMT = 589824 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT5_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT5_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT5_MB
+enum { _NL_CTYPE_OUTDIGIT5_MB = 46 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_COLLSEQMB
-#  define __NIJI_D_enum__NL_COLLATE_COLLSEQMB 1
-#  ifndef _NL_COLLATE_COLLSEQMB
-enum { _NL_COLLATE_COLLSEQMB = 196624 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT5_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT5_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT5_WC
+enum { _NL_CTYPE_OUTDIGIT5_WC = 56 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_COLLSEQWC
-#  define __NIJI_D_enum__NL_COLLATE_COLLSEQWC 1
-#  ifndef _NL_COLLATE_COLLSEQWC
-enum { _NL_COLLATE_COLLSEQWC = 196625 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT6_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT6_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT6_MB
+enum { _NL_CTYPE_OUTDIGIT6_MB = 47 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_EXTRAMB
-#  define __NIJI_D_enum__NL_COLLATE_EXTRAMB 1
-#  ifndef _NL_COLLATE_EXTRAMB
-enum { _NL_COLLATE_EXTRAMB = 196612 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT6_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT6_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT6_WC
+enum { _NL_CTYPE_OUTDIGIT6_WC = 57 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_EXTRAWC
-#  define __NIJI_D_enum__NL_COLLATE_EXTRAWC 1
-#  ifndef _NL_COLLATE_EXTRAWC
-enum { _NL_COLLATE_EXTRAWC = 196619 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT7_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT7_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT7_MB
+enum { _NL_CTYPE_OUTDIGIT7_MB = 48 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_INDIRECTMB
-#  define __NIJI_D_enum__NL_COLLATE_INDIRECTMB 1
-#  ifndef _NL_COLLATE_INDIRECTMB
-enum { _NL_COLLATE_INDIRECTMB = 196613 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT7_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT7_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT7_WC
+enum { _NL_CTYPE_OUTDIGIT7_WC = 58 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_INDIRECTWC
-#  define __NIJI_D_enum__NL_COLLATE_INDIRECTWC 1
-#  ifndef _NL_COLLATE_INDIRECTWC
-enum { _NL_COLLATE_INDIRECTWC = 196620 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT8_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT8_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT8_MB
+enum { _NL_CTYPE_OUTDIGIT8_MB = 49 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_NRULES
-#  define __NIJI_D_enum__NL_COLLATE_NRULES 1
-#  ifndef _NL_COLLATE_NRULES
-enum { _NL_COLLATE_NRULES = 196608 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT8_WC
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT8_WC 1
+#  ifndef _NL_CTYPE_OUTDIGIT8_WC
+enum { _NL_CTYPE_OUTDIGIT8_WC = 59 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_RULESETS
-#  define __NIJI_D_enum__NL_COLLATE_RULESETS 1
-#  ifndef _NL_COLLATE_RULESETS
-enum { _NL_COLLATE_RULESETS = 196609 };
+# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT9_MB
+#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT9_MB 1
+#  ifndef _NL_CTYPE_OUTDIGIT9_MB
+enum { _NL_CTYPE_OUTDIGIT9_MB = 50 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_SYMB_HASH_SIZEMB
-#  define __NIJI_D_enum__NL_COLLATE_SYMB_HASH_SIZEMB 1
-#  ifndef _NL_COLLATE_SYMB_HASH_SIZEMB
-enum { _NL_COLLATE_SYMB_HASH_SIZEMB = 196621 };
+# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_IGNORE
+#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_IGNORE 1
+#  ifndef _NL_CTYPE_TRANSLIT_IGNORE
+enum { _NL_CTYPE_TRANSLIT_IGNORE = 69 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_TABLEMB
-#  define __NIJI_D_enum__NL_COLLATE_TABLEMB 1
-#  ifndef _NL_COLLATE_TABLEMB
-enum { _NL_COLLATE_TABLEMB = 196610 };
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_ABBREVIATION
+#  define __NIJI_D_enum__NL_IDENTIFICATION_ABBREVIATION 1
+#  ifndef _NL_IDENTIFICATION_ABBREVIATION
+enum { _NL_IDENTIFICATION_ABBREVIATION = 786443 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_TABLEWC
-#  define __NIJI_D_enum__NL_COLLATE_TABLEWC 1
-#  ifndef _NL_COLLATE_TABLEWC
-enum { _NL_COLLATE_TABLEWC = 196617 };
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_ADDRESS
+#  define __NIJI_D_enum__NL_IDENTIFICATION_ADDRESS 1
+#  ifndef _NL_IDENTIFICATION_ADDRESS
+enum { _NL_IDENTIFICATION_ADDRESS = 786434 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_WEIGHTMB
-#  define __NIJI_D_enum__NL_COLLATE_WEIGHTMB 1
-#  ifndef _NL_COLLATE_WEIGHTMB
-enum { _NL_COLLATE_WEIGHTMB = 196611 };
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_APPLICATION
+#  define __NIJI_D_enum__NL_IDENTIFICATION_APPLICATION 1
+#  ifndef _NL_IDENTIFICATION_APPLICATION
+enum { _NL_IDENTIFICATION_APPLICATION = 786442 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_COLLATE_WEIGHTWC
-#  define __NIJI_D_enum__NL_COLLATE_WEIGHTWC 1
-#  ifndef _NL_COLLATE_WEIGHTWC
-enum { _NL_COLLATE_WEIGHTWC = 196618 };
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_AUDIENCE
+#  define __NIJI_D_enum__NL_IDENTIFICATION_AUDIENCE 1
+#  ifndef _NL_IDENTIFICATION_AUDIENCE
+enum { _NL_IDENTIFICATION_AUDIENCE = 786441 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum__NL_CTYPE_CLASS
-#  define __NIJI_D_enum__NL_CTYPE_CLASS 1
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_CATEGORY
+#  define __NIJI_D_enum__NL_IDENTIFICATION_CATEGORY 1
+#  ifndef _NL_IDENTIFICATION_CATEGORY
+enum { _NL_IDENTIFICATION_CATEGORY = 786446 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_CODESET
+#  define __NIJI_D_enum__NL_IDENTIFICATION_CODESET 1
+#  ifndef _NL_IDENTIFICATION_CODESET
+enum { _NL_IDENTIFICATION_CODESET = 786447 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_CONTACT
+#  define __NIJI_D_enum__NL_IDENTIFICATION_CONTACT 1
+#  ifndef _NL_IDENTIFICATION_CONTACT
+enum { _NL_IDENTIFICATION_CONTACT = 786435 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_DATE
+#  define __NIJI_D_enum__NL_IDENTIFICATION_DATE 1
+#  ifndef _NL_IDENTIFICATION_DATE
+enum { _NL_IDENTIFICATION_DATE = 786445 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_EMAIL
+#  define __NIJI_D_enum__NL_IDENTIFICATION_EMAIL 1
+#  ifndef _NL_IDENTIFICATION_EMAIL
+enum { _NL_IDENTIFICATION_EMAIL = 786436 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_FAX
+#  define __NIJI_D_enum__NL_IDENTIFICATION_FAX 1
+#  ifndef _NL_IDENTIFICATION_FAX
+enum { _NL_IDENTIFICATION_FAX = 786438 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_LANGUAGE
+#  define __NIJI_D_enum__NL_IDENTIFICATION_LANGUAGE 1
+#  ifndef _NL_IDENTIFICATION_LANGUAGE
+enum { _NL_IDENTIFICATION_LANGUAGE = 786439 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_REVISION
+#  define __NIJI_D_enum__NL_IDENTIFICATION_REVISION 1
+#  ifndef _NL_IDENTIFICATION_REVISION
+enum { _NL_IDENTIFICATION_REVISION = 786444 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_SOURCE
+#  define __NIJI_D_enum__NL_IDENTIFICATION_SOURCE 1
+#  ifndef _NL_IDENTIFICATION_SOURCE
+enum { _NL_IDENTIFICATION_SOURCE = 786433 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_TEL
+#  define __NIJI_D_enum__NL_IDENTIFICATION_TEL 1
+#  ifndef _NL_IDENTIFICATION_TEL
+enum { _NL_IDENTIFICATION_TEL = 786437 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_TERRITORY
+#  define __NIJI_D_enum__NL_IDENTIFICATION_TERRITORY 1
+#  ifndef _NL_IDENTIFICATION_TERRITORY
+enum { _NL_IDENTIFICATION_TERRITORY = 786440 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_IDENTIFICATION_TITLE
+#  define __NIJI_D_enum__NL_IDENTIFICATION_TITLE 1
+#  ifndef _NL_IDENTIFICATION_TITLE
+enum { _NL_IDENTIFICATION_TITLE = 786432 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MEASUREMENT_CODESET
+#  define __NIJI_D_enum__NL_MEASUREMENT_CODESET 1
+#  ifndef _NL_MEASUREMENT_CODESET
+enum { _NL_MEASUREMENT_CODESET = 720897 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MEASUREMENT_MEASUREMENT
+#  define __NIJI_D_enum__NL_MEASUREMENT_MEASUREMENT 1
+#  ifndef _NL_MEASUREMENT_MEASUREMENT
+enum { _NL_MEASUREMENT_MEASUREMENT = 720896 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MESSAGES_CODESET
+#  define __NIJI_D_enum__NL_MESSAGES_CODESET 1
+#  ifndef _NL_MESSAGES_CODESET
+enum { _NL_MESSAGES_CODESET = 327684 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_CODESET
+#  define __NIJI_D_enum__NL_MONETARY_CODESET 1
+#  ifndef _NL_MONETARY_CODESET
+enum { _NL_MONETARY_CODESET = 262189 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_CONVERSION_RATE
+#  define __NIJI_D_enum__NL_MONETARY_CONVERSION_RATE 1
+#  ifndef _NL_MONETARY_CONVERSION_RATE
+enum { _NL_MONETARY_CONVERSION_RATE = 262186 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_CRNCYSTR
+#  define __NIJI_D_enum__NL_MONETARY_CRNCYSTR 1
+#  ifndef _NL_MONETARY_CRNCYSTR
+enum { _NL_MONETARY_CRNCYSTR = 262159 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_CURRENCY_SYMBOL
+#  define __NIJI_D_enum__NL_MONETARY_DUO_CURRENCY_SYMBOL 1
+#  ifndef _NL_MONETARY_DUO_CURRENCY_SYMBOL
+enum { _NL_MONETARY_DUO_CURRENCY_SYMBOL = 262167 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_FRAC_DIGITS
+#  define __NIJI_D_enum__NL_MONETARY_DUO_FRAC_DIGITS 1
+#  ifndef _NL_MONETARY_DUO_FRAC_DIGITS
+enum { _NL_MONETARY_DUO_FRAC_DIGITS = 262169 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_CURR_SYMBOL
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_CURR_SYMBOL 1
+#  ifndef _NL_MONETARY_DUO_INT_CURR_SYMBOL
+enum { _NL_MONETARY_DUO_INT_CURR_SYMBOL = 262166 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_FRAC_DIGITS
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_FRAC_DIGITS 1
+#  ifndef _NL_MONETARY_DUO_INT_FRAC_DIGITS
+enum { _NL_MONETARY_DUO_INT_FRAC_DIGITS = 262168 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_N_CS_PRECEDES
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_N_CS_PRECEDES 1
+#  ifndef _NL_MONETARY_DUO_INT_N_CS_PRECEDES
+enum { _NL_MONETARY_DUO_INT_N_CS_PRECEDES = 262176 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_N_SEP_BY_SPACE
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_N_SEP_BY_SPACE 1
+#  ifndef _NL_MONETARY_DUO_INT_N_SEP_BY_SPACE
+enum { _NL_MONETARY_DUO_INT_N_SEP_BY_SPACE = 262177 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_N_SIGN_POSN
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_N_SIGN_POSN 1
+#  ifndef _NL_MONETARY_DUO_INT_N_SIGN_POSN
+enum { _NL_MONETARY_DUO_INT_N_SIGN_POSN = 262181 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_P_CS_PRECEDES
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_P_CS_PRECEDES 1
+#  ifndef _NL_MONETARY_DUO_INT_P_CS_PRECEDES
+enum { _NL_MONETARY_DUO_INT_P_CS_PRECEDES = 262174 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_P_SEP_BY_SPACE
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_P_SEP_BY_SPACE 1
+#  ifndef _NL_MONETARY_DUO_INT_P_SEP_BY_SPACE
+enum { _NL_MONETARY_DUO_INT_P_SEP_BY_SPACE = 262175 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_INT_P_SIGN_POSN
+#  define __NIJI_D_enum__NL_MONETARY_DUO_INT_P_SIGN_POSN 1
+#  ifndef _NL_MONETARY_DUO_INT_P_SIGN_POSN
+enum { _NL_MONETARY_DUO_INT_P_SIGN_POSN = 262180 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_N_CS_PRECEDES
+#  define __NIJI_D_enum__NL_MONETARY_DUO_N_CS_PRECEDES 1
+#  ifndef _NL_MONETARY_DUO_N_CS_PRECEDES
+enum { _NL_MONETARY_DUO_N_CS_PRECEDES = 262172 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_N_SEP_BY_SPACE
+#  define __NIJI_D_enum__NL_MONETARY_DUO_N_SEP_BY_SPACE 1
+#  ifndef _NL_MONETARY_DUO_N_SEP_BY_SPACE
+enum { _NL_MONETARY_DUO_N_SEP_BY_SPACE = 262173 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_N_SIGN_POSN
+#  define __NIJI_D_enum__NL_MONETARY_DUO_N_SIGN_POSN 1
+#  ifndef _NL_MONETARY_DUO_N_SIGN_POSN
+enum { _NL_MONETARY_DUO_N_SIGN_POSN = 262179 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_P_CS_PRECEDES
+#  define __NIJI_D_enum__NL_MONETARY_DUO_P_CS_PRECEDES 1
+#  ifndef _NL_MONETARY_DUO_P_CS_PRECEDES
+enum { _NL_MONETARY_DUO_P_CS_PRECEDES = 262170 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_P_SEP_BY_SPACE
+#  define __NIJI_D_enum__NL_MONETARY_DUO_P_SEP_BY_SPACE 1
+#  ifndef _NL_MONETARY_DUO_P_SEP_BY_SPACE
+enum { _NL_MONETARY_DUO_P_SEP_BY_SPACE = 262171 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_MONETARY_DUO_P_SIGN_POSN
+#  define __NIJI_D_enum__NL_MONETARY_DUO_P_SIGN_POSN 1
+#  ifndef _NL_MONETARY_DUO_P_SIGN_POSN
+enum { _NL_MONETARY_DUO_P_SIGN_POSN = 262178 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_CODESET
+#  define __NIJI_D_enum__NL_NAME_CODESET 1
+#  ifndef _NL_NAME_CODESET
+enum { _NL_NAME_CODESET = 524294 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_FMT
+#  define __NIJI_D_enum__NL_NAME_NAME_FMT 1
+#  ifndef _NL_NAME_NAME_FMT
+enum { _NL_NAME_NAME_FMT = 524288 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_GEN
+#  define __NIJI_D_enum__NL_NAME_NAME_GEN 1
+#  ifndef _NL_NAME_NAME_GEN
+enum { _NL_NAME_NAME_GEN = 524289 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_MISS
+#  define __NIJI_D_enum__NL_NAME_NAME_MISS 1
+#  ifndef _NL_NAME_NAME_MISS
+enum { _NL_NAME_NAME_MISS = 524292 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_MR
+#  define __NIJI_D_enum__NL_NAME_NAME_MR 1
+#  ifndef _NL_NAME_NAME_MR
+enum { _NL_NAME_NAME_MR = 524290 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_MRS
+#  define __NIJI_D_enum__NL_NAME_NAME_MRS 1
+#  ifndef _NL_NAME_NAME_MRS
+enum { _NL_NAME_NAME_MRS = 524291 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NAME_NAME_MS
+#  define __NIJI_D_enum__NL_NAME_NAME_MS 1
+#  ifndef _NL_NAME_NAME_MS
+enum { _NL_NAME_NAME_MS = 524293 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_NUMERIC_CODESET
+#  define __NIJI_D_enum__NL_NUMERIC_CODESET 1
+#  ifndef _NL_NUMERIC_CODESET
+enum { _NL_NUMERIC_CODESET = 65541 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_PAPER_CODESET
+#  define __NIJI_D_enum__NL_PAPER_CODESET 1
+#  ifndef _NL_PAPER_CODESET
+enum { _NL_PAPER_CODESET = 458754 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TELEPHONE_CODESET
+#  define __NIJI_D_enum__NL_TELEPHONE_CODESET 1
+#  ifndef _NL_TELEPHONE_CODESET
+enum { _NL_TELEPHONE_CODESET = 655364 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TELEPHONE_INT_PREFIX
+#  define __NIJI_D_enum__NL_TELEPHONE_INT_PREFIX 1
+#  ifndef _NL_TELEPHONE_INT_PREFIX
+enum { _NL_TELEPHONE_INT_PREFIX = 655363 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TELEPHONE_INT_SELECT
+#  define __NIJI_D_enum__NL_TELEPHONE_INT_SELECT 1
+#  ifndef _NL_TELEPHONE_INT_SELECT
+enum { _NL_TELEPHONE_INT_SELECT = 655362 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TELEPHONE_TEL_DOM_FMT
+#  define __NIJI_D_enum__NL_TELEPHONE_TEL_DOM_FMT 1
+#  ifndef _NL_TELEPHONE_TEL_DOM_FMT
+enum { _NL_TELEPHONE_TEL_DOM_FMT = 655361 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TELEPHONE_TEL_INT_FMT
+#  define __NIJI_D_enum__NL_TELEPHONE_TEL_INT_FMT 1
+#  ifndef _NL_TELEPHONE_TEL_INT_FMT
+enum { _NL_TELEPHONE_TEL_INT_FMT = 655360 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_CAL_DIRECTION
+#  define __NIJI_D_enum__NL_TIME_CAL_DIRECTION 1
+#  ifndef _NL_TIME_CAL_DIRECTION
+enum { _NL_TIME_CAL_DIRECTION = 131178 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_CODESET
+#  define __NIJI_D_enum__NL_TIME_CODESET 1
+#  ifndef _NL_TIME_CODESET
+enum { _NL_TIME_CODESET = 131182 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_ERA_ENTRIES
+#  define __NIJI_D_enum__NL_TIME_ERA_ENTRIES 1
+#  ifndef _NL_TIME_ERA_ENTRIES
+enum { _NL_TIME_ERA_ENTRIES = 131123 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_FIRST_WEEKDAY
+#  define __NIJI_D_enum__NL_TIME_FIRST_WEEKDAY 1
+#  ifndef _NL_TIME_FIRST_WEEKDAY
+enum { _NL_TIME_FIRST_WEEKDAY = 131176 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_FIRST_WORKDAY
+#  define __NIJI_D_enum__NL_TIME_FIRST_WORKDAY 1
+#  ifndef _NL_TIME_FIRST_WORKDAY
+enum { _NL_TIME_FIRST_WORKDAY = 131177 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_TIMEZONE
+#  define __NIJI_D_enum__NL_TIME_TIMEZONE 1
+#  ifndef _NL_TIME_TIMEZONE
+enum { _NL_TIME_TIMEZONE = 131179 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_WEEK_1STWEEK
+#  define __NIJI_D_enum__NL_TIME_WEEK_1STWEEK 1
+#  ifndef _NL_TIME_WEEK_1STWEEK
+enum { _NL_TIME_WEEK_1STWEEK = 131175 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_TIME_WEEK_NDAYS
+#  define __NIJI_D_enum__NL_TIME_WEEK_NDAYS 1
+#  ifndef _NL_TIME_WEEK_NDAYS
+enum { _NL_TIME_WEEK_NDAYS = 131173 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_1
+#  define __NIJI_D_enum__NL_WABALTMON_1 1
+#  ifndef _NL_WABALTMON_1
+enum { _NL_WABALTMON_1 = 131219 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_10
+#  define __NIJI_D_enum__NL_WABALTMON_10 1
+#  ifndef _NL_WABALTMON_10
+enum { _NL_WABALTMON_10 = 131228 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_11
+#  define __NIJI_D_enum__NL_WABALTMON_11 1
+#  ifndef _NL_WABALTMON_11
+enum { _NL_WABALTMON_11 = 131229 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_12
+#  define __NIJI_D_enum__NL_WABALTMON_12 1
+#  ifndef _NL_WABALTMON_12
+enum { _NL_WABALTMON_12 = 131230 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_2
+#  define __NIJI_D_enum__NL_WABALTMON_2 1
+#  ifndef _NL_WABALTMON_2
+enum { _NL_WABALTMON_2 = 131220 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_3
+#  define __NIJI_D_enum__NL_WABALTMON_3 1
+#  ifndef _NL_WABALTMON_3
+enum { _NL_WABALTMON_3 = 131221 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_4
+#  define __NIJI_D_enum__NL_WABALTMON_4 1
+#  ifndef _NL_WABALTMON_4
+enum { _NL_WABALTMON_4 = 131222 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_5
+#  define __NIJI_D_enum__NL_WABALTMON_5 1
+#  ifndef _NL_WABALTMON_5
+enum { _NL_WABALTMON_5 = 131223 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_6
+#  define __NIJI_D_enum__NL_WABALTMON_6 1
+#  ifndef _NL_WABALTMON_6
+enum { _NL_WABALTMON_6 = 131224 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_7
+#  define __NIJI_D_enum__NL_WABALTMON_7 1
+#  ifndef _NL_WABALTMON_7
+enum { _NL_WABALTMON_7 = 131225 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_8
+#  define __NIJI_D_enum__NL_WABALTMON_8 1
+#  ifndef _NL_WABALTMON_8
+enum { _NL_WABALTMON_8 = 131226 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABALTMON_9
+#  define __NIJI_D_enum__NL_WABALTMON_9 1
+#  ifndef _NL_WABALTMON_9
+enum { _NL_WABALTMON_9 = 131227 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_1
+#  define __NIJI_D_enum__NL_WABDAY_1 1
+#  ifndef _NL_WABDAY_1
+enum { _NL_WABDAY_1 = 131124 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_2
+#  define __NIJI_D_enum__NL_WABDAY_2 1
+#  ifndef _NL_WABDAY_2
+enum { _NL_WABDAY_2 = 131125 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_3
+#  define __NIJI_D_enum__NL_WABDAY_3 1
+#  ifndef _NL_WABDAY_3
+enum { _NL_WABDAY_3 = 131126 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_4
+#  define __NIJI_D_enum__NL_WABDAY_4 1
+#  ifndef _NL_WABDAY_4
+enum { _NL_WABDAY_4 = 131127 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_5
+#  define __NIJI_D_enum__NL_WABDAY_5 1
+#  ifndef _NL_WABDAY_5
+enum { _NL_WABDAY_5 = 131128 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_6
+#  define __NIJI_D_enum__NL_WABDAY_6 1
+#  ifndef _NL_WABDAY_6
+enum { _NL_WABDAY_6 = 131129 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABDAY_7
+#  define __NIJI_D_enum__NL_WABDAY_7 1
+#  ifndef _NL_WABDAY_7
+enum { _NL_WABDAY_7 = 131130 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_1
+#  define __NIJI_D_enum__NL_WABMON_1 1
+#  ifndef _NL_WABMON_1
+enum { _NL_WABMON_1 = 131138 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_10
+#  define __NIJI_D_enum__NL_WABMON_10 1
+#  ifndef _NL_WABMON_10
+enum { _NL_WABMON_10 = 131147 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_11
+#  define __NIJI_D_enum__NL_WABMON_11 1
+#  ifndef _NL_WABMON_11
+enum { _NL_WABMON_11 = 131148 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_12
+#  define __NIJI_D_enum__NL_WABMON_12 1
+#  ifndef _NL_WABMON_12
+enum { _NL_WABMON_12 = 131149 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_2
+#  define __NIJI_D_enum__NL_WABMON_2 1
+#  ifndef _NL_WABMON_2
+enum { _NL_WABMON_2 = 131139 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_3
+#  define __NIJI_D_enum__NL_WABMON_3 1
+#  ifndef _NL_WABMON_3
+enum { _NL_WABMON_3 = 131140 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_4
+#  define __NIJI_D_enum__NL_WABMON_4 1
+#  ifndef _NL_WABMON_4
+enum { _NL_WABMON_4 = 131141 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_5
+#  define __NIJI_D_enum__NL_WABMON_5 1
+#  ifndef _NL_WABMON_5
+enum { _NL_WABMON_5 = 131142 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_6
+#  define __NIJI_D_enum__NL_WABMON_6 1
+#  ifndef _NL_WABMON_6
+enum { _NL_WABMON_6 = 131143 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_7
+#  define __NIJI_D_enum__NL_WABMON_7 1
+#  ifndef _NL_WABMON_7
+enum { _NL_WABMON_7 = 131144 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_8
+#  define __NIJI_D_enum__NL_WABMON_8 1
+#  ifndef _NL_WABMON_8
+enum { _NL_WABMON_8 = 131145 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WABMON_9
+#  define __NIJI_D_enum__NL_WABMON_9 1
+#  ifndef _NL_WABMON_9
+enum { _NL_WABMON_9 = 131146 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_1
+#  define __NIJI_D_enum__NL_WALTMON_1 1
+#  ifndef _NL_WALTMON_1
+enum { _NL_WALTMON_1 = 131195 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_10
+#  define __NIJI_D_enum__NL_WALTMON_10 1
+#  ifndef _NL_WALTMON_10
+enum { _NL_WALTMON_10 = 131204 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_11
+#  define __NIJI_D_enum__NL_WALTMON_11 1
+#  ifndef _NL_WALTMON_11
+enum { _NL_WALTMON_11 = 131205 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_12
+#  define __NIJI_D_enum__NL_WALTMON_12 1
+#  ifndef _NL_WALTMON_12
+enum { _NL_WALTMON_12 = 131206 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_2
+#  define __NIJI_D_enum__NL_WALTMON_2 1
+#  ifndef _NL_WALTMON_2
+enum { _NL_WALTMON_2 = 131196 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_3
+#  define __NIJI_D_enum__NL_WALTMON_3 1
+#  ifndef _NL_WALTMON_3
+enum { _NL_WALTMON_3 = 131197 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_4
+#  define __NIJI_D_enum__NL_WALTMON_4 1
+#  ifndef _NL_WALTMON_4
+enum { _NL_WALTMON_4 = 131198 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_5
+#  define __NIJI_D_enum__NL_WALTMON_5 1
+#  ifndef _NL_WALTMON_5
+enum { _NL_WALTMON_5 = 131199 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_6
+#  define __NIJI_D_enum__NL_WALTMON_6 1
+#  ifndef _NL_WALTMON_6
+enum { _NL_WALTMON_6 = 131200 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_7
+#  define __NIJI_D_enum__NL_WALTMON_7 1
+#  ifndef _NL_WALTMON_7
+enum { _NL_WALTMON_7 = 131201 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_8
+#  define __NIJI_D_enum__NL_WALTMON_8 1
+#  ifndef _NL_WALTMON_8
+enum { _NL_WALTMON_8 = 131202 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALTMON_9
+#  define __NIJI_D_enum__NL_WALTMON_9 1
+#  ifndef _NL_WALTMON_9
+enum { _NL_WALTMON_9 = 131203 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WALT_DIGITS
+#  define __NIJI_D_enum__NL_WALT_DIGITS 1
+#  ifndef _NL_WALT_DIGITS
+enum { _NL_WALT_DIGITS = 131170 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WAM_STR
+#  define __NIJI_D_enum__NL_WAM_STR 1
+#  ifndef _NL_WAM_STR
+enum { _NL_WAM_STR = 131162 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_1
+#  define __NIJI_D_enum__NL_WDAY_1 1
+#  ifndef _NL_WDAY_1
+enum { _NL_WDAY_1 = 131131 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_2
+#  define __NIJI_D_enum__NL_WDAY_2 1
+#  ifndef _NL_WDAY_2
+enum { _NL_WDAY_2 = 131132 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_3
+#  define __NIJI_D_enum__NL_WDAY_3 1
+#  ifndef _NL_WDAY_3
+enum { _NL_WDAY_3 = 131133 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_4
+#  define __NIJI_D_enum__NL_WDAY_4 1
+#  ifndef _NL_WDAY_4
+enum { _NL_WDAY_4 = 131134 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_5
+#  define __NIJI_D_enum__NL_WDAY_5 1
+#  ifndef _NL_WDAY_5
+enum { _NL_WDAY_5 = 131135 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_6
+#  define __NIJI_D_enum__NL_WDAY_6 1
+#  ifndef _NL_WDAY_6
+enum { _NL_WDAY_6 = 131136 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WDAY_7
+#  define __NIJI_D_enum__NL_WDAY_7 1
+#  ifndef _NL_WDAY_7
+enum { _NL_WDAY_7 = 131137 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WD_FMT
+#  define __NIJI_D_enum__NL_WD_FMT 1
+#  ifndef _NL_WD_FMT
+enum { _NL_WD_FMT = 131165 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WD_T_FMT
+#  define __NIJI_D_enum__NL_WD_T_FMT 1
+#  ifndef _NL_WD_T_FMT
+enum { _NL_WD_T_FMT = 131164 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WERA_D_FMT
+#  define __NIJI_D_enum__NL_WERA_D_FMT 1
+#  ifndef _NL_WERA_D_FMT
+enum { _NL_WERA_D_FMT = 131169 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WERA_D_T_FMT
+#  define __NIJI_D_enum__NL_WERA_D_T_FMT 1
+#  ifndef _NL_WERA_D_T_FMT
+enum { _NL_WERA_D_T_FMT = 131171 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WERA_T_FMT
+#  define __NIJI_D_enum__NL_WERA_T_FMT 1
+#  ifndef _NL_WERA_T_FMT
+enum { _NL_WERA_T_FMT = 131172 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WERA_YEAR
+#  define __NIJI_D_enum__NL_WERA_YEAR 1
+#  ifndef _NL_WERA_YEAR
+enum { _NL_WERA_YEAR = 131168 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_1
+#  define __NIJI_D_enum__NL_WMON_1 1
+#  ifndef _NL_WMON_1
+enum { _NL_WMON_1 = 131150 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_10
+#  define __NIJI_D_enum__NL_WMON_10 1
+#  ifndef _NL_WMON_10
+enum { _NL_WMON_10 = 131159 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_11
+#  define __NIJI_D_enum__NL_WMON_11 1
+#  ifndef _NL_WMON_11
+enum { _NL_WMON_11 = 131160 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_12
+#  define __NIJI_D_enum__NL_WMON_12 1
+#  ifndef _NL_WMON_12
+enum { _NL_WMON_12 = 131161 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_2
+#  define __NIJI_D_enum__NL_WMON_2 1
+#  ifndef _NL_WMON_2
+enum { _NL_WMON_2 = 131151 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_3
+#  define __NIJI_D_enum__NL_WMON_3 1
+#  ifndef _NL_WMON_3
+enum { _NL_WMON_3 = 131152 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_4
+#  define __NIJI_D_enum__NL_WMON_4 1
+#  ifndef _NL_WMON_4
+enum { _NL_WMON_4 = 131153 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_5
+#  define __NIJI_D_enum__NL_WMON_5 1
+#  ifndef _NL_WMON_5
+enum { _NL_WMON_5 = 131154 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_6
+#  define __NIJI_D_enum__NL_WMON_6 1
+#  ifndef _NL_WMON_6
+enum { _NL_WMON_6 = 131155 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_7
+#  define __NIJI_D_enum__NL_WMON_7 1
+#  ifndef _NL_WMON_7
+enum { _NL_WMON_7 = 131156 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_8
+#  define __NIJI_D_enum__NL_WMON_8 1
+#  ifndef _NL_WMON_8
+enum { _NL_WMON_8 = 131157 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WMON_9
+#  define __NIJI_D_enum__NL_WMON_9 1
+#  ifndef _NL_WMON_9
+enum { _NL_WMON_9 = 131158 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WPM_STR
+#  define __NIJI_D_enum__NL_WPM_STR 1
+#  ifndef _NL_WPM_STR
+enum { _NL_WPM_STR = 131163 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WT_FMT
+#  define __NIJI_D_enum__NL_WT_FMT 1
+#  ifndef _NL_WT_FMT
+enum { _NL_WT_FMT = 131166 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_WT_FMT_AMPM
+#  define __NIJI_D_enum__NL_WT_FMT_AMPM 1
+#  ifndef _NL_WT_FMT_AMPM
+enum { _NL_WT_FMT_AMPM = 131167 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum__NL_W_DATE_FMT
+#  define __NIJI_D_enum__NL_W_DATE_FMT 1
+#  ifndef _NL_W_DATE_FMT
+enum { _NL_W_DATE_FMT = 131181 };
+#  endif
+# endif
+# ifndef __NIJI_D_anon_ABDAY_1
+#  define __NIJI_D_anon_ABDAY_1 1
+#  if !defined _NL_CTYPE_CLASS || !defined _NL_CTYPE_TOUPPER || !defined _NL_CTYPE_TOLOWER || !defined _NL_CTYPE_CLASS32 || !defined _NL_CTYPE_CLASS_NAMES || !defined _NL_CTYPE_MAP_NAMES \
+    || !defined _NL_CTYPE_WIDTH || !defined _NL_CTYPE_MB_CUR_MAX || !defined CODESET || !defined _NL_CTYPE_TOUPPER32 || !defined _NL_CTYPE_TOLOWER32 || !defined _NL_CTYPE_CLASS_OFFSET \
+    || !defined _NL_CTYPE_MAP_OFFSET || !defined _NL_CTYPE_INDIGITS_MB_LEN || !defined _NL_CTYPE_INDIGITS_WC_LEN || !defined _NL_CTYPE_OUTDIGIT0_WC || !defined _NL_CTYPE_OUTDIGIT9_WC || !defined _NL_CTYPE_TRANSLIT_TAB_SIZE \
+    || !defined _NL_CTYPE_TRANSLIT_FROM_IDX || !defined _NL_CTYPE_TRANSLIT_FROM_TBL || !defined _NL_CTYPE_TRANSLIT_TO_TBL || !defined _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN || !defined _NL_CTYPE_TRANSLIT_DEFAULT_MISSING || !defined _NL_CTYPE_TRANSLIT_IGNORE_LEN \
+    || !defined _NL_CTYPE_MAP_TO_NONASCII || !defined _NL_CTYPE_NONASCII_CASE || !defined RADIXCHAR || !defined __DECIMAL_POINT || !defined THOUSEP || !defined __GROUPING \
+    || !defined _NL_NUMERIC_DECIMAL_POINT_WC || !defined _NL_NUMERIC_THOUSANDS_SEP_WC || !defined ABDAY_1 || !defined ABDAY_2 || !defined ABDAY_3 || !defined ABDAY_4 \
+    || !defined ABDAY_5 || !defined ABDAY_6 || !defined ABDAY_7 || !defined DAY_1 || !defined DAY_2 || !defined DAY_3 \
+    || !defined DAY_4 || !defined DAY_5 || !defined DAY_6 || !defined DAY_7 || !defined ABMON_1 || !defined ABMON_2 \
+    || !defined ABMON_3 || !defined ABMON_4 || !defined ABMON_5 || !defined ABMON_6 || !defined ABMON_7 || !defined ABMON_8 \
+    || !defined ABMON_9 || !defined ABMON_10 || !defined ABMON_11 || !defined ABMON_12 || !defined MON_1 || !defined MON_2 \
+    || !defined MON_3 || !defined MON_4 || !defined MON_5 || !defined MON_6 || !defined MON_7 || !defined MON_8 \
+    || !defined MON_9 || !defined MON_10 || !defined MON_11 || !defined MON_12 || !defined AM_STR || !defined PM_STR \
+    || !defined D_T_FMT || !defined D_FMT || !defined T_FMT || !defined T_FMT_AMPM || !defined ERA || ((__NIJI_GNU) && !defined __niji_ERA_YEAR) \
+    || !defined ERA_D_FMT || !defined ALT_DIGITS || !defined ERA_D_T_FMT || !defined ERA_T_FMT || !defined _NL_TIME_ERA_NUM_ENTRIES || !defined _NL_TIME_WEEK_1STDAY \
+    || !defined _DATE_FMT || ((__NIJI_GNU) && !defined __niji_ALTMON_1) || ((__NIJI_GNU) && !defined __niji_ALTMON_2) || ((__NIJI_GNU) && !defined __niji_ALTMON_3) || ((__NIJI_GNU) && !defined __niji_ALTMON_4) || ((__NIJI_GNU) && !defined __niji_ALTMON_5) \
+    || ((__NIJI_GNU) && !defined __niji_ALTMON_6) || ((__NIJI_GNU) && !defined __niji_ALTMON_7) || ((__NIJI_GNU) && !defined __niji_ALTMON_8) || ((__NIJI_GNU) && !defined __niji_ALTMON_9) || ((__NIJI_GNU) && !defined __niji_ALTMON_10) || ((__NIJI_GNU) && !defined __niji_ALTMON_11) \
+    || ((__NIJI_GNU) && !defined __niji_ALTMON_12) || !defined _NL_COLLATE_NRULES || !defined _NL_COLLATE_RULESETS || !defined _NL_COLLATE_TABLEMB || !defined _NL_COLLATE_WEIGHTMB || !defined _NL_COLLATE_EXTRAMB \
+    || !defined _NL_COLLATE_INDIRECTMB || !defined _NL_COLLATE_TABLEWC || !defined _NL_COLLATE_WEIGHTWC || !defined _NL_COLLATE_EXTRAWC || !defined _NL_COLLATE_INDIRECTWC || !defined _NL_COLLATE_SYMB_HASH_SIZEMB \
+    || !defined _NL_COLLATE_COLLSEQMB || !defined _NL_COLLATE_COLLSEQWC || !defined __INT_CURR_SYMBOL || ((__NIJI_GNU) && !defined __niji_CURRENCY_SYMBOL) || ((__NIJI_GNU) && !defined __niji_MON_DECIMAL_POINT) || ((__NIJI_GNU) && !defined __niji_MON_THOUSANDS_SEP) \
+    || ((__NIJI_GNU) && !defined __niji_MON_GROUPING) || ((__NIJI_GNU) && !defined __niji_POSITIVE_SIGN) || ((__NIJI_GNU) && !defined __niji_NEGATIVE_SIGN) || !defined __INT_FRAC_DIGITS || ((__NIJI_GNU) && !defined __niji_FRAC_DIGITS) || ((__NIJI_GNU) && !defined __niji_P_CS_PRECEDES) \
+    || ((__NIJI_GNU) && !defined __niji_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_N_SIGN_POSN) || !defined __niji_CRNCYSTR \
+    || ((__NIJI_GNU) && !defined __niji_INT_P_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_INT_N_SIGN_POSN) \
+    || !defined _NL_MONETARY_UNO_VALID_FROM || !defined _NL_MONETARY_UNO_VALID_TO || !defined _NL_MONETARY_DUO_VALID_FROM || !defined _NL_MONETARY_DUO_VALID_TO || !defined _NL_MONETARY_DECIMAL_POINT_WC || !defined _NL_MONETARY_THOUSANDS_SEP_WC \
+    || !defined __niji_YESEXPR || !defined __niji_NOEXPR || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_YESSTR) || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_NOSTR) || !defined _NL_PAPER_HEIGHT || !defined _NL_PAPER_WIDTH \
+    || !defined _NL_ADDRESS_POSTAL_FMT || !defined _NL_ADDRESS_COUNTRY_NUM
+enum {
 #  ifndef _NL_CTYPE_CLASS
-enum { _NL_CTYPE_CLASS = 0 };
+  _NL_CTYPE_CLASS = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_CLASS32
-#  define __NIJI_D_enum__NL_CTYPE_CLASS32 1
-#  ifndef _NL_CTYPE_CLASS32
-enum { _NL_CTYPE_CLASS32 = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_CLASS_NAMES
-#  define __NIJI_D_enum__NL_CTYPE_CLASS_NAMES 1
-#  ifndef _NL_CTYPE_CLASS_NAMES
-enum { _NL_CTYPE_CLASS_NAMES = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_CLASS_OFFSET
-#  define __NIJI_D_enum__NL_CTYPE_CLASS_OFFSET 1
-#  ifndef _NL_CTYPE_CLASS_OFFSET
-enum { _NL_CTYPE_CLASS_OFFSET = 17 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS_MB_LEN
-#  define __NIJI_D_enum__NL_CTYPE_INDIGITS_MB_LEN 1
-#  ifndef _NL_CTYPE_INDIGITS_MB_LEN
-enum { _NL_CTYPE_INDIGITS_MB_LEN = 19 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_INDIGITS_WC_LEN
-#  define __NIJI_D_enum__NL_CTYPE_INDIGITS_WC_LEN 1
-#  ifndef _NL_CTYPE_INDIGITS_WC_LEN
-enum { _NL_CTYPE_INDIGITS_WC_LEN = 30 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_MAP_NAMES
-#  define __NIJI_D_enum__NL_CTYPE_MAP_NAMES 1
-#  ifndef _NL_CTYPE_MAP_NAMES
-enum { _NL_CTYPE_MAP_NAMES = 11 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_MAP_OFFSET
-#  define __NIJI_D_enum__NL_CTYPE_MAP_OFFSET 1
-#  ifndef _NL_CTYPE_MAP_OFFSET
-enum { _NL_CTYPE_MAP_OFFSET = 18 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_MAP_TO_NONASCII
-#  define __NIJI_D_enum__NL_CTYPE_MAP_TO_NONASCII 1
-#  ifndef _NL_CTYPE_MAP_TO_NONASCII
-enum { _NL_CTYPE_MAP_TO_NONASCII = 70 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_MB_CUR_MAX
-#  define __NIJI_D_enum__NL_CTYPE_MB_CUR_MAX 1
-#  ifndef _NL_CTYPE_MB_CUR_MAX
-enum { _NL_CTYPE_MB_CUR_MAX = 13 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_NONASCII_CASE
-#  define __NIJI_D_enum__NL_CTYPE_NONASCII_CASE 1
-#  ifndef _NL_CTYPE_NONASCII_CASE
-enum { _NL_CTYPE_NONASCII_CASE = 71 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT0_WC
-#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT0_WC 1
-#  ifndef _NL_CTYPE_OUTDIGIT0_WC
-enum { _NL_CTYPE_OUTDIGIT0_WC = 51 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_OUTDIGIT9_WC
-#  define __NIJI_D_enum__NL_CTYPE_OUTDIGIT9_WC 1
-#  ifndef _NL_CTYPE_OUTDIGIT9_WC
-enum { _NL_CTYPE_OUTDIGIT9_WC = 60 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TOLOWER
-#  define __NIJI_D_enum__NL_CTYPE_TOLOWER 1
-#  ifndef _NL_CTYPE_TOLOWER
-enum { _NL_CTYPE_TOLOWER = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TOLOWER32
-#  define __NIJI_D_enum__NL_CTYPE_TOLOWER32 1
-#  ifndef _NL_CTYPE_TOLOWER32
-enum { _NL_CTYPE_TOLOWER32 = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TOUPPER
-#  define __NIJI_D_enum__NL_CTYPE_TOUPPER 1
 #  ifndef _NL_CTYPE_TOUPPER
-enum { _NL_CTYPE_TOUPPER = 1 };
+  _NL_CTYPE_TOUPPER = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TOUPPER32
-#  define __NIJI_D_enum__NL_CTYPE_TOUPPER32 1
-#  ifndef _NL_CTYPE_TOUPPER32
-enum { _NL_CTYPE_TOUPPER32 = 15 };
+#  ifndef _NL_CTYPE_TOLOWER
+  _NL_CTYPE_TOLOWER = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_DEFAULT_MISSING
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_DEFAULT_MISSING 1
-#  ifndef _NL_CTYPE_TRANSLIT_DEFAULT_MISSING
-enum { _NL_CTYPE_TRANSLIT_DEFAULT_MISSING = 67 };
+#  ifndef _NL_CTYPE_CLASS32
+  _NL_CTYPE_CLASS32 = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN 1
-#  ifndef _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN
-enum { _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN = 66 };
+#  ifndef _NL_CTYPE_CLASS_NAMES
+  _NL_CTYPE_CLASS_NAMES = 10,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_FROM_IDX
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_FROM_IDX 1
-#  ifndef _NL_CTYPE_TRANSLIT_FROM_IDX
-enum { _NL_CTYPE_TRANSLIT_FROM_IDX = 62 };
+#  ifndef _NL_CTYPE_MAP_NAMES
+  _NL_CTYPE_MAP_NAMES = 11,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_FROM_TBL
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_FROM_TBL 1
-#  ifndef _NL_CTYPE_TRANSLIT_FROM_TBL
-enum { _NL_CTYPE_TRANSLIT_FROM_TBL = 63 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_IGNORE_LEN
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_IGNORE_LEN 1
-#  ifndef _NL_CTYPE_TRANSLIT_IGNORE_LEN
-enum { _NL_CTYPE_TRANSLIT_IGNORE_LEN = 68 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_TAB_SIZE
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_TAB_SIZE 1
-#  ifndef _NL_CTYPE_TRANSLIT_TAB_SIZE
-enum { _NL_CTYPE_TRANSLIT_TAB_SIZE = 61 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_TRANSLIT_TO_TBL
-#  define __NIJI_D_enum__NL_CTYPE_TRANSLIT_TO_TBL 1
-#  ifndef _NL_CTYPE_TRANSLIT_TO_TBL
-enum { _NL_CTYPE_TRANSLIT_TO_TBL = 65 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__NL_CTYPE_WIDTH
-#  define __NIJI_D_enum__NL_CTYPE_WIDTH 1
 #  ifndef _NL_CTYPE_WIDTH
-enum { _NL_CTYPE_WIDTH = 12 };
+  _NL_CTYPE_WIDTH = 12,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_DECIMAL_POINT_WC
-#  define __NIJI_D_enum__NL_MONETARY_DECIMAL_POINT_WC 1
-#  ifndef _NL_MONETARY_DECIMAL_POINT_WC
-enum { _NL_MONETARY_DECIMAL_POINT_WC = 262187 };
+#  ifndef _NL_CTYPE_MB_CUR_MAX
+  _NL_CTYPE_MB_CUR_MAX = 13,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_DUO_VALID_FROM
-#  define __NIJI_D_enum__NL_MONETARY_DUO_VALID_FROM 1
-#  ifndef _NL_MONETARY_DUO_VALID_FROM
-enum { _NL_MONETARY_DUO_VALID_FROM = 262184 };
+#  ifndef CODESET
+  CODESET = 14,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_DUO_VALID_TO
-#  define __NIJI_D_enum__NL_MONETARY_DUO_VALID_TO 1
-#  ifndef _NL_MONETARY_DUO_VALID_TO
-enum { _NL_MONETARY_DUO_VALID_TO = 262185 };
+#  ifndef _NL_CTYPE_TOUPPER32
+  _NL_CTYPE_TOUPPER32 = 15,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_THOUSANDS_SEP_WC
-#  define __NIJI_D_enum__NL_MONETARY_THOUSANDS_SEP_WC 1
-#  ifndef _NL_MONETARY_THOUSANDS_SEP_WC
-enum { _NL_MONETARY_THOUSANDS_SEP_WC = 262188 };
+#  ifndef _NL_CTYPE_TOLOWER32
+  _NL_CTYPE_TOLOWER32 = 16,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_UNO_VALID_FROM
-#  define __NIJI_D_enum__NL_MONETARY_UNO_VALID_FROM 1
-#  ifndef _NL_MONETARY_UNO_VALID_FROM
-enum { _NL_MONETARY_UNO_VALID_FROM = 262182 };
+#  ifndef _NL_CTYPE_CLASS_OFFSET
+  _NL_CTYPE_CLASS_OFFSET = 17,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_MONETARY_UNO_VALID_TO
-#  define __NIJI_D_enum__NL_MONETARY_UNO_VALID_TO 1
-#  ifndef _NL_MONETARY_UNO_VALID_TO
-enum { _NL_MONETARY_UNO_VALID_TO = 262183 };
+#  ifndef _NL_CTYPE_MAP_OFFSET
+  _NL_CTYPE_MAP_OFFSET = 18,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_NUMERIC_DECIMAL_POINT_WC
-#  define __NIJI_D_enum__NL_NUMERIC_DECIMAL_POINT_WC 1
+#  ifndef _NL_CTYPE_INDIGITS_MB_LEN
+  _NL_CTYPE_INDIGITS_MB_LEN = 19,
+#  endif
+#  ifndef _NL_CTYPE_INDIGITS_WC_LEN
+  _NL_CTYPE_INDIGITS_WC_LEN = 30,
+#  endif
+#  ifndef _NL_CTYPE_OUTDIGIT0_WC
+  _NL_CTYPE_OUTDIGIT0_WC = 51,
+#  endif
+#  ifndef _NL_CTYPE_OUTDIGIT9_WC
+  _NL_CTYPE_OUTDIGIT9_WC = 60,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_TAB_SIZE
+  _NL_CTYPE_TRANSLIT_TAB_SIZE = 61,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_FROM_IDX
+  _NL_CTYPE_TRANSLIT_FROM_IDX = 62,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_FROM_TBL
+  _NL_CTYPE_TRANSLIT_FROM_TBL = 63,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_TO_TBL
+  _NL_CTYPE_TRANSLIT_TO_TBL = 65,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN
+  _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN = 66,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_DEFAULT_MISSING
+  _NL_CTYPE_TRANSLIT_DEFAULT_MISSING = 67,
+#  endif
+#  ifndef _NL_CTYPE_TRANSLIT_IGNORE_LEN
+  _NL_CTYPE_TRANSLIT_IGNORE_LEN = 68,
+#  endif
+#  ifndef _NL_CTYPE_MAP_TO_NONASCII
+  _NL_CTYPE_MAP_TO_NONASCII = 70,
+#  endif
+#  ifndef _NL_CTYPE_NONASCII_CASE
+  _NL_CTYPE_NONASCII_CASE = 71,
+#  endif
+#  ifndef RADIXCHAR
+  RADIXCHAR = 65536,
+#  endif
+#  ifndef __DECIMAL_POINT
+  __DECIMAL_POINT = 65536,
+#  endif
+#  ifndef THOUSEP
+  THOUSEP = 65537,
+#  endif
+#  ifndef __GROUPING
+  __GROUPING = 65538,
+#  endif
 #  ifndef _NL_NUMERIC_DECIMAL_POINT_WC
-enum { _NL_NUMERIC_DECIMAL_POINT_WC = 65539 };
+  _NL_NUMERIC_DECIMAL_POINT_WC = 65539,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_NUMERIC_THOUSANDS_SEP_WC
-#  define __NIJI_D_enum__NL_NUMERIC_THOUSANDS_SEP_WC 1
 #  ifndef _NL_NUMERIC_THOUSANDS_SEP_WC
-enum { _NL_NUMERIC_THOUSANDS_SEP_WC = 65540 };
+  _NL_NUMERIC_THOUSANDS_SEP_WC = 65540,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_PAPER_HEIGHT
-#  define __NIJI_D_enum__NL_PAPER_HEIGHT 1
-#  ifndef _NL_PAPER_HEIGHT
-enum { _NL_PAPER_HEIGHT = 458752 };
+#  ifndef ABDAY_1
+  ABDAY_1 = 131072,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_PAPER_WIDTH
-#  define __NIJI_D_enum__NL_PAPER_WIDTH 1
-#  ifndef _NL_PAPER_WIDTH
-enum { _NL_PAPER_WIDTH = 458753 };
+#  ifndef ABDAY_2
+  ABDAY_2 = 131073,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_TIME_ERA_NUM_ENTRIES
-#  define __NIJI_D_enum__NL_TIME_ERA_NUM_ENTRIES 1
+#  ifndef ABDAY_3
+  ABDAY_3 = 131074,
+#  endif
+#  ifndef ABDAY_4
+  ABDAY_4 = 131075,
+#  endif
+#  ifndef ABDAY_5
+  ABDAY_5 = 131076,
+#  endif
+#  ifndef ABDAY_6
+  ABDAY_6 = 131077,
+#  endif
+#  ifndef ABDAY_7
+  ABDAY_7 = 131078,
+#  endif
+#  ifndef DAY_1
+  DAY_1 = 131079,
+#  endif
+#  ifndef DAY_2
+  DAY_2 = 131080,
+#  endif
+#  ifndef DAY_3
+  DAY_3 = 131081,
+#  endif
+#  ifndef DAY_4
+  DAY_4 = 131082,
+#  endif
+#  ifndef DAY_5
+  DAY_5 = 131083,
+#  endif
+#  ifndef DAY_6
+  DAY_6 = 131084,
+#  endif
+#  ifndef DAY_7
+  DAY_7 = 131085,
+#  endif
+#  ifndef ABMON_1
+  ABMON_1 = 131086,
+#  endif
+#  ifndef ABMON_2
+  ABMON_2 = 131087,
+#  endif
+#  ifndef ABMON_3
+  ABMON_3 = 131088,
+#  endif
+#  ifndef ABMON_4
+  ABMON_4 = 131089,
+#  endif
+#  ifndef ABMON_5
+  ABMON_5 = 131090,
+#  endif
+#  ifndef ABMON_6
+  ABMON_6 = 131091,
+#  endif
+#  ifndef ABMON_7
+  ABMON_7 = 131092,
+#  endif
+#  ifndef ABMON_8
+  ABMON_8 = 131093,
+#  endif
+#  ifndef ABMON_9
+  ABMON_9 = 131094,
+#  endif
+#  ifndef ABMON_10
+  ABMON_10 = 131095,
+#  endif
+#  ifndef ABMON_11
+  ABMON_11 = 131096,
+#  endif
+#  ifndef ABMON_12
+  ABMON_12 = 131097,
+#  endif
+#  ifndef MON_1
+  MON_1 = 131098,
+#  endif
+#  ifndef MON_2
+  MON_2 = 131099,
+#  endif
+#  ifndef MON_3
+  MON_3 = 131100,
+#  endif
+#  ifndef MON_4
+  MON_4 = 131101,
+#  endif
+#  ifndef MON_5
+  MON_5 = 131102,
+#  endif
+#  ifndef MON_6
+  MON_6 = 131103,
+#  endif
+#  ifndef MON_7
+  MON_7 = 131104,
+#  endif
+#  ifndef MON_8
+  MON_8 = 131105,
+#  endif
+#  ifndef MON_9
+  MON_9 = 131106,
+#  endif
+#  ifndef MON_10
+  MON_10 = 131107,
+#  endif
+#  ifndef MON_11
+  MON_11 = 131108,
+#  endif
+#  ifndef MON_12
+  MON_12 = 131109,
+#  endif
+#  ifndef AM_STR
+  AM_STR = 131110,
+#  endif
+#  ifndef PM_STR
+  PM_STR = 131111,
+#  endif
+#  ifndef D_T_FMT
+  D_T_FMT = 131112,
+#  endif
+#  ifndef D_FMT
+  D_FMT = 131113,
+#  endif
+#  ifndef T_FMT
+  T_FMT = 131114,
+#  endif
+#  ifndef T_FMT_AMPM
+  T_FMT_AMPM = 131115,
+#  endif
+#  ifndef ERA
+  ERA = 131116,
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ERA_YEAR
+  __niji_ERA_YEAR = 131117,
+#  endif
+#  endif
+#  ifndef ERA_D_FMT
+  ERA_D_FMT = 131118,
+#  endif
+#  ifndef ALT_DIGITS
+  ALT_DIGITS = 131119,
+#  endif
+#  ifndef ERA_D_T_FMT
+  ERA_D_T_FMT = 131120,
+#  endif
+#  ifndef ERA_T_FMT
+  ERA_T_FMT = 131121,
+#  endif
 #  ifndef _NL_TIME_ERA_NUM_ENTRIES
-enum { _NL_TIME_ERA_NUM_ENTRIES = 131122 };
+  _NL_TIME_ERA_NUM_ENTRIES = 131122,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__NL_TIME_WEEK_1STDAY
-#  define __NIJI_D_enum__NL_TIME_WEEK_1STDAY 1
 #  ifndef _NL_TIME_WEEK_1STDAY
-enum { _NL_TIME_WEEK_1STDAY = 131174 };
+  _NL_TIME_WEEK_1STDAY = 131174,
+#  endif
+#  ifndef _DATE_FMT
+  _DATE_FMT = 131180,
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_1
+  __niji_ALTMON_1 = 131183,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_2
+  __niji_ALTMON_2 = 131184,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_3
+  __niji_ALTMON_3 = 131185,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_4
+  __niji_ALTMON_4 = 131186,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_5
+  __niji_ALTMON_5 = 131187,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_6
+  __niji_ALTMON_6 = 131188,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_7
+  __niji_ALTMON_7 = 131189,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_8
+  __niji_ALTMON_8 = 131190,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_9
+  __niji_ALTMON_9 = 131191,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_10
+  __niji_ALTMON_10 = 131192,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_11
+  __niji_ALTMON_11 = 131193,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_ALTMON_12
+  __niji_ALTMON_12 = 131194,
+#  endif
+#  endif
+#  ifndef _NL_COLLATE_NRULES
+  _NL_COLLATE_NRULES = 196608,
+#  endif
+#  ifndef _NL_COLLATE_RULESETS
+  _NL_COLLATE_RULESETS = 196609,
+#  endif
+#  ifndef _NL_COLLATE_TABLEMB
+  _NL_COLLATE_TABLEMB = 196610,
+#  endif
+#  ifndef _NL_COLLATE_WEIGHTMB
+  _NL_COLLATE_WEIGHTMB = 196611,
+#  endif
+#  ifndef _NL_COLLATE_EXTRAMB
+  _NL_COLLATE_EXTRAMB = 196612,
+#  endif
+#  ifndef _NL_COLLATE_INDIRECTMB
+  _NL_COLLATE_INDIRECTMB = 196613,
+#  endif
+#  ifndef _NL_COLLATE_TABLEWC
+  _NL_COLLATE_TABLEWC = 196617,
+#  endif
+#  ifndef _NL_COLLATE_WEIGHTWC
+  _NL_COLLATE_WEIGHTWC = 196618,
+#  endif
+#  ifndef _NL_COLLATE_EXTRAWC
+  _NL_COLLATE_EXTRAWC = 196619,
+#  endif
+#  ifndef _NL_COLLATE_INDIRECTWC
+  _NL_COLLATE_INDIRECTWC = 196620,
+#  endif
+#  ifndef _NL_COLLATE_SYMB_HASH_SIZEMB
+  _NL_COLLATE_SYMB_HASH_SIZEMB = 196621,
+#  endif
+#  ifndef _NL_COLLATE_COLLSEQMB
+  _NL_COLLATE_COLLSEQMB = 196624,
+#  endif
+#  ifndef _NL_COLLATE_COLLSEQWC
+  _NL_COLLATE_COLLSEQWC = 196625,
+#  endif
+#  ifndef __INT_CURR_SYMBOL
+  __INT_CURR_SYMBOL = 262144,
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_CURRENCY_SYMBOL
+  __niji_CURRENCY_SYMBOL = 262145,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_MON_DECIMAL_POINT
+  __niji_MON_DECIMAL_POINT = 262146,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_MON_THOUSANDS_SEP
+  __niji_MON_THOUSANDS_SEP = 262147,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_MON_GROUPING
+  __niji_MON_GROUPING = 262148,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_POSITIVE_SIGN
+  __niji_POSITIVE_SIGN = 262149,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_NEGATIVE_SIGN
+  __niji_NEGATIVE_SIGN = 262150,
+#  endif
+#  endif
+#  ifndef __INT_FRAC_DIGITS
+  __INT_FRAC_DIGITS = 262151,
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_FRAC_DIGITS
+  __niji_FRAC_DIGITS = 262152,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_P_CS_PRECEDES
+  __niji_P_CS_PRECEDES = 262153,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_P_SEP_BY_SPACE
+  __niji_P_SEP_BY_SPACE = 262154,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_N_CS_PRECEDES
+  __niji_N_CS_PRECEDES = 262155,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_N_SEP_BY_SPACE
+  __niji_N_SEP_BY_SPACE = 262156,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_P_SIGN_POSN
+  __niji_P_SIGN_POSN = 262157,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_N_SIGN_POSN
+  __niji_N_SIGN_POSN = 262158,
+#  endif
+#  endif
+#  ifndef __niji_CRNCYSTR
+  __niji_CRNCYSTR = 262159,
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_P_CS_PRECEDES
+  __niji_INT_P_CS_PRECEDES = 262160,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_P_SEP_BY_SPACE
+  __niji_INT_P_SEP_BY_SPACE = 262161,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_N_CS_PRECEDES
+  __niji_INT_N_CS_PRECEDES = 262162,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_N_SEP_BY_SPACE
+  __niji_INT_N_SEP_BY_SPACE = 262163,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_P_SIGN_POSN
+  __niji_INT_P_SIGN_POSN = 262164,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef __niji_INT_N_SIGN_POSN
+  __niji_INT_N_SIGN_POSN = 262165,
+#  endif
+#  endif
+#  ifndef _NL_MONETARY_UNO_VALID_FROM
+  _NL_MONETARY_UNO_VALID_FROM = 262182,
+#  endif
+#  ifndef _NL_MONETARY_UNO_VALID_TO
+  _NL_MONETARY_UNO_VALID_TO = 262183,
+#  endif
+#  ifndef _NL_MONETARY_DUO_VALID_FROM
+  _NL_MONETARY_DUO_VALID_FROM = 262184,
+#  endif
+#  ifndef _NL_MONETARY_DUO_VALID_TO
+  _NL_MONETARY_DUO_VALID_TO = 262185,
+#  endif
+#  ifndef _NL_MONETARY_DECIMAL_POINT_WC
+  _NL_MONETARY_DECIMAL_POINT_WC = 262187,
+#  endif
+#  ifndef _NL_MONETARY_THOUSANDS_SEP_WC
+  _NL_MONETARY_THOUSANDS_SEP_WC = 262188,
+#  endif
+#  ifndef __niji_YESEXPR
+  __niji_YESEXPR = 327680,
+#  endif
+#  ifndef __niji_NOEXPR
+  __niji_NOEXPR = 327681,
+#  endif
+#  if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+#  ifndef __niji_YESSTR
+  __niji_YESSTR = 327682,
+#  endif
+#  endif
+#  if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+#  ifndef __niji_NOSTR
+  __niji_NOSTR = 327683,
+#  endif
+#  endif
+#  ifndef _NL_PAPER_HEIGHT
+  _NL_PAPER_HEIGHT = 458752,
+#  endif
+#  ifndef _NL_PAPER_WIDTH
+  _NL_PAPER_WIDTH = 458753,
+#  endif
+#  ifndef _NL_ADDRESS_POSTAL_FMT
+  _NL_ADDRESS_POSTAL_FMT = 589824,
+#  endif
+#  ifndef _NL_ADDRESS_COUNTRY_NUM
+  _NL_ADDRESS_COUNTRY_NUM = 589830,
+#  endif
+};
 #  endif
 # endif
 # ifndef ABDAY_1
-#  define ABDAY_1 131072
+#  define ABDAY_1 ABDAY_1
 # endif
 # ifndef ABDAY_2
-#  define ABDAY_2 131073
+#  define ABDAY_2 ABDAY_2
 # endif
 # ifndef ABDAY_3
-#  define ABDAY_3 131074
+#  define ABDAY_3 ABDAY_3
 # endif
 # ifndef ABDAY_4
-#  define ABDAY_4 131075
+#  define ABDAY_4 ABDAY_4
 # endif
 # ifndef ABDAY_5
-#  define ABDAY_5 131076
+#  define ABDAY_5 ABDAY_5
 # endif
 # ifndef ABDAY_6
-#  define ABDAY_6 131077
+#  define ABDAY_6 ABDAY_6
 # endif
 # ifndef ABDAY_7
-#  define ABDAY_7 131078
+#  define ABDAY_7 ABDAY_7
 # endif
 # ifndef ABMON_1
-#  define ABMON_1 131086
+#  define ABMON_1 ABMON_1
 # endif
 # ifndef ABMON_10
-#  define ABMON_10 131095
+#  define ABMON_10 ABMON_10
 # endif
 # ifndef ABMON_11
-#  define ABMON_11 131096
+#  define ABMON_11 ABMON_11
 # endif
 # ifndef ABMON_12
-#  define ABMON_12 131097
+#  define ABMON_12 ABMON_12
 # endif
 # ifndef ABMON_2
-#  define ABMON_2 131087
+#  define ABMON_2 ABMON_2
 # endif
 # ifndef ABMON_3
-#  define ABMON_3 131088
+#  define ABMON_3 ABMON_3
 # endif
 # ifndef ABMON_4
-#  define ABMON_4 131089
+#  define ABMON_4 ABMON_4
 # endif
 # ifndef ABMON_5
-#  define ABMON_5 131090
+#  define ABMON_5 ABMON_5
 # endif
 # ifndef ABMON_6
-#  define ABMON_6 131091
+#  define ABMON_6 ABMON_6
 # endif
 # ifndef ABMON_7
-#  define ABMON_7 131092
+#  define ABMON_7 ABMON_7
 # endif
 # ifndef ABMON_8
-#  define ABMON_8 131093
+#  define ABMON_8 ABMON_8
 # endif
 # ifndef ABMON_9
-#  define ABMON_9 131094
+#  define ABMON_9 ABMON_9
 # endif
 # ifndef ALT_DIGITS
-#  define ALT_DIGITS 131119
+#  define ALT_DIGITS ALT_DIGITS
 # endif
 # ifndef AM_STR
-#  define AM_STR 131110
+#  define AM_STR AM_STR
 # endif
 # ifndef CODESET
-#  define CODESET 14
+#  define CODESET CODESET
 # endif
 # ifndef CRNCYSTR
-#  define CRNCYSTR 262159
+#  define CRNCYSTR __niji_CRNCYSTR
 # endif
 # ifndef DAY_1
-#  define DAY_1 131079
+#  define DAY_1 DAY_1
 # endif
 # ifndef DAY_2
-#  define DAY_2 131080
+#  define DAY_2 DAY_2
 # endif
 # ifndef DAY_3
-#  define DAY_3 131081
+#  define DAY_3 DAY_3
 # endif
 # ifndef DAY_4
-#  define DAY_4 131082
+#  define DAY_4 DAY_4
 # endif
 # ifndef DAY_5
-#  define DAY_5 131083
+#  define DAY_5 DAY_5
 # endif
 # ifndef DAY_6
-#  define DAY_6 131084
+#  define DAY_6 DAY_6
 # endif
 # ifndef DAY_7
-#  define DAY_7 131085
+#  define DAY_7 DAY_7
 # endif
 # ifndef D_FMT
-#  define D_FMT 131113
+#  define D_FMT D_FMT
 # endif
 # ifndef D_T_FMT
-#  define D_T_FMT 131112
+#  define D_T_FMT D_T_FMT
 # endif
 # ifndef ERA
-#  define ERA 131116
+#  define ERA ERA
 # endif
 # ifndef ERA_D_FMT
-#  define ERA_D_FMT 131118
+#  define ERA_D_FMT ERA_D_FMT
 # endif
 # ifndef ERA_D_T_FMT
-#  define ERA_D_T_FMT 131120
+#  define ERA_D_T_FMT ERA_D_T_FMT
 # endif
 # ifndef ERA_T_FMT
-#  define ERA_T_FMT 131121
+#  define ERA_T_FMT ERA_T_FMT
 # endif
 # ifndef MON_1
-#  define MON_1 131098
+#  define MON_1 MON_1
 # endif
 # ifndef MON_10
-#  define MON_10 131107
+#  define MON_10 MON_10
 # endif
 # ifndef MON_11
-#  define MON_11 131108
+#  define MON_11 MON_11
 # endif
 # ifndef MON_12
-#  define MON_12 131109
+#  define MON_12 MON_12
 # endif
 # ifndef MON_2
-#  define MON_2 131099
+#  define MON_2 MON_2
 # endif
 # ifndef MON_3
-#  define MON_3 131100
+#  define MON_3 MON_3
 # endif
 # ifndef MON_4
-#  define MON_4 131101
+#  define MON_4 MON_4
 # endif
 # ifndef MON_5
-#  define MON_5 131102
+#  define MON_5 MON_5
 # endif
 # ifndef MON_6
-#  define MON_6 131103
+#  define MON_6 MON_6
 # endif
 # ifndef MON_7
-#  define MON_7 131104
+#  define MON_7 MON_7
 # endif
 # ifndef MON_8
-#  define MON_8 131105
+#  define MON_8 MON_8
 # endif
 # ifndef MON_9
-#  define MON_9 131106
+#  define MON_9 MON_9
 # endif
 # ifndef NL_CAT_LOCALE
 #  define NL_CAT_LOCALE 1
@@ -833,149 +1938,149 @@ enum { _NL_TIME_WEEK_1STDAY = 131174 };
 #  define NL_SETD 1
 # endif
 # ifndef NOEXPR
-#  define NOEXPR 327681
+#  define NOEXPR __niji_NOEXPR
 # endif
 # ifndef PM_STR
-#  define PM_STR 131111
+#  define PM_STR PM_STR
 # endif
 # ifndef RADIXCHAR
-#  define RADIXCHAR 65536
+#  define RADIXCHAR RADIXCHAR
 # endif
 # ifndef THOUSEP
-#  define THOUSEP 65537
+#  define THOUSEP THOUSEP
 # endif
 # ifndef T_FMT
-#  define T_FMT 131114
+#  define T_FMT T_FMT
 # endif
 # ifndef T_FMT_AMPM
-#  define T_FMT_AMPM 131115
+#  define T_FMT_AMPM T_FMT_AMPM
 # endif
 # ifndef YESEXPR
-#  define YESEXPR 327680
+#  define YESEXPR __niji_YESEXPR
 # endif
 # ifndef _DATE_FMT
-#  define _DATE_FMT 131180
+#  define _DATE_FMT _DATE_FMT
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef ALTMON_1
-#  define ALTMON_1 131183
+#  define ALTMON_1 __niji_ALTMON_1
 # endif
 # ifndef ALTMON_10
-#  define ALTMON_10 131192
+#  define ALTMON_10 __niji_ALTMON_10
 # endif
 # ifndef ALTMON_11
-#  define ALTMON_11 131193
+#  define ALTMON_11 __niji_ALTMON_11
 # endif
 # ifndef ALTMON_12
-#  define ALTMON_12 131194
+#  define ALTMON_12 __niji_ALTMON_12
 # endif
 # ifndef ALTMON_2
-#  define ALTMON_2 131184
+#  define ALTMON_2 __niji_ALTMON_2
 # endif
 # ifndef ALTMON_3
-#  define ALTMON_3 131185
+#  define ALTMON_3 __niji_ALTMON_3
 # endif
 # ifndef ALTMON_4
-#  define ALTMON_4 131186
+#  define ALTMON_4 __niji_ALTMON_4
 # endif
 # ifndef ALTMON_5
-#  define ALTMON_5 131187
+#  define ALTMON_5 __niji_ALTMON_5
 # endif
 # ifndef ALTMON_6
-#  define ALTMON_6 131188
+#  define ALTMON_6 __niji_ALTMON_6
 # endif
 # ifndef ALTMON_7
-#  define ALTMON_7 131189
+#  define ALTMON_7 __niji_ALTMON_7
 # endif
 # ifndef ALTMON_8
-#  define ALTMON_8 131190
+#  define ALTMON_8 __niji_ALTMON_8
 # endif
 # ifndef ALTMON_9
-#  define ALTMON_9 131191
+#  define ALTMON_9 __niji_ALTMON_9
 # endif
 # ifndef CURRENCY_SYMBOL
-#  define CURRENCY_SYMBOL 262145
+#  define CURRENCY_SYMBOL __niji_CURRENCY_SYMBOL
 # endif
 # ifndef DECIMAL_POINT
-#  define DECIMAL_POINT 65536
+#  define DECIMAL_POINT RADIXCHAR
 # endif
 # ifndef ERA_YEAR
-#  define ERA_YEAR 131117
+#  define ERA_YEAR __niji_ERA_YEAR
 # endif
 # ifndef FRAC_DIGITS
-#  define FRAC_DIGITS 262152
+#  define FRAC_DIGITS __niji_FRAC_DIGITS
 # endif
 # ifndef GROUPING
-#  define GROUPING 65538
+#  define GROUPING __GROUPING
 # endif
 # ifndef INT_CURR_SYMBOL
-#  define INT_CURR_SYMBOL 262144
+#  define INT_CURR_SYMBOL __INT_CURR_SYMBOL
 # endif
 # ifndef INT_FRAC_DIGITS
-#  define INT_FRAC_DIGITS 262151
+#  define INT_FRAC_DIGITS __INT_FRAC_DIGITS
 # endif
 # ifndef INT_N_CS_PRECEDES
-#  define INT_N_CS_PRECEDES 262162
+#  define INT_N_CS_PRECEDES __niji_INT_N_CS_PRECEDES
 # endif
 # ifndef INT_N_SEP_BY_SPACE
-#  define INT_N_SEP_BY_SPACE 262163
+#  define INT_N_SEP_BY_SPACE __niji_INT_N_SEP_BY_SPACE
 # endif
 # ifndef INT_N_SIGN_POSN
-#  define INT_N_SIGN_POSN 262165
+#  define INT_N_SIGN_POSN __niji_INT_N_SIGN_POSN
 # endif
 # ifndef INT_P_CS_PRECEDES
-#  define INT_P_CS_PRECEDES 262160
+#  define INT_P_CS_PRECEDES __niji_INT_P_CS_PRECEDES
 # endif
 # ifndef INT_P_SEP_BY_SPACE
-#  define INT_P_SEP_BY_SPACE 262161
+#  define INT_P_SEP_BY_SPACE __niji_INT_P_SEP_BY_SPACE
 # endif
 # ifndef INT_P_SIGN_POSN
-#  define INT_P_SIGN_POSN 262164
+#  define INT_P_SIGN_POSN __niji_INT_P_SIGN_POSN
 # endif
 # ifndef MON_DECIMAL_POINT
-#  define MON_DECIMAL_POINT 262146
+#  define MON_DECIMAL_POINT __niji_MON_DECIMAL_POINT
 # endif
 # ifndef MON_GROUPING
-#  define MON_GROUPING 262148
+#  define MON_GROUPING __niji_MON_GROUPING
 # endif
 # ifndef MON_THOUSANDS_SEP
-#  define MON_THOUSANDS_SEP 262147
+#  define MON_THOUSANDS_SEP __niji_MON_THOUSANDS_SEP
 # endif
 # ifndef NEGATIVE_SIGN
-#  define NEGATIVE_SIGN 262150
+#  define NEGATIVE_SIGN __niji_NEGATIVE_SIGN
 # endif
 # ifndef N_CS_PRECEDES
-#  define N_CS_PRECEDES 262155
+#  define N_CS_PRECEDES __niji_N_CS_PRECEDES
 # endif
 # ifndef N_SEP_BY_SPACE
-#  define N_SEP_BY_SPACE 262156
+#  define N_SEP_BY_SPACE __niji_N_SEP_BY_SPACE
 # endif
 # ifndef N_SIGN_POSN
-#  define N_SIGN_POSN 262158
+#  define N_SIGN_POSN __niji_N_SIGN_POSN
 # endif
 # ifndef POSITIVE_SIGN
-#  define POSITIVE_SIGN 262149
+#  define POSITIVE_SIGN __niji_POSITIVE_SIGN
 # endif
 # ifndef P_CS_PRECEDES
-#  define P_CS_PRECEDES 262153
+#  define P_CS_PRECEDES __niji_P_CS_PRECEDES
 # endif
 # ifndef P_SEP_BY_SPACE
-#  define P_SEP_BY_SPACE 262154
+#  define P_SEP_BY_SPACE __niji_P_SEP_BY_SPACE
 # endif
 # ifndef P_SIGN_POSN
-#  define P_SIGN_POSN 262157
+#  define P_SIGN_POSN __niji_P_SIGN_POSN
 # endif
 # ifndef THOUSANDS_SEP
-#  define THOUSANDS_SEP 65537
+#  define THOUSANDS_SEP THOUSEP
 # endif
 #endif
 #if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
 # ifndef NOSTR
-#  define NOSTR 327683
+#  define NOSTR __niji_NOSTR
 # endif
 # ifndef YESSTR
-#  define YESSTR 327682
+#  define YESSTR __niji_YESSTR
 # endif
 #endif
 

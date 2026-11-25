@@ -1,0 +1,27 @@
+{
+ "task": "SL-HEADERS-UNSHIPPED-REST-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "merged origin/next (HEADERS-CXX-ENUM-TYPES-3) into the branch: conflicts in xtask/src/headers.rs and PROVENANCE kept both sides, generated sys/procfs.h, aio.h and appendix_c_layouts.rs regenerated with headers-gen and abi-gen; gate green, 7 of 7 plants caught",
+ "branch": "task/sl-headers-unshipped-rest-4",
+ "head": "HEAD_PLACEHOLDER",
+ "gate": {
+  "affected": "sl-headers-unshipped-rest-4-gate rc 0 (direct tier, --base origin/next; conformance 103 passed, 0 failed)",
+  "peak": "gate: peak memory 12G, oom_kill=0, rc=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "plant lio-write-wrong followed aio.h to next's anonymous-enum form (pattern changed in handoff/SL-HEADERS-UNSHIPPED-REST-4-plants.txt)",
+  "the gate ran 80 min on keke and blocks sync_role for the whole time, so the plants job could only start after it",
+  "math-vector-fortran.h stays unshipped (ruling #8493, follow-up #266)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "thread_db.h and proc_service.h (gdb thread support, Yohane stage 2), aio.h, mqueue.h ship once this lands", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["keke:sl-headers-unshipped-rest-4-gate", "keke:sl-headers-unshipped-rest-4-plants3"],
+ "improvement": "a plants file whose pattern no longer matches after a merge refuses only at job start; a plants --check pass (no build) would find it in seconds before an 80 minute gate",
+ "next_step": "land; follow-up #266 (Fortran header)",
+ "report_file": "handoff/SL-HEADERS-UNSHIPPED-REST.md"
+}

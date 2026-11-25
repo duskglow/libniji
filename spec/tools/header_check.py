@@ -25,8 +25,11 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
           may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
           unit, and a unit titled "... must fail" passes only when it fails with libniji's "is not provided" #error);
 * P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
+* P9      each header that shows a typedef the compiler's <stddef.h> or <stdarg.h> defines, with those headers
+          before and after it (see `compiler_order_units`).
 
-Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
+Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed. `--only REGEX` runs
+only the units whose title matches (no slice-module problems, no P8; a plant's command); selecting none fails.
 """
 import argparse
 import glob
@@ -54,7 +57,7 @@ NOT_CONSTANT = {"PTHREAD_STACK_MIN", "MINSIGSTKSZ", "SIGSTKSZ"}
 # header owns: emitted only where headers/reserved.tsv says, and `_POSIX_C_SOURCE` takes its value from the
 # configuration, so P1 asserts such a value only in the owning header.
 RESERVED = re.compile(r"_[A-Z_]")
-INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
+INT_SUFFIX = {"int": "", "char": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
 def slice_rows():
@@ -161,6 +164,25 @@ def exact_units(ctx, header, names, types=None):
             lines += [f"typedef char niji_exact_{i}_{j}[({x}) ? 1 : -1];" for j, x in enumerate(tests)]
         out.append((cid, f"exact {header}", "\n".join(lines) + "\nint niji_exact_tu;\n"))
     return out
+
+
+COMPILER_TYPEDEFS = ("max_align_t", "size_t", "ptrdiff_t", "wchar_t", "wint_t", "nullptr_t", "va_list", "__gnuc_va_list")
+ORDER_CONFIGS = ("c89", "c11", "gnu2x", "cxx98", "cxx11", "cxx23")
+
+
+def compiler_order_units(ctx):
+    """P9 (HEADERS-STAGE2-GAPS-A; no spec clause: C 7.21 and 7.16 give <stddef.h> and <stdarg.h> to the compiler):
+    each header that shows a typedef the compiler's own <stddef.h> or <stdarg.h> also defines (visibility.tsv)
+    compiles with those two headers included before it and after it, in C89, C11, GNU C2X, C++98, C++11 and C++23.
+    A typedef the header spells itself as another type (an anonymous `max_align_t` structure is a type of its own)
+    conflicts in one order or both; a header that relies on the compiler's guard macros fails the order it does not
+    guard."""
+    heads = sorted({r["header"] for r in ctx.vis if r["kind"] == "typedef" and r["name"] in COMPILER_TYPEDEFS
+                    and r["header"] != "-"} & {r["header"] for r in ctx.slice_rows})
+    tail = "#include <stddef.h>\n#include <stdarg.h>\n"
+    return {cid: [(f"P9 {h} {o}", (tail + f"#include <{h}>\n" if o == "after" else f"#include <{h}>\n" + tail)
+                   + "int niji_p9_tu;\n") for h in heads for o in ("after", "before")]
+            for cid in ORDER_CONFIGS if cid in ctx.ids}
 
 
 def p1_units(ctx):
@@ -295,7 +317,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
     ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
+    # A plant's command (docs/plants.md, 600 s per command): only the units whose title (`P9 sys/un.h after`, `P1
+    # langinfo.h _NL_ITEM forms`, ...) matches; the slice modules' problems, their reports and P8 are not run. A
+    # pattern that selects no unit is a failure, never a vacuous pass.
+    ap.add_argument("--only", default="", metavar="REGEX")
     args = ap.parse_args()
+    only = re.compile(args.only) if args.only else None
     inc = os.path.abspath(args.include)
     if not os.path.isfile(os.path.join(inc, "features.h")):
         sys.exit(f"header_check: no features.h under {inc}")
@@ -323,8 +350,11 @@ def main():
     ctx.p1_skip = {x for _, mod in mods for x in getattr(mod, "p1_skip", ())}
     must_fail = {x for _, mod in mods for x in getattr(mod, "must_fail", ())}
     p1s = p1_units(ctx)
+    for cid, us in compiler_order_units(ctx).items():
+        p1s.setdefault(cid, []).extend(us)
     for name, mod in mods:
-        problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
+        if not only:
+            problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
             p1s.setdefault(cid, []).append((what, body))
     fails, total = len(problems), len(problems)
@@ -352,6 +382,8 @@ def main():
         if not rejected:
             units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
+        if only:
+            units = [u for u in units if only.search(u[0])]
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
@@ -366,8 +398,13 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
-    f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
-    fails, total = fails + f8, total + t8
+    if only:
+        if total == 0:
+            print(f"FAIL --only {args.only}: no unit selected")
+            fails = 1
+    else:
+        f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
+        fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0
 

@@ -340,6 +340,11 @@ def package_names():
     out += [f"_PATH_{p}" for p in ("BSHELL", "BTMP", "DEFPATH", "DEV", "FSTAB", "GROUP", "GSHADOW", "KLOG", "LOG",
                                    "LOGIN", "MNTTAB", "MOUNTED", "MTAB", "PASSWD", "SERVICES", "SHADOW", "TMP",
                                    "TTY", "TTYS", "UTMP", "UTMPX", "WTMP", "WTMPX")]
+    # HEADERS-STAGE2-GAPS-A: perl's locale.c names the nl_langinfo items of the locale categories (LC_NAME,
+    # LC_ADDRESS, LC_TELEPHONE, LC_MEASUREMENT, LC_IDENTIFICATION) and gnutls's tests the item macros; every item
+    # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
+    out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
+    out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
     return out
 
 

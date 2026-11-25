@@ -493,6 +493,14 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
                 Some(e) => lines.push(format!("NIJI_A ((__int128) ({n}) == {e}, \"macros {n} = {v}\");")),
                 None => c.fail(i, format!("value {v:?} is not an integer of 64 bits")),
             }
+        } else if ty == "char" {
+            // A character constant (D-X.171): `int` in C, `char` in C++, the value of a `char`.
+            lines.push(format!("NIJI_C (_Generic (({n}), int: 1, default: 0), \"macros {n} is int in C\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), char>::v, \"macros {n} is char in C++\");"));
+            match int128(v) {
+                Some(e) => lines.push(format!("NIJI_A ((__int128) ({n}) == {e}, \"macros {n} = {v}\");")),
+                None => c.fail(i, format!("value {v:?} is not an integer")),
+            }
         } else if let Some(len) = ty.strip_prefix("char[").and_then(|l| l.strip_suffix(']')) {
             lines.push(format!("NIJI_C (sizeof ({n}) == {len} && _Generic (({n}), char *: 1, default: 0), \"macros {n} is {ty}\");"));
             lines.push(format!("NIJI_X (sizeof ({n}) == {len} && niji_streq ({n}, {v}), \"macros {n} value\");"));

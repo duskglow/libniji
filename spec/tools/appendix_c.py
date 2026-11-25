@@ -29,7 +29,15 @@ DETAILED = ["FILE", "mbstate_t", "sigset_t", "struct __jmp_buf_tag", "__pthread_
 
 def render():
     lay, ini, ver, pro, con = tsv("layouts.tsv"), tsv("initializers.tsv"), tsv("versions.tsv"), tsv("prototypes.tsv"), tsv("constants.tsv")
-    prov = open(os.path.join(ABI, "PROVENANCE")).read().strip().splitlines()
+    # The reference system's `ldd --version` line, from the first provenance fragment that states it (D-X.172:
+    # spec/abi/PROVENANCE is generated from spec/abi/provenance.d/, so its line numbers move).
+    frags = []
+    for n in sorted(os.listdir(os.path.join(ABI, "provenance.d"))):
+        if n.endswith(".txt"):
+            text = open(os.path.join(ABI, "provenance.d", n)).read()
+            m = re.match(r"---\norder: (\d+)\n---\n", text)
+            frags.append((int(m.group(1)) if m else 0, n, text))
+    ldd = next(l for _, _, t in sorted(frags) for l in t.splitlines() if l.startswith("ldd ("))
     public = [r for r in ver if not r["version"].endswith("PRIVATE")]
     private = {r["symbol"] for r in ver if r["version"].endswith("PRIVATE")}
     by_name = collections.defaultdict(list)
@@ -57,7 +65,7 @@ def render():
     w("compatibility needs and that the body of this spec does not record.*\n")
     w("### C.0 Provenance and scope\n")
     w("| | |\n|---|---|")
-    w("| Reference system | " + prov[1] + " (x86_64) |")
+    w("| Reference system | " + ldd + " (x86_64) |")
     w("| Sources | (1) the installed **public headers**, read only through the compiler: a probe declares one object of each type, and layouts come from its debug information; sizes and alignments from `sizeof`/`_Alignof`; initializer bytes from compiled initializers; prototypes from `gcc -aux-info`; numeric macros by evaluation. (2) The **dynamic symbol tables** of the installed libraries (`readelf --dyn-syms`): version nodes, default versus compatibility binding, and the sizes of exported data objects. |")
     w("| Not used | glibc source code. No function bodies, code sizes or dispatch mechanisms are recorded: a function's size and whether it is an IFUNC are implementation details and are excluded. |")
     w("| Excluded | `GLIBC_PRIVATE` symbols (" + str(len(private)) + " names): private interfaces between glibc's own libraries, which a replacement that ships its own `ld.so` and `libc.so.6` does not need to reproduce. |")

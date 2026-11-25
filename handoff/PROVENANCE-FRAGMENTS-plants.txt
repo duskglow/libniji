@@ -1,0 +1,4 @@
+# Plants of PROVENANCE-FRAGMENTS (D-X.172): the stale-view check and the counts.
+prov-fragment-edit | spec/abi/provenance.d/SL-HEADERS-S03.txt | lit:Two runs byte-identical ==> Two runs identical | cargo xtask records-gen --check spec/abi/PROVENANCE | msg:spec/abi/PROVENANCE is stale
+prov-count-off | xtask/src/provenance.rs | lit:rows += 1; ==> rows += 2; | cargo xtask records-gen --check spec/abi/PROVENANCE | msg:spec/abi/PROVENANCE is stale
+prov-order-ignored | xtask/src/provenance.rs | lit:out.sort_by(|a, b| (a.order, &a.name).cmp(&(b.order, &b.name))); ==> out.sort_by(|a, b| a.name.cmp(&b.name)); | cargo xtask records-gen --check spec/abi/PROVENANCE | msg:spec/abi/PROVENANCE is stale

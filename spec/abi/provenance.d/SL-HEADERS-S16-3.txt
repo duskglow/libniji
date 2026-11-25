@@ -1,0 +1,4 @@
+---
+order: 130
+---
+Slice 16 (SL-HEADERS-S16-3, ruling #6472): the visibility.tsv rows of link.h `La_x86_64_regs` and `La_x86_64_retval` were edited by hand from `!time64only,cxx98,...` (C only, as probed) to `!time64only`: libniji declares them in C++ too, because the C++ prototypes of the la_* entry points name them (D-X.130; docs/differences-from-glibc.md). A rerun of header_probe.py would restore the probed rows.

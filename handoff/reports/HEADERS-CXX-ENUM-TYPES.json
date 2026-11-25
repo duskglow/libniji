@@ -1,0 +1,18 @@
+{"task": "HEADERS-CXX-ENUM-TYPES", "model": "opus", "tokens": null,
+ "result": "Enumerator macros (C1) and char-constant macros (C2) have the reference's C++ types: cxx17 type rows 1198 -> 45 (27 MS_* under D-X.126, 18 REG_* gap); overload proof same on both libraries",
+ "branch": "task/headers-cxx-enum-types", "head": "a70df81f5",
+ "gate": {"affected": "FULL escalated (generated headers): the train's; direct: cargo test -p xtask (job headers-cxx-enum-types-test3, 661+ passed) + precheck GREEN (34 checks) on a70df81f5", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "MS_* (D-X.126 / COMPAT-34): the reference declares MS_* as enumerators with self-naming macros and compiles <sys/mount.h> and <linux/mount.h> in both orders, C and C++, 0 warnings (job headers-cxx-enum-types-ms); D-X.126's premise does not hold", "recommendation": "supersede D-X.126 in a follow-up story: MS_* enumerators of one unnamed enumeration with self-naming macros in both include orders (libniji's own design), then retire COMPAT-34 and its differences row"}],
+ "informational": ["REG_* (18 cxx17 rows): <regex.h> declares no reg_errcode_t; follow-up", "arpa/nameser.h ns_type, ns_class, ...: opaque structs in libniji, enumerations in the reference; follow-up", "cargo test -p xtask found two defects in the first commit (empty unnamed enumeration after a kernel header; rows test emission) and a missing rows check for char macros: fixed in ed6a2610c"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "C++ type of macros that are enumerators in the reference (_SC_*, _PC_*, _CS_*, nl_item, MSG_*, IPPROTO_*, EPOLL*, SOCK_*, ...): enumeration type instead of int; cxx17 'type differs' rows of the form audit", "before": 1159, "after": 45, "unit": "rows", "measured": true},
+  {"kind": "correctness", "what": "C++ type of char-constant macros (tar.h *TYPE, ELFMAG1-3, REC_*, CBRK/CEOL/CSTATUS, SCOPE_DELIMITER, _POSIX_VDISABLE): char, sizeof 1", "before": 39, "after": 0, "unit": "rows", "measured": true},
+  {"kind": "coverage", "what": "form check: type and enumeration differences now FAIL; rows test checks 20 char macros; 8 plants", "before": null, "after": 8, "unit": "plants", "measured": true},
+  {"kind": "unblock", "what": "MS_* ruling (D-X.126/COMPAT-34) has its evidence; REG_* and arpa/nameser.h follow-ups named", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "The previous leg piped a job through tail, so its failures needed a rerun to read: job logs should never be truncated at the source; a two-test rerun cost one extra cycle",
+ "next_step": "Coordinator: rule on MS_* (recommend superseding D-X.126); brief REG_* reg_errcode_t and arpa/nameser.h enumerations",
+ "report_file": "handoff/HEADERS-CXX-ENUM-TYPES.md",
+ "jobs": ["headers-cxx-enum-types-lint2", "headers-cxx-enum-types-test3", "headers-cxx-enum-types-plants4", "headers-cxx-enum-types-plants3", "headers-cxx-enum-types-overload3", "headers-cxx-enum-types-ms"]}

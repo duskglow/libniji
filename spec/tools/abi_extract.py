@@ -15,6 +15,9 @@ Sources, per the owner's decision on OD-1 (interface declarations, not implement
 Run on the reference system (Ubuntu 24.04, glibc 2.39):  python3 spec/tools/abi_extract.py
 Outputs go to spec/abi/. Nothing here reads glibc source code. `--versions-only` regenerates
 versions.tsv and versions.sha256 alone; `--prototypes-only` prototypes.tsv and prototypes.sha256 alone.
+The full run and `--empty-versions-only` record what they did as a fragment,
+spec/abi/provenance.d/<STORY-ID>.txt (`--story STORY-ID`, required for them; D-X.172): spec/abi/PROVENANCE
+is generated from the fragments and the tables by `cargo xtask records-gen`, never written here.
 """
 import csv, os, re, subprocess, sys, tempfile, collections, hashlib
 
@@ -34,7 +37,7 @@ sys/wait.h dlfcn.h link.h mntent.h fstab.h getopt.h argp.h obstack.h printf.h ma
 error.h syslog.h fmtmsg.h sys/mman.h fcntl.h unistd.h sched.h sys/sysmacros.h sys/inotify.h
 sys/signalfd.h sys/timerfd.h sys/eventfd.h sys/xattr.h sys/random.h sys/auxv.h execinfo.h
 inttypes.h stdint.h stddef.h stdarg.h envz.h argz.h libgen.h nl_types.h libintl.h
-thread_db.h sys/ptrace.h sys/prctl.h gnu/libc-version.h sys/single_threaded.h sys/rseq.h
+thread_db.h proc_service.h sys/ptrace.h sys/prctl.h gnu/libc-version.h sys/single_threaded.h sys/rseq.h
 stdbit.h sys/pidfd.h sys/mount.h sys/fanotify.h sys/quota.h sys/swap.h sys/klog.h
 sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mcheck.h nss.h
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
@@ -163,6 +166,16 @@ TYPES = [
  ("Elf64_Verdaux", "Elf64_Verdaux"), ("Elf64_Verneed", "Elf64_Verneed"), ("Elf64_Vernaux", "Elf64_Vernaux"),
  ("struct user", "struct user"), ("struct elf_prstatus", "struct elf_prstatus"),
  ("struct elf_prpsinfo", "struct elf_prpsinfo"), ("struct elf_siginfo", "struct elf_siginfo"),
+ # thread_db.h and proc_service.h (SL-HEADERS-UNSHIPPED-REST): the tags are the C++ names of typedefs.tsv's rows.
+ ("struct td_thrhandle", "struct td_thrhandle"), ("struct td_thr_events", "struct td_thr_events"),
+ ("struct td_notify", "struct td_notify"), ("struct td_event_msg", "struct td_event_msg"),
+ ("struct td_ta_stats", "struct td_ta_stats"), ("struct td_thrinfo", "struct td_thrinfo"),
+ ("struct td_eventbuf", "struct td_eventbuf"), ("td_eventbuf_t", "td_eventbuf_t"),
+ ("td_err_e", "td_err_e"), ("td_event_e", "td_event_e"), ("td_notify_e", "td_notify_e"),
+ ("td_thr_state_e", "td_thr_state_e"), ("td_thr_type_e", "td_thr_type_e"), ("ps_err_e", "ps_err_e"),
+ # The sys/procfs.h typedefs a debugger names (td_thr_getgregs, ps_lgetregs; core files) that no prototype spells.
+ ("prgregset_t", "prgregset_t"), ("elf_fpregset_t", "elf_fpregset_t"), ("prstatus_t", "prstatus_t"),
+ ("prpsinfo_t", "prpsinfo_t"),
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).
@@ -214,6 +227,30 @@ def configure(argv):
 
 def cross():
     return ARCH != "x86_64"
+
+def story(argv):
+    """The story id of `--story ID` (capitals, digits, '-'): the name of the provenance fragment a run writes."""
+    sid = argv[argv.index("--story") + 1] if "--story" in argv and argv.index("--story") + 1 < len(argv) else ""
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9-]*", sid):
+        sys.exit("this run records its provenance: pass --story STORY-ID (capitals, digits and '-')")
+    return sid
+
+def write_fragment(sid, text):
+    """Write spec/abi/provenance.d/<sid>.txt (D-X.172), ordered after every fragment there; `text` is one
+    paragraph. A fragment of the same story is replaced, keeping its place."""
+    d = os.path.join(OUT, "provenance.d")
+    path = os.path.join(d, f"{sid}.txt")
+    orders = {}
+    for n in sorted(os.listdir(d)):
+        if n.endswith(".txt"):
+            m = re.match(r"---\norder: (\d+)\n", open(os.path.join(d, n)).read())
+            if m:
+                orders[n] = int(m.group(1))
+    order = orders.get(f"{sid}.txt", max(orders.values(), default=0) + 10)
+    body = "\n".join(l.rstrip() for l in text.strip().splitlines() if l.strip())
+    with open(path, "w", newline="\n") as f:
+        f.write(f"---\norder: {order}\n---\n{body}\n")
+    print(f"{path}:\n{body}")
 
 def section_bytes(obj, section):
     """The contents of one section of an object file, from `readelf -x` (hex dump)."""
@@ -890,12 +927,12 @@ def main():
         print(f"{ver}\nPrototypes: {len(pro)}  additions: {len(rows) - len(pro)}")
         return
     if "--empty-versions-only" in sys.argv:
-        # Write empty-versions.tsv alone and add its line to PROVENANCE (SYS-ABI-DT-RELR).
+        # Write empty-versions.tsv alone and record it in the story's provenance fragment (SYS-ABI-DT-RELR; D-X.172).
+        sid = story(sys.argv)
         emp = empty_versions()
         write("empty-versions.tsv", ["library", "version", "parent"], emp)
-        with open(os.path.join(OUT, "PROVENANCE"), "a", newline="\n") as f:
-            f.write(f"empty-versions.tsv: abi_extract.py --empty-versions-only ({ver}): {len(emp)} version "
-                    f"definitions no exported symbol carries.\n")
+        write_fragment(sid, f"empty-versions.tsv: abi_extract.py --empty-versions-only ({ver}): {len(emp)} version "
+                            f"definitions no exported symbol carries.")
         print(f"{ver}\nempty versions: {len(emp)}")
         return
     if "--prototypes-fortify" in sys.argv:
@@ -918,6 +955,7 @@ def main():
         rows = write_versions(syms)
         print(f"{ver}\nversioned symbol rows: {len(syms)}  additions: {len(rows) - len(syms)}")
         return
+    sid = None if "--layouts-only" in sys.argv else story(sys.argv)
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
         szmap = sizes(tmp, types)
@@ -939,12 +977,10 @@ def main():
     write_versions(syms)
     emp = empty_versions()
     write("empty-versions.tsv", ["library", "version", "parent"], emp)
-    with open(os.path.join(OUT, "PROVENANCE"), "w", newline="\n") as f:
-        f.write(f"Generated by spec/tools/abi_extract.py on the reference system.\n{ver}\n"
-                f"Types: {len(types)}  layout rows: {len(lay)}  initializers: {len(ini)}\n"
-                f"Prototypes: {len(pro)}  constants: {len(mac)}  versioned symbol rows: {len(syms)}  "
-                f"empty version definitions: {len(emp)}\n")
-    print(open(os.path.join(OUT, "PROVENANCE")).read())
+    write_fragment(sid, f"Full run of spec/tools/abi_extract.py on the reference system ({sid}).\n{ver}\n"
+                        f"Types: {len(types)}  layout rows: {len(lay)}  initializers: {len(ini)}\n"
+                        f"Prototypes: {len(pro)}  constants: {len(mac)}  versioned symbol rows: {len(syms)}  "
+                        f"empty version definitions: {len(emp)}")
 
 if __name__ == "__main__":
     main()

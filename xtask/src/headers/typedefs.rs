@@ -94,7 +94,12 @@ impl Gen<'_> {
         } else {
             // The structure or union is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`, `__sigval_t`
             // `union sigval`): defined here, under the guard its tag row (tag()) uses, so it is defined once.
-            let a = self.aggregate(name);
+            // Its members are layouts.tsv rows under the typedef's name, or under the tag's (`td_thrhandle_t` is
+            // `struct td_thrhandle`, whose rows the tag keys).
+            let a = self.aggregate(name).or_else(|| {
+                let tag = ["struct", "union"].into_iter().map(|k| format!("{k} {cxx}")).find(|k| self.t.layouts.contains_key(k))?;
+                self.aggregate(&tag)
+            });
             let kind = ["union", "struct"].into_iter().find(|k| self.t.typedefs.contains_key(&(k.to_string(), cxx.clone()))).or(a.as_ref().map(|a| a.kw)).unwrap_or("struct");
             // Where this header shows the tag in fewer configurations than the typedef (`union sigval` beside
             // `__sigval_t` in sys/pidfd.h), the tag belongs to the program outside its condition (C 7.1.3): there the

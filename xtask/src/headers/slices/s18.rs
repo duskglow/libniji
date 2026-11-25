@@ -50,7 +50,7 @@ fn fortify(g: &mut Gen<'_>, _args: &[&str]) {
             .iter()
             .filter(|c| c["name"] == name && (c["mode"] == "call" || c["mode"] == "macro"))
             .map(|c| (c["configs"].clone(), c["symbol"].split(',').next().unwrap_or("").to_string()))
-            .filter(|(_, s)| s.ends_with("_chk") || (r["form"] == "mode" && s.ends_with("_2")))
+            .filter(|(_, s)| s.ends_with("_chk") || (r["form"].starts_with("mode") && s.ends_with("_2")))
             .collect();
         let mut levels = [false; 4];
         let mut variants = [false; 3];
@@ -224,7 +224,7 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
     let mut out = Vec::new();
     let call = match r["form"].as_str() {
         "builtin" => expand(args, ost),
-        "va" | "chk" | "mode" => {
+        "va" | "chk" | "mode" | "mode2" => {
             let Some(proto) = chk.get(sym) else {
                 g.errors.push(format!("{}: {name}: {sym} has no row in spec/abi/chk-prototypes.tsv", g.header));
                 return Vec::new();
@@ -243,7 +243,14 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
     };
     let ret_kw = if void { "" } else { "return " };
     let mut fn_body = Vec::new();
-    if r["form"] == "chk" || r["form"] == "mode" {
+    // `mode` takes one optional argument (the open family's mode), `mode2` two passed together (mq_open's mode and
+    // attributes, spec 25.3); the rest of the two forms is the same.
+    let optional = match r["form"].as_str() {
+        "mode" => 1,
+        "mode2" => 2,
+        _ => 0,
+    };
+    if r["form"] == "chk" || optional > 0 {
         // The plain call where the destination's size is unknown or the call provably fits.
         let dest = args.split(['$']).skip(1).find(|t| t.starts_with('S') || t.starts_with('E')).map(|t| t[1..].chars().take_while(char::is_ascii_digit).collect::<String>());
         let mut tests = Vec::new();
@@ -270,9 +277,10 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
         }
         // A variadic function passes its own variable arguments on (GCC: `__builtin_va_arg_pack`).
         let pass: Vec<String> = params.iter().enumerate().map(|(i, p)| if p == "..." { "__builtin_va_arg_pack ()".to_string() } else { format!("__p{i}") }).collect();
-        if r["form"] == "mode" {
-            // The open family (spec 11.1): GCC's `__builtin_va_arg_pack_len` counts the variable arguments, and a
-            // call left in to a function with the `error` attribute fails the compile (GCC manual, Function Attributes).
+        if optional > 0 {
+            // The open family (spec 11.1) and mq_open (spec 25.3): GCC's `__builtin_va_arg_pack_len` counts the
+            // variable arguments, and a call left in to a function with the `error` attribute fails the compile (GCC
+            // manual, Function Attributes).
             let need = expand(&r["safe"], ost);
             // The plain call only for flags that are themselves a constant: flags built at run time from constants
             // (`f = O_RDONLY; if (x) f |= O_NONBLOCK;`) let GCC fold `need` while the flags stay unknown (own probe).
@@ -280,19 +288,24 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
             let flags = expand(&format!("${flags}"), ost);
             let fixed: Vec<&String> = pass.iter().filter(|p| !p.starts_with("__builtin")).collect();
             let fixed = fixed.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
-            out.push("#  ifndef __NIJI_D_fortify_mode".into());
-            out.push("#   define __NIJI_D_fortify_mode 1".into());
-            out.push("extern void __niji_fortify_mode (void) __attribute__ ((__error__ (\"the flags need a mode argument (O_CREAT or O_TMPFILE)\")));".into());
-            out.push("extern void __niji_fortify_args (void) __attribute__ ((__error__ (\"too many arguments: one mode at most\")));".into());
+            let (sfx, need_msg, args_msg, bad) = if optional == 1 {
+                ("", "the flags need a mode argument (O_CREAT or O_TMPFILE)", "too many arguments: one mode at most", "> 1".to_string())
+            } else {
+                ("2", "O_CREAT needs the mode and attributes arguments", "pass the mode and the attributes together, or neither", "!= 0 && __builtin_va_arg_pack_len () != 2".to_string())
+            };
+            out.push(format!("#  ifndef __NIJI_D_fortify_mode{sfx}"));
+            out.push(format!("#   define __NIJI_D_fortify_mode{sfx} 1"));
+            out.push(format!("extern void __niji_fortify_mode{sfx} (void) __attribute__ ((__error__ (\"{need_msg}\")));"));
+            out.push(format!("extern void __niji_fortify_args{sfx} (void) __attribute__ ((__error__ (\"{args_msg}\")));"));
             out.push("#  endif".into());
-            fn_body.push("  if (__builtin_va_arg_pack_len () > 1)".into());
-            fn_body.push("    __niji_fortify_args ();".into());
+            fn_body.push(format!("  if (__builtin_va_arg_pack_len () {bad})"));
+            fn_body.push(format!("    __niji_fortify_args{sfx} ();"));
             fn_body.push("  if (__builtin_va_arg_pack_len () < 1)".into());
             fn_body.push("    {".into());
             fn_body.push(format!("      if (__builtin_constant_p ({flags}))"));
             fn_body.push("        {".into());
             fn_body.push(format!("          if ({need})"));
-            fn_body.push("            __niji_fortify_mode ();".into());
+            fn_body.push(format!("            __niji_fortify_mode{sfx} ();"));
             fn_body.push(format!("          return {plain} ({fixed});"));
             fn_body.push("        }".into());
             fn_body.push(format!("      return {call};"));
@@ -303,7 +316,7 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
             fn_body.push(if void { format!("    {{ {plain} ({}); return; }}", pass.join(", ")) } else { format!("    return {plain} ({});", pass.join(", ")) });
         }
     }
-    if r["form"] != "mode" {
+    if optional == 0 {
         fn_body.push(format!("  {ret_kw}{call};"));
     }
     out.push(format!("__NIJI_FORTIFY_FN {ret}{name} ({}){nt}", named.join(", ")));
@@ -410,7 +423,10 @@ int main (int argc, char **argv)
     // callsites.tsv's open-family call rows: compiled at -O2 with _FORTIFY_SOURCE=2 against libniji's headers, a call
     // without its mode and with run-time flags references the `_2` entry (the 64-bit one under
     // `_FILE_OFFSET_BITS=64`), a call with a mode or with constant flags that need none references the plain
-    // function, and constant flags that need a mode, or two variable arguments, do not compile.
+    // function, and constant flags that need a mode, or two variable arguments, do not compile. Spec 25.3
+    // (`__mq_open_2`) and mq_open's call row: the same with mq_open's two optional arguments (mode and attributes),
+    // which a call passes together or not at all (one or three do not compile; probe-settled on the reference by
+    // compile status and `nm -u`).
     #[test]
     fn an_open_without_its_mode_calls_the_checked_entry() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
@@ -442,12 +458,19 @@ int main (int argc, char **argv)
             ("-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64", "open (p, f)", Some("__open64_2"), "__open_2"),
             ("-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64", "open (p, f, 0600)", Some("open64"), "__open64_2"),
             ("-D_GNU_SOURCE", "openat64 (d, p, f)", Some("__openat64_2"), "openat64"),
+            ("", "mq_open (p, f)", Some("__mq_open_2"), "mq_open"),
+            ("", "mq_open (p, O_RDONLY)", Some("mq_open"), "__mq_open_2"),
+            ("", "mq_open (p, f, 0600, (struct mq_attr *) 0)", Some("mq_open"), "__mq_open_2"),
+            ("", "mq_open (p, O_RDWR | O_CREAT)", None, ""),
+            ("-D_GNU_SOURCE", "mq_open (p, O_RDWR | O_TMPFILE)", Some("mq_open"), "__mq_open_2"),
+            ("", "mq_open (p, f, 0600)", None, ""),
+            ("", "mq_open (p, f, 0600, (struct mq_attr *) 0, 1)", None, ""),
         ];
         let mut failures = Vec::new();
         for (k, (extra, call, want, not)) in cases.iter().enumerate() {
             let src = dir.join(format!("o{k}.c"));
             let obj = dir.join(format!("o{k}.o"));
-            fs::write(&src, format!("#include <fcntl.h>\nint lp_t (int d, const char *p, int f) {{ (void) d; (void) f; return {call}; }}\n")).unwrap();
+            fs::write(&src, format!("#include <fcntl.h>\n#include <mqueue.h>\nint lp_t (int d, const char *p, int f) {{ (void) d; (void) f; return {call}; }}\n")).unwrap();
             let out = Command::new("gcc")
                 .args(["-O2", "-D_FORTIFY_SOURCE=2", "-c", "-nostdinc", "-isystem"])
                 .arg(dir.join("inc"))
