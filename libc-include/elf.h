@@ -1565,13 +1565,13 @@ typedef struct {
 #  define ELFMAG0 127
 # endif
 # ifndef ELFMAG1
-#  define ELFMAG1 69
+#  define ELFMAG1 'E'
 # endif
 # ifndef ELFMAG2
-#  define ELFMAG2 76
+#  define ELFMAG2 'L'
 # endif
 # ifndef ELFMAG3
-#  define ELFMAG3 70
+#  define ELFMAG3 'F'
 # endif
 # ifndef ELFOSABI_AIX
 #  define ELFOSABI_AIX 7

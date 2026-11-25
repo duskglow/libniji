@@ -68,24 +68,6 @@ extern int umount (const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_umount2 1
 extern int umount2 (const char *, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_MNT_DETACH
-#  define __NIJI_D_enum_MNT_DETACH 1
-#  ifndef MNT_DETACH
-enum { MNT_DETACH = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MNT_EXPIRE
-#  define __NIJI_D_enum_MNT_EXPIRE 1
-#  ifndef MNT_EXPIRE
-enum { MNT_EXPIRE = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MNT_FORCE
-#  define __NIJI_D_enum_MNT_FORCE 1
-#  ifndef MNT_FORCE
-enum { MNT_FORCE = 1 };
-#  endif
-# endif
 # ifndef __NIJI_D_enum_MS_ACTIVE
 #  define __NIJI_D_enum_MS_ACTIVE 1
 #  ifndef MS_ACTIVE
@@ -242,10 +224,23 @@ enum { MS_SYNCHRONOUS = 16 };
 enum { MS_UNBINDABLE = 131072 };
 #  endif
 # endif
-# ifndef __NIJI_D_enum_UMOUNT_NOFOLLOW
-#  define __NIJI_D_enum_UMOUNT_NOFOLLOW 1
+# ifndef __NIJI_D_anon_MNT_DETACH
+#  define __NIJI_D_anon_MNT_DETACH 1
+#  if !defined MNT_FORCE || !defined MNT_DETACH || !defined MNT_EXPIRE || !defined UMOUNT_NOFOLLOW
+enum {
+#  ifndef MNT_FORCE
+  MNT_FORCE = 1,
+#  endif
+#  ifndef MNT_DETACH
+  MNT_DETACH = 2,
+#  endif
+#  ifndef MNT_EXPIRE
+  MNT_EXPIRE = 4,
+#  endif
 #  ifndef UMOUNT_NOFOLLOW
-enum { UMOUNT_NOFOLLOW = 8 };
+  UMOUNT_NOFOLLOW = 8,
+#  endif
+};
 #  endif
 # endif
 # ifndef BLKBSZGET
@@ -321,13 +316,13 @@ enum { UMOUNT_NOFOLLOW = 8 };
 #  define LSMT_ROOT 18446744073709551615UL
 # endif
 # ifndef MNT_DETACH
-#  define MNT_DETACH 2
+#  define MNT_DETACH MNT_DETACH
 # endif
 # ifndef MNT_EXPIRE
-#  define MNT_EXPIRE 4
+#  define MNT_EXPIRE MNT_EXPIRE
 # endif
 # ifndef MNT_FORCE
-#  define MNT_FORCE 1
+#  define MNT_FORCE MNT_FORCE
 # endif
 # ifndef MNT_ID_REQ_SIZE_VER0
 #  define MNT_ID_REQ_SIZE_VER0 24
@@ -522,7 +517,7 @@ enum { UMOUNT_NOFOLLOW = 8 };
 #  define STATMOUNT_SB_BASIC 1U
 # endif
 # ifndef UMOUNT_NOFOLLOW
-#  define UMOUNT_NOFOLLOW 8
+#  define UMOUNT_NOFOLLOW UMOUNT_NOFOLLOW
 # endif
 #endif
 

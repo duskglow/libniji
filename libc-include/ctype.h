@@ -188,16 +188,17 @@ extern int toupper_l (int, locale_t) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum__ISalnum
-#  define __NIJI_D_enum__ISalnum 1
+# ifndef __NIJI_D_anon__ISalnum
+#  define __NIJI_D_anon__ISalnum 1
+#  if !defined _ISalnum || !defined _ISupper
+enum {
 #  ifndef _ISalnum
-enum { _ISalnum = 8 };
+  _ISalnum = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__ISupper
-#  define __NIJI_D_enum__ISupper 1
 #  ifndef _ISupper
-enum { _ISupper = 256 };
+  _ISupper = 256,
+#  endif
+};
 #  endif
 # endif
 #endif

@@ -1683,2368 +1683,1346 @@ extern __sighandler_t sigset (int, __sighandler_t) __NIJI_NOTHROW __attribute__ 
 # endif
 #endif
 #if __NIJI_DYNSTACK
-# ifndef __NIJI_D_enum__CS_GNU_LIBC_VERSION
-#  define __NIJI_D_enum__CS_GNU_LIBC_VERSION 1
-#  ifndef _CS_GNU_LIBC_VERSION
-enum { _CS_GNU_LIBC_VERSION = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_GNU_LIBPTHREAD_VERSION
-#  define __NIJI_D_enum__CS_GNU_LIBPTHREAD_VERSION 1
-#  ifndef _CS_GNU_LIBPTHREAD_VERSION
-enum { _CS_GNU_LIBPTHREAD_VERSION = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS64_CFLAGS
-#  define __NIJI_D_enum__CS_LFS64_CFLAGS 1
-#  ifndef _CS_LFS64_CFLAGS
-enum { _CS_LFS64_CFLAGS = 1004 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS64_LDFLAGS
-#  define __NIJI_D_enum__CS_LFS64_LDFLAGS 1
-#  ifndef _CS_LFS64_LDFLAGS
-enum { _CS_LFS64_LDFLAGS = 1005 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS64_LIBS
-#  define __NIJI_D_enum__CS_LFS64_LIBS 1
-#  ifndef _CS_LFS64_LIBS
-enum { _CS_LFS64_LIBS = 1006 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS64_LINTFLAGS
-#  define __NIJI_D_enum__CS_LFS64_LINTFLAGS 1
-#  ifndef _CS_LFS64_LINTFLAGS
-enum { _CS_LFS64_LINTFLAGS = 1007 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS_CFLAGS
-#  define __NIJI_D_enum__CS_LFS_CFLAGS 1
-#  ifndef _CS_LFS_CFLAGS
-enum { _CS_LFS_CFLAGS = 1000 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS_LDFLAGS
-#  define __NIJI_D_enum__CS_LFS_LDFLAGS 1
-#  ifndef _CS_LFS_LDFLAGS
-enum { _CS_LFS_LDFLAGS = 1001 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS_LIBS
-#  define __NIJI_D_enum__CS_LFS_LIBS 1
-#  ifndef _CS_LFS_LIBS
-enum { _CS_LFS_LIBS = 1002 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_LFS_LINTFLAGS
-#  define __NIJI_D_enum__CS_LFS_LINTFLAGS 1
-#  ifndef _CS_LFS_LINTFLAGS
-enum { _CS_LFS_LINTFLAGS = 1003 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_PATH
-#  define __NIJI_D_enum__CS_PATH 1
+# ifndef __NIJI_D_anon__CS_GNU_LIBC_VERSION
+#  define __NIJI_D_anon__CS_GNU_LIBC_VERSION 1
+#  if !defined _CS_PATH || !defined _CS_V6_WIDTH_RESTRICTED_ENVS || !defined _CS_GNU_LIBC_VERSION || !defined _CS_GNU_LIBPTHREAD_VERSION || !defined _CS_V5_WIDTH_RESTRICTED_ENVS || !defined _CS_V7_WIDTH_RESTRICTED_ENVS \
+    || !defined _CS_LFS_CFLAGS || !defined _CS_LFS_LDFLAGS || !defined _CS_LFS_LIBS || !defined _CS_LFS_LINTFLAGS || !defined _CS_LFS64_CFLAGS || !defined _CS_LFS64_LDFLAGS \
+    || !defined _CS_LFS64_LIBS || !defined _CS_LFS64_LINTFLAGS || !defined _CS_XBS5_ILP32_OFF32_CFLAGS || !defined _CS_XBS5_ILP32_OFF32_LDFLAGS || !defined _CS_XBS5_ILP32_OFF32_LIBS || !defined _CS_XBS5_ILP32_OFF32_LINTFLAGS \
+    || !defined _CS_XBS5_ILP32_OFFBIG_CFLAGS || !defined _CS_XBS5_ILP32_OFFBIG_LDFLAGS || !defined _CS_XBS5_ILP32_OFFBIG_LIBS || !defined _CS_XBS5_ILP32_OFFBIG_LINTFLAGS || !defined _CS_XBS5_LP64_OFF64_CFLAGS || !defined _CS_XBS5_LP64_OFF64_LDFLAGS \
+    || !defined _CS_XBS5_LP64_OFF64_LIBS || !defined _CS_XBS5_LP64_OFF64_LINTFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_CFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_LDFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_LIBS || !defined _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS \
+    || !defined _CS_POSIX_V6_ILP32_OFF32_CFLAGS || !defined _CS_POSIX_V6_ILP32_OFF32_LDFLAGS || !defined _CS_POSIX_V6_ILP32_OFF32_LIBS || !defined _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS || !defined _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS || !defined _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS \
+    || !defined _CS_POSIX_V6_ILP32_OFFBIG_LIBS || !defined _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_CFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_LDFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_LIBS || !defined _CS_POSIX_V6_LP64_OFF64_LINTFLAGS \
+    || !defined _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LIBS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS || !defined _CS_POSIX_V7_ILP32_OFF32_CFLAGS || !defined _CS_POSIX_V7_ILP32_OFF32_LDFLAGS \
+    || !defined _CS_POSIX_V7_ILP32_OFF32_LIBS || !defined _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LIBS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS \
+    || !defined _CS_POSIX_V7_LP64_OFF64_CFLAGS || !defined _CS_POSIX_V7_LP64_OFF64_LDFLAGS || !defined _CS_POSIX_V7_LP64_OFF64_LIBS || !defined _CS_POSIX_V7_LP64_OFF64_LINTFLAGS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS \
+    || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LIBS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS || !defined _CS_V6_ENV || !defined _CS_V7_ENV
+enum {
 #  ifndef _CS_PATH
-enum { _CS_PATH = 0 };
+  _CS_PATH = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_CFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFF32_CFLAGS
-enum { _CS_POSIX_V6_ILP32_OFF32_CFLAGS = 1116 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LDFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
-enum { _CS_POSIX_V6_ILP32_OFF32_LDFLAGS = 1117 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LIBS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFF32_LIBS
-enum { _CS_POSIX_V6_ILP32_OFF32_LIBS = 1118 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFF32_LINTFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
-enum { _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS = 1119 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_CFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
-enum { _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS = 1120 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
-enum { _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS = 1121 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LIBS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LIBS
-enum { _CS_POSIX_V6_ILP32_OFFBIG_LIBS = 1122 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS 1
-#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
-enum { _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS = 1123 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_CFLAGS 1
-#  ifndef _CS_POSIX_V6_LP64_OFF64_CFLAGS
-enum { _CS_POSIX_V6_LP64_OFF64_CFLAGS = 1124 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LDFLAGS 1
-#  ifndef _CS_POSIX_V6_LP64_OFF64_LDFLAGS
-enum { _CS_POSIX_V6_LP64_OFF64_LDFLAGS = 1125 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LIBS 1
-#  ifndef _CS_POSIX_V6_LP64_OFF64_LIBS
-enum { _CS_POSIX_V6_LP64_OFF64_LIBS = 1126 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LP64_OFF64_LINTFLAGS 1
-#  ifndef _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
-enum { _CS_POSIX_V6_LP64_OFF64_LINTFLAGS = 1127 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS 1
-#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
-enum { _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS = 1128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS 1
-#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
-enum { _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS = 1129 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LIBS 1
-#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
-enum { _CS_POSIX_V6_LPBIG_OFFBIG_LIBS = 1130 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS 1
-#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
-enum { _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS = 1131 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_CFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFF32_CFLAGS
-enum { _CS_POSIX_V7_ILP32_OFF32_CFLAGS = 1132 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LDFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
-enum { _CS_POSIX_V7_ILP32_OFF32_LDFLAGS = 1133 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LIBS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFF32_LIBS
-enum { _CS_POSIX_V7_ILP32_OFF32_LIBS = 1134 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFF32_LINTFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
-enum { _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS = 1135 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_CFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
-enum { _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS = 1136 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
-enum { _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS = 1137 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LIBS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LIBS
-enum { _CS_POSIX_V7_ILP32_OFFBIG_LIBS = 1138 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS 1
-#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
-enum { _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS = 1139 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_CFLAGS 1
-#  ifndef _CS_POSIX_V7_LP64_OFF64_CFLAGS
-enum { _CS_POSIX_V7_LP64_OFF64_CFLAGS = 1140 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LDFLAGS 1
-#  ifndef _CS_POSIX_V7_LP64_OFF64_LDFLAGS
-enum { _CS_POSIX_V7_LP64_OFF64_LDFLAGS = 1141 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LIBS 1
-#  ifndef _CS_POSIX_V7_LP64_OFF64_LIBS
-enum { _CS_POSIX_V7_LP64_OFF64_LIBS = 1142 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LP64_OFF64_LINTFLAGS 1
-#  ifndef _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
-enum { _CS_POSIX_V7_LP64_OFF64_LINTFLAGS = 1143 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS 1
-#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
-enum { _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS = 1144 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS 1
-#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
-enum { _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS = 1145 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LIBS 1
-#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
-enum { _CS_POSIX_V7_LPBIG_OFFBIG_LIBS = 1146 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS 1
-#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
-enum { _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS = 1147 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_V5_WIDTH_RESTRICTED_ENVS
-#  define __NIJI_D_enum__CS_V5_WIDTH_RESTRICTED_ENVS 1
-#  ifndef _CS_V5_WIDTH_RESTRICTED_ENVS
-enum { _CS_V5_WIDTH_RESTRICTED_ENVS = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_V6_ENV
-#  define __NIJI_D_enum__CS_V6_ENV 1
-#  ifndef _CS_V6_ENV
-enum { _CS_V6_ENV = 1148 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__CS_V6_WIDTH_RESTRICTED_ENVS
-#  define __NIJI_D_enum__CS_V6_WIDTH_RESTRICTED_ENVS 1
 #  ifndef _CS_V6_WIDTH_RESTRICTED_ENVS
-enum { _CS_V6_WIDTH_RESTRICTED_ENVS = 1 };
+  _CS_V6_WIDTH_RESTRICTED_ENVS = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_V7_ENV
-#  define __NIJI_D_enum__CS_V7_ENV 1
-#  ifndef _CS_V7_ENV
-enum { _CS_V7_ENV = 1149 };
+#  ifndef _CS_GNU_LIBC_VERSION
+  _CS_GNU_LIBC_VERSION = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_V7_WIDTH_RESTRICTED_ENVS
-#  define __NIJI_D_enum__CS_V7_WIDTH_RESTRICTED_ENVS 1
+#  ifndef _CS_GNU_LIBPTHREAD_VERSION
+  _CS_GNU_LIBPTHREAD_VERSION = 3,
+#  endif
+#  ifndef _CS_V5_WIDTH_RESTRICTED_ENVS
+  _CS_V5_WIDTH_RESTRICTED_ENVS = 4,
+#  endif
 #  ifndef _CS_V7_WIDTH_RESTRICTED_ENVS
-enum { _CS_V7_WIDTH_RESTRICTED_ENVS = 5 };
+  _CS_V7_WIDTH_RESTRICTED_ENVS = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFF32_CFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFF32_CFLAGS 1
+#  ifndef _CS_LFS_CFLAGS
+  _CS_LFS_CFLAGS = 1000,
+#  endif
+#  ifndef _CS_LFS_LDFLAGS
+  _CS_LFS_LDFLAGS = 1001,
+#  endif
+#  ifndef _CS_LFS_LIBS
+  _CS_LFS_LIBS = 1002,
+#  endif
+#  ifndef _CS_LFS_LINTFLAGS
+  _CS_LFS_LINTFLAGS = 1003,
+#  endif
+#  ifndef _CS_LFS64_CFLAGS
+  _CS_LFS64_CFLAGS = 1004,
+#  endif
+#  ifndef _CS_LFS64_LDFLAGS
+  _CS_LFS64_LDFLAGS = 1005,
+#  endif
+#  ifndef _CS_LFS64_LIBS
+  _CS_LFS64_LIBS = 1006,
+#  endif
+#  ifndef _CS_LFS64_LINTFLAGS
+  _CS_LFS64_LINTFLAGS = 1007,
+#  endif
 #  ifndef _CS_XBS5_ILP32_OFF32_CFLAGS
-enum { _CS_XBS5_ILP32_OFF32_CFLAGS = 1100 };
+  _CS_XBS5_ILP32_OFF32_CFLAGS = 1100,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LDFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LDFLAGS 1
 #  ifndef _CS_XBS5_ILP32_OFF32_LDFLAGS
-enum { _CS_XBS5_ILP32_OFF32_LDFLAGS = 1101 };
+  _CS_XBS5_ILP32_OFF32_LDFLAGS = 1101,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LIBS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LIBS 1
 #  ifndef _CS_XBS5_ILP32_OFF32_LIBS
-enum { _CS_XBS5_ILP32_OFF32_LIBS = 1102 };
+  _CS_XBS5_ILP32_OFF32_LIBS = 1102,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LINTFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFF32_LINTFLAGS 1
 #  ifndef _CS_XBS5_ILP32_OFF32_LINTFLAGS
-enum { _CS_XBS5_ILP32_OFF32_LINTFLAGS = 1103 };
+  _CS_XBS5_ILP32_OFF32_LINTFLAGS = 1103,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_CFLAGS 1
 #  ifndef _CS_XBS5_ILP32_OFFBIG_CFLAGS
-enum { _CS_XBS5_ILP32_OFFBIG_CFLAGS = 1104 };
+  _CS_XBS5_ILP32_OFFBIG_CFLAGS = 1104,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LDFLAGS 1
 #  ifndef _CS_XBS5_ILP32_OFFBIG_LDFLAGS
-enum { _CS_XBS5_ILP32_OFFBIG_LDFLAGS = 1105 };
+  _CS_XBS5_ILP32_OFFBIG_LDFLAGS = 1105,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LIBS 1
 #  ifndef _CS_XBS5_ILP32_OFFBIG_LIBS
-enum { _CS_XBS5_ILP32_OFFBIG_LIBS = 1106 };
+  _CS_XBS5_ILP32_OFFBIG_LIBS = 1106,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_XBS5_ILP32_OFFBIG_LINTFLAGS 1
 #  ifndef _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
-enum { _CS_XBS5_ILP32_OFFBIG_LINTFLAGS = 1107 };
+  _CS_XBS5_ILP32_OFFBIG_LINTFLAGS = 1107,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LP64_OFF64_CFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LP64_OFF64_CFLAGS 1
 #  ifndef _CS_XBS5_LP64_OFF64_CFLAGS
-enum { _CS_XBS5_LP64_OFF64_CFLAGS = 1108 };
+  _CS_XBS5_LP64_OFF64_CFLAGS = 1108,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LP64_OFF64_LDFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LP64_OFF64_LDFLAGS 1
 #  ifndef _CS_XBS5_LP64_OFF64_LDFLAGS
-enum { _CS_XBS5_LP64_OFF64_LDFLAGS = 1109 };
+  _CS_XBS5_LP64_OFF64_LDFLAGS = 1109,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LP64_OFF64_LIBS
-#  define __NIJI_D_enum__CS_XBS5_LP64_OFF64_LIBS 1
 #  ifndef _CS_XBS5_LP64_OFF64_LIBS
-enum { _CS_XBS5_LP64_OFF64_LIBS = 1110 };
+  _CS_XBS5_LP64_OFF64_LIBS = 1110,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LP64_OFF64_LINTFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LP64_OFF64_LINTFLAGS 1
 #  ifndef _CS_XBS5_LP64_OFF64_LINTFLAGS
-enum { _CS_XBS5_LP64_OFF64_LINTFLAGS = 1111 };
+  _CS_XBS5_LP64_OFF64_LINTFLAGS = 1111,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_CFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_CFLAGS 1
 #  ifndef _CS_XBS5_LPBIG_OFFBIG_CFLAGS
-enum { _CS_XBS5_LPBIG_OFFBIG_CFLAGS = 1112 };
+  _CS_XBS5_LPBIG_OFFBIG_CFLAGS = 1112,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LDFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LDFLAGS 1
 #  ifndef _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
-enum { _CS_XBS5_LPBIG_OFFBIG_LDFLAGS = 1113 };
+  _CS_XBS5_LPBIG_OFFBIG_LDFLAGS = 1113,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LIBS
-#  define __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LIBS 1
 #  ifndef _CS_XBS5_LPBIG_OFFBIG_LIBS
-enum { _CS_XBS5_LPBIG_OFFBIG_LIBS = 1114 };
+  _CS_XBS5_LPBIG_OFFBIG_LIBS = 1114,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
-#  define __NIJI_D_enum__CS_XBS5_LPBIG_OFFBIG_LINTFLAGS 1
 #  ifndef _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
-enum { _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS = 1115 };
+  _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS = 1115,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFF32_CFLAGS
+  _CS_POSIX_V6_ILP32_OFF32_CFLAGS = 1116,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
+  _CS_POSIX_V6_ILP32_OFF32_LDFLAGS = 1117,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFF32_LIBS
+  _CS_POSIX_V6_ILP32_OFF32_LIBS = 1118,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
+  _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS = 1119,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
+  _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS = 1120,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
+  _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS = 1121,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LIBS
+  _CS_POSIX_V6_ILP32_OFFBIG_LIBS = 1122,
+#  endif
+#  ifndef _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
+  _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS = 1123,
+#  endif
+#  ifndef _CS_POSIX_V6_LP64_OFF64_CFLAGS
+  _CS_POSIX_V6_LP64_OFF64_CFLAGS = 1124,
+#  endif
+#  ifndef _CS_POSIX_V6_LP64_OFF64_LDFLAGS
+  _CS_POSIX_V6_LP64_OFF64_LDFLAGS = 1125,
+#  endif
+#  ifndef _CS_POSIX_V6_LP64_OFF64_LIBS
+  _CS_POSIX_V6_LP64_OFF64_LIBS = 1126,
+#  endif
+#  ifndef _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
+  _CS_POSIX_V6_LP64_OFF64_LINTFLAGS = 1127,
+#  endif
+#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
+  _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS = 1128,
+#  endif
+#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
+  _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS = 1129,
+#  endif
+#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
+  _CS_POSIX_V6_LPBIG_OFFBIG_LIBS = 1130,
+#  endif
+#  ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
+  _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS = 1131,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFF32_CFLAGS
+  _CS_POSIX_V7_ILP32_OFF32_CFLAGS = 1132,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
+  _CS_POSIX_V7_ILP32_OFF32_LDFLAGS = 1133,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFF32_LIBS
+  _CS_POSIX_V7_ILP32_OFF32_LIBS = 1134,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
+  _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS = 1135,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
+  _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS = 1136,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
+  _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS = 1137,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LIBS
+  _CS_POSIX_V7_ILP32_OFFBIG_LIBS = 1138,
+#  endif
+#  ifndef _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
+  _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS = 1139,
+#  endif
+#  ifndef _CS_POSIX_V7_LP64_OFF64_CFLAGS
+  _CS_POSIX_V7_LP64_OFF64_CFLAGS = 1140,
+#  endif
+#  ifndef _CS_POSIX_V7_LP64_OFF64_LDFLAGS
+  _CS_POSIX_V7_LP64_OFF64_LDFLAGS = 1141,
+#  endif
+#  ifndef _CS_POSIX_V7_LP64_OFF64_LIBS
+  _CS_POSIX_V7_LP64_OFF64_LIBS = 1142,
+#  endif
+#  ifndef _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
+  _CS_POSIX_V7_LP64_OFF64_LINTFLAGS = 1143,
+#  endif
+#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
+  _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS = 1144,
+#  endif
+#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
+  _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS = 1145,
+#  endif
+#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
+  _CS_POSIX_V7_LPBIG_OFFBIG_LIBS = 1146,
+#  endif
+#  ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
+  _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS = 1147,
+#  endif
+#  ifndef _CS_V6_ENV
+  _CS_V6_ENV = 1148,
+#  endif
+#  ifndef _CS_V7_ENV
+  _CS_V7_ENV = 1149,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum__PC_2_SYMLINKS
-#  define __NIJI_D_enum__PC_2_SYMLINKS 1
-#  ifndef _PC_2_SYMLINKS
-enum { _PC_2_SYMLINKS = 20 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_ALLOC_SIZE_MIN
-#  define __NIJI_D_enum__PC_ALLOC_SIZE_MIN 1
-#  ifndef _PC_ALLOC_SIZE_MIN
-enum { _PC_ALLOC_SIZE_MIN = 18 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_ASYNC_IO
-#  define __NIJI_D_enum__PC_ASYNC_IO 1
-#  ifndef _PC_ASYNC_IO
-enum { _PC_ASYNC_IO = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_CHOWN_RESTRICTED
-#  define __NIJI_D_enum__PC_CHOWN_RESTRICTED 1
-#  ifndef _PC_CHOWN_RESTRICTED
-enum { _PC_CHOWN_RESTRICTED = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_FILESIZEBITS
-#  define __NIJI_D_enum__PC_FILESIZEBITS 1
-#  ifndef _PC_FILESIZEBITS
-enum { _PC_FILESIZEBITS = 13 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_LINK_MAX
-#  define __NIJI_D_enum__PC_LINK_MAX 1
+# ifndef __NIJI_D_anon__PC_2_SYMLINKS
+#  define __NIJI_D_anon__PC_2_SYMLINKS 1
+#  if !defined _PC_LINK_MAX || !defined _PC_MAX_CANON || !defined _PC_MAX_INPUT || !defined _PC_NAME_MAX || !defined _PC_PATH_MAX || !defined _PC_PIPE_BUF \
+    || !defined _PC_CHOWN_RESTRICTED || !defined _PC_NO_TRUNC || !defined _PC_VDISABLE || !defined _PC_SYNC_IO || !defined _PC_ASYNC_IO || !defined _PC_PRIO_IO \
+    || !defined _PC_SOCK_MAXBUF || !defined _PC_FILESIZEBITS || !defined _PC_REC_INCR_XFER_SIZE || !defined _PC_REC_MAX_XFER_SIZE || !defined _PC_REC_MIN_XFER_SIZE || !defined _PC_REC_XFER_ALIGN \
+    || !defined _PC_ALLOC_SIZE_MIN || !defined _PC_SYMLINK_MAX || !defined _PC_2_SYMLINKS
+enum {
 #  ifndef _PC_LINK_MAX
-enum { _PC_LINK_MAX = 0 };
+  _PC_LINK_MAX = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_MAX_CANON
-#  define __NIJI_D_enum__PC_MAX_CANON 1
 #  ifndef _PC_MAX_CANON
-enum { _PC_MAX_CANON = 1 };
+  _PC_MAX_CANON = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_MAX_INPUT
-#  define __NIJI_D_enum__PC_MAX_INPUT 1
 #  ifndef _PC_MAX_INPUT
-enum { _PC_MAX_INPUT = 2 };
+  _PC_MAX_INPUT = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_NAME_MAX
-#  define __NIJI_D_enum__PC_NAME_MAX 1
 #  ifndef _PC_NAME_MAX
-enum { _PC_NAME_MAX = 3 };
+  _PC_NAME_MAX = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_NO_TRUNC
-#  define __NIJI_D_enum__PC_NO_TRUNC 1
-#  ifndef _PC_NO_TRUNC
-enum { _PC_NO_TRUNC = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_PATH_MAX
-#  define __NIJI_D_enum__PC_PATH_MAX 1
 #  ifndef _PC_PATH_MAX
-enum { _PC_PATH_MAX = 4 };
+  _PC_PATH_MAX = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_PIPE_BUF
-#  define __NIJI_D_enum__PC_PIPE_BUF 1
 #  ifndef _PC_PIPE_BUF
-enum { _PC_PIPE_BUF = 5 };
+  _PC_PIPE_BUF = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_PRIO_IO
-#  define __NIJI_D_enum__PC_PRIO_IO 1
-#  ifndef _PC_PRIO_IO
-enum { _PC_PRIO_IO = 11 };
+#  ifndef _PC_CHOWN_RESTRICTED
+  _PC_CHOWN_RESTRICTED = 6,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_REC_INCR_XFER_SIZE
-#  define __NIJI_D_enum__PC_REC_INCR_XFER_SIZE 1
-#  ifndef _PC_REC_INCR_XFER_SIZE
-enum { _PC_REC_INCR_XFER_SIZE = 14 };
+#  ifndef _PC_NO_TRUNC
+  _PC_NO_TRUNC = 7,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__PC_REC_MAX_XFER_SIZE
-#  define __NIJI_D_enum__PC_REC_MAX_XFER_SIZE 1
-#  ifndef _PC_REC_MAX_XFER_SIZE
-enum { _PC_REC_MAX_XFER_SIZE = 15 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_REC_MIN_XFER_SIZE
-#  define __NIJI_D_enum__PC_REC_MIN_XFER_SIZE 1
-#  ifndef _PC_REC_MIN_XFER_SIZE
-enum { _PC_REC_MIN_XFER_SIZE = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_REC_XFER_ALIGN
-#  define __NIJI_D_enum__PC_REC_XFER_ALIGN 1
-#  ifndef _PC_REC_XFER_ALIGN
-enum { _PC_REC_XFER_ALIGN = 17 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_SOCK_MAXBUF
-#  define __NIJI_D_enum__PC_SOCK_MAXBUF 1
-#  ifndef _PC_SOCK_MAXBUF
-enum { _PC_SOCK_MAXBUF = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_SYMLINK_MAX
-#  define __NIJI_D_enum__PC_SYMLINK_MAX 1
-#  ifndef _PC_SYMLINK_MAX
-enum { _PC_SYMLINK_MAX = 19 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_SYNC_IO
-#  define __NIJI_D_enum__PC_SYNC_IO 1
-#  ifndef _PC_SYNC_IO
-enum { _PC_SYNC_IO = 9 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__PC_VDISABLE
-#  define __NIJI_D_enum__PC_VDISABLE 1
 #  ifndef _PC_VDISABLE
-enum { _PC_VDISABLE = 8 };
+  _PC_VDISABLE = 8,
+#  endif
+#  ifndef _PC_SYNC_IO
+  _PC_SYNC_IO = 9,
+#  endif
+#  ifndef _PC_ASYNC_IO
+  _PC_ASYNC_IO = 10,
+#  endif
+#  ifndef _PC_PRIO_IO
+  _PC_PRIO_IO = 11,
+#  endif
+#  ifndef _PC_SOCK_MAXBUF
+  _PC_SOCK_MAXBUF = 12,
+#  endif
+#  ifndef _PC_FILESIZEBITS
+  _PC_FILESIZEBITS = 13,
+#  endif
+#  ifndef _PC_REC_INCR_XFER_SIZE
+  _PC_REC_INCR_XFER_SIZE = 14,
+#  endif
+#  ifndef _PC_REC_MAX_XFER_SIZE
+  _PC_REC_MAX_XFER_SIZE = 15,
+#  endif
+#  ifndef _PC_REC_MIN_XFER_SIZE
+  _PC_REC_MIN_XFER_SIZE = 16,
+#  endif
+#  ifndef _PC_REC_XFER_ALIGN
+  _PC_REC_XFER_ALIGN = 17,
+#  endif
+#  ifndef _PC_ALLOC_SIZE_MIN
+  _PC_ALLOC_SIZE_MIN = 18,
+#  endif
+#  ifndef _PC_SYMLINK_MAX
+  _PC_SYMLINK_MAX = 19,
+#  endif
+#  ifndef _PC_2_SYMLINKS
+  _PC_2_SYMLINKS = 20,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum__SC_2_CHAR_TERM
-#  define __NIJI_D_enum__SC_2_CHAR_TERM 1
-#  ifndef _SC_2_CHAR_TERM
-enum { _SC_2_CHAR_TERM = 95 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_C_BIND
-#  define __NIJI_D_enum__SC_2_C_BIND 1
-#  ifndef _SC_2_C_BIND
-enum { _SC_2_C_BIND = 47 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_C_DEV
-#  define __NIJI_D_enum__SC_2_C_DEV 1
-#  ifndef _SC_2_C_DEV
-enum { _SC_2_C_DEV = 48 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_C_VERSION
-#  define __NIJI_D_enum__SC_2_C_VERSION 1
-#  ifndef _SC_2_C_VERSION
-enum { _SC_2_C_VERSION = 96 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_FORT_DEV
-#  define __NIJI_D_enum__SC_2_FORT_DEV 1
-#  ifndef _SC_2_FORT_DEV
-enum { _SC_2_FORT_DEV = 49 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_FORT_RUN
-#  define __NIJI_D_enum__SC_2_FORT_RUN 1
-#  ifndef _SC_2_FORT_RUN
-enum { _SC_2_FORT_RUN = 50 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_LOCALEDEF
-#  define __NIJI_D_enum__SC_2_LOCALEDEF 1
-#  ifndef _SC_2_LOCALEDEF
-enum { _SC_2_LOCALEDEF = 52 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS
-#  define __NIJI_D_enum__SC_2_PBS 1
-#  ifndef _SC_2_PBS
-enum { _SC_2_PBS = 168 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS_ACCOUNTING
-#  define __NIJI_D_enum__SC_2_PBS_ACCOUNTING 1
-#  ifndef _SC_2_PBS_ACCOUNTING
-enum { _SC_2_PBS_ACCOUNTING = 169 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS_CHECKPOINT
-#  define __NIJI_D_enum__SC_2_PBS_CHECKPOINT 1
-#  ifndef _SC_2_PBS_CHECKPOINT
-enum { _SC_2_PBS_CHECKPOINT = 175 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS_LOCATE
-#  define __NIJI_D_enum__SC_2_PBS_LOCATE 1
-#  ifndef _SC_2_PBS_LOCATE
-enum { _SC_2_PBS_LOCATE = 170 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS_MESSAGE
-#  define __NIJI_D_enum__SC_2_PBS_MESSAGE 1
-#  ifndef _SC_2_PBS_MESSAGE
-enum { _SC_2_PBS_MESSAGE = 171 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_PBS_TRACK
-#  define __NIJI_D_enum__SC_2_PBS_TRACK 1
-#  ifndef _SC_2_PBS_TRACK
-enum { _SC_2_PBS_TRACK = 172 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_SW_DEV
-#  define __NIJI_D_enum__SC_2_SW_DEV 1
-#  ifndef _SC_2_SW_DEV
-enum { _SC_2_SW_DEV = 51 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_UPE
-#  define __NIJI_D_enum__SC_2_UPE 1
-#  ifndef _SC_2_UPE
-enum { _SC_2_UPE = 97 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_2_VERSION
-#  define __NIJI_D_enum__SC_2_VERSION 1
-#  ifndef _SC_2_VERSION
-enum { _SC_2_VERSION = 46 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_ADVISORY_INFO
-#  define __NIJI_D_enum__SC_ADVISORY_INFO 1
-#  ifndef _SC_ADVISORY_INFO
-enum { _SC_ADVISORY_INFO = 132 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_AIO_LISTIO_MAX
-#  define __NIJI_D_enum__SC_AIO_LISTIO_MAX 1
-#  ifndef _SC_AIO_LISTIO_MAX
-enum { _SC_AIO_LISTIO_MAX = 23 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_AIO_MAX
-#  define __NIJI_D_enum__SC_AIO_MAX 1
-#  ifndef _SC_AIO_MAX
-enum { _SC_AIO_MAX = 24 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_AIO_PRIO_DELTA_MAX
-#  define __NIJI_D_enum__SC_AIO_PRIO_DELTA_MAX 1
-#  ifndef _SC_AIO_PRIO_DELTA_MAX
-enum { _SC_AIO_PRIO_DELTA_MAX = 25 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_ARG_MAX
-#  define __NIJI_D_enum__SC_ARG_MAX 1
+# ifndef __NIJI_D_anon__SC_2_CHAR_TERM
+#  define __NIJI_D_anon__SC_2_CHAR_TERM 1
+#  if !defined _SC_ARG_MAX || !defined _SC_CHILD_MAX || !defined _SC_CLK_TCK || !defined _SC_NGROUPS_MAX || !defined _SC_OPEN_MAX || !defined _SC_STREAM_MAX \
+    || !defined _SC_TZNAME_MAX || !defined _SC_JOB_CONTROL || !defined _SC_SAVED_IDS || !defined _SC_REALTIME_SIGNALS || !defined _SC_PRIORITY_SCHEDULING || !defined _SC_TIMERS \
+    || !defined _SC_ASYNCHRONOUS_IO || !defined _SC_PRIORITIZED_IO || !defined _SC_SYNCHRONIZED_IO || !defined _SC_FSYNC || !defined _SC_MAPPED_FILES || !defined _SC_MEMLOCK \
+    || !defined _SC_MEMLOCK_RANGE || !defined _SC_MEMORY_PROTECTION || !defined _SC_MESSAGE_PASSING || !defined _SC_SEMAPHORES || !defined _SC_SHARED_MEMORY_OBJECTS || !defined _SC_AIO_LISTIO_MAX \
+    || !defined _SC_AIO_MAX || !defined _SC_AIO_PRIO_DELTA_MAX || !defined _SC_DELAYTIMER_MAX || !defined _SC_MQ_OPEN_MAX || !defined _SC_MQ_PRIO_MAX || !defined _SC_VERSION \
+    || !defined _SC_PAGESIZE || !defined _SC_RTSIG_MAX || !defined _SC_SEM_NSEMS_MAX || !defined _SC_SEM_VALUE_MAX || !defined _SC_SIGQUEUE_MAX || !defined _SC_TIMER_MAX \
+    || !defined _SC_BC_BASE_MAX || !defined _SC_BC_DIM_MAX || !defined _SC_BC_SCALE_MAX || !defined _SC_BC_STRING_MAX || !defined _SC_COLL_WEIGHTS_MAX || !defined _SC_EQUIV_CLASS_MAX \
+    || !defined _SC_EXPR_NEST_MAX || !defined _SC_LINE_MAX || !defined _SC_RE_DUP_MAX || !defined _SC_CHARCLASS_NAME_MAX || !defined _SC_2_VERSION || !defined _SC_2_C_BIND \
+    || !defined _SC_2_C_DEV || !defined _SC_2_FORT_DEV || !defined _SC_2_FORT_RUN || !defined _SC_2_SW_DEV || !defined _SC_2_LOCALEDEF || !defined _SC_PII \
+    || !defined _SC_PII_XTI || !defined _SC_PII_SOCKET || !defined _SC_PII_INTERNET || !defined _SC_PII_OSI || !defined _SC_POLL || !defined _SC_SELECT \
+    || !defined _SC_IOV_MAX || !defined _SC_UIO_MAXIOV || !defined _SC_PII_INTERNET_STREAM || !defined _SC_PII_INTERNET_DGRAM || !defined _SC_PII_OSI_COTS || !defined _SC_PII_OSI_CLTS \
+    || !defined _SC_PII_OSI_M || !defined _SC_T_IOV_MAX || !defined _SC_THREADS || !defined _SC_THREAD_SAFE_FUNCTIONS || !defined _SC_GETGR_R_SIZE_MAX || !defined _SC_GETPW_R_SIZE_MAX \
+    || !defined _SC_LOGIN_NAME_MAX || !defined _SC_TTY_NAME_MAX || !defined _SC_THREAD_DESTRUCTOR_ITERATIONS || !defined _SC_THREAD_KEYS_MAX || !defined _SC_THREAD_STACK_MIN || !defined _SC_THREAD_THREADS_MAX \
+    || !defined _SC_THREAD_ATTR_STACKADDR || !defined _SC_THREAD_ATTR_STACKSIZE || !defined _SC_THREAD_PRIORITY_SCHEDULING || !defined _SC_THREAD_PRIO_INHERIT || !defined _SC_THREAD_PRIO_PROTECT || !defined _SC_THREAD_PROCESS_SHARED \
+    || !defined _SC_NPROCESSORS_CONF || !defined _SC_NPROCESSORS_ONLN || !defined _SC_PHYS_PAGES || !defined _SC_AVPHYS_PAGES || !defined _SC_ATEXIT_MAX || !defined _SC_PASS_MAX \
+    || !defined _SC_XOPEN_VERSION || !defined _SC_XOPEN_XCU_VERSION || !defined _SC_XOPEN_UNIX || !defined _SC_XOPEN_CRYPT || !defined _SC_XOPEN_ENH_I18N || !defined _SC_XOPEN_SHM \
+    || !defined _SC_2_CHAR_TERM || !defined _SC_2_C_VERSION || !defined _SC_2_UPE || !defined _SC_XOPEN_XPG2 || !defined _SC_XOPEN_XPG3 || !defined _SC_XOPEN_XPG4 \
+    || !defined _SC_CHAR_BIT || !defined _SC_CHAR_MAX || !defined _SC_CHAR_MIN || !defined _SC_INT_MAX || !defined _SC_INT_MIN || !defined _SC_LONG_BIT \
+    || !defined _SC_WORD_BIT || !defined _SC_MB_LEN_MAX || !defined _SC_NZERO || !defined _SC_SSIZE_MAX || !defined _SC_SCHAR_MAX || !defined _SC_SCHAR_MIN \
+    || !defined _SC_SHRT_MAX || !defined _SC_SHRT_MIN || !defined _SC_UCHAR_MAX || !defined _SC_UINT_MAX || !defined _SC_ULONG_MAX || !defined _SC_USHRT_MAX \
+    || !defined _SC_NL_ARGMAX || !defined _SC_NL_LANGMAX || !defined _SC_NL_MSGMAX || !defined _SC_NL_NMAX || !defined _SC_NL_SETMAX || !defined _SC_NL_TEXTMAX \
+    || !defined _SC_XBS5_ILP32_OFF32 || !defined _SC_XBS5_ILP32_OFFBIG || !defined _SC_XBS5_LP64_OFF64 || !defined _SC_XBS5_LPBIG_OFFBIG || !defined _SC_XOPEN_LEGACY || !defined _SC_XOPEN_REALTIME \
+    || !defined _SC_XOPEN_REALTIME_THREADS || !defined _SC_ADVISORY_INFO || !defined _SC_BARRIERS || !defined _SC_BASE || !defined _SC_C_LANG_SUPPORT || !defined _SC_C_LANG_SUPPORT_R \
+    || !defined _SC_CLOCK_SELECTION || !defined _SC_CPUTIME || !defined _SC_THREAD_CPUTIME || !defined _SC_DEVICE_IO || !defined _SC_DEVICE_SPECIFIC || !defined _SC_DEVICE_SPECIFIC_R \
+    || !defined _SC_FD_MGMT || !defined _SC_FIFO || !defined _SC_PIPE || !defined _SC_FILE_ATTRIBUTES || !defined _SC_FILE_LOCKING || !defined _SC_FILE_SYSTEM \
+    || !defined _SC_MONOTONIC_CLOCK || !defined _SC_MULTI_PROCESS || !defined _SC_SINGLE_PROCESS || !defined _SC_NETWORKING || !defined _SC_READER_WRITER_LOCKS || !defined _SC_SPIN_LOCKS \
+    || !defined _SC_REGEXP || !defined _SC_REGEX_VERSION || !defined _SC_SHELL || !defined _SC_SIGNALS || !defined _SC_SPAWN || !defined _SC_SPORADIC_SERVER \
+    || !defined _SC_THREAD_SPORADIC_SERVER || !defined _SC_SYSTEM_DATABASE || !defined _SC_SYSTEM_DATABASE_R || !defined _SC_TIMEOUTS || !defined _SC_TYPED_MEMORY_OBJECTS || !defined _SC_USER_GROUPS \
+    || !defined _SC_USER_GROUPS_R || !defined _SC_2_PBS || !defined _SC_2_PBS_ACCOUNTING || !defined _SC_2_PBS_LOCATE || !defined _SC_2_PBS_MESSAGE || !defined _SC_2_PBS_TRACK \
+    || !defined _SC_SYMLOOP_MAX || !defined _SC_STREAMS || !defined _SC_2_PBS_CHECKPOINT || !defined _SC_V6_ILP32_OFF32 || !defined _SC_V6_ILP32_OFFBIG || !defined _SC_V6_LP64_OFF64 \
+    || !defined _SC_V6_LPBIG_OFFBIG || !defined _SC_HOST_NAME_MAX || !defined _SC_TRACE || !defined _SC_TRACE_EVENT_FILTER || !defined _SC_TRACE_INHERIT || !defined _SC_TRACE_LOG \
+    || !defined _SC_LEVEL1_ICACHE_SIZE || !defined _SC_LEVEL1_ICACHE_ASSOC || !defined _SC_LEVEL1_ICACHE_LINESIZE || !defined _SC_LEVEL1_DCACHE_SIZE || !defined _SC_LEVEL1_DCACHE_ASSOC || !defined _SC_LEVEL1_DCACHE_LINESIZE \
+    || !defined _SC_LEVEL2_CACHE_SIZE || !defined _SC_LEVEL2_CACHE_ASSOC || !defined _SC_LEVEL2_CACHE_LINESIZE || !defined _SC_LEVEL3_CACHE_SIZE || !defined _SC_LEVEL3_CACHE_ASSOC || !defined _SC_LEVEL3_CACHE_LINESIZE \
+    || !defined _SC_LEVEL4_CACHE_SIZE || !defined _SC_LEVEL4_CACHE_ASSOC || !defined _SC_LEVEL4_CACHE_LINESIZE || !defined _SC_IPV6 || !defined _SC_RAW_SOCKETS || !defined _SC_V7_ILP32_OFF32 \
+    || !defined _SC_V7_ILP32_OFFBIG || !defined _SC_V7_LP64_OFF64 || !defined _SC_V7_LPBIG_OFFBIG || !defined _SC_SS_REPL_MAX || !defined _SC_TRACE_EVENT_NAME_MAX || !defined _SC_TRACE_NAME_MAX \
+    || !defined _SC_TRACE_SYS_MAX || !defined _SC_TRACE_USER_EVENT_MAX || !defined _SC_XOPEN_STREAMS || !defined _SC_THREAD_ROBUST_PRIO_INHERIT || !defined _SC_THREAD_ROBUST_PRIO_PROTECT || !defined _SC_MINSIGSTKSZ \
+    || !defined _SC_SIGSTKSZ
+enum {
 #  ifndef _SC_ARG_MAX
-enum { _SC_ARG_MAX = 0 };
+  _SC_ARG_MAX = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_ASYNCHRONOUS_IO
-#  define __NIJI_D_enum__SC_ASYNCHRONOUS_IO 1
-#  ifndef _SC_ASYNCHRONOUS_IO
-enum { _SC_ASYNCHRONOUS_IO = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_ATEXIT_MAX
-#  define __NIJI_D_enum__SC_ATEXIT_MAX 1
-#  ifndef _SC_ATEXIT_MAX
-enum { _SC_ATEXIT_MAX = 87 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_AVPHYS_PAGES
-#  define __NIJI_D_enum__SC_AVPHYS_PAGES 1
-#  ifndef _SC_AVPHYS_PAGES
-enum { _SC_AVPHYS_PAGES = 86 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BARRIERS
-#  define __NIJI_D_enum__SC_BARRIERS 1
-#  ifndef _SC_BARRIERS
-enum { _SC_BARRIERS = 133 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BASE
-#  define __NIJI_D_enum__SC_BASE 1
-#  ifndef _SC_BASE
-enum { _SC_BASE = 134 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BC_BASE_MAX
-#  define __NIJI_D_enum__SC_BC_BASE_MAX 1
-#  ifndef _SC_BC_BASE_MAX
-enum { _SC_BC_BASE_MAX = 36 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BC_DIM_MAX
-#  define __NIJI_D_enum__SC_BC_DIM_MAX 1
-#  ifndef _SC_BC_DIM_MAX
-enum { _SC_BC_DIM_MAX = 37 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BC_SCALE_MAX
-#  define __NIJI_D_enum__SC_BC_SCALE_MAX 1
-#  ifndef _SC_BC_SCALE_MAX
-enum { _SC_BC_SCALE_MAX = 38 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_BC_STRING_MAX
-#  define __NIJI_D_enum__SC_BC_STRING_MAX 1
-#  ifndef _SC_BC_STRING_MAX
-enum { _SC_BC_STRING_MAX = 39 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CHARCLASS_NAME_MAX
-#  define __NIJI_D_enum__SC_CHARCLASS_NAME_MAX 1
-#  ifndef _SC_CHARCLASS_NAME_MAX
-enum { _SC_CHARCLASS_NAME_MAX = 45 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CHAR_BIT
-#  define __NIJI_D_enum__SC_CHAR_BIT 1
-#  ifndef _SC_CHAR_BIT
-enum { _SC_CHAR_BIT = 101 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CHAR_MAX
-#  define __NIJI_D_enum__SC_CHAR_MAX 1
-#  ifndef _SC_CHAR_MAX
-enum { _SC_CHAR_MAX = 102 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CHAR_MIN
-#  define __NIJI_D_enum__SC_CHAR_MIN 1
-#  ifndef _SC_CHAR_MIN
-enum { _SC_CHAR_MIN = 103 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CHILD_MAX
-#  define __NIJI_D_enum__SC_CHILD_MAX 1
 #  ifndef _SC_CHILD_MAX
-enum { _SC_CHILD_MAX = 1 };
+  _SC_CHILD_MAX = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CLK_TCK
-#  define __NIJI_D_enum__SC_CLK_TCK 1
 #  ifndef _SC_CLK_TCK
-enum { _SC_CLK_TCK = 2 };
+  _SC_CLK_TCK = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CLOCK_SELECTION
-#  define __NIJI_D_enum__SC_CLOCK_SELECTION 1
-#  ifndef _SC_CLOCK_SELECTION
-enum { _SC_CLOCK_SELECTION = 137 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_COLL_WEIGHTS_MAX
-#  define __NIJI_D_enum__SC_COLL_WEIGHTS_MAX 1
-#  ifndef _SC_COLL_WEIGHTS_MAX
-enum { _SC_COLL_WEIGHTS_MAX = 40 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_CPUTIME
-#  define __NIJI_D_enum__SC_CPUTIME 1
-#  ifndef _SC_CPUTIME
-enum { _SC_CPUTIME = 138 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_C_LANG_SUPPORT
-#  define __NIJI_D_enum__SC_C_LANG_SUPPORT 1
-#  ifndef _SC_C_LANG_SUPPORT
-enum { _SC_C_LANG_SUPPORT = 135 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_C_LANG_SUPPORT_R
-#  define __NIJI_D_enum__SC_C_LANG_SUPPORT_R 1
-#  ifndef _SC_C_LANG_SUPPORT_R
-enum { _SC_C_LANG_SUPPORT_R = 136 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_DELAYTIMER_MAX
-#  define __NIJI_D_enum__SC_DELAYTIMER_MAX 1
-#  ifndef _SC_DELAYTIMER_MAX
-enum { _SC_DELAYTIMER_MAX = 26 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_DEVICE_IO
-#  define __NIJI_D_enum__SC_DEVICE_IO 1
-#  ifndef _SC_DEVICE_IO
-enum { _SC_DEVICE_IO = 140 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_DEVICE_SPECIFIC
-#  define __NIJI_D_enum__SC_DEVICE_SPECIFIC 1
-#  ifndef _SC_DEVICE_SPECIFIC
-enum { _SC_DEVICE_SPECIFIC = 141 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_DEVICE_SPECIFIC_R
-#  define __NIJI_D_enum__SC_DEVICE_SPECIFIC_R 1
-#  ifndef _SC_DEVICE_SPECIFIC_R
-enum { _SC_DEVICE_SPECIFIC_R = 142 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_EQUIV_CLASS_MAX
-#  define __NIJI_D_enum__SC_EQUIV_CLASS_MAX 1
-#  ifndef _SC_EQUIV_CLASS_MAX
-enum { _SC_EQUIV_CLASS_MAX = 41 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_EXPR_NEST_MAX
-#  define __NIJI_D_enum__SC_EXPR_NEST_MAX 1
-#  ifndef _SC_EXPR_NEST_MAX
-enum { _SC_EXPR_NEST_MAX = 42 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FD_MGMT
-#  define __NIJI_D_enum__SC_FD_MGMT 1
-#  ifndef _SC_FD_MGMT
-enum { _SC_FD_MGMT = 143 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FIFO
-#  define __NIJI_D_enum__SC_FIFO 1
-#  ifndef _SC_FIFO
-enum { _SC_FIFO = 144 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FILE_ATTRIBUTES
-#  define __NIJI_D_enum__SC_FILE_ATTRIBUTES 1
-#  ifndef _SC_FILE_ATTRIBUTES
-enum { _SC_FILE_ATTRIBUTES = 146 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FILE_LOCKING
-#  define __NIJI_D_enum__SC_FILE_LOCKING 1
-#  ifndef _SC_FILE_LOCKING
-enum { _SC_FILE_LOCKING = 147 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FILE_SYSTEM
-#  define __NIJI_D_enum__SC_FILE_SYSTEM 1
-#  ifndef _SC_FILE_SYSTEM
-enum { _SC_FILE_SYSTEM = 148 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_FSYNC
-#  define __NIJI_D_enum__SC_FSYNC 1
-#  ifndef _SC_FSYNC
-enum { _SC_FSYNC = 15 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_GETGR_R_SIZE_MAX
-#  define __NIJI_D_enum__SC_GETGR_R_SIZE_MAX 1
-#  ifndef _SC_GETGR_R_SIZE_MAX
-enum { _SC_GETGR_R_SIZE_MAX = 69 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_GETPW_R_SIZE_MAX
-#  define __NIJI_D_enum__SC_GETPW_R_SIZE_MAX 1
-#  ifndef _SC_GETPW_R_SIZE_MAX
-enum { _SC_GETPW_R_SIZE_MAX = 70 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_HOST_NAME_MAX
-#  define __NIJI_D_enum__SC_HOST_NAME_MAX 1
-#  ifndef _SC_HOST_NAME_MAX
-enum { _SC_HOST_NAME_MAX = 180 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_INT_MAX
-#  define __NIJI_D_enum__SC_INT_MAX 1
-#  ifndef _SC_INT_MAX
-enum { _SC_INT_MAX = 104 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_INT_MIN
-#  define __NIJI_D_enum__SC_INT_MIN 1
-#  ifndef _SC_INT_MIN
-enum { _SC_INT_MIN = 105 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_IOV_MAX
-#  define __NIJI_D_enum__SC_IOV_MAX 1
-#  ifndef _SC_IOV_MAX
-enum { _SC_IOV_MAX = 60 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_IPV6
-#  define __NIJI_D_enum__SC_IPV6 1
-#  ifndef _SC_IPV6
-enum { _SC_IPV6 = 235 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_JOB_CONTROL
-#  define __NIJI_D_enum__SC_JOB_CONTROL 1
-#  ifndef _SC_JOB_CONTROL
-enum { _SC_JOB_CONTROL = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_DCACHE_ASSOC
-#  define __NIJI_D_enum__SC_LEVEL1_DCACHE_ASSOC 1
-#  ifndef _SC_LEVEL1_DCACHE_ASSOC
-enum { _SC_LEVEL1_DCACHE_ASSOC = 189 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_DCACHE_LINESIZE
-#  define __NIJI_D_enum__SC_LEVEL1_DCACHE_LINESIZE 1
-#  ifndef _SC_LEVEL1_DCACHE_LINESIZE
-enum { _SC_LEVEL1_DCACHE_LINESIZE = 190 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_DCACHE_SIZE
-#  define __NIJI_D_enum__SC_LEVEL1_DCACHE_SIZE 1
-#  ifndef _SC_LEVEL1_DCACHE_SIZE
-enum { _SC_LEVEL1_DCACHE_SIZE = 188 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_ICACHE_ASSOC
-#  define __NIJI_D_enum__SC_LEVEL1_ICACHE_ASSOC 1
-#  ifndef _SC_LEVEL1_ICACHE_ASSOC
-enum { _SC_LEVEL1_ICACHE_ASSOC = 186 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_ICACHE_LINESIZE
-#  define __NIJI_D_enum__SC_LEVEL1_ICACHE_LINESIZE 1
-#  ifndef _SC_LEVEL1_ICACHE_LINESIZE
-enum { _SC_LEVEL1_ICACHE_LINESIZE = 187 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL1_ICACHE_SIZE
-#  define __NIJI_D_enum__SC_LEVEL1_ICACHE_SIZE 1
-#  ifndef _SC_LEVEL1_ICACHE_SIZE
-enum { _SC_LEVEL1_ICACHE_SIZE = 185 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL2_CACHE_ASSOC
-#  define __NIJI_D_enum__SC_LEVEL2_CACHE_ASSOC 1
-#  ifndef _SC_LEVEL2_CACHE_ASSOC
-enum { _SC_LEVEL2_CACHE_ASSOC = 192 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL2_CACHE_LINESIZE
-#  define __NIJI_D_enum__SC_LEVEL2_CACHE_LINESIZE 1
-#  ifndef _SC_LEVEL2_CACHE_LINESIZE
-enum { _SC_LEVEL2_CACHE_LINESIZE = 193 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL2_CACHE_SIZE
-#  define __NIJI_D_enum__SC_LEVEL2_CACHE_SIZE 1
-#  ifndef _SC_LEVEL2_CACHE_SIZE
-enum { _SC_LEVEL2_CACHE_SIZE = 191 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL3_CACHE_ASSOC
-#  define __NIJI_D_enum__SC_LEVEL3_CACHE_ASSOC 1
-#  ifndef _SC_LEVEL3_CACHE_ASSOC
-enum { _SC_LEVEL3_CACHE_ASSOC = 195 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL3_CACHE_LINESIZE
-#  define __NIJI_D_enum__SC_LEVEL3_CACHE_LINESIZE 1
-#  ifndef _SC_LEVEL3_CACHE_LINESIZE
-enum { _SC_LEVEL3_CACHE_LINESIZE = 196 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL3_CACHE_SIZE
-#  define __NIJI_D_enum__SC_LEVEL3_CACHE_SIZE 1
-#  ifndef _SC_LEVEL3_CACHE_SIZE
-enum { _SC_LEVEL3_CACHE_SIZE = 194 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL4_CACHE_ASSOC
-#  define __NIJI_D_enum__SC_LEVEL4_CACHE_ASSOC 1
-#  ifndef _SC_LEVEL4_CACHE_ASSOC
-enum { _SC_LEVEL4_CACHE_ASSOC = 198 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL4_CACHE_LINESIZE
-#  define __NIJI_D_enum__SC_LEVEL4_CACHE_LINESIZE 1
-#  ifndef _SC_LEVEL4_CACHE_LINESIZE
-enum { _SC_LEVEL4_CACHE_LINESIZE = 199 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LEVEL4_CACHE_SIZE
-#  define __NIJI_D_enum__SC_LEVEL4_CACHE_SIZE 1
-#  ifndef _SC_LEVEL4_CACHE_SIZE
-enum { _SC_LEVEL4_CACHE_SIZE = 197 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LINE_MAX
-#  define __NIJI_D_enum__SC_LINE_MAX 1
-#  ifndef _SC_LINE_MAX
-enum { _SC_LINE_MAX = 43 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LOGIN_NAME_MAX
-#  define __NIJI_D_enum__SC_LOGIN_NAME_MAX 1
-#  ifndef _SC_LOGIN_NAME_MAX
-enum { _SC_LOGIN_NAME_MAX = 71 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_LONG_BIT
-#  define __NIJI_D_enum__SC_LONG_BIT 1
-#  ifndef _SC_LONG_BIT
-enum { _SC_LONG_BIT = 106 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MAPPED_FILES
-#  define __NIJI_D_enum__SC_MAPPED_FILES 1
-#  ifndef _SC_MAPPED_FILES
-enum { _SC_MAPPED_FILES = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MB_LEN_MAX
-#  define __NIJI_D_enum__SC_MB_LEN_MAX 1
-#  ifndef _SC_MB_LEN_MAX
-enum { _SC_MB_LEN_MAX = 108 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MEMLOCK
-#  define __NIJI_D_enum__SC_MEMLOCK 1
-#  ifndef _SC_MEMLOCK
-enum { _SC_MEMLOCK = 17 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MEMLOCK_RANGE
-#  define __NIJI_D_enum__SC_MEMLOCK_RANGE 1
-#  ifndef _SC_MEMLOCK_RANGE
-enum { _SC_MEMLOCK_RANGE = 18 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MEMORY_PROTECTION
-#  define __NIJI_D_enum__SC_MEMORY_PROTECTION 1
-#  ifndef _SC_MEMORY_PROTECTION
-enum { _SC_MEMORY_PROTECTION = 19 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MESSAGE_PASSING
-#  define __NIJI_D_enum__SC_MESSAGE_PASSING 1
-#  ifndef _SC_MESSAGE_PASSING
-enum { _SC_MESSAGE_PASSING = 20 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MINSIGSTKSZ
-#  define __NIJI_D_enum__SC_MINSIGSTKSZ 1
-#  ifndef _SC_MINSIGSTKSZ
-enum { _SC_MINSIGSTKSZ = 249 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MONOTONIC_CLOCK
-#  define __NIJI_D_enum__SC_MONOTONIC_CLOCK 1
-#  ifndef _SC_MONOTONIC_CLOCK
-enum { _SC_MONOTONIC_CLOCK = 149 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MQ_OPEN_MAX
-#  define __NIJI_D_enum__SC_MQ_OPEN_MAX 1
-#  ifndef _SC_MQ_OPEN_MAX
-enum { _SC_MQ_OPEN_MAX = 27 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MQ_PRIO_MAX
-#  define __NIJI_D_enum__SC_MQ_PRIO_MAX 1
-#  ifndef _SC_MQ_PRIO_MAX
-enum { _SC_MQ_PRIO_MAX = 28 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_MULTI_PROCESS
-#  define __NIJI_D_enum__SC_MULTI_PROCESS 1
-#  ifndef _SC_MULTI_PROCESS
-enum { _SC_MULTI_PROCESS = 150 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NETWORKING
-#  define __NIJI_D_enum__SC_NETWORKING 1
-#  ifndef _SC_NETWORKING
-enum { _SC_NETWORKING = 152 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NGROUPS_MAX
-#  define __NIJI_D_enum__SC_NGROUPS_MAX 1
 #  ifndef _SC_NGROUPS_MAX
-enum { _SC_NGROUPS_MAX = 3 };
+  _SC_NGROUPS_MAX = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_ARGMAX
-#  define __NIJI_D_enum__SC_NL_ARGMAX 1
-#  ifndef _SC_NL_ARGMAX
-enum { _SC_NL_ARGMAX = 119 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_LANGMAX
-#  define __NIJI_D_enum__SC_NL_LANGMAX 1
-#  ifndef _SC_NL_LANGMAX
-enum { _SC_NL_LANGMAX = 120 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_MSGMAX
-#  define __NIJI_D_enum__SC_NL_MSGMAX 1
-#  ifndef _SC_NL_MSGMAX
-enum { _SC_NL_MSGMAX = 121 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_NMAX
-#  define __NIJI_D_enum__SC_NL_NMAX 1
-#  ifndef _SC_NL_NMAX
-enum { _SC_NL_NMAX = 122 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_SETMAX
-#  define __NIJI_D_enum__SC_NL_SETMAX 1
-#  ifndef _SC_NL_SETMAX
-enum { _SC_NL_SETMAX = 123 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NL_TEXTMAX
-#  define __NIJI_D_enum__SC_NL_TEXTMAX 1
-#  ifndef _SC_NL_TEXTMAX
-enum { _SC_NL_TEXTMAX = 124 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NPROCESSORS_CONF
-#  define __NIJI_D_enum__SC_NPROCESSORS_CONF 1
-#  ifndef _SC_NPROCESSORS_CONF
-enum { _SC_NPROCESSORS_CONF = 83 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NPROCESSORS_ONLN
-#  define __NIJI_D_enum__SC_NPROCESSORS_ONLN 1
-#  ifndef _SC_NPROCESSORS_ONLN
-enum { _SC_NPROCESSORS_ONLN = 84 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_NZERO
-#  define __NIJI_D_enum__SC_NZERO 1
-#  ifndef _SC_NZERO
-enum { _SC_NZERO = 109 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_OPEN_MAX
-#  define __NIJI_D_enum__SC_OPEN_MAX 1
 #  ifndef _SC_OPEN_MAX
-enum { _SC_OPEN_MAX = 4 };
+  _SC_OPEN_MAX = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PAGESIZE
-#  define __NIJI_D_enum__SC_PAGESIZE 1
-#  ifndef _SC_PAGESIZE
-enum { _SC_PAGESIZE = 30 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PASS_MAX
-#  define __NIJI_D_enum__SC_PASS_MAX 1
-#  ifndef _SC_PASS_MAX
-enum { _SC_PASS_MAX = 88 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PHYS_PAGES
-#  define __NIJI_D_enum__SC_PHYS_PAGES 1
-#  ifndef _SC_PHYS_PAGES
-enum { _SC_PHYS_PAGES = 85 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII
-#  define __NIJI_D_enum__SC_PII 1
-#  ifndef _SC_PII
-enum { _SC_PII = 53 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_INTERNET
-#  define __NIJI_D_enum__SC_PII_INTERNET 1
-#  ifndef _SC_PII_INTERNET
-enum { _SC_PII_INTERNET = 56 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_INTERNET_DGRAM
-#  define __NIJI_D_enum__SC_PII_INTERNET_DGRAM 1
-#  ifndef _SC_PII_INTERNET_DGRAM
-enum { _SC_PII_INTERNET_DGRAM = 62 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_INTERNET_STREAM
-#  define __NIJI_D_enum__SC_PII_INTERNET_STREAM 1
-#  ifndef _SC_PII_INTERNET_STREAM
-enum { _SC_PII_INTERNET_STREAM = 61 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_OSI
-#  define __NIJI_D_enum__SC_PII_OSI 1
-#  ifndef _SC_PII_OSI
-enum { _SC_PII_OSI = 57 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_OSI_CLTS
-#  define __NIJI_D_enum__SC_PII_OSI_CLTS 1
-#  ifndef _SC_PII_OSI_CLTS
-enum { _SC_PII_OSI_CLTS = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_OSI_COTS
-#  define __NIJI_D_enum__SC_PII_OSI_COTS 1
-#  ifndef _SC_PII_OSI_COTS
-enum { _SC_PII_OSI_COTS = 63 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_OSI_M
-#  define __NIJI_D_enum__SC_PII_OSI_M 1
-#  ifndef _SC_PII_OSI_M
-enum { _SC_PII_OSI_M = 65 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_SOCKET
-#  define __NIJI_D_enum__SC_PII_SOCKET 1
-#  ifndef _SC_PII_SOCKET
-enum { _SC_PII_SOCKET = 55 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PII_XTI
-#  define __NIJI_D_enum__SC_PII_XTI 1
-#  ifndef _SC_PII_XTI
-enum { _SC_PII_XTI = 54 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PIPE
-#  define __NIJI_D_enum__SC_PIPE 1
-#  ifndef _SC_PIPE
-enum { _SC_PIPE = 145 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_POLL
-#  define __NIJI_D_enum__SC_POLL 1
-#  ifndef _SC_POLL
-enum { _SC_POLL = 58 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PRIORITIZED_IO
-#  define __NIJI_D_enum__SC_PRIORITIZED_IO 1
-#  ifndef _SC_PRIORITIZED_IO
-enum { _SC_PRIORITIZED_IO = 13 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_PRIORITY_SCHEDULING
-#  define __NIJI_D_enum__SC_PRIORITY_SCHEDULING 1
-#  ifndef _SC_PRIORITY_SCHEDULING
-enum { _SC_PRIORITY_SCHEDULING = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_RAW_SOCKETS
-#  define __NIJI_D_enum__SC_RAW_SOCKETS 1
-#  ifndef _SC_RAW_SOCKETS
-enum { _SC_RAW_SOCKETS = 236 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_READER_WRITER_LOCKS
-#  define __NIJI_D_enum__SC_READER_WRITER_LOCKS 1
-#  ifndef _SC_READER_WRITER_LOCKS
-enum { _SC_READER_WRITER_LOCKS = 153 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_REALTIME_SIGNALS
-#  define __NIJI_D_enum__SC_REALTIME_SIGNALS 1
-#  ifndef _SC_REALTIME_SIGNALS
-enum { _SC_REALTIME_SIGNALS = 9 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_REGEXP
-#  define __NIJI_D_enum__SC_REGEXP 1
-#  ifndef _SC_REGEXP
-enum { _SC_REGEXP = 155 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_REGEX_VERSION
-#  define __NIJI_D_enum__SC_REGEX_VERSION 1
-#  ifndef _SC_REGEX_VERSION
-enum { _SC_REGEX_VERSION = 156 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_RE_DUP_MAX
-#  define __NIJI_D_enum__SC_RE_DUP_MAX 1
-#  ifndef _SC_RE_DUP_MAX
-enum { _SC_RE_DUP_MAX = 44 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_RTSIG_MAX
-#  define __NIJI_D_enum__SC_RTSIG_MAX 1
-#  ifndef _SC_RTSIG_MAX
-enum { _SC_RTSIG_MAX = 31 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SAVED_IDS
-#  define __NIJI_D_enum__SC_SAVED_IDS 1
-#  ifndef _SC_SAVED_IDS
-enum { _SC_SAVED_IDS = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SCHAR_MAX
-#  define __NIJI_D_enum__SC_SCHAR_MAX 1
-#  ifndef _SC_SCHAR_MAX
-enum { _SC_SCHAR_MAX = 111 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SCHAR_MIN
-#  define __NIJI_D_enum__SC_SCHAR_MIN 1
-#  ifndef _SC_SCHAR_MIN
-enum { _SC_SCHAR_MIN = 112 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SELECT
-#  define __NIJI_D_enum__SC_SELECT 1
-#  ifndef _SC_SELECT
-enum { _SC_SELECT = 59 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SEMAPHORES
-#  define __NIJI_D_enum__SC_SEMAPHORES 1
-#  ifndef _SC_SEMAPHORES
-enum { _SC_SEMAPHORES = 21 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SEM_NSEMS_MAX
-#  define __NIJI_D_enum__SC_SEM_NSEMS_MAX 1
-#  ifndef _SC_SEM_NSEMS_MAX
-enum { _SC_SEM_NSEMS_MAX = 32 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SEM_VALUE_MAX
-#  define __NIJI_D_enum__SC_SEM_VALUE_MAX 1
-#  ifndef _SC_SEM_VALUE_MAX
-enum { _SC_SEM_VALUE_MAX = 33 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SHARED_MEMORY_OBJECTS
-#  define __NIJI_D_enum__SC_SHARED_MEMORY_OBJECTS 1
-#  ifndef _SC_SHARED_MEMORY_OBJECTS
-enum { _SC_SHARED_MEMORY_OBJECTS = 22 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SHELL
-#  define __NIJI_D_enum__SC_SHELL 1
-#  ifndef _SC_SHELL
-enum { _SC_SHELL = 157 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SHRT_MAX
-#  define __NIJI_D_enum__SC_SHRT_MAX 1
-#  ifndef _SC_SHRT_MAX
-enum { _SC_SHRT_MAX = 113 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SHRT_MIN
-#  define __NIJI_D_enum__SC_SHRT_MIN 1
-#  ifndef _SC_SHRT_MIN
-enum { _SC_SHRT_MIN = 114 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SIGNALS
-#  define __NIJI_D_enum__SC_SIGNALS 1
-#  ifndef _SC_SIGNALS
-enum { _SC_SIGNALS = 158 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SIGQUEUE_MAX
-#  define __NIJI_D_enum__SC_SIGQUEUE_MAX 1
-#  ifndef _SC_SIGQUEUE_MAX
-enum { _SC_SIGQUEUE_MAX = 34 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SIGSTKSZ
-#  define __NIJI_D_enum__SC_SIGSTKSZ 1
-#  ifndef _SC_SIGSTKSZ
-enum { _SC_SIGSTKSZ = 250 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SINGLE_PROCESS
-#  define __NIJI_D_enum__SC_SINGLE_PROCESS 1
-#  ifndef _SC_SINGLE_PROCESS
-enum { _SC_SINGLE_PROCESS = 151 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SPAWN
-#  define __NIJI_D_enum__SC_SPAWN 1
-#  ifndef _SC_SPAWN
-enum { _SC_SPAWN = 159 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SPIN_LOCKS
-#  define __NIJI_D_enum__SC_SPIN_LOCKS 1
-#  ifndef _SC_SPIN_LOCKS
-enum { _SC_SPIN_LOCKS = 154 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SPORADIC_SERVER
-#  define __NIJI_D_enum__SC_SPORADIC_SERVER 1
-#  ifndef _SC_SPORADIC_SERVER
-enum { _SC_SPORADIC_SERVER = 160 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SSIZE_MAX
-#  define __NIJI_D_enum__SC_SSIZE_MAX 1
-#  ifndef _SC_SSIZE_MAX
-enum { _SC_SSIZE_MAX = 110 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SS_REPL_MAX
-#  define __NIJI_D_enum__SC_SS_REPL_MAX 1
-#  ifndef _SC_SS_REPL_MAX
-enum { _SC_SS_REPL_MAX = 241 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_STREAMS
-#  define __NIJI_D_enum__SC_STREAMS 1
-#  ifndef _SC_STREAMS
-enum { _SC_STREAMS = 174 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_STREAM_MAX
-#  define __NIJI_D_enum__SC_STREAM_MAX 1
 #  ifndef _SC_STREAM_MAX
-enum { _SC_STREAM_MAX = 5 };
+  _SC_STREAM_MAX = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SYMLOOP_MAX
-#  define __NIJI_D_enum__SC_SYMLOOP_MAX 1
-#  ifndef _SC_SYMLOOP_MAX
-enum { _SC_SYMLOOP_MAX = 173 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SYNCHRONIZED_IO
-#  define __NIJI_D_enum__SC_SYNCHRONIZED_IO 1
-#  ifndef _SC_SYNCHRONIZED_IO
-enum { _SC_SYNCHRONIZED_IO = 14 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SYSTEM_DATABASE
-#  define __NIJI_D_enum__SC_SYSTEM_DATABASE 1
-#  ifndef _SC_SYSTEM_DATABASE
-enum { _SC_SYSTEM_DATABASE = 162 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_SYSTEM_DATABASE_R
-#  define __NIJI_D_enum__SC_SYSTEM_DATABASE_R 1
-#  ifndef _SC_SYSTEM_DATABASE_R
-enum { _SC_SYSTEM_DATABASE_R = 163 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREADS
-#  define __NIJI_D_enum__SC_THREADS 1
-#  ifndef _SC_THREADS
-enum { _SC_THREADS = 67 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_ATTR_STACKADDR
-#  define __NIJI_D_enum__SC_THREAD_ATTR_STACKADDR 1
-#  ifndef _SC_THREAD_ATTR_STACKADDR
-enum { _SC_THREAD_ATTR_STACKADDR = 77 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_ATTR_STACKSIZE
-#  define __NIJI_D_enum__SC_THREAD_ATTR_STACKSIZE 1
-#  ifndef _SC_THREAD_ATTR_STACKSIZE
-enum { _SC_THREAD_ATTR_STACKSIZE = 78 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_CPUTIME
-#  define __NIJI_D_enum__SC_THREAD_CPUTIME 1
-#  ifndef _SC_THREAD_CPUTIME
-enum { _SC_THREAD_CPUTIME = 139 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_DESTRUCTOR_ITERATIONS
-#  define __NIJI_D_enum__SC_THREAD_DESTRUCTOR_ITERATIONS 1
-#  ifndef _SC_THREAD_DESTRUCTOR_ITERATIONS
-enum { _SC_THREAD_DESTRUCTOR_ITERATIONS = 73 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_KEYS_MAX
-#  define __NIJI_D_enum__SC_THREAD_KEYS_MAX 1
-#  ifndef _SC_THREAD_KEYS_MAX
-enum { _SC_THREAD_KEYS_MAX = 74 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_PRIORITY_SCHEDULING
-#  define __NIJI_D_enum__SC_THREAD_PRIORITY_SCHEDULING 1
-#  ifndef _SC_THREAD_PRIORITY_SCHEDULING
-enum { _SC_THREAD_PRIORITY_SCHEDULING = 79 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_PRIO_INHERIT
-#  define __NIJI_D_enum__SC_THREAD_PRIO_INHERIT 1
-#  ifndef _SC_THREAD_PRIO_INHERIT
-enum { _SC_THREAD_PRIO_INHERIT = 80 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_PRIO_PROTECT
-#  define __NIJI_D_enum__SC_THREAD_PRIO_PROTECT 1
-#  ifndef _SC_THREAD_PRIO_PROTECT
-enum { _SC_THREAD_PRIO_PROTECT = 81 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_PROCESS_SHARED
-#  define __NIJI_D_enum__SC_THREAD_PROCESS_SHARED 1
-#  ifndef _SC_THREAD_PROCESS_SHARED
-enum { _SC_THREAD_PROCESS_SHARED = 82 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_ROBUST_PRIO_INHERIT
-#  define __NIJI_D_enum__SC_THREAD_ROBUST_PRIO_INHERIT 1
-#  ifndef _SC_THREAD_ROBUST_PRIO_INHERIT
-enum { _SC_THREAD_ROBUST_PRIO_INHERIT = 247 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_ROBUST_PRIO_PROTECT
-#  define __NIJI_D_enum__SC_THREAD_ROBUST_PRIO_PROTECT 1
-#  ifndef _SC_THREAD_ROBUST_PRIO_PROTECT
-enum { _SC_THREAD_ROBUST_PRIO_PROTECT = 248 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_SAFE_FUNCTIONS
-#  define __NIJI_D_enum__SC_THREAD_SAFE_FUNCTIONS 1
-#  ifndef _SC_THREAD_SAFE_FUNCTIONS
-enum { _SC_THREAD_SAFE_FUNCTIONS = 68 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_SPORADIC_SERVER
-#  define __NIJI_D_enum__SC_THREAD_SPORADIC_SERVER 1
-#  ifndef _SC_THREAD_SPORADIC_SERVER
-enum { _SC_THREAD_SPORADIC_SERVER = 161 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_STACK_MIN
-#  define __NIJI_D_enum__SC_THREAD_STACK_MIN 1
-#  ifndef _SC_THREAD_STACK_MIN
-enum { _SC_THREAD_STACK_MIN = 75 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_THREAD_THREADS_MAX
-#  define __NIJI_D_enum__SC_THREAD_THREADS_MAX 1
-#  ifndef _SC_THREAD_THREADS_MAX
-enum { _SC_THREAD_THREADS_MAX = 76 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TIMEOUTS
-#  define __NIJI_D_enum__SC_TIMEOUTS 1
-#  ifndef _SC_TIMEOUTS
-enum { _SC_TIMEOUTS = 164 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TIMERS
-#  define __NIJI_D_enum__SC_TIMERS 1
-#  ifndef _SC_TIMERS
-enum { _SC_TIMERS = 11 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TIMER_MAX
-#  define __NIJI_D_enum__SC_TIMER_MAX 1
-#  ifndef _SC_TIMER_MAX
-enum { _SC_TIMER_MAX = 35 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE
-#  define __NIJI_D_enum__SC_TRACE 1
-#  ifndef _SC_TRACE
-enum { _SC_TRACE = 181 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_EVENT_FILTER
-#  define __NIJI_D_enum__SC_TRACE_EVENT_FILTER 1
-#  ifndef _SC_TRACE_EVENT_FILTER
-enum { _SC_TRACE_EVENT_FILTER = 182 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_EVENT_NAME_MAX
-#  define __NIJI_D_enum__SC_TRACE_EVENT_NAME_MAX 1
-#  ifndef _SC_TRACE_EVENT_NAME_MAX
-enum { _SC_TRACE_EVENT_NAME_MAX = 242 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_INHERIT
-#  define __NIJI_D_enum__SC_TRACE_INHERIT 1
-#  ifndef _SC_TRACE_INHERIT
-enum { _SC_TRACE_INHERIT = 183 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_LOG
-#  define __NIJI_D_enum__SC_TRACE_LOG 1
-#  ifndef _SC_TRACE_LOG
-enum { _SC_TRACE_LOG = 184 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_NAME_MAX
-#  define __NIJI_D_enum__SC_TRACE_NAME_MAX 1
-#  ifndef _SC_TRACE_NAME_MAX
-enum { _SC_TRACE_NAME_MAX = 243 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_SYS_MAX
-#  define __NIJI_D_enum__SC_TRACE_SYS_MAX 1
-#  ifndef _SC_TRACE_SYS_MAX
-enum { _SC_TRACE_SYS_MAX = 244 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TRACE_USER_EVENT_MAX
-#  define __NIJI_D_enum__SC_TRACE_USER_EVENT_MAX 1
-#  ifndef _SC_TRACE_USER_EVENT_MAX
-enum { _SC_TRACE_USER_EVENT_MAX = 245 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TTY_NAME_MAX
-#  define __NIJI_D_enum__SC_TTY_NAME_MAX 1
-#  ifndef _SC_TTY_NAME_MAX
-enum { _SC_TTY_NAME_MAX = 72 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TYPED_MEMORY_OBJECTS
-#  define __NIJI_D_enum__SC_TYPED_MEMORY_OBJECTS 1
-#  ifndef _SC_TYPED_MEMORY_OBJECTS
-enum { _SC_TYPED_MEMORY_OBJECTS = 165 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum__SC_TZNAME_MAX
-#  define __NIJI_D_enum__SC_TZNAME_MAX 1
 #  ifndef _SC_TZNAME_MAX
-enum { _SC_TZNAME_MAX = 6 };
+  _SC_TZNAME_MAX = 6,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_T_IOV_MAX
-#  define __NIJI_D_enum__SC_T_IOV_MAX 1
-#  ifndef _SC_T_IOV_MAX
-enum { _SC_T_IOV_MAX = 66 };
+#  ifndef _SC_JOB_CONTROL
+  _SC_JOB_CONTROL = 7,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_UCHAR_MAX
-#  define __NIJI_D_enum__SC_UCHAR_MAX 1
-#  ifndef _SC_UCHAR_MAX
-enum { _SC_UCHAR_MAX = 115 };
+#  ifndef _SC_SAVED_IDS
+  _SC_SAVED_IDS = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_UINT_MAX
-#  define __NIJI_D_enum__SC_UINT_MAX 1
-#  ifndef _SC_UINT_MAX
-enum { _SC_UINT_MAX = 116 };
+#  ifndef _SC_REALTIME_SIGNALS
+  _SC_REALTIME_SIGNALS = 9,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_UIO_MAXIOV
-#  define __NIJI_D_enum__SC_UIO_MAXIOV 1
-#  ifndef _SC_UIO_MAXIOV
-enum { _SC_UIO_MAXIOV = 60 };
+#  ifndef _SC_PRIORITY_SCHEDULING
+  _SC_PRIORITY_SCHEDULING = 10,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_ULONG_MAX
-#  define __NIJI_D_enum__SC_ULONG_MAX 1
-#  ifndef _SC_ULONG_MAX
-enum { _SC_ULONG_MAX = 117 };
+#  ifndef _SC_TIMERS
+  _SC_TIMERS = 11,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_USER_GROUPS
-#  define __NIJI_D_enum__SC_USER_GROUPS 1
-#  ifndef _SC_USER_GROUPS
-enum { _SC_USER_GROUPS = 166 };
+#  ifndef _SC_ASYNCHRONOUS_IO
+  _SC_ASYNCHRONOUS_IO = 12,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_USER_GROUPS_R
-#  define __NIJI_D_enum__SC_USER_GROUPS_R 1
-#  ifndef _SC_USER_GROUPS_R
-enum { _SC_USER_GROUPS_R = 167 };
+#  ifndef _SC_PRIORITIZED_IO
+  _SC_PRIORITIZED_IO = 13,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_USHRT_MAX
-#  define __NIJI_D_enum__SC_USHRT_MAX 1
-#  ifndef _SC_USHRT_MAX
-enum { _SC_USHRT_MAX = 118 };
+#  ifndef _SC_SYNCHRONIZED_IO
+  _SC_SYNCHRONIZED_IO = 14,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V6_ILP32_OFF32
-#  define __NIJI_D_enum__SC_V6_ILP32_OFF32 1
-#  ifndef _SC_V6_ILP32_OFF32
-enum { _SC_V6_ILP32_OFF32 = 176 };
+#  ifndef _SC_FSYNC
+  _SC_FSYNC = 15,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V6_ILP32_OFFBIG
-#  define __NIJI_D_enum__SC_V6_ILP32_OFFBIG 1
-#  ifndef _SC_V6_ILP32_OFFBIG
-enum { _SC_V6_ILP32_OFFBIG = 177 };
+#  ifndef _SC_MAPPED_FILES
+  _SC_MAPPED_FILES = 16,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V6_LP64_OFF64
-#  define __NIJI_D_enum__SC_V6_LP64_OFF64 1
-#  ifndef _SC_V6_LP64_OFF64
-enum { _SC_V6_LP64_OFF64 = 178 };
+#  ifndef _SC_MEMLOCK
+  _SC_MEMLOCK = 17,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V6_LPBIG_OFFBIG
-#  define __NIJI_D_enum__SC_V6_LPBIG_OFFBIG 1
-#  ifndef _SC_V6_LPBIG_OFFBIG
-enum { _SC_V6_LPBIG_OFFBIG = 179 };
+#  ifndef _SC_MEMLOCK_RANGE
+  _SC_MEMLOCK_RANGE = 18,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V7_ILP32_OFF32
-#  define __NIJI_D_enum__SC_V7_ILP32_OFF32 1
-#  ifndef _SC_V7_ILP32_OFF32
-enum { _SC_V7_ILP32_OFF32 = 237 };
+#  ifndef _SC_MEMORY_PROTECTION
+  _SC_MEMORY_PROTECTION = 19,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V7_ILP32_OFFBIG
-#  define __NIJI_D_enum__SC_V7_ILP32_OFFBIG 1
-#  ifndef _SC_V7_ILP32_OFFBIG
-enum { _SC_V7_ILP32_OFFBIG = 238 };
+#  ifndef _SC_MESSAGE_PASSING
+  _SC_MESSAGE_PASSING = 20,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V7_LP64_OFF64
-#  define __NIJI_D_enum__SC_V7_LP64_OFF64 1
-#  ifndef _SC_V7_LP64_OFF64
-enum { _SC_V7_LP64_OFF64 = 239 };
+#  ifndef _SC_SEMAPHORES
+  _SC_SEMAPHORES = 21,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_V7_LPBIG_OFFBIG
-#  define __NIJI_D_enum__SC_V7_LPBIG_OFFBIG 1
-#  ifndef _SC_V7_LPBIG_OFFBIG
-enum { _SC_V7_LPBIG_OFFBIG = 240 };
+#  ifndef _SC_SHARED_MEMORY_OBJECTS
+  _SC_SHARED_MEMORY_OBJECTS = 22,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_VERSION
-#  define __NIJI_D_enum__SC_VERSION 1
+#  ifndef _SC_AIO_LISTIO_MAX
+  _SC_AIO_LISTIO_MAX = 23,
+#  endif
+#  ifndef _SC_AIO_MAX
+  _SC_AIO_MAX = 24,
+#  endif
+#  ifndef _SC_AIO_PRIO_DELTA_MAX
+  _SC_AIO_PRIO_DELTA_MAX = 25,
+#  endif
+#  ifndef _SC_DELAYTIMER_MAX
+  _SC_DELAYTIMER_MAX = 26,
+#  endif
+#  ifndef _SC_MQ_OPEN_MAX
+  _SC_MQ_OPEN_MAX = 27,
+#  endif
+#  ifndef _SC_MQ_PRIO_MAX
+  _SC_MQ_PRIO_MAX = 28,
+#  endif
 #  ifndef _SC_VERSION
-enum { _SC_VERSION = 29 };
+  _SC_VERSION = 29,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_WORD_BIT
-#  define __NIJI_D_enum__SC_WORD_BIT 1
-#  ifndef _SC_WORD_BIT
-enum { _SC_WORD_BIT = 107 };
+#  ifndef _SC_PAGESIZE
+  _SC_PAGESIZE = 30,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XBS5_ILP32_OFF32
-#  define __NIJI_D_enum__SC_XBS5_ILP32_OFF32 1
-#  ifndef _SC_XBS5_ILP32_OFF32
-enum { _SC_XBS5_ILP32_OFF32 = 125 };
+#  ifndef _SC_RTSIG_MAX
+  _SC_RTSIG_MAX = 31,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XBS5_ILP32_OFFBIG
-#  define __NIJI_D_enum__SC_XBS5_ILP32_OFFBIG 1
-#  ifndef _SC_XBS5_ILP32_OFFBIG
-enum { _SC_XBS5_ILP32_OFFBIG = 126 };
+#  ifndef _SC_SEM_NSEMS_MAX
+  _SC_SEM_NSEMS_MAX = 32,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XBS5_LP64_OFF64
-#  define __NIJI_D_enum__SC_XBS5_LP64_OFF64 1
-#  ifndef _SC_XBS5_LP64_OFF64
-enum { _SC_XBS5_LP64_OFF64 = 127 };
+#  ifndef _SC_SEM_VALUE_MAX
+  _SC_SEM_VALUE_MAX = 33,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XBS5_LPBIG_OFFBIG
-#  define __NIJI_D_enum__SC_XBS5_LPBIG_OFFBIG 1
-#  ifndef _SC_XBS5_LPBIG_OFFBIG
-enum { _SC_XBS5_LPBIG_OFFBIG = 128 };
+#  ifndef _SC_SIGQUEUE_MAX
+  _SC_SIGQUEUE_MAX = 34,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_CRYPT
-#  define __NIJI_D_enum__SC_XOPEN_CRYPT 1
-#  ifndef _SC_XOPEN_CRYPT
-enum { _SC_XOPEN_CRYPT = 92 };
+#  ifndef _SC_TIMER_MAX
+  _SC_TIMER_MAX = 35,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_ENH_I18N
-#  define __NIJI_D_enum__SC_XOPEN_ENH_I18N 1
-#  ifndef _SC_XOPEN_ENH_I18N
-enum { _SC_XOPEN_ENH_I18N = 93 };
+#  ifndef _SC_BC_BASE_MAX
+  _SC_BC_BASE_MAX = 36,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_LEGACY
-#  define __NIJI_D_enum__SC_XOPEN_LEGACY 1
-#  ifndef _SC_XOPEN_LEGACY
-enum { _SC_XOPEN_LEGACY = 129 };
+#  ifndef _SC_BC_DIM_MAX
+  _SC_BC_DIM_MAX = 37,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_REALTIME
-#  define __NIJI_D_enum__SC_XOPEN_REALTIME 1
-#  ifndef _SC_XOPEN_REALTIME
-enum { _SC_XOPEN_REALTIME = 130 };
+#  ifndef _SC_BC_SCALE_MAX
+  _SC_BC_SCALE_MAX = 38,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_REALTIME_THREADS
-#  define __NIJI_D_enum__SC_XOPEN_REALTIME_THREADS 1
-#  ifndef _SC_XOPEN_REALTIME_THREADS
-enum { _SC_XOPEN_REALTIME_THREADS = 131 };
+#  ifndef _SC_BC_STRING_MAX
+  _SC_BC_STRING_MAX = 39,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_SHM
-#  define __NIJI_D_enum__SC_XOPEN_SHM 1
-#  ifndef _SC_XOPEN_SHM
-enum { _SC_XOPEN_SHM = 94 };
+#  ifndef _SC_COLL_WEIGHTS_MAX
+  _SC_COLL_WEIGHTS_MAX = 40,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_STREAMS
-#  define __NIJI_D_enum__SC_XOPEN_STREAMS 1
-#  ifndef _SC_XOPEN_STREAMS
-enum { _SC_XOPEN_STREAMS = 246 };
+#  ifndef _SC_EQUIV_CLASS_MAX
+  _SC_EQUIV_CLASS_MAX = 41,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_UNIX
-#  define __NIJI_D_enum__SC_XOPEN_UNIX 1
-#  ifndef _SC_XOPEN_UNIX
-enum { _SC_XOPEN_UNIX = 91 };
+#  ifndef _SC_EXPR_NEST_MAX
+  _SC_EXPR_NEST_MAX = 42,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_VERSION
-#  define __NIJI_D_enum__SC_XOPEN_VERSION 1
+#  ifndef _SC_LINE_MAX
+  _SC_LINE_MAX = 43,
+#  endif
+#  ifndef _SC_RE_DUP_MAX
+  _SC_RE_DUP_MAX = 44,
+#  endif
+#  ifndef _SC_CHARCLASS_NAME_MAX
+  _SC_CHARCLASS_NAME_MAX = 45,
+#  endif
+#  ifndef _SC_2_VERSION
+  _SC_2_VERSION = 46,
+#  endif
+#  ifndef _SC_2_C_BIND
+  _SC_2_C_BIND = 47,
+#  endif
+#  ifndef _SC_2_C_DEV
+  _SC_2_C_DEV = 48,
+#  endif
+#  ifndef _SC_2_FORT_DEV
+  _SC_2_FORT_DEV = 49,
+#  endif
+#  ifndef _SC_2_FORT_RUN
+  _SC_2_FORT_RUN = 50,
+#  endif
+#  ifndef _SC_2_SW_DEV
+  _SC_2_SW_DEV = 51,
+#  endif
+#  ifndef _SC_2_LOCALEDEF
+  _SC_2_LOCALEDEF = 52,
+#  endif
+#  ifndef _SC_PII
+  _SC_PII = 53,
+#  endif
+#  ifndef _SC_PII_XTI
+  _SC_PII_XTI = 54,
+#  endif
+#  ifndef _SC_PII_SOCKET
+  _SC_PII_SOCKET = 55,
+#  endif
+#  ifndef _SC_PII_INTERNET
+  _SC_PII_INTERNET = 56,
+#  endif
+#  ifndef _SC_PII_OSI
+  _SC_PII_OSI = 57,
+#  endif
+#  ifndef _SC_POLL
+  _SC_POLL = 58,
+#  endif
+#  ifndef _SC_SELECT
+  _SC_SELECT = 59,
+#  endif
+#  ifndef _SC_IOV_MAX
+  _SC_IOV_MAX = 60,
+#  endif
+#  ifndef _SC_UIO_MAXIOV
+  _SC_UIO_MAXIOV = 60,
+#  endif
+#  ifndef _SC_PII_INTERNET_STREAM
+  _SC_PII_INTERNET_STREAM = 61,
+#  endif
+#  ifndef _SC_PII_INTERNET_DGRAM
+  _SC_PII_INTERNET_DGRAM = 62,
+#  endif
+#  ifndef _SC_PII_OSI_COTS
+  _SC_PII_OSI_COTS = 63,
+#  endif
+#  ifndef _SC_PII_OSI_CLTS
+  _SC_PII_OSI_CLTS = 64,
+#  endif
+#  ifndef _SC_PII_OSI_M
+  _SC_PII_OSI_M = 65,
+#  endif
+#  ifndef _SC_T_IOV_MAX
+  _SC_T_IOV_MAX = 66,
+#  endif
+#  ifndef _SC_THREADS
+  _SC_THREADS = 67,
+#  endif
+#  ifndef _SC_THREAD_SAFE_FUNCTIONS
+  _SC_THREAD_SAFE_FUNCTIONS = 68,
+#  endif
+#  ifndef _SC_GETGR_R_SIZE_MAX
+  _SC_GETGR_R_SIZE_MAX = 69,
+#  endif
+#  ifndef _SC_GETPW_R_SIZE_MAX
+  _SC_GETPW_R_SIZE_MAX = 70,
+#  endif
+#  ifndef _SC_LOGIN_NAME_MAX
+  _SC_LOGIN_NAME_MAX = 71,
+#  endif
+#  ifndef _SC_TTY_NAME_MAX
+  _SC_TTY_NAME_MAX = 72,
+#  endif
+#  ifndef _SC_THREAD_DESTRUCTOR_ITERATIONS
+  _SC_THREAD_DESTRUCTOR_ITERATIONS = 73,
+#  endif
+#  ifndef _SC_THREAD_KEYS_MAX
+  _SC_THREAD_KEYS_MAX = 74,
+#  endif
+#  ifndef _SC_THREAD_STACK_MIN
+  _SC_THREAD_STACK_MIN = 75,
+#  endif
+#  ifndef _SC_THREAD_THREADS_MAX
+  _SC_THREAD_THREADS_MAX = 76,
+#  endif
+#  ifndef _SC_THREAD_ATTR_STACKADDR
+  _SC_THREAD_ATTR_STACKADDR = 77,
+#  endif
+#  ifndef _SC_THREAD_ATTR_STACKSIZE
+  _SC_THREAD_ATTR_STACKSIZE = 78,
+#  endif
+#  ifndef _SC_THREAD_PRIORITY_SCHEDULING
+  _SC_THREAD_PRIORITY_SCHEDULING = 79,
+#  endif
+#  ifndef _SC_THREAD_PRIO_INHERIT
+  _SC_THREAD_PRIO_INHERIT = 80,
+#  endif
+#  ifndef _SC_THREAD_PRIO_PROTECT
+  _SC_THREAD_PRIO_PROTECT = 81,
+#  endif
+#  ifndef _SC_THREAD_PROCESS_SHARED
+  _SC_THREAD_PROCESS_SHARED = 82,
+#  endif
+#  ifndef _SC_NPROCESSORS_CONF
+  _SC_NPROCESSORS_CONF = 83,
+#  endif
+#  ifndef _SC_NPROCESSORS_ONLN
+  _SC_NPROCESSORS_ONLN = 84,
+#  endif
+#  ifndef _SC_PHYS_PAGES
+  _SC_PHYS_PAGES = 85,
+#  endif
+#  ifndef _SC_AVPHYS_PAGES
+  _SC_AVPHYS_PAGES = 86,
+#  endif
+#  ifndef _SC_ATEXIT_MAX
+  _SC_ATEXIT_MAX = 87,
+#  endif
+#  ifndef _SC_PASS_MAX
+  _SC_PASS_MAX = 88,
+#  endif
 #  ifndef _SC_XOPEN_VERSION
-enum { _SC_XOPEN_VERSION = 89 };
+  _SC_XOPEN_VERSION = 89,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_XCU_VERSION
-#  define __NIJI_D_enum__SC_XOPEN_XCU_VERSION 1
 #  ifndef _SC_XOPEN_XCU_VERSION
-enum { _SC_XOPEN_XCU_VERSION = 90 };
+  _SC_XOPEN_XCU_VERSION = 90,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_XPG2
-#  define __NIJI_D_enum__SC_XOPEN_XPG2 1
+#  ifndef _SC_XOPEN_UNIX
+  _SC_XOPEN_UNIX = 91,
+#  endif
+#  ifndef _SC_XOPEN_CRYPT
+  _SC_XOPEN_CRYPT = 92,
+#  endif
+#  ifndef _SC_XOPEN_ENH_I18N
+  _SC_XOPEN_ENH_I18N = 93,
+#  endif
+#  ifndef _SC_XOPEN_SHM
+  _SC_XOPEN_SHM = 94,
+#  endif
+#  ifndef _SC_2_CHAR_TERM
+  _SC_2_CHAR_TERM = 95,
+#  endif
+#  ifndef _SC_2_C_VERSION
+  _SC_2_C_VERSION = 96,
+#  endif
+#  ifndef _SC_2_UPE
+  _SC_2_UPE = 97,
+#  endif
 #  ifndef _SC_XOPEN_XPG2
-enum { _SC_XOPEN_XPG2 = 98 };
+  _SC_XOPEN_XPG2 = 98,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_XPG3
-#  define __NIJI_D_enum__SC_XOPEN_XPG3 1
 #  ifndef _SC_XOPEN_XPG3
-enum { _SC_XOPEN_XPG3 = 99 };
+  _SC_XOPEN_XPG3 = 99,
 #  endif
-# endif
-# ifndef __NIJI_D_enum__SC_XOPEN_XPG4
-#  define __NIJI_D_enum__SC_XOPEN_XPG4 1
 #  ifndef _SC_XOPEN_XPG4
-enum { _SC_XOPEN_XPG4 = 100 };
+  _SC_XOPEN_XPG4 = 100,
+#  endif
+#  ifndef _SC_CHAR_BIT
+  _SC_CHAR_BIT = 101,
+#  endif
+#  ifndef _SC_CHAR_MAX
+  _SC_CHAR_MAX = 102,
+#  endif
+#  ifndef _SC_CHAR_MIN
+  _SC_CHAR_MIN = 103,
+#  endif
+#  ifndef _SC_INT_MAX
+  _SC_INT_MAX = 104,
+#  endif
+#  ifndef _SC_INT_MIN
+  _SC_INT_MIN = 105,
+#  endif
+#  ifndef _SC_LONG_BIT
+  _SC_LONG_BIT = 106,
+#  endif
+#  ifndef _SC_WORD_BIT
+  _SC_WORD_BIT = 107,
+#  endif
+#  ifndef _SC_MB_LEN_MAX
+  _SC_MB_LEN_MAX = 108,
+#  endif
+#  ifndef _SC_NZERO
+  _SC_NZERO = 109,
+#  endif
+#  ifndef _SC_SSIZE_MAX
+  _SC_SSIZE_MAX = 110,
+#  endif
+#  ifndef _SC_SCHAR_MAX
+  _SC_SCHAR_MAX = 111,
+#  endif
+#  ifndef _SC_SCHAR_MIN
+  _SC_SCHAR_MIN = 112,
+#  endif
+#  ifndef _SC_SHRT_MAX
+  _SC_SHRT_MAX = 113,
+#  endif
+#  ifndef _SC_SHRT_MIN
+  _SC_SHRT_MIN = 114,
+#  endif
+#  ifndef _SC_UCHAR_MAX
+  _SC_UCHAR_MAX = 115,
+#  endif
+#  ifndef _SC_UINT_MAX
+  _SC_UINT_MAX = 116,
+#  endif
+#  ifndef _SC_ULONG_MAX
+  _SC_ULONG_MAX = 117,
+#  endif
+#  ifndef _SC_USHRT_MAX
+  _SC_USHRT_MAX = 118,
+#  endif
+#  ifndef _SC_NL_ARGMAX
+  _SC_NL_ARGMAX = 119,
+#  endif
+#  ifndef _SC_NL_LANGMAX
+  _SC_NL_LANGMAX = 120,
+#  endif
+#  ifndef _SC_NL_MSGMAX
+  _SC_NL_MSGMAX = 121,
+#  endif
+#  ifndef _SC_NL_NMAX
+  _SC_NL_NMAX = 122,
+#  endif
+#  ifndef _SC_NL_SETMAX
+  _SC_NL_SETMAX = 123,
+#  endif
+#  ifndef _SC_NL_TEXTMAX
+  _SC_NL_TEXTMAX = 124,
+#  endif
+#  ifndef _SC_XBS5_ILP32_OFF32
+  _SC_XBS5_ILP32_OFF32 = 125,
+#  endif
+#  ifndef _SC_XBS5_ILP32_OFFBIG
+  _SC_XBS5_ILP32_OFFBIG = 126,
+#  endif
+#  ifndef _SC_XBS5_LP64_OFF64
+  _SC_XBS5_LP64_OFF64 = 127,
+#  endif
+#  ifndef _SC_XBS5_LPBIG_OFFBIG
+  _SC_XBS5_LPBIG_OFFBIG = 128,
+#  endif
+#  ifndef _SC_XOPEN_LEGACY
+  _SC_XOPEN_LEGACY = 129,
+#  endif
+#  ifndef _SC_XOPEN_REALTIME
+  _SC_XOPEN_REALTIME = 130,
+#  endif
+#  ifndef _SC_XOPEN_REALTIME_THREADS
+  _SC_XOPEN_REALTIME_THREADS = 131,
+#  endif
+#  ifndef _SC_ADVISORY_INFO
+  _SC_ADVISORY_INFO = 132,
+#  endif
+#  ifndef _SC_BARRIERS
+  _SC_BARRIERS = 133,
+#  endif
+#  ifndef _SC_BASE
+  _SC_BASE = 134,
+#  endif
+#  ifndef _SC_C_LANG_SUPPORT
+  _SC_C_LANG_SUPPORT = 135,
+#  endif
+#  ifndef _SC_C_LANG_SUPPORT_R
+  _SC_C_LANG_SUPPORT_R = 136,
+#  endif
+#  ifndef _SC_CLOCK_SELECTION
+  _SC_CLOCK_SELECTION = 137,
+#  endif
+#  ifndef _SC_CPUTIME
+  _SC_CPUTIME = 138,
+#  endif
+#  ifndef _SC_THREAD_CPUTIME
+  _SC_THREAD_CPUTIME = 139,
+#  endif
+#  ifndef _SC_DEVICE_IO
+  _SC_DEVICE_IO = 140,
+#  endif
+#  ifndef _SC_DEVICE_SPECIFIC
+  _SC_DEVICE_SPECIFIC = 141,
+#  endif
+#  ifndef _SC_DEVICE_SPECIFIC_R
+  _SC_DEVICE_SPECIFIC_R = 142,
+#  endif
+#  ifndef _SC_FD_MGMT
+  _SC_FD_MGMT = 143,
+#  endif
+#  ifndef _SC_FIFO
+  _SC_FIFO = 144,
+#  endif
+#  ifndef _SC_PIPE
+  _SC_PIPE = 145,
+#  endif
+#  ifndef _SC_FILE_ATTRIBUTES
+  _SC_FILE_ATTRIBUTES = 146,
+#  endif
+#  ifndef _SC_FILE_LOCKING
+  _SC_FILE_LOCKING = 147,
+#  endif
+#  ifndef _SC_FILE_SYSTEM
+  _SC_FILE_SYSTEM = 148,
+#  endif
+#  ifndef _SC_MONOTONIC_CLOCK
+  _SC_MONOTONIC_CLOCK = 149,
+#  endif
+#  ifndef _SC_MULTI_PROCESS
+  _SC_MULTI_PROCESS = 150,
+#  endif
+#  ifndef _SC_SINGLE_PROCESS
+  _SC_SINGLE_PROCESS = 151,
+#  endif
+#  ifndef _SC_NETWORKING
+  _SC_NETWORKING = 152,
+#  endif
+#  ifndef _SC_READER_WRITER_LOCKS
+  _SC_READER_WRITER_LOCKS = 153,
+#  endif
+#  ifndef _SC_SPIN_LOCKS
+  _SC_SPIN_LOCKS = 154,
+#  endif
+#  ifndef _SC_REGEXP
+  _SC_REGEXP = 155,
+#  endif
+#  ifndef _SC_REGEX_VERSION
+  _SC_REGEX_VERSION = 156,
+#  endif
+#  ifndef _SC_SHELL
+  _SC_SHELL = 157,
+#  endif
+#  ifndef _SC_SIGNALS
+  _SC_SIGNALS = 158,
+#  endif
+#  ifndef _SC_SPAWN
+  _SC_SPAWN = 159,
+#  endif
+#  ifndef _SC_SPORADIC_SERVER
+  _SC_SPORADIC_SERVER = 160,
+#  endif
+#  ifndef _SC_THREAD_SPORADIC_SERVER
+  _SC_THREAD_SPORADIC_SERVER = 161,
+#  endif
+#  ifndef _SC_SYSTEM_DATABASE
+  _SC_SYSTEM_DATABASE = 162,
+#  endif
+#  ifndef _SC_SYSTEM_DATABASE_R
+  _SC_SYSTEM_DATABASE_R = 163,
+#  endif
+#  ifndef _SC_TIMEOUTS
+  _SC_TIMEOUTS = 164,
+#  endif
+#  ifndef _SC_TYPED_MEMORY_OBJECTS
+  _SC_TYPED_MEMORY_OBJECTS = 165,
+#  endif
+#  ifndef _SC_USER_GROUPS
+  _SC_USER_GROUPS = 166,
+#  endif
+#  ifndef _SC_USER_GROUPS_R
+  _SC_USER_GROUPS_R = 167,
+#  endif
+#  ifndef _SC_2_PBS
+  _SC_2_PBS = 168,
+#  endif
+#  ifndef _SC_2_PBS_ACCOUNTING
+  _SC_2_PBS_ACCOUNTING = 169,
+#  endif
+#  ifndef _SC_2_PBS_LOCATE
+  _SC_2_PBS_LOCATE = 170,
+#  endif
+#  ifndef _SC_2_PBS_MESSAGE
+  _SC_2_PBS_MESSAGE = 171,
+#  endif
+#  ifndef _SC_2_PBS_TRACK
+  _SC_2_PBS_TRACK = 172,
+#  endif
+#  ifndef _SC_SYMLOOP_MAX
+  _SC_SYMLOOP_MAX = 173,
+#  endif
+#  ifndef _SC_STREAMS
+  _SC_STREAMS = 174,
+#  endif
+#  ifndef _SC_2_PBS_CHECKPOINT
+  _SC_2_PBS_CHECKPOINT = 175,
+#  endif
+#  ifndef _SC_V6_ILP32_OFF32
+  _SC_V6_ILP32_OFF32 = 176,
+#  endif
+#  ifndef _SC_V6_ILP32_OFFBIG
+  _SC_V6_ILP32_OFFBIG = 177,
+#  endif
+#  ifndef _SC_V6_LP64_OFF64
+  _SC_V6_LP64_OFF64 = 178,
+#  endif
+#  ifndef _SC_V6_LPBIG_OFFBIG
+  _SC_V6_LPBIG_OFFBIG = 179,
+#  endif
+#  ifndef _SC_HOST_NAME_MAX
+  _SC_HOST_NAME_MAX = 180,
+#  endif
+#  ifndef _SC_TRACE
+  _SC_TRACE = 181,
+#  endif
+#  ifndef _SC_TRACE_EVENT_FILTER
+  _SC_TRACE_EVENT_FILTER = 182,
+#  endif
+#  ifndef _SC_TRACE_INHERIT
+  _SC_TRACE_INHERIT = 183,
+#  endif
+#  ifndef _SC_TRACE_LOG
+  _SC_TRACE_LOG = 184,
+#  endif
+#  ifndef _SC_LEVEL1_ICACHE_SIZE
+  _SC_LEVEL1_ICACHE_SIZE = 185,
+#  endif
+#  ifndef _SC_LEVEL1_ICACHE_ASSOC
+  _SC_LEVEL1_ICACHE_ASSOC = 186,
+#  endif
+#  ifndef _SC_LEVEL1_ICACHE_LINESIZE
+  _SC_LEVEL1_ICACHE_LINESIZE = 187,
+#  endif
+#  ifndef _SC_LEVEL1_DCACHE_SIZE
+  _SC_LEVEL1_DCACHE_SIZE = 188,
+#  endif
+#  ifndef _SC_LEVEL1_DCACHE_ASSOC
+  _SC_LEVEL1_DCACHE_ASSOC = 189,
+#  endif
+#  ifndef _SC_LEVEL1_DCACHE_LINESIZE
+  _SC_LEVEL1_DCACHE_LINESIZE = 190,
+#  endif
+#  ifndef _SC_LEVEL2_CACHE_SIZE
+  _SC_LEVEL2_CACHE_SIZE = 191,
+#  endif
+#  ifndef _SC_LEVEL2_CACHE_ASSOC
+  _SC_LEVEL2_CACHE_ASSOC = 192,
+#  endif
+#  ifndef _SC_LEVEL2_CACHE_LINESIZE
+  _SC_LEVEL2_CACHE_LINESIZE = 193,
+#  endif
+#  ifndef _SC_LEVEL3_CACHE_SIZE
+  _SC_LEVEL3_CACHE_SIZE = 194,
+#  endif
+#  ifndef _SC_LEVEL3_CACHE_ASSOC
+  _SC_LEVEL3_CACHE_ASSOC = 195,
+#  endif
+#  ifndef _SC_LEVEL3_CACHE_LINESIZE
+  _SC_LEVEL3_CACHE_LINESIZE = 196,
+#  endif
+#  ifndef _SC_LEVEL4_CACHE_SIZE
+  _SC_LEVEL4_CACHE_SIZE = 197,
+#  endif
+#  ifndef _SC_LEVEL4_CACHE_ASSOC
+  _SC_LEVEL4_CACHE_ASSOC = 198,
+#  endif
+#  ifndef _SC_LEVEL4_CACHE_LINESIZE
+  _SC_LEVEL4_CACHE_LINESIZE = 199,
+#  endif
+#  ifndef _SC_IPV6
+  _SC_IPV6 = 235,
+#  endif
+#  ifndef _SC_RAW_SOCKETS
+  _SC_RAW_SOCKETS = 236,
+#  endif
+#  ifndef _SC_V7_ILP32_OFF32
+  _SC_V7_ILP32_OFF32 = 237,
+#  endif
+#  ifndef _SC_V7_ILP32_OFFBIG
+  _SC_V7_ILP32_OFFBIG = 238,
+#  endif
+#  ifndef _SC_V7_LP64_OFF64
+  _SC_V7_LP64_OFF64 = 239,
+#  endif
+#  ifndef _SC_V7_LPBIG_OFFBIG
+  _SC_V7_LPBIG_OFFBIG = 240,
+#  endif
+#  ifndef _SC_SS_REPL_MAX
+  _SC_SS_REPL_MAX = 241,
+#  endif
+#  ifndef _SC_TRACE_EVENT_NAME_MAX
+  _SC_TRACE_EVENT_NAME_MAX = 242,
+#  endif
+#  ifndef _SC_TRACE_NAME_MAX
+  _SC_TRACE_NAME_MAX = 243,
+#  endif
+#  ifndef _SC_TRACE_SYS_MAX
+  _SC_TRACE_SYS_MAX = 244,
+#  endif
+#  ifndef _SC_TRACE_USER_EVENT_MAX
+  _SC_TRACE_USER_EVENT_MAX = 245,
+#  endif
+#  ifndef _SC_XOPEN_STREAMS
+  _SC_XOPEN_STREAMS = 246,
+#  endif
+#  ifndef _SC_THREAD_ROBUST_PRIO_INHERIT
+  _SC_THREAD_ROBUST_PRIO_INHERIT = 247,
+#  endif
+#  ifndef _SC_THREAD_ROBUST_PRIO_PROTECT
+  _SC_THREAD_ROBUST_PRIO_PROTECT = 248,
+#  endif
+#  ifndef _SC_MINSIGSTKSZ
+  _SC_MINSIGSTKSZ = 249,
+#  endif
+#  ifndef _SC_SIGSTKSZ
+  _SC_SIGSTKSZ = 250,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_GNU
-# ifndef __NIJI_D_enum_REG_CR2
-#  define __NIJI_D_enum_REG_CR2 1
-#  ifndef REG_CR2
-enum { REG_CR2 = 22 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_CSGSFS
-#  define __NIJI_D_enum_REG_CSGSFS 1
-#  ifndef REG_CSGSFS
-enum { REG_CSGSFS = 18 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_EFL
-#  define __NIJI_D_enum_REG_EFL 1
-#  ifndef REG_EFL
-enum { REG_EFL = 17 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_ERR
-#  define __NIJI_D_enum_REG_ERR 1
-#  ifndef REG_ERR
-enum { REG_ERR = 19 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_OLDMASK
-#  define __NIJI_D_enum_REG_OLDMASK 1
-#  ifndef REG_OLDMASK
-enum { REG_OLDMASK = 21 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R10
-#  define __NIJI_D_enum_REG_R10 1
-#  ifndef REG_R10
-enum { REG_R10 = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R11
-#  define __NIJI_D_enum_REG_R11 1
-#  ifndef REG_R11
-enum { REG_R11 = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R12
-#  define __NIJI_D_enum_REG_R12 1
-#  ifndef REG_R12
-enum { REG_R12 = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R13
-#  define __NIJI_D_enum_REG_R13 1
-#  ifndef REG_R13
-enum { REG_R13 = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R14
-#  define __NIJI_D_enum_REG_R14 1
-#  ifndef REG_R14
-enum { REG_R14 = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R15
-#  define __NIJI_D_enum_REG_R15 1
-#  ifndef REG_R15
-enum { REG_R15 = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R8
-#  define __NIJI_D_enum_REG_R8 1
+# ifndef __NIJI_D_anon_REG_CR2
+#  define __NIJI_D_anon_REG_CR2 1
+#  if !defined REG_R8 || !defined REG_R9 || !defined REG_R10 || !defined REG_R11 || !defined REG_R12 || !defined REG_R13 \
+    || !defined REG_R14 || !defined REG_R15 || !defined REG_RDI || !defined REG_RSI || !defined REG_RBP || !defined REG_RBX \
+    || !defined REG_RDX || !defined REG_RAX || !defined REG_RCX || !defined REG_RSP || !defined REG_RIP || !defined REG_EFL \
+    || !defined REG_CSGSFS || !defined REG_ERR || !defined REG_TRAPNO || !defined REG_OLDMASK || !defined REG_CR2
+enum {
 #  ifndef REG_R8
-enum { REG_R8 = 0 };
+  REG_R8 = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R9
-#  define __NIJI_D_enum_REG_R9 1
 #  ifndef REG_R9
-enum { REG_R9 = 1 };
+  REG_R9 = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RAX
-#  define __NIJI_D_enum_REG_RAX 1
-#  ifndef REG_RAX
-enum { REG_RAX = 13 };
+#  ifndef REG_R10
+  REG_R10 = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RBP
-#  define __NIJI_D_enum_REG_RBP 1
-#  ifndef REG_RBP
-enum { REG_RBP = 10 };
+#  ifndef REG_R11
+  REG_R11 = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RBX
-#  define __NIJI_D_enum_REG_RBX 1
-#  ifndef REG_RBX
-enum { REG_RBX = 11 };
+#  ifndef REG_R12
+  REG_R12 = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RCX
-#  define __NIJI_D_enum_REG_RCX 1
-#  ifndef REG_RCX
-enum { REG_RCX = 14 };
+#  ifndef REG_R13
+  REG_R13 = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RDI
-#  define __NIJI_D_enum_REG_RDI 1
+#  ifndef REG_R14
+  REG_R14 = 6,
+#  endif
+#  ifndef REG_R15
+  REG_R15 = 7,
+#  endif
 #  ifndef REG_RDI
-enum { REG_RDI = 8 };
+  REG_RDI = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RDX
-#  define __NIJI_D_enum_REG_RDX 1
-#  ifndef REG_RDX
-enum { REG_RDX = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RIP
-#  define __NIJI_D_enum_REG_RIP 1
-#  ifndef REG_RIP
-enum { REG_RIP = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RSI
-#  define __NIJI_D_enum_REG_RSI 1
 #  ifndef REG_RSI
-enum { REG_RSI = 9 };
+  REG_RSI = 9,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RSP
-#  define __NIJI_D_enum_REG_RSP 1
+#  ifndef REG_RBP
+  REG_RBP = 10,
+#  endif
+#  ifndef REG_RBX
+  REG_RBX = 11,
+#  endif
+#  ifndef REG_RDX
+  REG_RDX = 12,
+#  endif
+#  ifndef REG_RAX
+  REG_RAX = 13,
+#  endif
+#  ifndef REG_RCX
+  REG_RCX = 14,
+#  endif
 #  ifndef REG_RSP
-enum { REG_RSP = 15 };
+  REG_RSP = 15,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_TRAPNO
-#  define __NIJI_D_enum_REG_TRAPNO 1
+#  ifndef REG_RIP
+  REG_RIP = 16,
+#  endif
+#  ifndef REG_EFL
+  REG_EFL = 17,
+#  endif
+#  ifndef REG_CSGSFS
+  REG_CSGSFS = 18,
+#  endif
+#  ifndef REG_ERR
+  REG_ERR = 19,
+#  endif
 #  ifndef REG_TRAPNO
-enum { REG_TRAPNO = 20 };
+  REG_TRAPNO = 20,
+#  endif
+#  ifndef REG_OLDMASK
+  REG_OLDMASK = 21,
+#  endif
+#  ifndef REG_CR2
+  REG_CR2 = 22,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef __NIJI_D_enum_SS_DISABLE
-#  define __NIJI_D_enum_SS_DISABLE 1
-#  ifndef SS_DISABLE
-enum { SS_DISABLE = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SS_ONSTACK
-#  define __NIJI_D_enum_SS_ONSTACK 1
+# ifndef __NIJI_D_anon_SS_DISABLE
+#  define __NIJI_D_anon_SS_DISABLE 1
+#  if !defined SS_ONSTACK || !defined SS_DISABLE
+enum {
 #  ifndef SS_ONSTACK
-enum { SS_ONSTACK = 1 };
+  SS_ONSTACK = 1,
+#  endif
+#  ifndef SS_DISABLE
+  SS_DISABLE = 2,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 199309
-# ifndef __NIJI_D_enum_SIGEV_NONE
-#  define __NIJI_D_enum_SIGEV_NONE 1
-#  ifndef SIGEV_NONE
-enum { SIGEV_NONE = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SIGEV_SIGNAL
-#  define __NIJI_D_enum_SIGEV_SIGNAL 1
+# ifndef __NIJI_D_anon_SIGEV_NONE
+#  define __NIJI_D_anon_SIGEV_NONE 1
+#  if !defined SIGEV_SIGNAL || !defined SIGEV_NONE || !defined SIGEV_THREAD || !defined SIGEV_THREAD_ID
+enum {
 #  ifndef SIGEV_SIGNAL
-enum { SIGEV_SIGNAL = 0 };
+  SIGEV_SIGNAL = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SIGEV_THREAD
-#  define __NIJI_D_enum_SIGEV_THREAD 1
+#  ifndef SIGEV_NONE
+  SIGEV_NONE = 1,
+#  endif
 #  ifndef SIGEV_THREAD
-enum { SIGEV_THREAD = 2 };
+  SIGEV_THREAD = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SIGEV_THREAD_ID
-#  define __NIJI_D_enum_SIGEV_THREAD_ID 1
 #  ifndef SIGEV_THREAD_ID
-enum { SIGEV_THREAD_ID = 4 };
+  SIGEV_THREAD_ID = 4,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
-# ifndef __NIJI_D_enum_SI_ASYNCIO
-#  define __NIJI_D_enum_SI_ASYNCIO 1
-#  ifndef SI_ASYNCIO
-enum { SI_ASYNCIO = (-4) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_ASYNCNL
-#  define __NIJI_D_enum_SI_ASYNCNL 1
+# ifndef __NIJI_D_anon_SI_ASYNCIO
+#  define __NIJI_D_anon_SI_ASYNCIO 1
+#  if !defined SI_ASYNCNL || !defined SI_DETHREAD || !defined SI_TKILL || !defined SI_SIGIO || !defined SI_ASYNCIO || !defined SI_MESGQ \
+    || !defined SI_TIMER || !defined SI_QUEUE || !defined SI_USER || !defined SI_KERNEL
+enum {
 #  ifndef SI_ASYNCNL
-enum { SI_ASYNCNL = (-60) };
+  SI_ASYNCNL = -60,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SI_DETHREAD
-#  define __NIJI_D_enum_SI_DETHREAD 1
 #  ifndef SI_DETHREAD
-enum { SI_DETHREAD = (-7) };
+  SI_DETHREAD = -7,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SI_KERNEL
-#  define __NIJI_D_enum_SI_KERNEL 1
-#  ifndef SI_KERNEL
-enum { SI_KERNEL = 128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_MESGQ
-#  define __NIJI_D_enum_SI_MESGQ 1
-#  ifndef SI_MESGQ
-enum { SI_MESGQ = (-3) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_QUEUE
-#  define __NIJI_D_enum_SI_QUEUE 1
-#  ifndef SI_QUEUE
-enum { SI_QUEUE = (-1) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_SIGIO
-#  define __NIJI_D_enum_SI_SIGIO 1
-#  ifndef SI_SIGIO
-enum { SI_SIGIO = (-5) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_TIMER
-#  define __NIJI_D_enum_SI_TIMER 1
-#  ifndef SI_TIMER
-enum { SI_TIMER = (-2) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SI_TKILL
-#  define __NIJI_D_enum_SI_TKILL 1
 #  ifndef SI_TKILL
-enum { SI_TKILL = (-6) };
+  SI_TKILL = -6,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SI_USER
-#  define __NIJI_D_enum_SI_USER 1
+#  ifndef SI_SIGIO
+  SI_SIGIO = -5,
+#  endif
+#  ifndef SI_ASYNCIO
+  SI_ASYNCIO = -4,
+#  endif
+#  ifndef SI_MESGQ
+  SI_MESGQ = -3,
+#  endif
+#  ifndef SI_TIMER
+  SI_TIMER = -2,
+#  endif
+#  ifndef SI_QUEUE
+  SI_QUEUE = -1,
+#  endif
 #  ifndef SI_USER
-enum { SI_USER = 0 };
+  SI_USER = 0,
+#  endif
+#  ifndef SI_KERNEL
+  SI_KERNEL = 128,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# ifndef __NIJI_D_enum_BUS_ADRALN
-#  define __NIJI_D_enum_BUS_ADRALN 1
+# ifndef __NIJI_D_anon_BUS_ADRALN
+#  define __NIJI_D_anon_BUS_ADRALN 1
+#  if !defined BUS_ADRALN || !defined BUS_ADRERR || !defined BUS_OBJERR || !defined BUS_MCEERR_AR || !defined BUS_MCEERR_AO
+enum {
 #  ifndef BUS_ADRALN
-enum { BUS_ADRALN = 1 };
+  BUS_ADRALN = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_BUS_ADRERR
-#  define __NIJI_D_enum_BUS_ADRERR 1
 #  ifndef BUS_ADRERR
-enum { BUS_ADRERR = 2 };
+  BUS_ADRERR = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_BUS_MCEERR_AO
-#  define __NIJI_D_enum_BUS_MCEERR_AO 1
-#  ifndef BUS_MCEERR_AO
-enum { BUS_MCEERR_AO = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_BUS_MCEERR_AR
-#  define __NIJI_D_enum_BUS_MCEERR_AR 1
-#  ifndef BUS_MCEERR_AR
-enum { BUS_MCEERR_AR = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_BUS_OBJERR
-#  define __NIJI_D_enum_BUS_OBJERR 1
 #  ifndef BUS_OBJERR
-enum { BUS_OBJERR = 3 };
+  BUS_OBJERR = 3,
+#  endif
+#  ifndef BUS_MCEERR_AR
+  BUS_MCEERR_AR = 4,
+#  endif
+#  ifndef BUS_MCEERR_AO
+  BUS_MCEERR_AO = 5,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_CLD_CONTINUED
-#  define __NIJI_D_enum_CLD_CONTINUED 1
-#  ifndef CLD_CONTINUED
-enum { CLD_CONTINUED = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_CLD_DUMPED
-#  define __NIJI_D_enum_CLD_DUMPED 1
-#  ifndef CLD_DUMPED
-enum { CLD_DUMPED = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_CLD_EXITED
-#  define __NIJI_D_enum_CLD_EXITED 1
+# ifndef __NIJI_D_anon_CLD_CONTINUED
+#  define __NIJI_D_anon_CLD_CONTINUED 1
+#  if !defined CLD_EXITED || !defined CLD_KILLED || !defined CLD_DUMPED || !defined CLD_TRAPPED || !defined CLD_STOPPED || !defined CLD_CONTINUED
+enum {
 #  ifndef CLD_EXITED
-enum { CLD_EXITED = 1 };
+  CLD_EXITED = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_CLD_KILLED
-#  define __NIJI_D_enum_CLD_KILLED 1
 #  ifndef CLD_KILLED
-enum { CLD_KILLED = 2 };
+  CLD_KILLED = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_CLD_STOPPED
-#  define __NIJI_D_enum_CLD_STOPPED 1
-#  ifndef CLD_STOPPED
-enum { CLD_STOPPED = 5 };
+#  ifndef CLD_DUMPED
+  CLD_DUMPED = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_CLD_TRAPPED
-#  define __NIJI_D_enum_CLD_TRAPPED 1
 #  ifndef CLD_TRAPPED
-enum { CLD_TRAPPED = 4 };
+  CLD_TRAPPED = 4,
+#  endif
+#  ifndef CLD_STOPPED
+  CLD_STOPPED = 5,
+#  endif
+#  ifndef CLD_CONTINUED
+  CLD_CONTINUED = 6,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_FPE_CONDTRAP
-#  define __NIJI_D_enum_FPE_CONDTRAP 1
-#  ifndef FPE_CONDTRAP
-enum { FPE_CONDTRAP = 15 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTDIV
-#  define __NIJI_D_enum_FPE_FLTDIV 1
-#  ifndef FPE_FLTDIV
-enum { FPE_FLTDIV = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTINV
-#  define __NIJI_D_enum_FPE_FLTINV 1
-#  ifndef FPE_FLTINV
-enum { FPE_FLTINV = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTOVF
-#  define __NIJI_D_enum_FPE_FLTOVF 1
-#  ifndef FPE_FLTOVF
-enum { FPE_FLTOVF = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTRES
-#  define __NIJI_D_enum_FPE_FLTRES 1
-#  ifndef FPE_FLTRES
-enum { FPE_FLTRES = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTSUB
-#  define __NIJI_D_enum_FPE_FLTSUB 1
-#  ifndef FPE_FLTSUB
-enum { FPE_FLTSUB = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTUND
-#  define __NIJI_D_enum_FPE_FLTUND 1
-#  ifndef FPE_FLTUND
-enum { FPE_FLTUND = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_FLTUNK
-#  define __NIJI_D_enum_FPE_FLTUNK 1
-#  ifndef FPE_FLTUNK
-enum { FPE_FLTUNK = 14 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_INTDIV
-#  define __NIJI_D_enum_FPE_INTDIV 1
+# ifndef __NIJI_D_anon_FPE_CONDTRAP
+#  define __NIJI_D_anon_FPE_CONDTRAP 1
+#  if !defined FPE_INTDIV || !defined FPE_INTOVF || !defined FPE_FLTDIV || !defined FPE_FLTOVF || !defined FPE_FLTUND || !defined FPE_FLTRES \
+    || !defined FPE_FLTINV || !defined FPE_FLTSUB || !defined FPE_FLTUNK || !defined FPE_CONDTRAP
+enum {
 #  ifndef FPE_INTDIV
-enum { FPE_INTDIV = 1 };
+  FPE_INTDIV = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_FPE_INTOVF
-#  define __NIJI_D_enum_FPE_INTOVF 1
 #  ifndef FPE_INTOVF
-enum { FPE_INTOVF = 2 };
+  FPE_INTOVF = 2,
+#  endif
+#  ifndef FPE_FLTDIV
+  FPE_FLTDIV = 3,
+#  endif
+#  ifndef FPE_FLTOVF
+  FPE_FLTOVF = 4,
+#  endif
+#  ifndef FPE_FLTUND
+  FPE_FLTUND = 5,
+#  endif
+#  ifndef FPE_FLTRES
+  FPE_FLTRES = 6,
+#  endif
+#  ifndef FPE_FLTINV
+  FPE_FLTINV = 7,
+#  endif
+#  ifndef FPE_FLTSUB
+  FPE_FLTSUB = 8,
+#  endif
+#  ifndef FPE_FLTUNK
+  FPE_FLTUNK = 14,
+#  endif
+#  ifndef FPE_CONDTRAP
+  FPE_CONDTRAP = 15,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_ILL_BADIADDR
-#  define __NIJI_D_enum_ILL_BADIADDR 1
-#  ifndef ILL_BADIADDR
-enum { ILL_BADIADDR = 9 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_BADSTK
-#  define __NIJI_D_enum_ILL_BADSTK 1
-#  ifndef ILL_BADSTK
-enum { ILL_BADSTK = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_COPROC
-#  define __NIJI_D_enum_ILL_COPROC 1
-#  ifndef ILL_COPROC
-enum { ILL_COPROC = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_ILLADR
-#  define __NIJI_D_enum_ILL_ILLADR 1
-#  ifndef ILL_ILLADR
-enum { ILL_ILLADR = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_ILLOPC
-#  define __NIJI_D_enum_ILL_ILLOPC 1
+# ifndef __NIJI_D_anon_ILL_BADIADDR
+#  define __NIJI_D_anon_ILL_BADIADDR 1
+#  if !defined ILL_ILLOPC || !defined ILL_ILLOPN || !defined ILL_ILLADR || !defined ILL_ILLTRP || !defined ILL_PRVOPC || !defined ILL_PRVREG \
+    || !defined ILL_COPROC || !defined ILL_BADSTK || !defined ILL_BADIADDR
+enum {
 #  ifndef ILL_ILLOPC
-enum { ILL_ILLOPC = 1 };
+  ILL_ILLOPC = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_ILLOPN
-#  define __NIJI_D_enum_ILL_ILLOPN 1
 #  ifndef ILL_ILLOPN
-enum { ILL_ILLOPN = 2 };
+  ILL_ILLOPN = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_ILLTRP
-#  define __NIJI_D_enum_ILL_ILLTRP 1
+#  ifndef ILL_ILLADR
+  ILL_ILLADR = 3,
+#  endif
 #  ifndef ILL_ILLTRP
-enum { ILL_ILLTRP = 4 };
+  ILL_ILLTRP = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_PRVOPC
-#  define __NIJI_D_enum_ILL_PRVOPC 1
 #  ifndef ILL_PRVOPC
-enum { ILL_PRVOPC = 5 };
+  ILL_PRVOPC = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ILL_PRVREG
-#  define __NIJI_D_enum_ILL_PRVREG 1
 #  ifndef ILL_PRVREG
-enum { ILL_PRVREG = 6 };
+  ILL_PRVREG = 6,
+#  endif
+#  ifndef ILL_COPROC
+  ILL_COPROC = 7,
+#  endif
+#  ifndef ILL_BADSTK
+  ILL_BADSTK = 8,
+#  endif
+#  ifndef ILL_BADIADDR
+  ILL_BADIADDR = 9,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_POLL_ERR
-#  define __NIJI_D_enum_POLL_ERR 1
-#  ifndef POLL_ERR
-enum { POLL_ERR = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_POLL_HUP
-#  define __NIJI_D_enum_POLL_HUP 1
-#  ifndef POLL_HUP
-enum { POLL_HUP = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_POLL_IN
-#  define __NIJI_D_enum_POLL_IN 1
+# ifndef __NIJI_D_anon_POLL_ERR
+#  define __NIJI_D_anon_POLL_ERR 1
+#  if !defined POLL_IN || !defined POLL_OUT || !defined POLL_MSG || !defined POLL_ERR || !defined POLL_PRI || !defined POLL_HUP
+enum {
 #  ifndef POLL_IN
-enum { POLL_IN = 1 };
+  POLL_IN = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_POLL_MSG
-#  define __NIJI_D_enum_POLL_MSG 1
-#  ifndef POLL_MSG
-enum { POLL_MSG = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_POLL_OUT
-#  define __NIJI_D_enum_POLL_OUT 1
 #  ifndef POLL_OUT
-enum { POLL_OUT = 2 };
+  POLL_OUT = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_POLL_PRI
-#  define __NIJI_D_enum_POLL_PRI 1
+#  ifndef POLL_MSG
+  POLL_MSG = 3,
+#  endif
+#  ifndef POLL_ERR
+  POLL_ERR = 4,
+#  endif
 #  ifndef POLL_PRI
-enum { POLL_PRI = 5 };
+  POLL_PRI = 5,
+#  endif
+#  ifndef POLL_HUP
+  POLL_HUP = 6,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_SEGV_ACCADI
-#  define __NIJI_D_enum_SEGV_ACCADI 1
-#  ifndef SEGV_ACCADI
-enum { SEGV_ACCADI = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_ACCERR
-#  define __NIJI_D_enum_SEGV_ACCERR 1
-#  ifndef SEGV_ACCERR
-enum { SEGV_ACCERR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_ADIDERR
-#  define __NIJI_D_enum_SEGV_ADIDERR 1
-#  ifndef SEGV_ADIDERR
-enum { SEGV_ADIDERR = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_ADIPERR
-#  define __NIJI_D_enum_SEGV_ADIPERR 1
-#  ifndef SEGV_ADIPERR
-enum { SEGV_ADIPERR = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_BNDERR
-#  define __NIJI_D_enum_SEGV_BNDERR 1
-#  ifndef SEGV_BNDERR
-enum { SEGV_BNDERR = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_CPERR
-#  define __NIJI_D_enum_SEGV_CPERR 1
-#  ifndef SEGV_CPERR
-enum { SEGV_CPERR = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_MAPERR
-#  define __NIJI_D_enum_SEGV_MAPERR 1
+# ifndef __NIJI_D_anon_SEGV_ACCADI
+#  define __NIJI_D_anon_SEGV_ACCADI 1
+#  if !defined SEGV_MAPERR || !defined SEGV_ACCERR || !defined SEGV_BNDERR || !defined SEGV_PKUERR || !defined SEGV_ACCADI || !defined SEGV_ADIDERR \
+    || !defined SEGV_ADIPERR || !defined SEGV_MTEAERR || !defined SEGV_MTESERR || !defined SEGV_CPERR
+enum {
 #  ifndef SEGV_MAPERR
-enum { SEGV_MAPERR = 1 };
+  SEGV_MAPERR = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_MTEAERR
-#  define __NIJI_D_enum_SEGV_MTEAERR 1
-#  ifndef SEGV_MTEAERR
-enum { SEGV_MTEAERR = 8 };
+#  ifndef SEGV_ACCERR
+  SEGV_ACCERR = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_MTESERR
-#  define __NIJI_D_enum_SEGV_MTESERR 1
-#  ifndef SEGV_MTESERR
-enum { SEGV_MTESERR = 9 };
+#  ifndef SEGV_BNDERR
+  SEGV_BNDERR = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SEGV_PKUERR
-#  define __NIJI_D_enum_SEGV_PKUERR 1
 #  ifndef SEGV_PKUERR
-enum { SEGV_PKUERR = 4 };
+  SEGV_PKUERR = 4,
+#  endif
+#  ifndef SEGV_ACCADI
+  SEGV_ACCADI = 5,
+#  endif
+#  ifndef SEGV_ADIDERR
+  SEGV_ADIDERR = 6,
+#  endif
+#  ifndef SEGV_ADIPERR
+  SEGV_ADIPERR = 7,
+#  endif
+#  ifndef SEGV_MTEAERR
+  SEGV_MTEAERR = 8,
+#  endif
+#  ifndef SEGV_MTESERR
+  SEGV_MTESERR = 9,
+#  endif
+#  ifndef SEGV_CPERR
+  SEGV_CPERR = 10,
+#  endif
+};
 #  endif
 # endif
 #endif
 #if __NIJI_XSI >= 450
-# ifndef __NIJI_D_enum_TRAP_BRANCH
-#  define __NIJI_D_enum_TRAP_BRANCH 1
-#  ifndef TRAP_BRANCH
-enum { TRAP_BRANCH = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TRAP_BRKPT
-#  define __NIJI_D_enum_TRAP_BRKPT 1
+# ifndef __NIJI_D_anon_TRAP_BRANCH
+#  define __NIJI_D_anon_TRAP_BRANCH 1
+#  if !defined TRAP_BRKPT || !defined TRAP_TRACE || !defined TRAP_BRANCH || !defined TRAP_HWBKPT || !defined TRAP_UNK
+enum {
 #  ifndef TRAP_BRKPT
-enum { TRAP_BRKPT = 1 };
+  TRAP_BRKPT = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_TRAP_HWBKPT
-#  define __NIJI_D_enum_TRAP_HWBKPT 1
-#  ifndef TRAP_HWBKPT
-enum { TRAP_HWBKPT = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TRAP_TRACE
-#  define __NIJI_D_enum_TRAP_TRACE 1
 #  ifndef TRAP_TRACE
-enum { TRAP_TRACE = 2 };
+  TRAP_TRACE = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_TRAP_UNK
-#  define __NIJI_D_enum_TRAP_UNK 1
+#  ifndef TRAP_BRANCH
+  TRAP_BRANCH = 3,
+#  endif
+#  ifndef TRAP_HWBKPT
+  TRAP_HWBKPT = 4,
+#  endif
 #  ifndef TRAP_UNK
-enum { TRAP_UNK = 5 };
+  TRAP_UNK = 5,
+#  endif
+};
 #  endif
 # endif
 #endif
@@ -4208,205 +3186,205 @@ enum { TRAP_UNK = 5 };
 #  define X_OK 1
 # endif
 # ifndef _CS_GNU_LIBC_VERSION
-#  define _CS_GNU_LIBC_VERSION 2
+#  define _CS_GNU_LIBC_VERSION _CS_GNU_LIBC_VERSION
 # endif
 # ifndef _CS_GNU_LIBPTHREAD_VERSION
-#  define _CS_GNU_LIBPTHREAD_VERSION 3
+#  define _CS_GNU_LIBPTHREAD_VERSION _CS_GNU_LIBPTHREAD_VERSION
 # endif
 # ifndef _CS_LFS64_CFLAGS
-#  define _CS_LFS64_CFLAGS 1004
+#  define _CS_LFS64_CFLAGS _CS_LFS64_CFLAGS
 # endif
 # ifndef _CS_LFS64_LDFLAGS
-#  define _CS_LFS64_LDFLAGS 1005
+#  define _CS_LFS64_LDFLAGS _CS_LFS64_LDFLAGS
 # endif
 # ifndef _CS_LFS64_LIBS
-#  define _CS_LFS64_LIBS 1006
+#  define _CS_LFS64_LIBS _CS_LFS64_LIBS
 # endif
 # ifndef _CS_LFS64_LINTFLAGS
-#  define _CS_LFS64_LINTFLAGS 1007
+#  define _CS_LFS64_LINTFLAGS _CS_LFS64_LINTFLAGS
 # endif
 # ifndef _CS_LFS_CFLAGS
-#  define _CS_LFS_CFLAGS 1000
+#  define _CS_LFS_CFLAGS _CS_LFS_CFLAGS
 # endif
 # ifndef _CS_LFS_LDFLAGS
-#  define _CS_LFS_LDFLAGS 1001
+#  define _CS_LFS_LDFLAGS _CS_LFS_LDFLAGS
 # endif
 # ifndef _CS_LFS_LIBS
-#  define _CS_LFS_LIBS 1002
+#  define _CS_LFS_LIBS _CS_LFS_LIBS
 # endif
 # ifndef _CS_LFS_LINTFLAGS
-#  define _CS_LFS_LINTFLAGS 1003
+#  define _CS_LFS_LINTFLAGS _CS_LFS_LINTFLAGS
 # endif
 # ifndef _CS_PATH
-#  define _CS_PATH 0
+#  define _CS_PATH _CS_PATH
 # endif
 # ifndef _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS 4
+#  define _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFF32_CFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_CFLAGS 1116
+#  define _CS_POSIX_V6_ILP32_OFF32_CFLAGS _CS_POSIX_V6_ILP32_OFF32_CFLAGS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_LDFLAGS 1117
+#  define _CS_POSIX_V6_ILP32_OFF32_LDFLAGS _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFF32_LIBS
-#  define _CS_POSIX_V6_ILP32_OFF32_LIBS 1118
+#  define _CS_POSIX_V6_ILP32_OFF32_LIBS _CS_POSIX_V6_ILP32_OFF32_LIBS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS 1119
+#  define _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS 1120
+#  define _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS 1121
+#  define _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFFBIG_LIBS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LIBS 1122
+#  define _CS_POSIX_V6_ILP32_OFFBIG_LIBS _CS_POSIX_V6_ILP32_OFFBIG_LIBS
 # endif
 # ifndef _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS 1123
+#  define _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LP64_OFF64_CFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_CFLAGS 1124
+#  define _CS_POSIX_V6_LP64_OFF64_CFLAGS _CS_POSIX_V6_LP64_OFF64_CFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LP64_OFF64_LDFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_LDFLAGS 1125
+#  define _CS_POSIX_V6_LP64_OFF64_LDFLAGS _CS_POSIX_V6_LP64_OFF64_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LP64_OFF64_LIBS
-#  define _CS_POSIX_V6_LP64_OFF64_LIBS 1126
+#  define _CS_POSIX_V6_LP64_OFF64_LIBS _CS_POSIX_V6_LP64_OFF64_LIBS
 # endif
 # ifndef _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_LINTFLAGS 1127
+#  define _CS_POSIX_V6_LP64_OFF64_LINTFLAGS _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS 1128
+#  define _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS 1129
+#  define _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LIBS 1130
+#  define _CS_POSIX_V6_LPBIG_OFFBIG_LIBS _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
 # endif
 # ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS 1131
+#  define _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS 1
+#  define _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFF32_CFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_CFLAGS 1132
+#  define _CS_POSIX_V7_ILP32_OFF32_CFLAGS _CS_POSIX_V7_ILP32_OFF32_CFLAGS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_LDFLAGS 1133
+#  define _CS_POSIX_V7_ILP32_OFF32_LDFLAGS _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFF32_LIBS
-#  define _CS_POSIX_V7_ILP32_OFF32_LIBS 1134
+#  define _CS_POSIX_V7_ILP32_OFF32_LIBS _CS_POSIX_V7_ILP32_OFF32_LIBS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS 1135
+#  define _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS 1136
+#  define _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS 1137
+#  define _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFFBIG_LIBS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LIBS 1138
+#  define _CS_POSIX_V7_ILP32_OFFBIG_LIBS _CS_POSIX_V7_ILP32_OFFBIG_LIBS
 # endif
 # ifndef _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS 1139
+#  define _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LP64_OFF64_CFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_CFLAGS 1140
+#  define _CS_POSIX_V7_LP64_OFF64_CFLAGS _CS_POSIX_V7_LP64_OFF64_CFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LP64_OFF64_LDFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_LDFLAGS 1141
+#  define _CS_POSIX_V7_LP64_OFF64_LDFLAGS _CS_POSIX_V7_LP64_OFF64_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LP64_OFF64_LIBS
-#  define _CS_POSIX_V7_LP64_OFF64_LIBS 1142
+#  define _CS_POSIX_V7_LP64_OFF64_LIBS _CS_POSIX_V7_LP64_OFF64_LIBS
 # endif
 # ifndef _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_LINTFLAGS 1143
+#  define _CS_POSIX_V7_LP64_OFF64_LINTFLAGS _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS 1144
+#  define _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS 1145
+#  define _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LIBS 1146
+#  define _CS_POSIX_V7_LPBIG_OFFBIG_LIBS _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
 # endif
 # ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS 1147
+#  define _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
 # endif
 # ifndef _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS 5
+#  define _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_V5_WIDTH_RESTRICTED_ENVS
-#  define _CS_V5_WIDTH_RESTRICTED_ENVS 4
+#  define _CS_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_V6_ENV
-#  define _CS_V6_ENV 1148
+#  define _CS_V6_ENV _CS_V6_ENV
 # endif
 # ifndef _CS_V6_WIDTH_RESTRICTED_ENVS
-#  define _CS_V6_WIDTH_RESTRICTED_ENVS 1
+#  define _CS_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_V7_ENV
-#  define _CS_V7_ENV 1149
+#  define _CS_V7_ENV _CS_V7_ENV
 # endif
 # ifndef _CS_V7_WIDTH_RESTRICTED_ENVS
-#  define _CS_V7_WIDTH_RESTRICTED_ENVS 5
+#  define _CS_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
 # endif
 # ifndef _CS_XBS5_ILP32_OFF32_CFLAGS
-#  define _CS_XBS5_ILP32_OFF32_CFLAGS 1100
+#  define _CS_XBS5_ILP32_OFF32_CFLAGS _CS_XBS5_ILP32_OFF32_CFLAGS
 # endif
 # ifndef _CS_XBS5_ILP32_OFF32_LDFLAGS
-#  define _CS_XBS5_ILP32_OFF32_LDFLAGS 1101
+#  define _CS_XBS5_ILP32_OFF32_LDFLAGS _CS_XBS5_ILP32_OFF32_LDFLAGS
 # endif
 # ifndef _CS_XBS5_ILP32_OFF32_LIBS
-#  define _CS_XBS5_ILP32_OFF32_LIBS 1102
+#  define _CS_XBS5_ILP32_OFF32_LIBS _CS_XBS5_ILP32_OFF32_LIBS
 # endif
 # ifndef _CS_XBS5_ILP32_OFF32_LINTFLAGS
-#  define _CS_XBS5_ILP32_OFF32_LINTFLAGS 1103
+#  define _CS_XBS5_ILP32_OFF32_LINTFLAGS _CS_XBS5_ILP32_OFF32_LINTFLAGS
 # endif
 # ifndef _CS_XBS5_ILP32_OFFBIG_CFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_CFLAGS 1104
+#  define _CS_XBS5_ILP32_OFFBIG_CFLAGS _CS_XBS5_ILP32_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_XBS5_ILP32_OFFBIG_LDFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_LDFLAGS 1105
+#  define _CS_XBS5_ILP32_OFFBIG_LDFLAGS _CS_XBS5_ILP32_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_XBS5_ILP32_OFFBIG_LIBS
-#  define _CS_XBS5_ILP32_OFFBIG_LIBS 1106
+#  define _CS_XBS5_ILP32_OFFBIG_LIBS _CS_XBS5_ILP32_OFFBIG_LIBS
 # endif
 # ifndef _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_LINTFLAGS 1107
+#  define _CS_XBS5_ILP32_OFFBIG_LINTFLAGS _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
 # endif
 # ifndef _CS_XBS5_LP64_OFF64_CFLAGS
-#  define _CS_XBS5_LP64_OFF64_CFLAGS 1108
+#  define _CS_XBS5_LP64_OFF64_CFLAGS _CS_XBS5_LP64_OFF64_CFLAGS
 # endif
 # ifndef _CS_XBS5_LP64_OFF64_LDFLAGS
-#  define _CS_XBS5_LP64_OFF64_LDFLAGS 1109
+#  define _CS_XBS5_LP64_OFF64_LDFLAGS _CS_XBS5_LP64_OFF64_LDFLAGS
 # endif
 # ifndef _CS_XBS5_LP64_OFF64_LIBS
-#  define _CS_XBS5_LP64_OFF64_LIBS 1110
+#  define _CS_XBS5_LP64_OFF64_LIBS _CS_XBS5_LP64_OFF64_LIBS
 # endif
 # ifndef _CS_XBS5_LP64_OFF64_LINTFLAGS
-#  define _CS_XBS5_LP64_OFF64_LINTFLAGS 1111
+#  define _CS_XBS5_LP64_OFF64_LINTFLAGS _CS_XBS5_LP64_OFF64_LINTFLAGS
 # endif
 # ifndef _CS_XBS5_LPBIG_OFFBIG_CFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_CFLAGS 1112
+#  define _CS_XBS5_LPBIG_OFFBIG_CFLAGS _CS_XBS5_LPBIG_OFFBIG_CFLAGS
 # endif
 # ifndef _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_LDFLAGS 1113
+#  define _CS_XBS5_LPBIG_OFFBIG_LDFLAGS _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
 # endif
 # ifndef _CS_XBS5_LPBIG_OFFBIG_LIBS
-#  define _CS_XBS5_LPBIG_OFFBIG_LIBS 1114
+#  define _CS_XBS5_LPBIG_OFFBIG_LIBS _CS_XBS5_LPBIG_OFFBIG_LIBS
 # endif
 # ifndef _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS 1115
+#  define _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
 # endif
 # ifndef _LFS64_ASYNCHRONOUS_IO
 #  define _LFS64_ASYNCHRONOUS_IO 1
@@ -4424,67 +3402,67 @@ enum { TRAP_UNK = 5 };
 #  define _LFS_LARGEFILE 1
 # endif
 # ifndef _PC_2_SYMLINKS
-#  define _PC_2_SYMLINKS 20
+#  define _PC_2_SYMLINKS _PC_2_SYMLINKS
 # endif
 # ifndef _PC_ALLOC_SIZE_MIN
-#  define _PC_ALLOC_SIZE_MIN 18
+#  define _PC_ALLOC_SIZE_MIN _PC_ALLOC_SIZE_MIN
 # endif
 # ifndef _PC_ASYNC_IO
-#  define _PC_ASYNC_IO 10
+#  define _PC_ASYNC_IO _PC_ASYNC_IO
 # endif
 # ifndef _PC_CHOWN_RESTRICTED
-#  define _PC_CHOWN_RESTRICTED 6
+#  define _PC_CHOWN_RESTRICTED _PC_CHOWN_RESTRICTED
 # endif
 # ifndef _PC_FILESIZEBITS
-#  define _PC_FILESIZEBITS 13
+#  define _PC_FILESIZEBITS _PC_FILESIZEBITS
 # endif
 # ifndef _PC_LINK_MAX
-#  define _PC_LINK_MAX 0
+#  define _PC_LINK_MAX _PC_LINK_MAX
 # endif
 # ifndef _PC_MAX_CANON
-#  define _PC_MAX_CANON 1
+#  define _PC_MAX_CANON _PC_MAX_CANON
 # endif
 # ifndef _PC_MAX_INPUT
-#  define _PC_MAX_INPUT 2
+#  define _PC_MAX_INPUT _PC_MAX_INPUT
 # endif
 # ifndef _PC_NAME_MAX
-#  define _PC_NAME_MAX 3
+#  define _PC_NAME_MAX _PC_NAME_MAX
 # endif
 # ifndef _PC_NO_TRUNC
-#  define _PC_NO_TRUNC 7
+#  define _PC_NO_TRUNC _PC_NO_TRUNC
 # endif
 # ifndef _PC_PATH_MAX
-#  define _PC_PATH_MAX 4
+#  define _PC_PATH_MAX _PC_PATH_MAX
 # endif
 # ifndef _PC_PIPE_BUF
-#  define _PC_PIPE_BUF 5
+#  define _PC_PIPE_BUF _PC_PIPE_BUF
 # endif
 # ifndef _PC_PRIO_IO
-#  define _PC_PRIO_IO 11
+#  define _PC_PRIO_IO _PC_PRIO_IO
 # endif
 # ifndef _PC_REC_INCR_XFER_SIZE
-#  define _PC_REC_INCR_XFER_SIZE 14
+#  define _PC_REC_INCR_XFER_SIZE _PC_REC_INCR_XFER_SIZE
 # endif
 # ifndef _PC_REC_MAX_XFER_SIZE
-#  define _PC_REC_MAX_XFER_SIZE 15
+#  define _PC_REC_MAX_XFER_SIZE _PC_REC_MAX_XFER_SIZE
 # endif
 # ifndef _PC_REC_MIN_XFER_SIZE
-#  define _PC_REC_MIN_XFER_SIZE 16
+#  define _PC_REC_MIN_XFER_SIZE _PC_REC_MIN_XFER_SIZE
 # endif
 # ifndef _PC_REC_XFER_ALIGN
-#  define _PC_REC_XFER_ALIGN 17
+#  define _PC_REC_XFER_ALIGN _PC_REC_XFER_ALIGN
 # endif
 # ifndef _PC_SOCK_MAXBUF
-#  define _PC_SOCK_MAXBUF 12
+#  define _PC_SOCK_MAXBUF _PC_SOCK_MAXBUF
 # endif
 # ifndef _PC_SYMLINK_MAX
-#  define _PC_SYMLINK_MAX 19
+#  define _PC_SYMLINK_MAX _PC_SYMLINK_MAX
 # endif
 # ifndef _PC_SYNC_IO
-#  define _PC_SYNC_IO 9
+#  define _PC_SYNC_IO _PC_SYNC_IO
 # endif
 # ifndef _PC_VDISABLE
-#  define _PC_VDISABLE 8
+#  define _PC_VDISABLE _PC_VDISABLE
 # endif
 # ifndef _POSIX2_CHAR_TERM
 #  define _POSIX2_CHAR_TERM 200809L
@@ -4673,664 +3651,664 @@ enum { TRAP_UNK = 5 };
 #  define _POSIX_V7_LPBIG_OFFBIG (-1)
 # endif
 # ifndef _POSIX_VDISABLE
-#  define _POSIX_VDISABLE 0
+#  define _POSIX_VDISABLE '\000'
 # endif
 # ifndef _POSIX_VERSION
 #  define _POSIX_VERSION 200809L
 # endif
 # ifndef _SC_2_CHAR_TERM
-#  define _SC_2_CHAR_TERM 95
+#  define _SC_2_CHAR_TERM _SC_2_CHAR_TERM
 # endif
 # ifndef _SC_2_C_BIND
-#  define _SC_2_C_BIND 47
+#  define _SC_2_C_BIND _SC_2_C_BIND
 # endif
 # ifndef _SC_2_C_DEV
-#  define _SC_2_C_DEV 48
+#  define _SC_2_C_DEV _SC_2_C_DEV
 # endif
 # ifndef _SC_2_C_VERSION
-#  define _SC_2_C_VERSION 96
+#  define _SC_2_C_VERSION _SC_2_C_VERSION
 # endif
 # ifndef _SC_2_FORT_DEV
-#  define _SC_2_FORT_DEV 49
+#  define _SC_2_FORT_DEV _SC_2_FORT_DEV
 # endif
 # ifndef _SC_2_FORT_RUN
-#  define _SC_2_FORT_RUN 50
+#  define _SC_2_FORT_RUN _SC_2_FORT_RUN
 # endif
 # ifndef _SC_2_LOCALEDEF
-#  define _SC_2_LOCALEDEF 52
+#  define _SC_2_LOCALEDEF _SC_2_LOCALEDEF
 # endif
 # ifndef _SC_2_PBS
-#  define _SC_2_PBS 168
+#  define _SC_2_PBS _SC_2_PBS
 # endif
 # ifndef _SC_2_PBS_ACCOUNTING
-#  define _SC_2_PBS_ACCOUNTING 169
+#  define _SC_2_PBS_ACCOUNTING _SC_2_PBS_ACCOUNTING
 # endif
 # ifndef _SC_2_PBS_CHECKPOINT
-#  define _SC_2_PBS_CHECKPOINT 175
+#  define _SC_2_PBS_CHECKPOINT _SC_2_PBS_CHECKPOINT
 # endif
 # ifndef _SC_2_PBS_LOCATE
-#  define _SC_2_PBS_LOCATE 170
+#  define _SC_2_PBS_LOCATE _SC_2_PBS_LOCATE
 # endif
 # ifndef _SC_2_PBS_MESSAGE
-#  define _SC_2_PBS_MESSAGE 171
+#  define _SC_2_PBS_MESSAGE _SC_2_PBS_MESSAGE
 # endif
 # ifndef _SC_2_PBS_TRACK
-#  define _SC_2_PBS_TRACK 172
+#  define _SC_2_PBS_TRACK _SC_2_PBS_TRACK
 # endif
 # ifndef _SC_2_SW_DEV
-#  define _SC_2_SW_DEV 51
+#  define _SC_2_SW_DEV _SC_2_SW_DEV
 # endif
 # ifndef _SC_2_UPE
-#  define _SC_2_UPE 97
+#  define _SC_2_UPE _SC_2_UPE
 # endif
 # ifndef _SC_2_VERSION
-#  define _SC_2_VERSION 46
+#  define _SC_2_VERSION _SC_2_VERSION
 # endif
 # ifndef _SC_ADVISORY_INFO
-#  define _SC_ADVISORY_INFO 132
+#  define _SC_ADVISORY_INFO _SC_ADVISORY_INFO
 # endif
 # ifndef _SC_AIO_LISTIO_MAX
-#  define _SC_AIO_LISTIO_MAX 23
+#  define _SC_AIO_LISTIO_MAX _SC_AIO_LISTIO_MAX
 # endif
 # ifndef _SC_AIO_MAX
-#  define _SC_AIO_MAX 24
+#  define _SC_AIO_MAX _SC_AIO_MAX
 # endif
 # ifndef _SC_AIO_PRIO_DELTA_MAX
-#  define _SC_AIO_PRIO_DELTA_MAX 25
+#  define _SC_AIO_PRIO_DELTA_MAX _SC_AIO_PRIO_DELTA_MAX
 # endif
 # ifndef _SC_ARG_MAX
-#  define _SC_ARG_MAX 0
+#  define _SC_ARG_MAX _SC_ARG_MAX
 # endif
 # ifndef _SC_ASYNCHRONOUS_IO
-#  define _SC_ASYNCHRONOUS_IO 12
+#  define _SC_ASYNCHRONOUS_IO _SC_ASYNCHRONOUS_IO
 # endif
 # ifndef _SC_ATEXIT_MAX
-#  define _SC_ATEXIT_MAX 87
+#  define _SC_ATEXIT_MAX _SC_ATEXIT_MAX
 # endif
 # ifndef _SC_AVPHYS_PAGES
-#  define _SC_AVPHYS_PAGES 86
+#  define _SC_AVPHYS_PAGES _SC_AVPHYS_PAGES
 # endif
 # ifndef _SC_BARRIERS
-#  define _SC_BARRIERS 133
+#  define _SC_BARRIERS _SC_BARRIERS
 # endif
 # ifndef _SC_BASE
-#  define _SC_BASE 134
+#  define _SC_BASE _SC_BASE
 # endif
 # ifndef _SC_BC_BASE_MAX
-#  define _SC_BC_BASE_MAX 36
+#  define _SC_BC_BASE_MAX _SC_BC_BASE_MAX
 # endif
 # ifndef _SC_BC_DIM_MAX
-#  define _SC_BC_DIM_MAX 37
+#  define _SC_BC_DIM_MAX _SC_BC_DIM_MAX
 # endif
 # ifndef _SC_BC_SCALE_MAX
-#  define _SC_BC_SCALE_MAX 38
+#  define _SC_BC_SCALE_MAX _SC_BC_SCALE_MAX
 # endif
 # ifndef _SC_BC_STRING_MAX
-#  define _SC_BC_STRING_MAX 39
+#  define _SC_BC_STRING_MAX _SC_BC_STRING_MAX
 # endif
 # ifndef _SC_CHARCLASS_NAME_MAX
-#  define _SC_CHARCLASS_NAME_MAX 45
+#  define _SC_CHARCLASS_NAME_MAX _SC_CHARCLASS_NAME_MAX
 # endif
 # ifndef _SC_CHAR_BIT
-#  define _SC_CHAR_BIT 101
+#  define _SC_CHAR_BIT _SC_CHAR_BIT
 # endif
 # ifndef _SC_CHAR_MAX
-#  define _SC_CHAR_MAX 102
+#  define _SC_CHAR_MAX _SC_CHAR_MAX
 # endif
 # ifndef _SC_CHAR_MIN
-#  define _SC_CHAR_MIN 103
+#  define _SC_CHAR_MIN _SC_CHAR_MIN
 # endif
 # ifndef _SC_CHILD_MAX
-#  define _SC_CHILD_MAX 1
+#  define _SC_CHILD_MAX _SC_CHILD_MAX
 # endif
 # ifndef _SC_CLK_TCK
-#  define _SC_CLK_TCK 2
+#  define _SC_CLK_TCK _SC_CLK_TCK
 # endif
 # ifndef _SC_CLOCK_SELECTION
-#  define _SC_CLOCK_SELECTION 137
+#  define _SC_CLOCK_SELECTION _SC_CLOCK_SELECTION
 # endif
 # ifndef _SC_COLL_WEIGHTS_MAX
-#  define _SC_COLL_WEIGHTS_MAX 40
+#  define _SC_COLL_WEIGHTS_MAX _SC_COLL_WEIGHTS_MAX
 # endif
 # ifndef _SC_CPUTIME
-#  define _SC_CPUTIME 138
+#  define _SC_CPUTIME _SC_CPUTIME
 # endif
 # ifndef _SC_C_LANG_SUPPORT
-#  define _SC_C_LANG_SUPPORT 135
+#  define _SC_C_LANG_SUPPORT _SC_C_LANG_SUPPORT
 # endif
 # ifndef _SC_C_LANG_SUPPORT_R
-#  define _SC_C_LANG_SUPPORT_R 136
+#  define _SC_C_LANG_SUPPORT_R _SC_C_LANG_SUPPORT_R
 # endif
 # ifndef _SC_DELAYTIMER_MAX
-#  define _SC_DELAYTIMER_MAX 26
+#  define _SC_DELAYTIMER_MAX _SC_DELAYTIMER_MAX
 # endif
 # ifndef _SC_DEVICE_IO
-#  define _SC_DEVICE_IO 140
+#  define _SC_DEVICE_IO _SC_DEVICE_IO
 # endif
 # ifndef _SC_DEVICE_SPECIFIC
-#  define _SC_DEVICE_SPECIFIC 141
+#  define _SC_DEVICE_SPECIFIC _SC_DEVICE_SPECIFIC
 # endif
 # ifndef _SC_DEVICE_SPECIFIC_R
-#  define _SC_DEVICE_SPECIFIC_R 142
+#  define _SC_DEVICE_SPECIFIC_R _SC_DEVICE_SPECIFIC_R
 # endif
 # ifndef _SC_EQUIV_CLASS_MAX
-#  define _SC_EQUIV_CLASS_MAX 41
+#  define _SC_EQUIV_CLASS_MAX _SC_EQUIV_CLASS_MAX
 # endif
 # ifndef _SC_EXPR_NEST_MAX
-#  define _SC_EXPR_NEST_MAX 42
+#  define _SC_EXPR_NEST_MAX _SC_EXPR_NEST_MAX
 # endif
 # ifndef _SC_FD_MGMT
-#  define _SC_FD_MGMT 143
+#  define _SC_FD_MGMT _SC_FD_MGMT
 # endif
 # ifndef _SC_FIFO
-#  define _SC_FIFO 144
+#  define _SC_FIFO _SC_FIFO
 # endif
 # ifndef _SC_FILE_ATTRIBUTES
-#  define _SC_FILE_ATTRIBUTES 146
+#  define _SC_FILE_ATTRIBUTES _SC_FILE_ATTRIBUTES
 # endif
 # ifndef _SC_FILE_LOCKING
-#  define _SC_FILE_LOCKING 147
+#  define _SC_FILE_LOCKING _SC_FILE_LOCKING
 # endif
 # ifndef _SC_FILE_SYSTEM
-#  define _SC_FILE_SYSTEM 148
+#  define _SC_FILE_SYSTEM _SC_FILE_SYSTEM
 # endif
 # ifndef _SC_FSYNC
-#  define _SC_FSYNC 15
+#  define _SC_FSYNC _SC_FSYNC
 # endif
 # ifndef _SC_GETGR_R_SIZE_MAX
-#  define _SC_GETGR_R_SIZE_MAX 69
+#  define _SC_GETGR_R_SIZE_MAX _SC_GETGR_R_SIZE_MAX
 # endif
 # ifndef _SC_GETPW_R_SIZE_MAX
-#  define _SC_GETPW_R_SIZE_MAX 70
+#  define _SC_GETPW_R_SIZE_MAX _SC_GETPW_R_SIZE_MAX
 # endif
 # ifndef _SC_HOST_NAME_MAX
-#  define _SC_HOST_NAME_MAX 180
+#  define _SC_HOST_NAME_MAX _SC_HOST_NAME_MAX
 # endif
 # ifndef _SC_INT_MAX
-#  define _SC_INT_MAX 104
+#  define _SC_INT_MAX _SC_INT_MAX
 # endif
 # ifndef _SC_INT_MIN
-#  define _SC_INT_MIN 105
+#  define _SC_INT_MIN _SC_INT_MIN
 # endif
 # ifndef _SC_IOV_MAX
-#  define _SC_IOV_MAX 60
+#  define _SC_IOV_MAX _SC_IOV_MAX
 # endif
 # ifndef _SC_IPV6
-#  define _SC_IPV6 235
+#  define _SC_IPV6 _SC_IPV6
 # endif
 # ifndef _SC_JOB_CONTROL
-#  define _SC_JOB_CONTROL 7
+#  define _SC_JOB_CONTROL _SC_JOB_CONTROL
 # endif
 # ifndef _SC_LEVEL1_DCACHE_ASSOC
-#  define _SC_LEVEL1_DCACHE_ASSOC 189
+#  define _SC_LEVEL1_DCACHE_ASSOC _SC_LEVEL1_DCACHE_ASSOC
 # endif
 # ifndef _SC_LEVEL1_DCACHE_LINESIZE
-#  define _SC_LEVEL1_DCACHE_LINESIZE 190
+#  define _SC_LEVEL1_DCACHE_LINESIZE _SC_LEVEL1_DCACHE_LINESIZE
 # endif
 # ifndef _SC_LEVEL1_DCACHE_SIZE
-#  define _SC_LEVEL1_DCACHE_SIZE 188
+#  define _SC_LEVEL1_DCACHE_SIZE _SC_LEVEL1_DCACHE_SIZE
 # endif
 # ifndef _SC_LEVEL1_ICACHE_ASSOC
-#  define _SC_LEVEL1_ICACHE_ASSOC 186
+#  define _SC_LEVEL1_ICACHE_ASSOC _SC_LEVEL1_ICACHE_ASSOC
 # endif
 # ifndef _SC_LEVEL1_ICACHE_LINESIZE
-#  define _SC_LEVEL1_ICACHE_LINESIZE 187
+#  define _SC_LEVEL1_ICACHE_LINESIZE _SC_LEVEL1_ICACHE_LINESIZE
 # endif
 # ifndef _SC_LEVEL1_ICACHE_SIZE
-#  define _SC_LEVEL1_ICACHE_SIZE 185
+#  define _SC_LEVEL1_ICACHE_SIZE _SC_LEVEL1_ICACHE_SIZE
 # endif
 # ifndef _SC_LEVEL2_CACHE_ASSOC
-#  define _SC_LEVEL2_CACHE_ASSOC 192
+#  define _SC_LEVEL2_CACHE_ASSOC _SC_LEVEL2_CACHE_ASSOC
 # endif
 # ifndef _SC_LEVEL2_CACHE_LINESIZE
-#  define _SC_LEVEL2_CACHE_LINESIZE 193
+#  define _SC_LEVEL2_CACHE_LINESIZE _SC_LEVEL2_CACHE_LINESIZE
 # endif
 # ifndef _SC_LEVEL2_CACHE_SIZE
-#  define _SC_LEVEL2_CACHE_SIZE 191
+#  define _SC_LEVEL2_CACHE_SIZE _SC_LEVEL2_CACHE_SIZE
 # endif
 # ifndef _SC_LEVEL3_CACHE_ASSOC
-#  define _SC_LEVEL3_CACHE_ASSOC 195
+#  define _SC_LEVEL3_CACHE_ASSOC _SC_LEVEL3_CACHE_ASSOC
 # endif
 # ifndef _SC_LEVEL3_CACHE_LINESIZE
-#  define _SC_LEVEL3_CACHE_LINESIZE 196
+#  define _SC_LEVEL3_CACHE_LINESIZE _SC_LEVEL3_CACHE_LINESIZE
 # endif
 # ifndef _SC_LEVEL3_CACHE_SIZE
-#  define _SC_LEVEL3_CACHE_SIZE 194
+#  define _SC_LEVEL3_CACHE_SIZE _SC_LEVEL3_CACHE_SIZE
 # endif
 # ifndef _SC_LEVEL4_CACHE_ASSOC
-#  define _SC_LEVEL4_CACHE_ASSOC 198
+#  define _SC_LEVEL4_CACHE_ASSOC _SC_LEVEL4_CACHE_ASSOC
 # endif
 # ifndef _SC_LEVEL4_CACHE_LINESIZE
-#  define _SC_LEVEL4_CACHE_LINESIZE 199
+#  define _SC_LEVEL4_CACHE_LINESIZE _SC_LEVEL4_CACHE_LINESIZE
 # endif
 # ifndef _SC_LEVEL4_CACHE_SIZE
-#  define _SC_LEVEL4_CACHE_SIZE 197
+#  define _SC_LEVEL4_CACHE_SIZE _SC_LEVEL4_CACHE_SIZE
 # endif
 # ifndef _SC_LINE_MAX
-#  define _SC_LINE_MAX 43
+#  define _SC_LINE_MAX _SC_LINE_MAX
 # endif
 # ifndef _SC_LOGIN_NAME_MAX
-#  define _SC_LOGIN_NAME_MAX 71
+#  define _SC_LOGIN_NAME_MAX _SC_LOGIN_NAME_MAX
 # endif
 # ifndef _SC_LONG_BIT
-#  define _SC_LONG_BIT 106
+#  define _SC_LONG_BIT _SC_LONG_BIT
 # endif
 # ifndef _SC_MAPPED_FILES
-#  define _SC_MAPPED_FILES 16
+#  define _SC_MAPPED_FILES _SC_MAPPED_FILES
 # endif
 # ifndef _SC_MB_LEN_MAX
-#  define _SC_MB_LEN_MAX 108
+#  define _SC_MB_LEN_MAX _SC_MB_LEN_MAX
 # endif
 # ifndef _SC_MEMLOCK
-#  define _SC_MEMLOCK 17
+#  define _SC_MEMLOCK _SC_MEMLOCK
 # endif
 # ifndef _SC_MEMLOCK_RANGE
-#  define _SC_MEMLOCK_RANGE 18
+#  define _SC_MEMLOCK_RANGE _SC_MEMLOCK_RANGE
 # endif
 # ifndef _SC_MEMORY_PROTECTION
-#  define _SC_MEMORY_PROTECTION 19
+#  define _SC_MEMORY_PROTECTION _SC_MEMORY_PROTECTION
 # endif
 # ifndef _SC_MESSAGE_PASSING
-#  define _SC_MESSAGE_PASSING 20
+#  define _SC_MESSAGE_PASSING _SC_MESSAGE_PASSING
 # endif
 # ifndef _SC_MINSIGSTKSZ
-#  define _SC_MINSIGSTKSZ 249
+#  define _SC_MINSIGSTKSZ _SC_MINSIGSTKSZ
 # endif
 # ifndef _SC_MONOTONIC_CLOCK
-#  define _SC_MONOTONIC_CLOCK 149
+#  define _SC_MONOTONIC_CLOCK _SC_MONOTONIC_CLOCK
 # endif
 # ifndef _SC_MQ_OPEN_MAX
-#  define _SC_MQ_OPEN_MAX 27
+#  define _SC_MQ_OPEN_MAX _SC_MQ_OPEN_MAX
 # endif
 # ifndef _SC_MQ_PRIO_MAX
-#  define _SC_MQ_PRIO_MAX 28
+#  define _SC_MQ_PRIO_MAX _SC_MQ_PRIO_MAX
 # endif
 # ifndef _SC_MULTI_PROCESS
-#  define _SC_MULTI_PROCESS 150
+#  define _SC_MULTI_PROCESS _SC_MULTI_PROCESS
 # endif
 # ifndef _SC_NETWORKING
-#  define _SC_NETWORKING 152
+#  define _SC_NETWORKING _SC_NETWORKING
 # endif
 # ifndef _SC_NGROUPS_MAX
-#  define _SC_NGROUPS_MAX 3
+#  define _SC_NGROUPS_MAX _SC_NGROUPS_MAX
 # endif
 # ifndef _SC_NL_ARGMAX
-#  define _SC_NL_ARGMAX 119
+#  define _SC_NL_ARGMAX _SC_NL_ARGMAX
 # endif
 # ifndef _SC_NL_LANGMAX
-#  define _SC_NL_LANGMAX 120
+#  define _SC_NL_LANGMAX _SC_NL_LANGMAX
 # endif
 # ifndef _SC_NL_MSGMAX
-#  define _SC_NL_MSGMAX 121
+#  define _SC_NL_MSGMAX _SC_NL_MSGMAX
 # endif
 # ifndef _SC_NL_NMAX
-#  define _SC_NL_NMAX 122
+#  define _SC_NL_NMAX _SC_NL_NMAX
 # endif
 # ifndef _SC_NL_SETMAX
-#  define _SC_NL_SETMAX 123
+#  define _SC_NL_SETMAX _SC_NL_SETMAX
 # endif
 # ifndef _SC_NL_TEXTMAX
-#  define _SC_NL_TEXTMAX 124
+#  define _SC_NL_TEXTMAX _SC_NL_TEXTMAX
 # endif
 # ifndef _SC_NPROCESSORS_CONF
-#  define _SC_NPROCESSORS_CONF 83
+#  define _SC_NPROCESSORS_CONF _SC_NPROCESSORS_CONF
 # endif
 # ifndef _SC_NPROCESSORS_ONLN
-#  define _SC_NPROCESSORS_ONLN 84
+#  define _SC_NPROCESSORS_ONLN _SC_NPROCESSORS_ONLN
 # endif
 # ifndef _SC_NZERO
-#  define _SC_NZERO 109
+#  define _SC_NZERO _SC_NZERO
 # endif
 # ifndef _SC_OPEN_MAX
-#  define _SC_OPEN_MAX 4
+#  define _SC_OPEN_MAX _SC_OPEN_MAX
 # endif
 # ifndef _SC_PAGESIZE
-#  define _SC_PAGESIZE 30
+#  define _SC_PAGESIZE _SC_PAGESIZE
 # endif
 # ifndef _SC_PAGE_SIZE
-#  define _SC_PAGE_SIZE 30
+#  define _SC_PAGE_SIZE _SC_PAGESIZE
 # endif
 # ifndef _SC_PASS_MAX
-#  define _SC_PASS_MAX 88
+#  define _SC_PASS_MAX _SC_PASS_MAX
 # endif
 # ifndef _SC_PHYS_PAGES
-#  define _SC_PHYS_PAGES 85
+#  define _SC_PHYS_PAGES _SC_PHYS_PAGES
 # endif
 # ifndef _SC_PII
-#  define _SC_PII 53
+#  define _SC_PII _SC_PII
 # endif
 # ifndef _SC_PII_INTERNET
-#  define _SC_PII_INTERNET 56
+#  define _SC_PII_INTERNET _SC_PII_INTERNET
 # endif
 # ifndef _SC_PII_INTERNET_DGRAM
-#  define _SC_PII_INTERNET_DGRAM 62
+#  define _SC_PII_INTERNET_DGRAM _SC_PII_INTERNET_DGRAM
 # endif
 # ifndef _SC_PII_INTERNET_STREAM
-#  define _SC_PII_INTERNET_STREAM 61
+#  define _SC_PII_INTERNET_STREAM _SC_PII_INTERNET_STREAM
 # endif
 # ifndef _SC_PII_OSI
-#  define _SC_PII_OSI 57
+#  define _SC_PII_OSI _SC_PII_OSI
 # endif
 # ifndef _SC_PII_OSI_CLTS
-#  define _SC_PII_OSI_CLTS 64
+#  define _SC_PII_OSI_CLTS _SC_PII_OSI_CLTS
 # endif
 # ifndef _SC_PII_OSI_COTS
-#  define _SC_PII_OSI_COTS 63
+#  define _SC_PII_OSI_COTS _SC_PII_OSI_COTS
 # endif
 # ifndef _SC_PII_OSI_M
-#  define _SC_PII_OSI_M 65
+#  define _SC_PII_OSI_M _SC_PII_OSI_M
 # endif
 # ifndef _SC_PII_SOCKET
-#  define _SC_PII_SOCKET 55
+#  define _SC_PII_SOCKET _SC_PII_SOCKET
 # endif
 # ifndef _SC_PII_XTI
-#  define _SC_PII_XTI 54
+#  define _SC_PII_XTI _SC_PII_XTI
 # endif
 # ifndef _SC_PIPE
-#  define _SC_PIPE 145
+#  define _SC_PIPE _SC_PIPE
 # endif
 # ifndef _SC_POLL
-#  define _SC_POLL 58
+#  define _SC_POLL _SC_POLL
 # endif
 # ifndef _SC_PRIORITIZED_IO
-#  define _SC_PRIORITIZED_IO 13
+#  define _SC_PRIORITIZED_IO _SC_PRIORITIZED_IO
 # endif
 # ifndef _SC_PRIORITY_SCHEDULING
-#  define _SC_PRIORITY_SCHEDULING 10
+#  define _SC_PRIORITY_SCHEDULING _SC_PRIORITY_SCHEDULING
 # endif
 # ifndef _SC_RAW_SOCKETS
-#  define _SC_RAW_SOCKETS 236
+#  define _SC_RAW_SOCKETS _SC_RAW_SOCKETS
 # endif
 # ifndef _SC_READER_WRITER_LOCKS
-#  define _SC_READER_WRITER_LOCKS 153
+#  define _SC_READER_WRITER_LOCKS _SC_READER_WRITER_LOCKS
 # endif
 # ifndef _SC_REALTIME_SIGNALS
-#  define _SC_REALTIME_SIGNALS 9
+#  define _SC_REALTIME_SIGNALS _SC_REALTIME_SIGNALS
 # endif
 # ifndef _SC_REGEXP
-#  define _SC_REGEXP 155
+#  define _SC_REGEXP _SC_REGEXP
 # endif
 # ifndef _SC_REGEX_VERSION
-#  define _SC_REGEX_VERSION 156
+#  define _SC_REGEX_VERSION _SC_REGEX_VERSION
 # endif
 # ifndef _SC_RE_DUP_MAX
-#  define _SC_RE_DUP_MAX 44
+#  define _SC_RE_DUP_MAX _SC_RE_DUP_MAX
 # endif
 # ifndef _SC_RTSIG_MAX
-#  define _SC_RTSIG_MAX 31
+#  define _SC_RTSIG_MAX _SC_RTSIG_MAX
 # endif
 # ifndef _SC_SAVED_IDS
-#  define _SC_SAVED_IDS 8
+#  define _SC_SAVED_IDS _SC_SAVED_IDS
 # endif
 # ifndef _SC_SCHAR_MAX
-#  define _SC_SCHAR_MAX 111
+#  define _SC_SCHAR_MAX _SC_SCHAR_MAX
 # endif
 # ifndef _SC_SCHAR_MIN
-#  define _SC_SCHAR_MIN 112
+#  define _SC_SCHAR_MIN _SC_SCHAR_MIN
 # endif
 # ifndef _SC_SELECT
-#  define _SC_SELECT 59
+#  define _SC_SELECT _SC_SELECT
 # endif
 # ifndef _SC_SEMAPHORES
-#  define _SC_SEMAPHORES 21
+#  define _SC_SEMAPHORES _SC_SEMAPHORES
 # endif
 # ifndef _SC_SEM_NSEMS_MAX
-#  define _SC_SEM_NSEMS_MAX 32
+#  define _SC_SEM_NSEMS_MAX _SC_SEM_NSEMS_MAX
 # endif
 # ifndef _SC_SEM_VALUE_MAX
-#  define _SC_SEM_VALUE_MAX 33
+#  define _SC_SEM_VALUE_MAX _SC_SEM_VALUE_MAX
 # endif
 # ifndef _SC_SHARED_MEMORY_OBJECTS
-#  define _SC_SHARED_MEMORY_OBJECTS 22
+#  define _SC_SHARED_MEMORY_OBJECTS _SC_SHARED_MEMORY_OBJECTS
 # endif
 # ifndef _SC_SHELL
-#  define _SC_SHELL 157
+#  define _SC_SHELL _SC_SHELL
 # endif
 # ifndef _SC_SHRT_MAX
-#  define _SC_SHRT_MAX 113
+#  define _SC_SHRT_MAX _SC_SHRT_MAX
 # endif
 # ifndef _SC_SHRT_MIN
-#  define _SC_SHRT_MIN 114
+#  define _SC_SHRT_MIN _SC_SHRT_MIN
 # endif
 # ifndef _SC_SIGNALS
-#  define _SC_SIGNALS 158
+#  define _SC_SIGNALS _SC_SIGNALS
 # endif
 # ifndef _SC_SIGQUEUE_MAX
-#  define _SC_SIGQUEUE_MAX 34
+#  define _SC_SIGQUEUE_MAX _SC_SIGQUEUE_MAX
 # endif
 # ifndef _SC_SIGSTKSZ
-#  define _SC_SIGSTKSZ 250
+#  define _SC_SIGSTKSZ _SC_SIGSTKSZ
 # endif
 # ifndef _SC_SINGLE_PROCESS
-#  define _SC_SINGLE_PROCESS 151
+#  define _SC_SINGLE_PROCESS _SC_SINGLE_PROCESS
 # endif
 # ifndef _SC_SPAWN
-#  define _SC_SPAWN 159
+#  define _SC_SPAWN _SC_SPAWN
 # endif
 # ifndef _SC_SPIN_LOCKS
-#  define _SC_SPIN_LOCKS 154
+#  define _SC_SPIN_LOCKS _SC_SPIN_LOCKS
 # endif
 # ifndef _SC_SPORADIC_SERVER
-#  define _SC_SPORADIC_SERVER 160
+#  define _SC_SPORADIC_SERVER _SC_SPORADIC_SERVER
 # endif
 # ifndef _SC_SSIZE_MAX
-#  define _SC_SSIZE_MAX 110
+#  define _SC_SSIZE_MAX _SC_SSIZE_MAX
 # endif
 # ifndef _SC_SS_REPL_MAX
-#  define _SC_SS_REPL_MAX 241
+#  define _SC_SS_REPL_MAX _SC_SS_REPL_MAX
 # endif
 # ifndef _SC_STREAMS
-#  define _SC_STREAMS 174
+#  define _SC_STREAMS _SC_STREAMS
 # endif
 # ifndef _SC_STREAM_MAX
-#  define _SC_STREAM_MAX 5
+#  define _SC_STREAM_MAX _SC_STREAM_MAX
 # endif
 # ifndef _SC_SYMLOOP_MAX
-#  define _SC_SYMLOOP_MAX 173
+#  define _SC_SYMLOOP_MAX _SC_SYMLOOP_MAX
 # endif
 # ifndef _SC_SYNCHRONIZED_IO
-#  define _SC_SYNCHRONIZED_IO 14
+#  define _SC_SYNCHRONIZED_IO _SC_SYNCHRONIZED_IO
 # endif
 # ifndef _SC_SYSTEM_DATABASE
-#  define _SC_SYSTEM_DATABASE 162
+#  define _SC_SYSTEM_DATABASE _SC_SYSTEM_DATABASE
 # endif
 # ifndef _SC_SYSTEM_DATABASE_R
-#  define _SC_SYSTEM_DATABASE_R 163
+#  define _SC_SYSTEM_DATABASE_R _SC_SYSTEM_DATABASE_R
 # endif
 # ifndef _SC_THREADS
-#  define _SC_THREADS 67
+#  define _SC_THREADS _SC_THREADS
 # endif
 # ifndef _SC_THREAD_ATTR_STACKADDR
-#  define _SC_THREAD_ATTR_STACKADDR 77
+#  define _SC_THREAD_ATTR_STACKADDR _SC_THREAD_ATTR_STACKADDR
 # endif
 # ifndef _SC_THREAD_ATTR_STACKSIZE
-#  define _SC_THREAD_ATTR_STACKSIZE 78
+#  define _SC_THREAD_ATTR_STACKSIZE _SC_THREAD_ATTR_STACKSIZE
 # endif
 # ifndef _SC_THREAD_CPUTIME
-#  define _SC_THREAD_CPUTIME 139
+#  define _SC_THREAD_CPUTIME _SC_THREAD_CPUTIME
 # endif
 # ifndef _SC_THREAD_DESTRUCTOR_ITERATIONS
-#  define _SC_THREAD_DESTRUCTOR_ITERATIONS 73
+#  define _SC_THREAD_DESTRUCTOR_ITERATIONS _SC_THREAD_DESTRUCTOR_ITERATIONS
 # endif
 # ifndef _SC_THREAD_KEYS_MAX
-#  define _SC_THREAD_KEYS_MAX 74
+#  define _SC_THREAD_KEYS_MAX _SC_THREAD_KEYS_MAX
 # endif
 # ifndef _SC_THREAD_PRIORITY_SCHEDULING
-#  define _SC_THREAD_PRIORITY_SCHEDULING 79
+#  define _SC_THREAD_PRIORITY_SCHEDULING _SC_THREAD_PRIORITY_SCHEDULING
 # endif
 # ifndef _SC_THREAD_PRIO_INHERIT
-#  define _SC_THREAD_PRIO_INHERIT 80
+#  define _SC_THREAD_PRIO_INHERIT _SC_THREAD_PRIO_INHERIT
 # endif
 # ifndef _SC_THREAD_PRIO_PROTECT
-#  define _SC_THREAD_PRIO_PROTECT 81
+#  define _SC_THREAD_PRIO_PROTECT _SC_THREAD_PRIO_PROTECT
 # endif
 # ifndef _SC_THREAD_PROCESS_SHARED
-#  define _SC_THREAD_PROCESS_SHARED 82
+#  define _SC_THREAD_PROCESS_SHARED _SC_THREAD_PROCESS_SHARED
 # endif
 # ifndef _SC_THREAD_ROBUST_PRIO_INHERIT
-#  define _SC_THREAD_ROBUST_PRIO_INHERIT 247
+#  define _SC_THREAD_ROBUST_PRIO_INHERIT _SC_THREAD_ROBUST_PRIO_INHERIT
 # endif
 # ifndef _SC_THREAD_ROBUST_PRIO_PROTECT
-#  define _SC_THREAD_ROBUST_PRIO_PROTECT 248
+#  define _SC_THREAD_ROBUST_PRIO_PROTECT _SC_THREAD_ROBUST_PRIO_PROTECT
 # endif
 # ifndef _SC_THREAD_SAFE_FUNCTIONS
-#  define _SC_THREAD_SAFE_FUNCTIONS 68
+#  define _SC_THREAD_SAFE_FUNCTIONS _SC_THREAD_SAFE_FUNCTIONS
 # endif
 # ifndef _SC_THREAD_SPORADIC_SERVER
-#  define _SC_THREAD_SPORADIC_SERVER 161
+#  define _SC_THREAD_SPORADIC_SERVER _SC_THREAD_SPORADIC_SERVER
 # endif
 # ifndef _SC_THREAD_STACK_MIN
-#  define _SC_THREAD_STACK_MIN 75
+#  define _SC_THREAD_STACK_MIN _SC_THREAD_STACK_MIN
 # endif
 # ifndef _SC_THREAD_THREADS_MAX
-#  define _SC_THREAD_THREADS_MAX 76
+#  define _SC_THREAD_THREADS_MAX _SC_THREAD_THREADS_MAX
 # endif
 # ifndef _SC_TIMEOUTS
-#  define _SC_TIMEOUTS 164
+#  define _SC_TIMEOUTS _SC_TIMEOUTS
 # endif
 # ifndef _SC_TIMERS
-#  define _SC_TIMERS 11
+#  define _SC_TIMERS _SC_TIMERS
 # endif
 # ifndef _SC_TIMER_MAX
-#  define _SC_TIMER_MAX 35
+#  define _SC_TIMER_MAX _SC_TIMER_MAX
 # endif
 # ifndef _SC_TRACE
-#  define _SC_TRACE 181
+#  define _SC_TRACE _SC_TRACE
 # endif
 # ifndef _SC_TRACE_EVENT_FILTER
-#  define _SC_TRACE_EVENT_FILTER 182
+#  define _SC_TRACE_EVENT_FILTER _SC_TRACE_EVENT_FILTER
 # endif
 # ifndef _SC_TRACE_EVENT_NAME_MAX
-#  define _SC_TRACE_EVENT_NAME_MAX 242
+#  define _SC_TRACE_EVENT_NAME_MAX _SC_TRACE_EVENT_NAME_MAX
 # endif
 # ifndef _SC_TRACE_INHERIT
-#  define _SC_TRACE_INHERIT 183
+#  define _SC_TRACE_INHERIT _SC_TRACE_INHERIT
 # endif
 # ifndef _SC_TRACE_LOG
-#  define _SC_TRACE_LOG 184
+#  define _SC_TRACE_LOG _SC_TRACE_LOG
 # endif
 # ifndef _SC_TRACE_NAME_MAX
-#  define _SC_TRACE_NAME_MAX 243
+#  define _SC_TRACE_NAME_MAX _SC_TRACE_NAME_MAX
 # endif
 # ifndef _SC_TRACE_SYS_MAX
-#  define _SC_TRACE_SYS_MAX 244
+#  define _SC_TRACE_SYS_MAX _SC_TRACE_SYS_MAX
 # endif
 # ifndef _SC_TRACE_USER_EVENT_MAX
-#  define _SC_TRACE_USER_EVENT_MAX 245
+#  define _SC_TRACE_USER_EVENT_MAX _SC_TRACE_USER_EVENT_MAX
 # endif
 # ifndef _SC_TTY_NAME_MAX
-#  define _SC_TTY_NAME_MAX 72
+#  define _SC_TTY_NAME_MAX _SC_TTY_NAME_MAX
 # endif
 # ifndef _SC_TYPED_MEMORY_OBJECTS
-#  define _SC_TYPED_MEMORY_OBJECTS 165
+#  define _SC_TYPED_MEMORY_OBJECTS _SC_TYPED_MEMORY_OBJECTS
 # endif
 # ifndef _SC_TZNAME_MAX
-#  define _SC_TZNAME_MAX 6
+#  define _SC_TZNAME_MAX _SC_TZNAME_MAX
 # endif
 # ifndef _SC_T_IOV_MAX
-#  define _SC_T_IOV_MAX 66
+#  define _SC_T_IOV_MAX _SC_T_IOV_MAX
 # endif
 # ifndef _SC_UCHAR_MAX
-#  define _SC_UCHAR_MAX 115
+#  define _SC_UCHAR_MAX _SC_UCHAR_MAX
 # endif
 # ifndef _SC_UINT_MAX
-#  define _SC_UINT_MAX 116
+#  define _SC_UINT_MAX _SC_UINT_MAX
 # endif
 # ifndef _SC_UIO_MAXIOV
-#  define _SC_UIO_MAXIOV 60
+#  define _SC_UIO_MAXIOV _SC_UIO_MAXIOV
 # endif
 # ifndef _SC_ULONG_MAX
-#  define _SC_ULONG_MAX 117
+#  define _SC_ULONG_MAX _SC_ULONG_MAX
 # endif
 # ifndef _SC_USER_GROUPS
-#  define _SC_USER_GROUPS 166
+#  define _SC_USER_GROUPS _SC_USER_GROUPS
 # endif
 # ifndef _SC_USER_GROUPS_R
-#  define _SC_USER_GROUPS_R 167
+#  define _SC_USER_GROUPS_R _SC_USER_GROUPS_R
 # endif
 # ifndef _SC_USHRT_MAX
-#  define _SC_USHRT_MAX 118
+#  define _SC_USHRT_MAX _SC_USHRT_MAX
 # endif
 # ifndef _SC_V6_ILP32_OFF32
-#  define _SC_V6_ILP32_OFF32 176
+#  define _SC_V6_ILP32_OFF32 _SC_V6_ILP32_OFF32
 # endif
 # ifndef _SC_V6_ILP32_OFFBIG
-#  define _SC_V6_ILP32_OFFBIG 177
+#  define _SC_V6_ILP32_OFFBIG _SC_V6_ILP32_OFFBIG
 # endif
 # ifndef _SC_V6_LP64_OFF64
-#  define _SC_V6_LP64_OFF64 178
+#  define _SC_V6_LP64_OFF64 _SC_V6_LP64_OFF64
 # endif
 # ifndef _SC_V6_LPBIG_OFFBIG
-#  define _SC_V6_LPBIG_OFFBIG 179
+#  define _SC_V6_LPBIG_OFFBIG _SC_V6_LPBIG_OFFBIG
 # endif
 # ifndef _SC_V7_ILP32_OFF32
-#  define _SC_V7_ILP32_OFF32 237
+#  define _SC_V7_ILP32_OFF32 _SC_V7_ILP32_OFF32
 # endif
 # ifndef _SC_V7_ILP32_OFFBIG
-#  define _SC_V7_ILP32_OFFBIG 238
+#  define _SC_V7_ILP32_OFFBIG _SC_V7_ILP32_OFFBIG
 # endif
 # ifndef _SC_V7_LP64_OFF64
-#  define _SC_V7_LP64_OFF64 239
+#  define _SC_V7_LP64_OFF64 _SC_V7_LP64_OFF64
 # endif
 # ifndef _SC_V7_LPBIG_OFFBIG
-#  define _SC_V7_LPBIG_OFFBIG 240
+#  define _SC_V7_LPBIG_OFFBIG _SC_V7_LPBIG_OFFBIG
 # endif
 # ifndef _SC_VERSION
-#  define _SC_VERSION 29
+#  define _SC_VERSION _SC_VERSION
 # endif
 # ifndef _SC_WORD_BIT
-#  define _SC_WORD_BIT 107
+#  define _SC_WORD_BIT _SC_WORD_BIT
 # endif
 # ifndef _SC_XBS5_ILP32_OFF32
-#  define _SC_XBS5_ILP32_OFF32 125
+#  define _SC_XBS5_ILP32_OFF32 _SC_XBS5_ILP32_OFF32
 # endif
 # ifndef _SC_XBS5_ILP32_OFFBIG
-#  define _SC_XBS5_ILP32_OFFBIG 126
+#  define _SC_XBS5_ILP32_OFFBIG _SC_XBS5_ILP32_OFFBIG
 # endif
 # ifndef _SC_XBS5_LP64_OFF64
-#  define _SC_XBS5_LP64_OFF64 127
+#  define _SC_XBS5_LP64_OFF64 _SC_XBS5_LP64_OFF64
 # endif
 # ifndef _SC_XBS5_LPBIG_OFFBIG
-#  define _SC_XBS5_LPBIG_OFFBIG 128
+#  define _SC_XBS5_LPBIG_OFFBIG _SC_XBS5_LPBIG_OFFBIG
 # endif
 # ifndef _SC_XOPEN_CRYPT
-#  define _SC_XOPEN_CRYPT 92
+#  define _SC_XOPEN_CRYPT _SC_XOPEN_CRYPT
 # endif
 # ifndef _SC_XOPEN_ENH_I18N
-#  define _SC_XOPEN_ENH_I18N 93
+#  define _SC_XOPEN_ENH_I18N _SC_XOPEN_ENH_I18N
 # endif
 # ifndef _SC_XOPEN_LEGACY
-#  define _SC_XOPEN_LEGACY 129
+#  define _SC_XOPEN_LEGACY _SC_XOPEN_LEGACY
 # endif
 # ifndef _SC_XOPEN_REALTIME
-#  define _SC_XOPEN_REALTIME 130
+#  define _SC_XOPEN_REALTIME _SC_XOPEN_REALTIME
 # endif
 # ifndef _SC_XOPEN_REALTIME_THREADS
-#  define _SC_XOPEN_REALTIME_THREADS 131
+#  define _SC_XOPEN_REALTIME_THREADS _SC_XOPEN_REALTIME_THREADS
 # endif
 # ifndef _SC_XOPEN_SHM
-#  define _SC_XOPEN_SHM 94
+#  define _SC_XOPEN_SHM _SC_XOPEN_SHM
 # endif
 # ifndef _SC_XOPEN_STREAMS
-#  define _SC_XOPEN_STREAMS 246
+#  define _SC_XOPEN_STREAMS _SC_XOPEN_STREAMS
 # endif
 # ifndef _SC_XOPEN_UNIX
-#  define _SC_XOPEN_UNIX 91
+#  define _SC_XOPEN_UNIX _SC_XOPEN_UNIX
 # endif
 # ifndef _SC_XOPEN_VERSION
-#  define _SC_XOPEN_VERSION 89
+#  define _SC_XOPEN_VERSION _SC_XOPEN_VERSION
 # endif
 # ifndef _SC_XOPEN_XCU_VERSION
-#  define _SC_XOPEN_XCU_VERSION 90
+#  define _SC_XOPEN_XCU_VERSION _SC_XOPEN_XCU_VERSION
 # endif
 # ifndef _SC_XOPEN_XPG2
-#  define _SC_XOPEN_XPG2 98
+#  define _SC_XOPEN_XPG2 _SC_XOPEN_XPG2
 # endif
 # ifndef _SC_XOPEN_XPG3
-#  define _SC_XOPEN_XPG3 99
+#  define _SC_XOPEN_XPG3 _SC_XOPEN_XPG3
 # endif
 # ifndef _SC_XOPEN_XPG4
-#  define _SC_XOPEN_XPG4 100
+#  define _SC_XOPEN_XPG4 _SC_XOPEN_XPG4
 # endif
 # ifndef _XBS5_LP64_OFF64
 #  define _XBS5_LP64_OFF64 1
@@ -5380,73 +4358,73 @@ enum { TRAP_UNK = 5 };
 #  define CLOSE_RANGE_UNSHARE 2U
 # endif
 # ifndef REG_CR2
-#  define REG_CR2 22
+#  define REG_CR2 REG_CR2
 # endif
 # ifndef REG_CSGSFS
-#  define REG_CSGSFS 18
+#  define REG_CSGSFS REG_CSGSFS
 # endif
 # ifndef REG_EFL
-#  define REG_EFL 17
+#  define REG_EFL REG_EFL
 # endif
 # ifndef REG_ERR
-#  define REG_ERR 19
+#  define REG_ERR REG_ERR
 # endif
 # ifndef REG_OLDMASK
-#  define REG_OLDMASK 21
+#  define REG_OLDMASK REG_OLDMASK
 # endif
 # ifndef REG_R10
-#  define REG_R10 2
+#  define REG_R10 REG_R10
 # endif
 # ifndef REG_R11
-#  define REG_R11 3
+#  define REG_R11 REG_R11
 # endif
 # ifndef REG_R12
-#  define REG_R12 4
+#  define REG_R12 REG_R12
 # endif
 # ifndef REG_R13
-#  define REG_R13 5
+#  define REG_R13 REG_R13
 # endif
 # ifndef REG_R14
-#  define REG_R14 6
+#  define REG_R14 REG_R14
 # endif
 # ifndef REG_R15
-#  define REG_R15 7
+#  define REG_R15 REG_R15
 # endif
 # ifndef REG_R8
-#  define REG_R8 0
+#  define REG_R8 REG_R8
 # endif
 # ifndef REG_R9
-#  define REG_R9 1
+#  define REG_R9 REG_R9
 # endif
 # ifndef REG_RAX
-#  define REG_RAX 13
+#  define REG_RAX REG_RAX
 # endif
 # ifndef REG_RBP
-#  define REG_RBP 10
+#  define REG_RBP REG_RBP
 # endif
 # ifndef REG_RBX
-#  define REG_RBX 11
+#  define REG_RBX REG_RBX
 # endif
 # ifndef REG_RCX
-#  define REG_RCX 14
+#  define REG_RCX REG_RCX
 # endif
 # ifndef REG_RDI
-#  define REG_RDI 8
+#  define REG_RDI REG_RDI
 # endif
 # ifndef REG_RDX
-#  define REG_RDX 12
+#  define REG_RDX REG_RDX
 # endif
 # ifndef REG_RIP
-#  define REG_RIP 16
+#  define REG_RIP REG_RIP
 # endif
 # ifndef REG_RSI
-#  define REG_RSI 9
+#  define REG_RSI REG_RSI
 # endif
 # ifndef REG_RSP
-#  define REG_RSP 15
+#  define REG_RSP REG_RSP
 # endif
 # ifndef REG_TRAPNO
-#  define REG_TRAPNO 20
+#  define REG_TRAPNO REG_TRAPNO
 # endif
 # ifndef SEEK_DATA
 #  define SEEK_DATA 3
@@ -5489,10 +4467,10 @@ enum { TRAP_UNK = 5 };
 #  define SA_ONSTACK 134217728
 # endif
 # ifndef SS_DISABLE
-#  define SS_DISABLE 2
+#  define SS_DISABLE SS_DISABLE
 # endif
 # ifndef SS_ONSTACK
-#  define SS_ONSTACK 1
+#  define SS_ONSTACK SS_ONSTACK
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -5517,158 +4495,158 @@ enum { TRAP_UNK = 5 };
 #endif
 #if __NIJI_POSIX >= 199309
 # ifndef SIGEV_NONE
-#  define SIGEV_NONE 1
+#  define SIGEV_NONE SIGEV_NONE
 # endif
 # ifndef SIGEV_SIGNAL
-#  define SIGEV_SIGNAL 0
+#  define SIGEV_SIGNAL SIGEV_SIGNAL
 # endif
 # ifndef SIGEV_THREAD
-#  define SIGEV_THREAD 2
+#  define SIGEV_THREAD SIGEV_THREAD
 # endif
 # ifndef SIGEV_THREAD_ID
-#  define SIGEV_THREAD_ID 4
+#  define SIGEV_THREAD_ID SIGEV_THREAD_ID
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
 # ifndef SI_ASYNCIO
-#  define SI_ASYNCIO (-4)
+#  define SI_ASYNCIO SI_ASYNCIO
 # endif
 # ifndef SI_ASYNCNL
-#  define SI_ASYNCNL (-60)
+#  define SI_ASYNCNL SI_ASYNCNL
 # endif
 # ifndef SI_DETHREAD
-#  define SI_DETHREAD (-7)
+#  define SI_DETHREAD SI_DETHREAD
 # endif
 # ifndef SI_KERNEL
-#  define SI_KERNEL 128
+#  define SI_KERNEL SI_KERNEL
 # endif
 # ifndef SI_MESGQ
-#  define SI_MESGQ (-3)
+#  define SI_MESGQ SI_MESGQ
 # endif
 # ifndef SI_QUEUE
-#  define SI_QUEUE (-1)
+#  define SI_QUEUE SI_QUEUE
 # endif
 # ifndef SI_SIGIO
-#  define SI_SIGIO (-5)
+#  define SI_SIGIO SI_SIGIO
 # endif
 # ifndef SI_TIMER
-#  define SI_TIMER (-2)
+#  define SI_TIMER SI_TIMER
 # endif
 # ifndef SI_TKILL
-#  define SI_TKILL (-6)
+#  define SI_TKILL SI_TKILL
 # endif
 # ifndef SI_USER
-#  define SI_USER 0
+#  define SI_USER SI_USER
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # ifndef BUS_ADRALN
-#  define BUS_ADRALN 1
+#  define BUS_ADRALN BUS_ADRALN
 # endif
 # ifndef BUS_ADRERR
-#  define BUS_ADRERR 2
+#  define BUS_ADRERR BUS_ADRERR
 # endif
 # ifndef BUS_MCEERR_AO
-#  define BUS_MCEERR_AO 5
+#  define BUS_MCEERR_AO BUS_MCEERR_AO
 # endif
 # ifndef BUS_MCEERR_AR
-#  define BUS_MCEERR_AR 4
+#  define BUS_MCEERR_AR BUS_MCEERR_AR
 # endif
 # ifndef BUS_OBJERR
-#  define BUS_OBJERR 3
+#  define BUS_OBJERR BUS_OBJERR
 # endif
 # ifndef CLD_CONTINUED
-#  define CLD_CONTINUED 6
+#  define CLD_CONTINUED CLD_CONTINUED
 # endif
 # ifndef CLD_DUMPED
-#  define CLD_DUMPED 3
+#  define CLD_DUMPED CLD_DUMPED
 # endif
 # ifndef CLD_EXITED
-#  define CLD_EXITED 1
+#  define CLD_EXITED CLD_EXITED
 # endif
 # ifndef CLD_KILLED
-#  define CLD_KILLED 2
+#  define CLD_KILLED CLD_KILLED
 # endif
 # ifndef CLD_STOPPED
-#  define CLD_STOPPED 5
+#  define CLD_STOPPED CLD_STOPPED
 # endif
 # ifndef CLD_TRAPPED
-#  define CLD_TRAPPED 4
+#  define CLD_TRAPPED CLD_TRAPPED
 # endif
 # ifndef FPE_CONDTRAP
-#  define FPE_CONDTRAP 15
+#  define FPE_CONDTRAP FPE_CONDTRAP
 # endif
 # ifndef FPE_FLTDIV
-#  define FPE_FLTDIV 3
+#  define FPE_FLTDIV FPE_FLTDIV
 # endif
 # ifndef FPE_FLTINV
-#  define FPE_FLTINV 7
+#  define FPE_FLTINV FPE_FLTINV
 # endif
 # ifndef FPE_FLTOVF
-#  define FPE_FLTOVF 4
+#  define FPE_FLTOVF FPE_FLTOVF
 # endif
 # ifndef FPE_FLTRES
-#  define FPE_FLTRES 6
+#  define FPE_FLTRES FPE_FLTRES
 # endif
 # ifndef FPE_FLTSUB
-#  define FPE_FLTSUB 8
+#  define FPE_FLTSUB FPE_FLTSUB
 # endif
 # ifndef FPE_FLTUND
-#  define FPE_FLTUND 5
+#  define FPE_FLTUND FPE_FLTUND
 # endif
 # ifndef FPE_FLTUNK
-#  define FPE_FLTUNK 14
+#  define FPE_FLTUNK FPE_FLTUNK
 # endif
 # ifndef FPE_INTDIV
-#  define FPE_INTDIV 1
+#  define FPE_INTDIV FPE_INTDIV
 # endif
 # ifndef FPE_INTOVF
-#  define FPE_INTOVF 2
+#  define FPE_INTOVF FPE_INTOVF
 # endif
 # ifndef ILL_BADIADDR
-#  define ILL_BADIADDR 9
+#  define ILL_BADIADDR ILL_BADIADDR
 # endif
 # ifndef ILL_BADSTK
-#  define ILL_BADSTK 8
+#  define ILL_BADSTK ILL_BADSTK
 # endif
 # ifndef ILL_COPROC
-#  define ILL_COPROC 7
+#  define ILL_COPROC ILL_COPROC
 # endif
 # ifndef ILL_ILLADR
-#  define ILL_ILLADR 3
+#  define ILL_ILLADR ILL_ILLADR
 # endif
 # ifndef ILL_ILLOPC
-#  define ILL_ILLOPC 1
+#  define ILL_ILLOPC ILL_ILLOPC
 # endif
 # ifndef ILL_ILLOPN
-#  define ILL_ILLOPN 2
+#  define ILL_ILLOPN ILL_ILLOPN
 # endif
 # ifndef ILL_ILLTRP
-#  define ILL_ILLTRP 4
+#  define ILL_ILLTRP ILL_ILLTRP
 # endif
 # ifndef ILL_PRVOPC
-#  define ILL_PRVOPC 5
+#  define ILL_PRVOPC ILL_PRVOPC
 # endif
 # ifndef ILL_PRVREG
-#  define ILL_PRVREG 6
+#  define ILL_PRVREG ILL_PRVREG
 # endif
 # ifndef POLL_ERR
-#  define POLL_ERR 4
+#  define POLL_ERR POLL_ERR
 # endif
 # ifndef POLL_HUP
-#  define POLL_HUP 6
+#  define POLL_HUP POLL_HUP
 # endif
 # ifndef POLL_IN
-#  define POLL_IN 1
+#  define POLL_IN POLL_IN
 # endif
 # ifndef POLL_MSG
-#  define POLL_MSG 3
+#  define POLL_MSG POLL_MSG
 # endif
 # ifndef POLL_OUT
-#  define POLL_OUT 2
+#  define POLL_OUT POLL_OUT
 # endif
 # ifndef POLL_PRI
-#  define POLL_PRI 5
+#  define POLL_PRI POLL_PRI
 # endif
 # ifndef SA_NODEFER
 #  define SA_NODEFER 1073741824
@@ -5680,51 +4658,51 @@ enum { TRAP_UNK = 5 };
 #  define SA_RESTART 268435456
 # endif
 # ifndef SEGV_ACCADI
-#  define SEGV_ACCADI 5
+#  define SEGV_ACCADI SEGV_ACCADI
 # endif
 # ifndef SEGV_ACCERR
-#  define SEGV_ACCERR 2
+#  define SEGV_ACCERR SEGV_ACCERR
 # endif
 # ifndef SEGV_ADIDERR
-#  define SEGV_ADIDERR 6
+#  define SEGV_ADIDERR SEGV_ADIDERR
 # endif
 # ifndef SEGV_ADIPERR
-#  define SEGV_ADIPERR 7
+#  define SEGV_ADIPERR SEGV_ADIPERR
 # endif
 # ifndef SEGV_BNDERR
-#  define SEGV_BNDERR 3
+#  define SEGV_BNDERR SEGV_BNDERR
 # endif
 # ifndef SEGV_CPERR
-#  define SEGV_CPERR 10
+#  define SEGV_CPERR SEGV_CPERR
 # endif
 # ifndef SEGV_MAPERR
-#  define SEGV_MAPERR 1
+#  define SEGV_MAPERR SEGV_MAPERR
 # endif
 # ifndef SEGV_MTEAERR
-#  define SEGV_MTEAERR 8
+#  define SEGV_MTEAERR SEGV_MTEAERR
 # endif
 # ifndef SEGV_MTESERR
-#  define SEGV_MTESERR 9
+#  define SEGV_MTESERR SEGV_MTESERR
 # endif
 # ifndef SEGV_PKUERR
-#  define SEGV_PKUERR 4
+#  define SEGV_PKUERR SEGV_PKUERR
 # endif
 #endif
 #if __NIJI_XSI >= 450
 # ifndef TRAP_BRANCH
-#  define TRAP_BRANCH 3
+#  define TRAP_BRANCH TRAP_BRANCH
 # endif
 # ifndef TRAP_BRKPT
-#  define TRAP_BRKPT 1
+#  define TRAP_BRKPT TRAP_BRKPT
 # endif
 # ifndef TRAP_HWBKPT
-#  define TRAP_HWBKPT 4
+#  define TRAP_HWBKPT TRAP_HWBKPT
 # endif
 # ifndef TRAP_TRACE
-#  define TRAP_TRACE 2
+#  define TRAP_TRACE TRAP_TRACE
 # endif
 # ifndef TRAP_UNK
-#  define TRAP_UNK 5
+#  define TRAP_UNK TRAP_UNK
 # endif
 #endif
 

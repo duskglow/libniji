@@ -194,6 +194,7 @@ function	__ctype_tolower_loc	argp.h			int const** ()
 function	__ctype_toupper_loc	argp.h			int const** ()
 function	__cyg_profile_func_enter	-			void (void*, void*)
 function	__cyg_profile_func_exit	-			void (void*, void*)
+typedef	__daddr_t	aio.h	4	4	int
 object	__daylight	pthread.h	4	4	int
 function	__dcgettext	libintl.h			char* (char const*, char const*, int)
 typedef	__dev_t	aio.h	8	8	unsigned long
@@ -2076,7 +2077,9 @@ function	if_indextoname	net/if.h			char* (unsigned int, char*)
 struct	if_nameindex	net/if.h	16	8	if_nameindex
 function	if_nameindex	net/if.h			if_nameindex* ()
 function	if_nametoindex	net/if.h			unsigned int (char const*)
+struct	ifaddr	net/if.h	48	8	ifaddr
 struct	ifaddrs	ifaddrs.h	56	8	ifaddrs
+struct	ifconf	net/if.h	16	8	ifconf
 struct	ifmap	net/if.h	24	8	ifmap
 struct	ifreq	net/if.h	40	8	ifreq
 struct	ih_idseq	netinet/ip_icmp.h	4	2	
@@ -2538,6 +2541,11 @@ function	msgrcv	sys/msg.h			long (int, void*, unsigned long, long, int)
 function	msgsnd	sys/msg.h			int (int, void const*, unsigned long, int)
 struct	msqid_ds	sys/msg.h	120	8	msqid_ds
 function	msync	sys/mman.h			int (void*, unsigned long, int)
+struct	mt_tape_info	sys/mtio.h	16	8	mt_tape_info
+struct	mtconfiginfo	sys/mtio.h	48	8	mtconfiginfo
+struct	mtget	sys/mtio.h	48	8	mtget
+struct	mtop	sys/mtio.h	8	4	mtop
+struct	mtpos	sys/mtio.h	8	8	mtpos
 function	mtrace	mcheck.h			void ()
 function	mtx_destroy	threads.h			void (mtx_t*)
 function	mtx_init	threads.h			int (mtx_t*, int)
@@ -2683,6 +2691,7 @@ object	opterr	argp.h	4	4	int
 object	optind	argp.h	4	4	int
 struct	option	argp.h	32	8	option
 object	optopt	argp.h	4	4	int
+struct	packet_mreq	netpacket/packet.h	16	4	packet_mreq
 function	parse_printf_format	printf.h			unsigned long (char const*, unsigned long, int*)
 struct	passwd	pwd.h	48	8	passwd
 function	pathconf	arpa/nameser.h			long (char const*, int)

@@ -12,23 +12,24 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_ulimit 1
 extern long int ulimit (int, ...) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_UL_GETFSIZE
-#  define __NIJI_D_enum_UL_GETFSIZE 1
+# ifndef __NIJI_D_anon_UL_GETFSIZE
+#  define __NIJI_D_anon_UL_GETFSIZE 1
+#  if !defined UL_GETFSIZE || !defined UL_SETFSIZE
+enum {
 #  ifndef UL_GETFSIZE
-enum { UL_GETFSIZE = 1 };
+  UL_GETFSIZE = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_UL_SETFSIZE
-#  define __NIJI_D_enum_UL_SETFSIZE 1
 #  ifndef UL_SETFSIZE
-enum { UL_SETFSIZE = 2 };
+  UL_SETFSIZE = 2,
+#  endif
+};
 #  endif
 # endif
 # ifndef UL_GETFSIZE
-#  define UL_GETFSIZE 1
+#  define UL_GETFSIZE UL_GETFSIZE
 # endif
 # ifndef UL_SETFSIZE
-#  define UL_SETFSIZE 2
+#  define UL_SETFSIZE UL_SETFSIZE
 # endif
 #endif
 
