@@ -7,8 +7,8 @@
 `--config` names the build configuration (base: `_GNU_SOURCE`, `-O2`, `_FORTIFY_SOURCE=3`; gnu, default
 (no feature macro), fortify2, c++, c++-fortify3); outside base only the nonnull tests (`n.k`, `rn`) run, and a
 test line that builds on one side only is listed as "not declared alike", not counted. The table is written
-from base; `--columns nonnull,nonnull_nofortify` writes those columns and keeps the others' values. `check
---kinds n,rn` compares only those test kinds.
+from base; `--columns nonnull,nonnull_nofortify,nonnull_fortify` writes those columns and keeps the others' values. `check
+--kinds n,rn` compares only those test kinds, and of each line only the signal the kind measures (MEASURES).
 
 `table` compiles a corpus against the system's public headers (the reference) and writes
 `spec/abi/diagattrs.tsv`: for each function that libniji's headers (DIR, default libc-include/) declare,
@@ -58,10 +58,10 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure nonnull_nofortify`):
-nonnull_nofortify lists the parameters marked only with `_FORTIFY_SOURCE` off (the `n.k` tests again in the gnu
-configuration; headers-gen emits them as `__NIJI_NONNULL_NF`); nonnull is the comma list of
-1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure nonnull_nofortify
+nonnull_fortify`): nonnull_nofortify lists the parameters marked only with `_FORTIFY_SOURCE` off (the `n.k` tests again
+in the gnu configuration; headers-gen emits them as `__NIJI_NONNULL_NF`), nonnull_fortify those marked only with it
+on (`__NIJI_NONNULL_F`); nonnull is the comma list of the 1-based parameters marked in both, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
 parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
 """
@@ -486,6 +486,11 @@ def decided(flags):
     return {f for f in flags if f in DECIDED}
 
 
+# What each nonnull test measures: `check --kinds` naming only these compares that signal alone (another attribute's
+# warning on the same line, a deprecation or warn_unused_result, is the question of that attribute's own tests).
+MEASURES = {"n": {"-Wnonnull"}, "rn": {"marker"}}
+
+
 def fmt_kind(n):
     if "scanf" in n:
         return "scanf"
@@ -584,7 +589,7 @@ def errno_kept(res):
 
 
 TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure",
-                 "nonnull_nofortify")
+                 "nonnull_nofortify", "nonnull_fortify")
 
 
 def nn_sets(inc, pr, cfg, keep):
@@ -618,7 +623,7 @@ def main():
     names, heads = declared(args.include, pr, cfg)
     PTR_TYPEDEFS.update(pointer_typedefs(pr, names, heads, cfg))
     # A table run that writes only the nonnull columns needs only the nonnull tests (a fraction of the corpus).
-    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull", "nonnull_nofortify"}
+    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull", "nonnull_nofortify", "nonnull_fortify"}
     text, meta = corpus(names, heads, pr, cfg, False if nn_only else None)
     ref = results(text, meta, None, args.keep, "ref", cfg)
     if args.mode == "table":
@@ -633,14 +638,14 @@ def main():
         rows = derive(ref, pr, names)
         for r in rows.values():
             r["nonnull"] = ",".join(sorted(set(r["nonnull"]), key=int))
-        # The nonnull tests again with _FORTIFY_SOURCE off: the parameters marked only there are nonnull_nofortify.
+        # The nonnull tests again with _FORTIFY_SOURCE off (base has it on): a parameter marked in both is nonnull, one
+        # marked only with it on is nonnull_fortify, one marked only with it off nonnull_nofortify.
         plain = nn_sets(args.include, pr, "gnu", args.keep)
         for n, r in rows.items():
             fort = set(filter(None, r["nonnull"].split(",")))
-            extra = plain.get(n, set()) - fort
-            r["nonnull_nofortify"] = ",".join(sorted(extra, key=int))
-            if n in plain and fort - plain[n]:
-                print("attr_probe: %s: nonnull %s only under _FORTIFY_SOURCE (the table cannot say so)" % (n, sorted(fort - plain[n])), file=sys.stderr)
+            off = plain.get(n, set())
+            for col, s in (("nonnull", fort & off), ("nonnull_fortify", fort - off), ("nonnull_nofortify", off - fort)):
+                r[col] = ",".join(sorted(s, key=int))
         cols = list(TABLE_COLUMNS[1:])
         if args.columns != "all":
             # Only the named columns come from this run; every other column keeps the table's value.
@@ -671,6 +676,8 @@ def main():
     known = {}
     vetoed = errno_kept(ref)
     table = derive(ref, pr, names)
+    kinds = args.kinds.split(",") if args.kinds else []
+    focus = set().union(*(MEASURES[k] for k in kinds)) if kinds and all(k in MEASURES for k in kinds) else None
     for ln in sorted(ref):
         if args.kinds and ref[ln][0][1] not in args.kinds.split(","):
             continue
@@ -684,8 +691,13 @@ def main():
         # question of that attribute's own tests.
         if ref[ln][0][1] in ("nz", "nv") and ("marker" in ref[ln][1]) == ("marker" in got[ln][1]) and ref[ln][2] == got[ln][2]:
             continue
-        if cfg != "base" and ref[ln][2] != got[ln][2]:
+        if (cfg != "base" or focus) and ref[ln][2] != got[ln][2]:
             unseen.setdefault("reference only" if got[ln][2] else "libniji only", set()).add(ref[ln][0][0])
+            continue
+        if focus is not None:
+            if ref[ln][1] & MEASURES[ref[ln][0][1]] != got[ln][1] & MEASURES[ref[ln][0][1]]:
+                diff += 1
+                print("line %d %s: reference %s, libniji %s" % (ln, " ".join(map(str, ref[ln][0])), sorted(ref[ln][1]), sorted(got[ln][1])))
             continue
         if decided(ref[ln][1]) != decided(got[ln][1]) or ref[ln][2] != got[ln][2]:
             why = open_reason(ref[ln][0][0])

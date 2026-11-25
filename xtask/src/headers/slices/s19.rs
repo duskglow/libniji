@@ -47,7 +47,7 @@ mod tests {
     }
 
     // plan/headers.md slice 19 (no spec clause; HEADERS-NONNULL-MATCH). The nonnull columns of diagattrs.tsv are what
-    // the probe derives from the reference now: `attr_probe table --columns nonnull,nonnull_nofortify` (the nonnull
+    // the probe derives from the reference now: `attr_probe table --columns nonnull,nonnull_nofortify,nonnull_fortify` (the nonnull
     // tests alone) rewrites a copy of the table, which must come out byte for byte the same. `check` above compares
     // the two sides through the same probe, so a probe defect that misreads both alike (a null callback on every
     // line, a size that wakes an `access` attribute, a builtin's own nonnull) passes it; this test sees it.
@@ -67,7 +67,7 @@ mod tests {
         fs::write(&copy, &want).unwrap();
         let out = std::process::Command::new("python3")
             .arg(root.join("spec/tools/attr_probe.py"))
-            .args(["table", "--columns", "nonnull,nonnull_nofortify", "--out"])
+            .args(["table", "--columns", "nonnull,nonnull_nofortify,nonnull_fortify", "--out"])
             .arg(&copy)
             .arg("--keep")
             .arg(dir.join("probe-work"))
