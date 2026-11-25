@@ -1,6 +1,16 @@
 # HEADERS-NET-SYS-NAMES: the header names a static busybox still misses (leg 4: final, handed back)
 
-**State.** Branch `task/headers-net-sys-names` from origin/next 855efa170; **final code head 9ab89ce93** (any later
+**Leg 5 (HEADERS-NET-SYS-NAMES-2, branch task/headers-net-sys-names-2): CI-conflict merge only, no new header work.**
+Merged origin/next (e125f7e34): macros.tsv kept both sides (next's char-typed tar/ftp/netdb rows win over my int rows);
+header_check.py took next's `--only` (same need as my leg-4 one; it runs units only, no slice `problems()`, no P8);
+next's s14.py is a different slice, so my syslog checks moved to `header_checks/s26.py` (+ a `__main__` running its table
+comparison alone, which the row-order plant uses); personality.h, tcp.h, sg.h, appendix_c_layouts.rs regenerated
+(headers-gen, abi-gen). Job headers-net-sys-names-2-check-1 (rc 0): headers-gen --check, abi-gen --check, clippy -D
+warnings, static, full header_check 0 failed of 20041. Plants: headers-net-sys-names-2-plants-1 (see report json).
+Busybox sweep/static link not rerun (merge touched no header content of this story); rerun if next's headers change them.
+Below: leg 4's record (s14.py there = s26.py now).
+
+**State (leg 4).** Branch `task/headers-net-sys-names` from origin/next 855efa170; **final code head 9ab89ce93** (any later
 commit: handoff/report only). Role keke:~/w/n2, synced clean at 9ab89ce93. Scripts: `~/work/headers-net-sys-names/` on
 keke (bbsweep.sh, bbstatic.sh, bbcc.sh, applets.txt, fm/ = the leg-3 macro probe), copies in the local scratch dir.
 Decision in force: **D-26.3** (SYSLOG_NAMES tables end in `{ 0, -1 }`, no <stddef.h>). Reservation **D-2.15** was taken

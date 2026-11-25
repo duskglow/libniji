@@ -1,0 +1,25 @@
+{
+ "task": "HEADERS-NET-SYS-NAMES-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "CI conflict with next resolved: merged origin/next, syslog checks moved to header_checks/s26.py, generated headers and layouts regenerated; header_check 0 failed of 20041, 15 of 15 plants caught",
+ "branch": "task/headers-net-sys-names-2",
+ "head": "2f084872e",
+ "gate": {"affected": "FULL: the train's (crates/abi, generated header inputs); check-1: headers-gen --check, abi-gen --check, clippy -D warnings, static, header_check 0 failed of 20041", "peak": null},
+ "jobs": ["headers-net-sys-names-2-check-1", "headers-net-sys-names-2-plants-1"],
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "next's header_check --only (units only, no slice problems) replaced mine; the syslog table comparison now has its own seconds-long command (s26.py __main__) for its plant",
+  "busybox sweep and static link were not rerun in this leg (the merge changed no header content of this story); leg 4's results stand",
+  "reservation D-2.15 (leg 1, unused; the decision is D-26.3) still to be released"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "HEADERS-NET-SYS-NAMES (TCP_*, icmp, ip6, if_ether, route, SYSLOG_NAMES, scsi, msg/shm, personality names) can land: its CI merge conflict is gone", "before": null, "after": null, "unit": "", "measured": false},
+  {"kind": "coverage", "what": "plants on the branch's header templates, all caught after the merge", "before": 0, "after": 15, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a slice module's name should be reserved by registry when a story adds one: two stories both created header_checks/s14.py",
+ "next_step": "land through the train",
+ "report_file": "handoff/HEADERS-NET-SYS-NAMES.md"
+}
