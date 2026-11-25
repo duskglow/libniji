@@ -44,6 +44,11 @@ rows (all local, table-driven; forms settled by black-box probes recorded in the
   missing under fortify; link.h La_x86_64_vector also in C++. -fno-builtin format attribute difference; diagattrs
   drift 182 cells; pthread_create nonnull 1,2,3,4 vs 1,3.
 
+* Coordinator 13:45Z (netcat-openbsd), NOT DONE: libniji's libresolv.so.2 exports __b64_ntop/__b64_pton and
+  visibility.tsv shows both as resolv.h functions, but libniji's resolv.h declares neither, and b64_ntop/b64_pton are
+  not in header_probe's candidates. Next: add them to stage2_names, probe their form (macro or function, which header),
+  find why headers-gen skips the __b64_* prototypes, add a unit and a plant.
+
 ## Next step
-Hand-back done at the end of leg 4 unless the dispatcher reopens: the coordinator lands it; the openssh misc.c failure
+b64_ntop/b64_pton (above) as a follow-up story; plants3 verifies the final head; the openssh misc.c failure
 clears when HEADERS-NET-SYS-NAMES lands.
