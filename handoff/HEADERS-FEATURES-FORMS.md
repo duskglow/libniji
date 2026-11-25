@@ -1,59 +1,59 @@
-# HEADERS-FEATURES-FORMS (handoff, end of leg 2 of run 1; WIP)
+# HEADERS-FEATURES-FORMS (handoff, end of leg 3 of run 1)
 
 **State:** branch `task/headers-features-forms` (from origin/next db602e58c), role keke:~/w/r2. Head: the commit
-after this note. Generated headers are regenerated and committed (headers-gen clean, 0 problems).
+after this note. Generated headers regenerated and committed. Report json: `handoff/reports/HEADERS-FEATURES-FORMS.json`;
+plants record: `handoff/HEADERS-FEATURES-FORMS-plants.txt`.
 
-## Done (do not redo)
+## Done
 * Leg 1: probes and tables (`spec/abi/use-macros.tsv`, `spec/abi/macro-forms.tsv`, 47 visibility rows), features.h.in
-  `__USE_*` set, generator rule `redefined()` (outright unless macro-forms.tsv keeps it), cond.rs misc/gnu as
-  `defined __USE_MISC` / `defined __USE_GNU`, SUN_LEN and TIMESPEC_* in sys/un.h.in / sys/time.h.in.
-* Leg 2: SOL_UDP/IPX/AX25/ATALK/NETROM/ROSE values (type_probe --retry-missing on the reference); TIMESPEC_* text in
-  sys/procfs, sys/profil, sys/timex, utmp, utmpx templates; F_OWNER_* were already in enumerators.tsv; headers-gen
-  (commit c7bd0d167); `@@intc` follows the same rule (INTn_C outright, s05.rs); `header_checks/features.py`
-  (units: `__USE_*` per ftm config, version macros, package patterns; problems: EXTRA configs, flex SIZE_MAX C/C++,
-  batched forms vs macro-forms.tsv) and `feature_probe.forms_batch`.
-* libniji re-probe (job probe4): `__USE_*` 3216/3216 cells match. Forms (single-pair, 40326 pairs, before INTn_C):
-  35360 replaced/replaced, 260 kept/kept, 952 replaced-form both; 3754 differ, of which ~1500 are `#if`-usability only
-  (replaced-form vs replaced: form.py's area) and the guard mismatches are the names in features.py KNOWN/KNOWN_KEPT.
-* features.py on keke (job check9): `--reference` 0 failed (all 37221 batched pairs agree with the one-pair table:
-  validates the batching and the expectations); libniji 0 failed.
+  `__USE_*` set (the whole probed family: owner amended R-H2 on 11-25, now final), generator rule `redefined()`
+  (outright unless macro-forms.tsv keeps it), cond.rs misc/gnu as `defined __USE_MISC` / `defined __USE_GNU`, SUN_LEN
+  and TIMESPEC_* in sys/un.h.in / sys/time.h.in.
+* Leg 2: SOL_* values, TIMESPEC_* in the other templates that show them, `@@intc` (INTn_C outright),
+  `header_checks/features.py` and `feature_probe.forms_batch`. Re-probe: `__USE_*` 3216/3216 cells match.
+* Leg 3:
+  - Package proofs (compile-only, `-fsyntax-only`, gcc-14's default errors turned on; config headers from configuring
+    each package with the host compiler; sources from the local Debian mirror only): gnupg2's npth `<npth.h>`
+    rwlock use (npth 1.8's configured header; full certcache.c needs libgpg-error/ksba/assuan headers, not on the
+    host), flex 2.6.4 `scan.c` and gcc-14's `gengtype-lex.cc` generated text up to the end of the skeleton's limits
+    block + `<stdint.h>` + hwint.h's `#if SIZE_MAX <= UINT_MAX` (C++11 and gnu89), python3.13 `Modules/fcntlmodule.c`,
+    util-linux `lib/monotonic.c`, openssl 3.5.9 `bss_sock.c`, `bss_conn.c`, `bio_sock2.c` (also with Yohane's own
+    flags), `ktls_meth.c`, less 668 `pattern.c` (`--with-regex=gnu`). 14 compiles each side:
+    branch head 14/14 pass, reference 14/14; control on snapshot 25.2's headers 0/14 (the errors of Yohane's logs, at
+    the same line:column); control on origin/next db602e58c 5/14 (openssl already passes there: fixed since 25.2).
+  - Gate (job -gate) found 875 header_check.py FAILs (P5 and kernel-first orders, `-Wsystem-headers -Werror`):
+    FIOASYNC, TIOCSER_TEMT, IPPROTO_DSTOPTS made outright while a kernel UAPI header defines them first in another
+    spelling. A three-name exception (e7463ca98) was not the set (-gate2: FIOCLEX too; FAIL lines show only a unit's
+    first errors). Fix: `spec/tools/kernel_spelled.py` writes `spec/abi/kernel-spelled.tsv` (1414 names: every libniji
+    macro a staged UAPI header defines with other replacement text); the generator keeps those under `#ifndef` (as on
+    next, where header_check passes; with the kernel header in front its definition is the one in force, as in the
+    reference); features.py leaves them out of the forms comparison. 57 headers regenerated.
+  - features.py `--only` with one header's forms title selected nothing (fixed).
 
-## Follow-up (report as INFORMATIONAL / next story; measured, not fixed here)
-* Guard mismatches in hand-written template text (KNOWN in features.py): the 14 feature-test macros features.h sets
-  under _GNU_SOURCE (reference replaces a program's own `_POSIX_C_SOURCE` etc. in all 202 headers),
-  `__WORDSIZE_TIME64_COMPAT32` (203 headers), `_SIGSET_NWORDS` (77), NULL (28; ~18 templates `# ifndef NULL`), the
-  `__is*_l` ctype macros, IP(V6)_RECVORIGDSTADDR / IP_RECVRETOPTS (@@alias), TEMP_FAILURE_RETRY, FD_SET, MM_NULL*,
-  XATTR_CREATE, si_* (sys/pidfd.h); include-structure cases (KNOWN_KEPT: sys/mount.h O_*/F_*, net/if_ppp.h, ...).
-* Pre-existing (on origin/next): `<sys/time.h>` then `<sys/types.h>` under `-Wsystem-headers -Werror` fails
-  ("FD_SET redefined": sys/types.h.in defines FD_SET outright with __fdelt_chk, sys/time.h/utmp.h/sys/procfs.h.in
-  `# ifndef FD_SET` with a plain text). Reference: no diagnostic.
-* libniji emits no `#warning` for `_BSD_SOURCE` / `_SVID_SOURCE`; the reference warns (deprecated).
-* `struct f_owner_ex.type` is `unsigned int` (layouts say `enum __pid_type`); pre-existing generator behaviour; C++
-  code assigning an `enum __pid_type` member to a variable of that enum type would differ.
-* `_REENTRANT` under strict C turns on POSIX..POSIX199506 `__USE_*` (matched), libniji's own declarations keep the
-  strict level. Numeric `__USE_*` levels a program defines itself are not honoured (only MISC/GNU).
-* openssl SOL_TCP: current netinet/tcp.h has SOL_TCP + TCP_NODELAY in gnu17 (unit passes); the 25.2 failure is not
-  reproduced; check in the package proof.
+## Decisions
+* D-NEW (pending, no id reserved): libniji defines a macro outright exactly where the reference's definition replaces
+  a program's earlier one (macro-forms.tsv probe), except names in kernel-spelled.tsv, which stay guarded.
+* R-H2: owner amended 11-25, final: the whole `__USE_*` family with the reference's meaning (done).
 
-## RULING NEEDED (hand-back)
-* R-H2 limited `__USE_*` to names external code tests; the brief's coordinator decision defines the whole probed
-  family (25 names). Recommend keep (npth, kernel UAPI and 7 corpus names test them; matching the whole family costs
-  nothing).
+## Open
+* kernel-spelled.tsv is conservative (name level): for a name a libniji header defines without including the kernel
+  header, a program's own earlier definition is kept where the reference replaces it (next's behaviour, unchanged).
+  Narrowing it to the names that really meet a kernel definition in one translation unit is a follow-up.
+
+## Follow-up (INFORMATIONAL; measured, not fixed here)
+* Guard mismatches in hand-written template text (features.py KNOWN): the 14 feature-test macros features.h sets under
+  _GNU_SOURCE, `__WORDSIZE_TIME64_COMPAT32`, `_SIGSET_NWORDS`, NULL (~18 templates `# ifndef NULL`), `__is*_l`,
+  IP(V6)_RECVORIGDSTADDR / IP_RECVRETOPTS, TEMP_FAILURE_RETRY, FD_SET, MM_NULL*, XATTR_CREATE, si_*; KNOWN_KEPT
+  include-structure cases (sys/mount.h, net/if_ppp.h, ...).
+* Pre-existing on origin/next: `<sys/time.h>` then `<sys/types.h>` under `-Wsystem-headers -Werror`: "FD_SET redefined".
+* No `#warning` for `_BSD_SOURCE` / `_SVID_SOURCE` (the reference warns: deprecated).
+* `struct f_owner_ex.type` is `unsigned int` (layouts: `enum __pid_type`), pre-existing generator behaviour.
+* Numeric `__USE_*` levels a program defines itself are not honoured (only MISC/GNU).
 
 ## Exact next step
-1. Package proofs as jobs on keke against the system flavour (`cargo xtask so`, include target/niji/include):
-   gnupg2 `dirmngr/certcache.c` with npth.h, flex scanner defining SIZE_MAX first (or gcc-14 gengtype-lex.cc),
-   python3.13 `Modules/fcntlmodule.c`, util-linux `lib/monotonic.c`, openssl ktls.h users (`ssl/ktls.c`?), less
-   `pattern.c`. Sources: /srv/mirrors/debian/pool/main/...; extracted less/openssl in
-   /dev/shm/claude/headers-features-forms/src on keke. Compile-only (`-fsyntax-only`) is enough.
-2. clippy + static on the role; `cargo xtask affected --list --base origin/next` then the gate
-   (`headers-features-forms-gate`).
-3. Plants file (docs/plants.md form), e.g.: `redefined()` returns false (catches `FEATURES flex SIZE_MAX` / forms);
-   cond.rs gnu back to `__NIJI_GNU` (`FEATURES pkg less regex`); a `__USE_XOPEN2K` formula in features.h.in
-   (`FEATURES use`); SUN_LEN line removed (`FEATURES pkg fstrm`); @@intc `# ifndef` back (`FEATURES forms stdint.h`).
-   cmd: `python3 spec/tools/header_checks/features.py --only '<title regex>'` after `cargo xtask headers-gen`
-   (check how other header plants regenerate). Run via `cargo xtask plants`.
-4. precheck, report json (`handoff/reports/HEADERS-FEATURES-FORMS.json`), handoff-check, hand-back.
+Land. If the gate or plants named in the hand-back are red: fix what they name, run only that suite.
 
-Jobs so far (keke): headers-features-forms-probe4 (libniji probes), -probe5 (superseded: unsplit batch, wrong),
--check6..9 (features module; check9 = final module state).
+Jobs (keke, labels prefixed headers-features-forms-): final head: gate3, plants3, pkg6 (proofs), regen3 (table,
+headers-gen, stubs, clippy). Superseded: pkg1..5 (script iterations / earlier heads), pkgctl (next), pkgctl252 (25.2),
+fio and kspell (probes), lint1, gate (875 FAILs), gate2 (FIOCLEX), plants1 (--only bug), plants2 (stopped, stale head),
+regen, regen2 (ran before a sync).

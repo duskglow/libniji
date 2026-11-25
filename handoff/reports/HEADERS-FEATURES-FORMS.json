@@ -1,0 +1,21 @@
+{"task": "HEADERS-FEATURES-FORMS", "model": "opus", "tokens": null,
+ "result": "__USE_* family with the reference's meaning, outright macro forms where the reference replaces (kernel-spelled names stay guarded), F_OWNER_*/TIMESPEC_*/SUN_LEN/SOL_* rows; 25.2's failing package compiles pass (14/14 on the branch, 0/14 on 25.2)",
+ "branch": "task/headers-features-forms", "head": "f1f81a818",
+ "gate": {"affected": "pending: gate3 (cargo test -p xtask + features.py; FULL: the train's, header inputs)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Guard mismatches in hand-written template text (features.py KNOWN): features.h's feature-test macros under _GNU_SOURCE, __WORDSIZE_TIME64_COMPAT32, _SIGSET_NWORDS, NULL, __is*_l, TEMP_FAILURE_RETRY, FD_SET, MM_NULL*, si_*: follow-up",
+  "kernel-spelled.tsv is name-level and conservative (1414 names keep next's guarded form); narrowing to names that meet a kernel definition in one translation unit is a follow-up",
+  "Pre-existing on origin/next: <sys/time.h> then <sys/types.h> under -Wsystem-headers -Werror: FD_SET redefined",
+  "No #warning for _BSD_SOURCE/_SVID_SOURCE (the reference warns); struct f_owner_ex.type is unsigned int (layouts: enum __pid_type); numeric __USE_* levels a program defines are not honoured",
+  "openssl's 25.2 SOL_TCP/TCP_NODELAY failure already passes on origin/next db602e58c (fixed since 25.2 by other work)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "25.2 package compile failures (npth rwlock for gnupg2, flex/gcc-14 gengtype-lex SIZE_MAX, python3.13 fcntlmodule F_OWNER_*, util-linux monotonic TIMESPEC_TO_TIMEVAL, less pattern.c GNU regex, openssl ktls/bio_sock2): compile-only proofs", "before": 0, "after": 14, "unit": "of 14 compiles passing (before = snapshot 25.2 headers)", "measured": true},
+  {"kind": "correctness", "what": "__USE_* names per feature-test configuration vs the reference", "before": null, "after": 3216, "unit": "of 3216 cells matching", "measured": true},
+  {"kind": "coverage", "what": "features header_check module (use per config, version macros, package patterns, flex SIZE_MAX, forms of 37221 pairs) and plants", "before": 0, "after": 7, "unit": "plants", "measured": true}],
+ "improvement": "header_check FAIL lines keep only a unit's first three stderr lines, which hid the full set of redefined names (two gate cycles); a FAIL summary listing every diagnosed name would have shown it in one",
+ "next_step": "Land; follow-ups: KNOWN template guard mismatches, narrowing kernel-spelled.tsv",
+ "report_file": "handoff/HEADERS-FEATURES-FORMS.md",
+ "jobs": ["keke:headers-features-forms-gate3", "keke:headers-features-forms-plants3", "keke:headers-features-forms-pkg6", "keke:headers-features-forms-regen3"]}
