@@ -28,7 +28,14 @@ Full report: handoff/HEADERS-STAGE2-GAPS-D-report.md.
   pass unchanged. Unit test `layout_offsets_follow_the_row_order`. Plants: s2d-mreq-order now names the generator's
   message; s2d-order-compare/-anon/-bits/-parent break the check and the unit test catches each.
 
-## Results (keke, final code head 79e42f02e)
+* Duplicate found after the merge: git merged netinet/in.h.in cleanly but both sides defined IN_CLASSA..IN_BADCLASS (887
+  "redefined" errors in the whole header_check). next's text is kept (in_addr_t cast) with an @@owns line; plants s2d-classd-mask and
+  s2d-badclass-signed re-spelled to it. Leg 5 results (code head 8700558ba, keke): headers-stage2-gaps-d-3-gate2 (Direct tier) rc 0;
+  headers-stage2-gaps-d-3-plants2 20 CAUGHT, 0 SURVIVED (WARN-DEV-SHM only); whole header_check 0 failed of 22240; clippy, static
+  and precheck green. An earlier plants job (-plants) was REFUSED in 1 s (a pattern matched 2 sites: the duplicate), and its gate
+  was killed: both superseded.
+
+## Results of leg 4 (keke, code head 79e42f02e)
 * headers-stage2-gaps-d-2-gate (`cargo xtask affected --base origin/next --run`, Direct tier): rc 0 (conformance 103 passed;
   clippy -D warnings and `cargo xtask static` also run in the foreground before it, both rc 0).
 * headers-stage2-gaps-d-2-plants (20 plants, whole file): 20 CAUGHT, 0 SURVIVED, 0 WARN (only WARN-DEV-SHM, an environment note).
