@@ -10,6 +10,7 @@ __h_errno_location									const
 __pthread_unwind_next			1						
 __res_state									const
 __sched_cpualloc		1							
+__x86_get_cpuid_feature_leaf									1
 _exit			1						
 _longjmp			1						
 _obstack_memory_used									1
@@ -354,7 +355,7 @@ fstatvfs64	2
 ftell	1	1							
 ftello	1	1							
 ftello64	1	1							
-ftime	1								
+ftime	1						1		
 ftruncate		1							
 ftruncate64		1							
 ftrylockfile	1	1							
@@ -388,15 +389,26 @@ getpwent_r	1,2,4
 getpwnam	1								
 getpwnam_r	1,2,3,5								
 getpwuid_r	2,3,5								
+getrandom		1							
 getrlimit	2								
 getrlimit64	2								
 getsubopt	1,2,3	1							
 gettimeofday	1								
 getw	1								
 getwd	1	1					1		
+gnu_dev_major									const
+gnu_dev_makedev									const
+gnu_dev_minor									const
 imaxabs									const
 imaxdiv									const
 index	1								1
+inet6_option_alloc							1		
+inet6_option_append							1		
+inet6_option_find							1		
+inet6_option_init							1		
+inet6_option_next							1		
+inet6_option_space							1		
+inet_neta							1		
 initstate	2								
 initstate_r	2,4								
 isinff									const
@@ -497,6 +509,15 @@ nftw64	1,2
 nice		1							
 nrand48	1								
 nrand48_r	1,2								
+ns_datetosecs							1		
+ns_format_ttl							1		
+ns_makecanon							1		
+ns_parse_ttl							1		
+ns_samedomain							1		
+ns_samename							1		
+ns_sprintrr							1		
+ns_sprintrrf							1		
+ns_subdomain							1		
 ntp_adjtime	1								
 ntp_gettime	1								
 ntp_gettimex	1								
@@ -548,6 +569,10 @@ posix_spawnattr_setsigmask	1,2
 posix_spawnp	2,5								
 pread		1							
 pread64		1							
+preadv		1							
+preadv2		1							
+preadv64		1							
+preadv64v2		1							
 printf				printf:1:2					
 profil	1								
 pthread_attr_destroy	1								
@@ -665,6 +690,10 @@ putw	2
 pvalloc		1			1				
 pwrite		1							
 pwrite64		1							
+pwritev		1							
+pwritev2		1							
+pwritev64		1							
+pwritev64v2		1							
 qecvt	3,4	1							
 qecvt_r	3,4,5								
 qfcvt	3,4	1							
@@ -682,6 +711,7 @@ readdir64_r	1,2,3						1
 readdir_r	1,2,3						1		
 readlink	1,2	1							
 readlinkat	2,3	1							
+readv		1							
 realloc		1				2			
 reallocarray		1				2,3			
 realpath		1							
@@ -985,3 +1015,4 @@ wctomb		1
 wmemchr									1
 wmemcmp									1
 write		1							
+writev		1							
