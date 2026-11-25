@@ -8,7 +8,7 @@
 
 __NIJI_BEGIN_C
 
-@@owns ifr_name ifr_hwaddr ifr_addr ifr_dstaddr ifr_broadaddr ifr_netmask ifr_flags ifr_metric ifr_mtu ifr_map ifr_slave ifr_data ifr_ifindex ifr_bandwidth ifr_qlen ifr_newname ifc_buf ifc_req
+@@owns ifr_name ifr_hwaddr ifr_addr ifr_dstaddr ifr_broadaddr ifr_netmask ifr_flags ifr_metric ifr_mtu ifr_map ifr_slave ifr_data ifr_ifindex ifr_bandwidth ifr_qlen ifr_newname ifc_buf ifc_req ifa_broadaddr ifa_dstaddr
 @@emit
 
 /* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro
@@ -35,6 +35,12 @@ __NIJI_BEGIN_C
 @@when ifconf
 # define ifc_buf ifc_ifcu.ifcu_buf
 # define ifc_req ifc_ifcu.ifcu_req
+#endif
+/* The BSD interface address record's two names for its union's address (the same spelling as <ifaddrs.h>'s for
+   struct ifaddrs, so the two headers together define each macro once). */
+@@when ifaddr
+# define ifa_broadaddr ifa_ifu.ifu_broadaddr
+# define ifa_dstaddr ifa_ifu.ifu_dstaddr
 #endif
 
 __NIJI_END_C

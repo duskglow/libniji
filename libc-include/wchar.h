@@ -622,43 +622,79 @@ extern double wcstod_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_wcstof128
 #  define __NIJI_D_wcstof128 1
+#  if __NIJI_FLOAT128
 extern _Float128 wcstof128 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof128_l
 #  define __NIJI_D_wcstof128_l 1
+#  if __NIJI_FLOAT128
 extern _Float128 wcstof128_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof32
 #  define __NIJI_D_wcstof32 1
+#  if __NIJI_FLOATN
 extern _Float32 wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof32_l
 #  define __NIJI_D_wcstof32_l 1
+#  if __NIJI_FLOATN
 extern _Float32 wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof32x
 #  define __NIJI_D_wcstof32x 1
+#  if __NIJI_FLOATN
 extern _Float32x wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof32x_l
 #  define __NIJI_D_wcstof32x_l 1
+#  if __NIJI_FLOATN
 extern _Float32x wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof64
 #  define __NIJI_D_wcstof64 1
+#  if __NIJI_FLOATN
 extern _Float64 wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof64_l
 #  define __NIJI_D_wcstof64_l 1
+#  if __NIJI_FLOATN
 extern _Float64 wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof64x
 #  define __NIJI_D_wcstof64x 1
+#  if __NIJI_FLOATN
 extern _Float64x wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof64x_l
 #  define __NIJI_D_wcstof64x_l 1
+#  if __NIJI_FLOATN
 extern _Float64x wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_wcstof_l
 #  define __NIJI_D_wcstof_l 1

@@ -280,243 +280,459 @@ extern _Complex long double ctanl (_Complex long double) __NIJI_NOTHROW;
 #if defined __USE_GNU
 # ifndef __NIJI_D_cabsf128
 #  define __NIJI_D_cabsf128 1
+#  if __NIJI_FLOAT128
 extern _Float128 cabsf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cabsf32
 #  define __NIJI_D_cabsf32 1
+#  if __NIJI_FLOATN
 extern _Float32 cabsf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float cabsf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cabsf32x
 #  define __NIJI_D_cabsf32x 1
+#  if __NIJI_FLOATN
 extern _Float32x cabsf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cabsf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cabsf64
 #  define __NIJI_D_cabsf64 1
+#  if __NIJI_FLOATN
 extern _Float64 cabsf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cabsf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cabsf64x
 #  define __NIJI_D_cabsf64x 1
+#  if __NIJI_FLOATN
 extern _Float64x cabsf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double cabsf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacosf128
 #  define __NIJI_D_cacosf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 cacosf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacosf32
 #  define __NIJI_D_cacosf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 cacosf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float cacosf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacosf32x
 #  define __NIJI_D_cacosf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x cacosf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cacosf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacosf64
 #  define __NIJI_D_cacosf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 cacosf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cacosf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacosf64x
 #  define __NIJI_D_cacosf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x cacosf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double cacosf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacoshf128
 #  define __NIJI_D_cacoshf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 cacoshf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacoshf32
 #  define __NIJI_D_cacoshf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 cacoshf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float cacoshf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacoshf32x
 #  define __NIJI_D_cacoshf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x cacoshf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cacoshf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacoshf64
 #  define __NIJI_D_cacoshf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 cacoshf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cacoshf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cacoshf64x
 #  define __NIJI_D_cacoshf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x cacoshf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double cacoshf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cargf128
 #  define __NIJI_D_cargf128 1
+#  if __NIJI_FLOAT128
 extern _Float128 cargf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cargf32
 #  define __NIJI_D_cargf32 1
+#  if __NIJI_FLOATN
 extern _Float32 cargf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float cargf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cargf32x
 #  define __NIJI_D_cargf32x 1
+#  if __NIJI_FLOATN
 extern _Float32x cargf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cargf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cargf64
 #  define __NIJI_D_cargf64 1
+#  if __NIJI_FLOATN
 extern _Float64 cargf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cargf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cargf64x
 #  define __NIJI_D_cargf64x 1
+#  if __NIJI_FLOATN
 extern _Float64x cargf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double cargf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinf128
 #  define __NIJI_D_casinf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 casinf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinf32
 #  define __NIJI_D_casinf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 casinf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float casinf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinf32x
 #  define __NIJI_D_casinf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x casinf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double casinf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinf64
 #  define __NIJI_D_casinf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 casinf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double casinf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinf64x
 #  define __NIJI_D_casinf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x casinf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double casinf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinhf128
 #  define __NIJI_D_casinhf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 casinhf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinhf32
 #  define __NIJI_D_casinhf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 casinhf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float casinhf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinhf32x
 #  define __NIJI_D_casinhf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x casinhf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double casinhf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinhf64
 #  define __NIJI_D_casinhf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 casinhf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double casinhf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_casinhf64x
 #  define __NIJI_D_casinhf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x casinhf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double casinhf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanf128
 #  define __NIJI_D_catanf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 catanf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanf32
 #  define __NIJI_D_catanf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 catanf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float catanf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanf32x
 #  define __NIJI_D_catanf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x catanf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double catanf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanf64
 #  define __NIJI_D_catanf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 catanf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double catanf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanf64x
 #  define __NIJI_D_catanf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x catanf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double catanf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanhf128
 #  define __NIJI_D_catanhf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 catanhf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanhf32
 #  define __NIJI_D_catanhf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 catanhf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float catanhf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanhf32x
 #  define __NIJI_D_catanhf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x catanhf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double catanhf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanhf64
 #  define __NIJI_D_catanhf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 catanhf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double catanhf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_catanhf64x
 #  define __NIJI_D_catanhf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x catanhf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double catanhf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccosf128
 #  define __NIJI_D_ccosf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 ccosf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccosf32
 #  define __NIJI_D_ccosf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 ccosf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float ccosf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccosf32x
 #  define __NIJI_D_ccosf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x ccosf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ccosf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccosf64
 #  define __NIJI_D_ccosf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 ccosf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ccosf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccosf64x
 #  define __NIJI_D_ccosf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x ccosf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double ccosf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccoshf128
 #  define __NIJI_D_ccoshf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 ccoshf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccoshf32
 #  define __NIJI_D_ccoshf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 ccoshf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float ccoshf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccoshf32x
 #  define __NIJI_D_ccoshf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x ccoshf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ccoshf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccoshf64
 #  define __NIJI_D_ccoshf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 ccoshf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ccoshf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ccoshf64x
 #  define __NIJI_D_ccoshf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x ccoshf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double ccoshf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cexpf128
 #  define __NIJI_D_cexpf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 cexpf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cexpf32
 #  define __NIJI_D_cexpf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 cexpf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float cexpf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cexpf32x
 #  define __NIJI_D_cexpf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x cexpf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cexpf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cexpf64
 #  define __NIJI_D_cexpf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 cexpf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cexpf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cexpf64x
 #  define __NIJI_D_cexpf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x cexpf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double cexpf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cimagf128
 #  define __NIJI_D_cimagf128 1
+#  if __NIJI_FLOAT128
 extern _Float128 cimagf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cimagf32
 #  define __NIJI_D_cimagf32 1
+#  if __NIJI_FLOATN
 extern _Float32 cimagf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float cimagf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cimagf32x
 #  define __NIJI_D_cimagf32x 1
+#  if __NIJI_FLOATN
 extern _Float32x cimagf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cimagf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cimagf64
 #  define __NIJI_D_cimagf64 1
+#  if __NIJI_FLOATN
 extern _Float64 cimagf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double cimagf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cimagf64x
 #  define __NIJI_D_cimagf64x 1
+#  if __NIJI_FLOATN
 extern _Float64x cimagf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double cimagf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10
 #  define __NIJI_D_clog10 1
@@ -528,23 +744,41 @@ extern _Complex float clog10f (_Complex float) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_clog10f128
 #  define __NIJI_D_clog10f128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 clog10f128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10f32
 #  define __NIJI_D_clog10f32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 clog10f32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float clog10f32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10f32x
 #  define __NIJI_D_clog10f32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x clog10f32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double clog10f32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10f64
 #  define __NIJI_D_clog10f64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 clog10f64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double clog10f64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10f64x
 #  define __NIJI_D_clog10f64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x clog10f64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double clog10f64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clog10l
 #  define __NIJI_D_clog10l 1
@@ -552,203 +786,383 @@ extern _Complex long double clog10l (_Complex long double) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_clogf128
 #  define __NIJI_D_clogf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 clogf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clogf32
 #  define __NIJI_D_clogf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 clogf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float clogf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clogf32x
 #  define __NIJI_D_clogf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x clogf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double clogf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clogf64
 #  define __NIJI_D_clogf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 clogf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double clogf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_clogf64x
 #  define __NIJI_D_clogf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x clogf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double clogf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_conjf128
 #  define __NIJI_D_conjf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 conjf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_conjf32
 #  define __NIJI_D_conjf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 conjf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float conjf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_conjf32x
 #  define __NIJI_D_conjf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x conjf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double conjf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_conjf64
 #  define __NIJI_D_conjf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 conjf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double conjf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_conjf64x
 #  define __NIJI_D_conjf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x conjf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double conjf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cpowf128
 #  define __NIJI_D_cpowf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 cpowf128 (_Complex _Float128, _Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cpowf32
 #  define __NIJI_D_cpowf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 cpowf32 (_Complex _Float32, _Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float cpowf32 (_Complex float, _Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cpowf32x
 #  define __NIJI_D_cpowf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x cpowf32x (_Complex _Float32x, _Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cpowf32x (_Complex double, _Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cpowf64
 #  define __NIJI_D_cpowf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 cpowf64 (_Complex _Float64, _Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cpowf64 (_Complex double, _Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cpowf64x
 #  define __NIJI_D_cpowf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x cpowf64x (_Complex _Float64x, _Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double cpowf64x (_Complex long double, _Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cprojf128
 #  define __NIJI_D_cprojf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 cprojf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cprojf32
 #  define __NIJI_D_cprojf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 cprojf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float cprojf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cprojf32x
 #  define __NIJI_D_cprojf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x cprojf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cprojf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cprojf64
 #  define __NIJI_D_cprojf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 cprojf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double cprojf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_cprojf64x
 #  define __NIJI_D_cprojf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x cprojf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double cprojf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_crealf128
 #  define __NIJI_D_crealf128 1
+#  if __NIJI_FLOAT128
 extern _Float128 crealf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_crealf32
 #  define __NIJI_D_crealf32 1
+#  if __NIJI_FLOATN
 extern _Float32 crealf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float crealf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_crealf32x
 #  define __NIJI_D_crealf32x 1
+#  if __NIJI_FLOATN
 extern _Float32x crealf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double crealf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_crealf64
 #  define __NIJI_D_crealf64 1
+#  if __NIJI_FLOATN
 extern _Float64 crealf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double crealf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_crealf64x
 #  define __NIJI_D_crealf64x 1
+#  if __NIJI_FLOATN
 extern _Float64x crealf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double crealf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinf128
 #  define __NIJI_D_csinf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 csinf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinf32
 #  define __NIJI_D_csinf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 csinf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float csinf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinf32x
 #  define __NIJI_D_csinf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x csinf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csinf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinf64
 #  define __NIJI_D_csinf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 csinf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csinf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinf64x
 #  define __NIJI_D_csinf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x csinf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double csinf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinhf128
 #  define __NIJI_D_csinhf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 csinhf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinhf32
 #  define __NIJI_D_csinhf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 csinhf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float csinhf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinhf32x
 #  define __NIJI_D_csinhf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x csinhf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csinhf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinhf64
 #  define __NIJI_D_csinhf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 csinhf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csinhf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csinhf64x
 #  define __NIJI_D_csinhf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x csinhf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double csinhf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csqrtf128
 #  define __NIJI_D_csqrtf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 csqrtf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csqrtf32
 #  define __NIJI_D_csqrtf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 csqrtf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float csqrtf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csqrtf32x
 #  define __NIJI_D_csqrtf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x csqrtf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csqrtf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csqrtf64
 #  define __NIJI_D_csqrtf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 csqrtf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double csqrtf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_csqrtf64x
 #  define __NIJI_D_csqrtf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x csqrtf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double csqrtf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanf128
 #  define __NIJI_D_ctanf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 ctanf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanf32
 #  define __NIJI_D_ctanf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 ctanf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float ctanf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanf32x
 #  define __NIJI_D_ctanf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x ctanf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ctanf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanf64
 #  define __NIJI_D_ctanf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 ctanf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ctanf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanf64x
 #  define __NIJI_D_ctanf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x ctanf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double ctanf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanhf128
 #  define __NIJI_D_ctanhf128 1
+#  if __NIJI_FLOAT128
 extern _Complex _Float128 ctanhf128 (_Complex _Float128) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanhf32
 #  define __NIJI_D_ctanhf32 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32 ctanhf32 (_Complex _Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex float ctanhf32 (_Complex float) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanhf32x
 #  define __NIJI_D_ctanhf32x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float32x ctanhf32x (_Complex _Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ctanhf32x (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanhf64
 #  define __NIJI_D_ctanhf64 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64 ctanhf64 (_Complex _Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex double ctanhf64 (_Complex double) __NIJI_NOTHROW;
+#  endif
 # endif
 # ifndef __NIJI_D_ctanhf64x
 #  define __NIJI_D_ctanhf64x 1
+#  if __NIJI_FLOATN
 extern _Complex _Float64x ctanhf64x (_Complex _Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern _Complex long double ctanhf64x (_Complex long double) __NIJI_NOTHROW;
+#  endif
 # endif
 #endif
 
@@ -780,7 +1194,9 @@ __NIJI_END_C
 # define CMPLXF64(x, y) __builtin_complex ((_Float64) (x), (_Float64) (y))
 #endif
 #if defined __USE_GNU
+# if __NIJI_FLOAT128
 # define CMPLXF128(x, y) __builtin_complex ((_Float128) (x), (_Float128) (y))
+# endif
 #endif
 #if defined __USE_GNU
 # define CMPLXF32X(x, y) __builtin_complex ((_Float32x) (x), (_Float32x) (y))

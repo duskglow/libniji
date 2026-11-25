@@ -190,6 +190,14 @@ extern locale_t uselocale (locale_t) __NIJI_NOTHROW;
 # endif
 #endif
 
+/* The gettext interface revision this C library supports for a major revision (gettext.m4's AM_GNU_GETTEXT test
+   for "GNU gettext in libc"): minor revision 1 of major revision 0 (ngettext, dngettext and dcngettext with plural
+   forms, and the system-dependent format strings of a .mo file, `<PRId64>` and the like), -1 for any other major
+   revision. An int constant expression of a constant argument, which is evaluated once. */
+#if 1
+# define __GNU_GETTEXT_SUPPORTED_REVISION(major) ((major) == 0 ? 1 : -1)
+#endif
+
 #if __NIJI_FORTIFY >= 1
 # ifndef NULL
 #  ifdef __cplusplus

@@ -293,6 +293,34 @@
 # define __NIJI_WCHAR __WCHAR_TYPE__
 #endif
 
+/* The _FloatN and _FloatNx types (TS 18661-3) the compiler has as keywords: GCC predefines __FLT32_MANT_DIG__ (and
+   the others) where it has them, in C and, from GCC 13, in C++; clang has none of them (only _Float16, which no
+   declaration here uses). __NIJI_FLOATN covers _Float32, _Float64, _Float32x and _Float64x, __NIJI_FLOAT128 covers
+   _Float128. The generator guards each declaration and macro that names one of these types or spells its constant
+   suffix: where __NIJI_FLOATN is 0, a function of _Float32, _Float64, _Float32x or _Float64x is declared in C with
+   the type of the same format (float, double, double, long double: the x86-64 psABI's) and not in C++, a constant
+   takes that type's suffix, and the names below are typedefs of those types, so a program can use them; where
+   __NIJI_FLOAT128 is 0, nothing of _Float128 is declared or defined (binary128 is no format of a type the compiler
+   has under that name). */
+#if defined __FLT32_MANT_DIG__ && defined __FLT64_MANT_DIG__ && defined __FLT32X_MANT_DIG__ && defined __FLT64X_MANT_DIG__ \
+    && (!defined __cplusplus || (defined __GNUC__ && !defined __clang__ && __GNUC__ >= 13))
+# define __NIJI_FLOATN 1
+#else
+# define __NIJI_FLOATN 0
+#endif
+#if defined __FLT128_MANT_DIG__ && (!defined __cplusplus || (defined __GNUC__ && !defined __clang__ && __GNUC__ >= 13))
+# define __NIJI_FLOAT128 1
+#else
+# define __NIJI_FLOAT128 0
+#endif
+#if !__NIJI_FLOATN && !defined __NIJI_D__Float32 && !defined __ASSEMBLER__
+# define __NIJI_D__Float32 1
+typedef float _Float32;
+typedef double _Float64;
+typedef double _Float32x;
+typedef long double _Float64x;
+#endif
+
 /* The feature-test macros these levels imply (visibility.tsv). */
 @@if _DEFAULT_SOURCE
 # ifndef _DEFAULT_SOURCE

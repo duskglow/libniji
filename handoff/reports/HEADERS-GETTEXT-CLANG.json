@@ -1,0 +1,79 @@
+{
+ "task": "HEADERS-GETTEXT-CLANG",
+ "model": "opus",
+ "tokens": null,
+ "result": "__GNU_GETTEXT_SUPPORTED_REVISION (tar finds GNU gettext in libc, installs 39 .mo), _FloatN guarded by compiler support (clang-19 P5 clean), utmp/ifaddrs/greg_t rows; package proofs pass",
+ "branch": "task/headers-gettext-clang",
+ "head": null,
+ "gate": {
+  "affected": "FULL: the train's; test1: clippy, static, cargo test -p xtask ok, header_check 0 failed of 21913",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "libniji lacks HUGE_VAL_F32/F64/F32X/F64X/F128 (reference: GNU C and C++)",
+  "strict C++: libniji defines CMPLXF32/F64X/F128, the reference does not",
+  "strict modes: reference names utmpx __e_termination/__e_exit, ucontext __gregs/__fpregs/__uc_flags; libniji unprefixed in every mode",
+  "clang's own <tgmath.h> precedes the libc's; libniji's tgmath.h needs __builtin_tgmath",
+  "libniji's libc.so.6 lacks pthread_kill_other_threads_np (reference: compat-only GLIBC_2.2.5); libc.a has it as an ordinary symbol"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "AM_GNU_GETTEXT packages (tar) build with translations: configure finds GNU gettext in libc; tar installs 39 .mo",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "clang-19 compiles every libniji header in c17, gnu2x, c17+_GNU_SOURCE, c++17, gnu++20 (stdlib.h _Float128 error fixed: postgresql-17 JIT)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "sysvinit utmp.c, psutil _psutil_posix.c, ruby signal.c, parted linux.c, lvm2 libdm-common.c compile; openldap resolver configure test passes",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check: gettext form units, utmp/ifaddrs member-name units, clang P5 (5 modes); plants added",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2: tar, postgresql-17, sysvinit, procps, ruby3.3, python-psutil, parted, lvm2, openldap",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A shared ncc-style wrapper (libniji headers + libc.a, -nostdinc, non-libc headers from the host and extracted -dev debs) would make package proofs one command per story; this run rebuilt it.",
+ "next_step": "land via the train (FULL gate)",
+ "report_file": "handoff/HEADERS-GETTEXT-CLANG-report.md",
+ "jobs": [
+  "headers-gettext-clang-test1",
+  "headers-gettext-clang-plants",
+  "headers-gettext-clang-catalogs",
+  "headers-gettext-clang-probe6",
+  "headers-gettext-clang-pkg1",
+  "headers-gettext-clang-pkg2",
+  "headers-gettext-clang-pkg3",
+  "headers-gettext-clang-pkg4",
+  "headers-gettext-clang-pkg5",
+  "headers-gettext-clang-pkg6"
+ ]
+}

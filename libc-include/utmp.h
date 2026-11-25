@@ -305,11 +305,13 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # define RUN_LVL 1
 # define USER_PROCESS 7
 # define UTMP_FILE "/var/run/utmp"
+# define UTMP_FILENAME "/var/run/utmp"
 # define UT_HOSTSIZE 256
 # define UT_LINESIZE 32
 # define UT_NAMESIZE 32
 # define UT_UNKNOWN 0
 # define WTMP_FILE "/var/log/wtmp"
+# define WTMP_FILENAME "/var/log/wtmp"
 # define _HAVE_UT_HOST 1
 # define _HAVE_UT_ID 1
 # define _HAVE_UT_PID 1
@@ -333,6 +335,15 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 #if defined __USE_GNU
 # define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
 # define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
+
+/* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the
+   entry time's seconds, the first word of the remote host's address). */
+#if 1
+# define ut_name ut_user
+# define ut_time ut_tv.tv_sec
+# define ut_xtime ut_tv.tv_sec
+# define ut_addr ut_addr_v6[0]
 #endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */

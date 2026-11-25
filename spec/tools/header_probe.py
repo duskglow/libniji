@@ -355,6 +355,13 @@ def package_names():
                                  "PPPOL2TP", "BLUETOOTH", "PNPIPE", "RDS", "IUCV", "CAIF", "ALG", "NFC", "KCM", "TLS",
                                  "XDP", "MPTCP", "MCTP", "SMC", "VSOCK", "SCTP", "AX25", "ROSE", "NETROM", "IPX",
                                  "ATALK", "HCI", "L2CAP", "SCO", "RFCOMM")]
+    # HEADERS-GETTEXT-CLANG (Yohane's stage 2 on snapshot 2026-11-25.2): the struct utmp compatibility member names
+    # sysvinit and procps use (utmp(5): `ut_name`, `ut_time`, `ut_addr`; `ut_xtime` beside them) and the login
+    # accounting file name macros of the same header; psutil's struct ifaddrs union member names (getifaddrs(3):
+    # `ifa_broadaddr`, `ifa_dstaddr`); ruby's register type `greg_t` (getcontext(3)'s mcontext_t member type); and
+    # the libc revision test of gettext's AM_GNU_GETTEXT (gettext.m4: `__GNU_GETTEXT_SUPPORTED_REVISION`).
+    out += ["ut_name", "ut_time", "ut_xtime", "ut_addr", "UTMP_FILENAME", "WTMP_FILENAME", "ifa_broadaddr",
+            "ifa_dstaddr", "greg_t", "__GNU_GETTEXT_SUPPORTED_REVISION"]
     return out
 
 

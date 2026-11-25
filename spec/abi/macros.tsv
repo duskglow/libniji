@@ -7655,6 +7655,7 @@ UTIME_NOW	fcntl.h	long	1073741823
 UTIME_OMIT	fcntl.h	long	1073741822
 UTMPX_FILE	utmpx.h	char[14]	"/var/run/utmp"
 UTMP_FILE	lastlog.h	char[14]	"/var/run/utmp"
+UTMP_FILENAME	lastlog.h	char[14]	"/var/run/utmp"
 UT_HOSTSIZE	lastlog.h	int	256
 UT_LINESIZE	lastlog.h	int	32
 UT_NAMESIZE	lastlog.h	int	32
@@ -7736,6 +7737,7 @@ WRQ	arpa/tftp.h	int	2
 WSTOPPED	stdlib.h	int	2
 WTMPX_FILE	utmpx.h	char[14]	"/var/log/wtmp"
 WTMP_FILE	lastlog.h	char[14]	"/var/log/wtmp"
+WTMP_FILENAME	lastlog.h	char[14]	"/var/log/wtmp"
 WUNTRACED	stdlib.h	int	2
 W_OK	arpa/nameser.h	int	2
 XATTR_CREATE	sys/xattr.h	int	1
