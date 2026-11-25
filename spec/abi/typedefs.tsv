@@ -4003,3 +4003,5 @@ function	ynf32x	complex.h			_Float32x (int, _Float32x)
 function	ynf64	complex.h			_Float64 (int, _Float64)
 function	ynf64x	complex.h			_Float64x (int, _Float64x)
 function	ynl	complex.h			long double (int, long double)
+struct	ar_hdr	ar.h	60	1	ar_hdr
+struct	utimbuf	utime.h	16	8	utimbuf

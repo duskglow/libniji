@@ -33,7 +33,7 @@ fts.h ftw.h glob.h regex.h wordexp.h fnmatch.h search.h termios.h sys/ioctl.h pt
 utmpx.h pwd.h grp.h shadow.h gshadow.h netdb.h resolv.h arpa/inet.h arpa/nameser.h
 netinet/in.h netinet/ether.h net/if.h ifaddrs.h sys/socket.h sys/un.h poll.h sys/epoll.h
 sys/select.h sys/uio.h aio.h mqueue.h sys/ipc.h sys/msg.h sys/sem.h sys/shm.h spawn.h
-sys/wait.h dlfcn.h link.h mntent.h fstab.h getopt.h argp.h obstack.h printf.h malloc.h err.h
+sys/wait.h dlfcn.h link.h mntent.h ar.h utime.h fstab.h getopt.h argp.h obstack.h printf.h malloc.h err.h
 error.h syslog.h fmtmsg.h sys/mman.h fcntl.h unistd.h sched.h sys/sysmacros.h sys/inotify.h
 sys/signalfd.h sys/timerfd.h sys/eventfd.h sys/xattr.h sys/random.h sys/auxv.h execinfo.h
 inttypes.h stdint.h stddef.h stdarg.h envz.h argz.h libgen.h nl_types.h libintl.h
@@ -158,6 +158,8 @@ TYPES = [
  *[(f"struct {t}", f"struct {t}") for t in (
      "ifconf", "ifaddr", "packet_mreq", "sockaddr_pkt", "tpacket_req", "tpacket_stats", "tpacket_auxdata", "tpacket_hdr",
      "mtop", "mtget", "mtpos", "mtconfiginfo", "mt_tape_info")],
+ # HEADERS-STAGE2-GAPS-C: the archive member header of ar(5) (elfutils) and XSH <utime.h>'s struct utimbuf (bzip2, cmake).
+ ("struct ar_hdr", "struct ar_hdr"), ("struct utimbuf", "struct utimbuf"),
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),

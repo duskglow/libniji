@@ -2287,6 +2287,17 @@ struct mtconfiginfo	reserved	34		char[10]
 struct mt_tape_info		16	8		
 struct mt_tape_info	t_type	0		long int	
 struct mt_tape_info	t_name	8		char *	
+struct ar_hdr		60	1		
+struct ar_hdr	ar_name	0		char[16]	
+struct ar_hdr	ar_date	16		char[12]	
+struct ar_hdr	ar_uid	28		char[6]	
+struct ar_hdr	ar_gid	34		char[6]	
+struct ar_hdr	ar_mode	40		char[8]	
+struct ar_hdr	ar_size	48		char[10]	
+struct ar_hdr	ar_fmag	58		char[2]	
+struct utimbuf		16	8		
+struct utimbuf	actime	0		__time_t	
+struct utimbuf	modtime	8		__time_t	
 Elf32_Ehdr		52	4		
 Elf32_Ehdr	e_ident	0		unsigned char[16]	
 Elf32_Ehdr	e_type	16		Elf32_Half	

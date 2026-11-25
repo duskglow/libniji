@@ -7,7 +7,7 @@
 
 __NIJI_BEGIN_C
 
-@@owns LOG_MASK LOG_UPTO
+@@owns LOG_MASK LOG_UPTO LOG_PRI LOG_MAKEPRI LOG_FAC
 @@emit
 @@fortify
 
@@ -15,6 +15,14 @@ __NIJI_BEGIN_C
 @@when LOG_MASK
 # define LOG_MASK(pri) (1 << (pri))
 # define LOG_UPTO(pri) ((1 << ((pri) + 1)) - 1)
+#endif
+
+/* The priority and facility fields of a priority value, and a value from a facility code and a priority (probed:
+   the facility argument is a LOG_* facility code, already in its field, so the two are or'ed; HEADERS-STAGE2-GAPS-C). */
+@@when LOG_PRI
+# define LOG_PRI(p) ((p) & LOG_PRIMASK)
+# define LOG_MAKEPRI(fac, pri) ((fac) | (pri))
+# define LOG_FAC(p) (((p) & LOG_FACMASK) >> 3)
 #endif
 
 __NIJI_END_C
