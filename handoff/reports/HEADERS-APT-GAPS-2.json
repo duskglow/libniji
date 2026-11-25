@@ -6,7 +6,7 @@
  "branch": "task/headers-apt-gaps-2",
  "head": "f3855b7ed (later commit: handoff only)",
  "gate": {
-  "affected": "affected: ok (direct tier, rc 0; keke job headers-apt-gaps-2-gate)",
+  "affected": "gate2 pending (first gate ok rc 0 but ran beside a headers-gen)",
   "peak": "12G"
  },
  "accepted_first_attempt": null,
@@ -76,8 +76,8 @@
  "next_step": "Land; the next snapshot run builds apt 3.0.4 with ypk.sh and reruns hp2.sh on the deb",
  "report_file": "handoff/HEADERS-APT-GAPS.md",
  "jobs": [
-  "headers-apt-gaps-2-lint",
-  "headers-apt-gaps-2-gate",
+  "headers-apt-gaps-2-lint3",
+  "headers-apt-gaps-2-gate2",
   "headers-apt-gaps-2-plants"
  ]
 }
