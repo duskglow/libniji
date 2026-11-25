@@ -43,7 +43,9 @@ typedef char niji_ax25_sa[sizeof (struct sockaddr_ax25) == 16 && sizeof (struct 
 # <inttypes.h>); udp(7) (the UDP socket options); utmp(5) (the older member names of a login record).
 THIN = [
     ("inttypes.h", "PRIb64", """#include <inttypes.h>
-typedef char niji_thin_pri[sizeof (PRIb64) == 3 && sizeof (PRIB32) == 2 && sizeof (SCNb8) == 4 && sizeof (PRIbPTR) == 3 ? 1 : -1];
+typedef char niji_thin_pri[sizeof (PRIb64) == 3 && PRIb64[0] == 'l' && PRIb64[1] == 'b' && sizeof (PRIB32) == 2 && PRIB32[0] == 'B'
+                           && sizeof (SCNb8) == 4 && SCNb8[0] == 'h' && SCNb8[1] == 'h' && SCNb8[2] == 'b'
+                           && sizeof (PRIbPTR) == 3 && PRIbPTR[0] == 'l' && PRIbPTR[1] == 'b' ? 1 : -1];
 """),
     ("netinet/udp.h", "UDP_SEGMENT", """#include <netinet/udp.h>
 typedef char niji_thin_udp[UDP_CORK == 1 && UDP_ENCAP == 100 && UDP_SEGMENT == 103 && UDP_GRO == 104 && UDP_NO_CHECK6_TX == 101

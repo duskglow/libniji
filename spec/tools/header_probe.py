@@ -536,7 +536,46 @@ def thin_names():
         "NAOFFD", "NAOVTS", "NAOVTD", "NAOLFD", "XASCII", "LOGOUT", "BM", "DET", "SUPDUP", "SUPDUPOUTPUT", "SNDLOC",
         "TTYPE", "EOR", "TUID", "OUTMRK", "TTYLOC", "3270REGIME", "X3PAD", "NAWS", "TSPEED", "LFLOW", "LINEMODE",
         "XDISPLOC", "OLD_ENVIRON", "AUTHENTICATION", "ENCRYPT", "NEW_ENVIRON", "EXOPL", "ENVIRON")]
-    return out, []
+    # arpa/nameser.h: the resource-record types, classes, opcodes and response codes of the IANA DNS parameters
+    # registry (RFC 1035 3.2.2-3.2.4, 1996, 2136, 2671, 4034, 6891, ...), each spelled by the three conventional
+    # prefixes (T_<TYPE>, ns_t_<type>; C_<CLASS>, ns_c_<class>).
+    types = ("A NS MD MF CNAME SOA MB MG MR NULL WKS PTR HINFO MINFO MX TXT RP AFSDB X25 ISDN RT NSAP NSAP_PTR SIG KEY "
+             "PX GPOS AAAA LOC NXT EID NIMLOC SRV ATMA NAPTR KX CERT A6 DNAME SINK OPT APL DS SSHFP IPSECKEY RRSIG NSEC "
+             "DNSKEY DHCID NSEC3 NSEC3PARAM TLSA HIP SPF TKEY TSIG IXFR AXFR MAILB MAILA ANY ZXFR CAA URI DLV").split()
+    out += [f"T_{t}" for t in types] + [f"ns_t_{t.lower()}" for t in types] + ["ns_t_invalid", "ns_t_max"]
+    classes = "IN CHAOS HS NONE ANY".split()
+    out += [f"C_{c}" for c in classes] + [f"ns_c_{c.lower()}" for c in classes] + ["ns_c_2", "ns_c_invalid",
+                                                                                  "ns_c_max"]
+    out += ["ns_o_query", "ns_o_iquery", "ns_o_status", "ns_o_notify", "ns_o_update", "ns_o_max", "QUERY", "IQUERY",
+            "STATUS", "NS_NOTIFY_OP", "NS_UPDATE_OP", "ns_r_noerror", "ns_r_formerr", "ns_r_servfail", "ns_r_nxdomain",
+            "ns_r_notimpl", "ns_r_refused", "ns_r_yxdomain", "ns_r_yxrrset", "ns_r_nxrrset", "ns_r_notauth",
+            "ns_r_notzone", "ns_r_max", "ns_r_badvers", "ns_r_badsig", "ns_r_badkey", "ns_r_badtime", "NOERROR",
+            "FORMERR", "SERVFAIL", "NXDOMAIN", "NOTIMP", "REFUSED", "YXDOMAIN", "YXRRSET", "NXRRSET", "NOTAUTH",
+            "NOTZONE", "ns_s_qd", "ns_s_zn", "ns_s_an", "ns_s_pr", "ns_s_ns", "ns_s_ud", "ns_s_ar", "ns_s_max",
+            "ns_f_qr", "ns_f_opcode", "ns_f_aa", "ns_f_tc", "ns_f_rd", "ns_f_ra", "ns_f_z", "ns_f_ad", "ns_f_cd",
+            "ns_f_rcode", "ns_f_max", "ns_uop_delete", "ns_uop_add", "ns_uop_max", "ns_cert_pkix", "ns_cert_spki",
+            "ns_cert_pgp", "ns_cert_url", "ns_cert_oid", "ns_kt_rsa", "ns_kt_dh", "ns_kt_dsa", "ns_kt_private",
+            "NS_PACKETSZ", "NS_MAXDNAME", "NS_MAXCDNAME", "NS_MAXLABEL", "NS_HFIXEDSZ", "NS_QFIXEDSZ", "NS_RRFIXEDSZ",
+            "NS_INT32SZ", "NS_INT16SZ", "NS_INT8SZ", "NS_INADDRSZ", "NS_IN6ADDRSZ", "NS_CMPRSFLGS", "NS_DEFAULTPORT",
+            "NS_MAXMSG", "NS_TYPE_ELT", "NS_MAXMSG", "NS_TSIG_FUDGE", "NS_TSIG_TCP_COUNT", "NS_TSIG_ALG_HMAC_MD5",
+            "NS_TSIG_ERROR_NO_TSIG", "NS_TSIG_ERROR_NO_SPACE", "NS_TSIG_ERROR_FORMERR", "NS_SIG_TYPE", "NS_SIG_ALG",
+            "NS_SIG_LABELS", "NS_SIG_OTTL", "NS_SIG_EXPIR", "NS_SIG_SIGNED", "NS_SIG_FOOT", "NS_SIG_SIGNER",
+            "NS_NXT_BITS", "NS_NXT_BIT_SET", "NS_NXT_BIT_CLEAR", "NS_NXT_MAX", "NS_KEY_TYPEMASK", "NS_KEY_TYPE_AUTH_CONF",
+            "NS_KEY_TYPE_CONF_ONLY", "NS_KEY_TYPE_AUTH_ONLY", "NS_KEY_TYPE_NO_KEY", "NS_KEY_NO_AUTH", "NS_KEY_NO_CONF",
+            "NS_KEY_RESERVED2", "NS_KEY_EXTENDED_FLAGS", "NS_KEY_RESERVED4", "NS_KEY_RESERVED5", "NS_KEY_NAME_TYPE",
+            "NS_KEY_NAME_USER", "NS_KEY_NAME_ENTITY", "NS_KEY_NAME_ZONE", "NS_KEY_NAME_RESERVED",
+            "NS_KEY_RESERVED8", "NS_KEY_RESERVED9", "NS_KEY_RESERVED10", "NS_KEY_RESERVED11", "NS_KEY_SIGNATORYMASK",
+            "NS_KEY_PROT_TLS", "NS_KEY_PROT_EMAIL", "NS_KEY_PROT_DNSSEC", "NS_KEY_PROT_IPSEC", "NS_KEY_PROT_ANY",
+            "NS_ALG_MD5RSA", "NS_ALG_DH", "NS_ALG_DSA", "NS_ALG_DSS", "NS_ALG_EXPIRE_ONLY", "NS_ALG_PRIVATE_OID",
+            "PACKETSZ", "MAXDNAME", "MAXCDNAME", "MAXLABEL", "HFIXEDSZ", "QFIXEDSZ", "RRFIXEDSZ", "INT32SZ",
+            "INT16SZ", "INT8SZ", "INADDRSZ", "IN6ADDRSZ", "INDIR_MASK", "NAMESERVER_PORT", "GETSHORT", "GETLONG",
+            "PUTSHORT", "PUTLONG", "NS_GET16", "NS_GET32", "NS_PUT16", "NS_PUT32", "ns_msg_id", "ns_msg_base",
+            "ns_msg_end", "ns_msg_size", "ns_msg_count", "ns_rr_name", "ns_rr_type", "ns_rr_class", "ns_rr_ttl",
+            "ns_rr_rdlen", "ns_rr_rdata", "ns_name_ntop", "ns_name_pton", "ns_name_unpack", "ns_name_pack",
+            "ns_name_uncompress", "ns_name_compress", "ns_name_skip", "ns_name_rollback"]
+    return out, ["__ns_msg", "__ns_rr", "__ns_updrec", "ns_tsig_key", "ns_sect", "ns_flag", "ns_opcode", "ns_rcode",
+                 "ns_update_operation", "ns_cert_types", "ns_type", "ns_class", "ns_msg", "ns_rr", "ns_updrec",
+                 "ns_tcp_tsig_state", "ns_key_types", "ns_key_name_types"]
 
 
 def net_sys_names():
