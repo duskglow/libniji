@@ -1,0 +1,9 @@
+# Plants of HEADERS-CXX-ENUM-TYPES, second run (cargo xtask plants; docs/plants.md): the two fixes after the first
+# `cargo test -p xtask` run and the rows test's check of `char` macros. Each breaks one; the test named must catch it.
+anon-empty-enum | xtask/src/headers/enums.rs | lit:let mut body = vec![format!("#  if {test}"), "enum {".to_string()]; ==> let mut body = vec![format!("#  if 1 /* {test} */"), "enum {".to_string()]; | cargo xtask headers-gen && cargo test -p xtask --bin xtask -- headers::slices::s12::tests::network_headers_pass_header_check | msg:empty enum is invalid
+anon-rows-alone | xtask/src/headers.rs | lit:self.anon_body(&tag, "1", true); ==> self.anon_body(&tag, "1", false); | cargo test -p xtask --bin xtask -- headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:FAIL visibility enumerator ABDAY_1
+char-as-int | xtask/src/headers/values.rs | lit:0x20..=0x7e => format!("'{}'", v as char), ==> 0x20..=0x7e => format!("{v}"), | cargo test -p xtask --bin xtask -- headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:macros REGTYPE is char in C\+\+
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# anon-empty-enum: CAUGHT, caught by xtask headers::slices::s12::tests::network_headers_pass_header_check
+# anon-rows-alone: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables
+# char-as-int: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables

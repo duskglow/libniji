@@ -155,6 +155,22 @@ struct rlimit64 {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D_enum___priority_which
+#  define __NIJI_D_enum___priority_which 1
+enum __priority_which {
+  PRIO_PROCESS = 0,
+  PRIO_PGRP = 1,
+  PRIO_USER = 2,
+};
+# endif
+# ifndef __NIJI_D_enum___rusage_who
+#  define __NIJI_D_enum___rusage_who 1
+enum __rusage_who {
+  RUSAGE_SELF = 0,
+  RUSAGE_CHILDREN = -1,
+  RUSAGE_THREAD = 1,
+};
+# endif
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
@@ -246,46 +262,6 @@ extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_PRIO_PGRP
-#  define __NIJI_D_enum_PRIO_PGRP 1
-#  ifndef PRIO_PGRP
-enum { PRIO_PGRP = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_PRIO_PROCESS
-#  define __NIJI_D_enum_PRIO_PROCESS 1
-#  ifndef PRIO_PROCESS
-enum { PRIO_PROCESS = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_PRIO_USER
-#  define __NIJI_D_enum_PRIO_USER 1
-#  ifndef PRIO_USER
-enum { PRIO_USER = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_RUSAGE_CHILDREN
-#  define __NIJI_D_enum_RUSAGE_CHILDREN 1
-#  ifndef RUSAGE_CHILDREN
-enum { RUSAGE_CHILDREN = (-1) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_RUSAGE_SELF
-#  define __NIJI_D_enum_RUSAGE_SELF 1
-#  ifndef RUSAGE_SELF
-enum { RUSAGE_SELF = 0 };
-#  endif
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_enum_RUSAGE_THREAD
-#  define __NIJI_D_enum_RUSAGE_THREAD 1
-#  ifndef RUSAGE_THREAD
-enum { RUSAGE_THREAD = 1 };
-#  endif
-# endif
-#endif
-#if 1
 # ifndef PRIO_MAX
 #  define PRIO_MAX 20
 # endif
@@ -293,73 +269,73 @@ enum { RUSAGE_THREAD = 1 };
 #  define PRIO_MIN (-20)
 # endif
 # ifndef PRIO_PGRP
-#  define PRIO_PGRP 1
+#  define PRIO_PGRP PRIO_PGRP
 # endif
 # ifndef PRIO_PROCESS
-#  define PRIO_PROCESS 0
+#  define PRIO_PROCESS PRIO_PROCESS
 # endif
 # ifndef PRIO_USER
-#  define PRIO_USER 2
+#  define PRIO_USER PRIO_USER
 # endif
 # ifndef RLIMIT_AS
-#  define RLIMIT_AS 9
+#  define RLIMIT_AS RLIMIT_AS
 # endif
 # ifndef RLIMIT_CORE
-#  define RLIMIT_CORE 4
+#  define RLIMIT_CORE RLIMIT_CORE
 # endif
 # ifndef RLIMIT_CPU
-#  define RLIMIT_CPU 0
+#  define RLIMIT_CPU RLIMIT_CPU
 # endif
 # ifndef RLIMIT_DATA
-#  define RLIMIT_DATA 2
+#  define RLIMIT_DATA RLIMIT_DATA
 # endif
 # ifndef RLIMIT_FSIZE
-#  define RLIMIT_FSIZE 1
+#  define RLIMIT_FSIZE RLIMIT_FSIZE
 # endif
 # ifndef RLIMIT_LOCKS
-#  define RLIMIT_LOCKS 10
+#  define RLIMIT_LOCKS __RLIMIT_LOCKS
 # endif
 # ifndef RLIMIT_MEMLOCK
-#  define RLIMIT_MEMLOCK 8
+#  define RLIMIT_MEMLOCK __RLIMIT_MEMLOCK
 # endif
 # ifndef RLIMIT_MSGQUEUE
-#  define RLIMIT_MSGQUEUE 12
+#  define RLIMIT_MSGQUEUE __RLIMIT_MSGQUEUE
 # endif
 # ifndef RLIMIT_NICE
-#  define RLIMIT_NICE 13
+#  define RLIMIT_NICE __RLIMIT_NICE
 # endif
 # ifndef RLIMIT_NLIMITS
-#  define RLIMIT_NLIMITS 16
+#  define RLIMIT_NLIMITS __RLIMIT_NLIMITS
 # endif
 # ifndef RLIMIT_NOFILE
-#  define RLIMIT_NOFILE 7
+#  define RLIMIT_NOFILE RLIMIT_NOFILE
 # endif
 # ifndef RLIMIT_NPROC
-#  define RLIMIT_NPROC 6
+#  define RLIMIT_NPROC __RLIMIT_NPROC
 # endif
 # ifndef RLIMIT_OFILE
-#  define RLIMIT_OFILE 7
+#  define RLIMIT_OFILE RLIMIT_NOFILE
 # endif
 # ifndef RLIMIT_RSS
-#  define RLIMIT_RSS 5
+#  define RLIMIT_RSS __RLIMIT_RSS
 # endif
 # ifndef RLIMIT_RTPRIO
-#  define RLIMIT_RTPRIO 14
+#  define RLIMIT_RTPRIO __RLIMIT_RTPRIO
 # endif
 # ifndef RLIMIT_RTTIME
-#  define RLIMIT_RTTIME 15
+#  define RLIMIT_RTTIME __RLIMIT_RTTIME
 # endif
 # ifndef RLIMIT_SIGPENDING
-#  define RLIMIT_SIGPENDING 11
+#  define RLIMIT_SIGPENDING __RLIMIT_SIGPENDING
 # endif
 # ifndef RLIMIT_STACK
-#  define RLIMIT_STACK 3
+#  define RLIMIT_STACK RLIMIT_STACK
 # endif
 # ifndef RLIM_INFINITY
 #  define RLIM_INFINITY 18446744073709551615UL
 # endif
 # ifndef RLIM_NLIMITS
-#  define RLIM_NLIMITS 16
+#  define RLIM_NLIMITS __RLIMIT_NLIMITS
 # endif
 # ifndef RLIM_SAVED_CUR
 #  define RLIM_SAVED_CUR 18446744073709551615UL
@@ -368,18 +344,18 @@ enum { RUSAGE_THREAD = 1 };
 #  define RLIM_SAVED_MAX 18446744073709551615UL
 # endif
 # ifndef RUSAGE_CHILDREN
-#  define RUSAGE_CHILDREN (-1)
+#  define RUSAGE_CHILDREN RUSAGE_CHILDREN
 # endif
 # ifndef RUSAGE_SELF
-#  define RUSAGE_SELF 0
+#  define RUSAGE_SELF RUSAGE_SELF
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef RUSAGE_LWP
-#  define RUSAGE_LWP 1
+#  define RUSAGE_LWP RUSAGE_THREAD
 # endif
 # ifndef RUSAGE_THREAD
-#  define RUSAGE_THREAD 1
+#  define RUSAGE_THREAD RUSAGE_THREAD
 # endif
 #endif
 #if __NIJI_LFS64

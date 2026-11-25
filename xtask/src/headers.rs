@@ -198,6 +198,9 @@ struct Tables {
     enums: BTreeMap<String, Vec<(String, String)>>,
     /// enumerators.tsv: an enumerator -> the tag of its enumeration.
     enum_of: BTreeMap<String, String>,
+    /// enum-macros.tsv (HEADERS-CXX-ENUM-TYPES): a macro that is an enumerator in the reference -> the enumerator it
+    /// names (itself, or the enumerator of the same enumeration with its value), and the headers where it does not.
+    enum_macros: BTreeMap<String, (String, BTreeSet<String>)>,
     /// `vis` by header and name.
     vis_index: VisIndex,
 }
@@ -375,9 +378,10 @@ fn load(root: &Path) -> Result<Tables, String> {
         enum_of.insert(r["name"].clone(), r["tag"].clone());
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
+    let enum_macros = tsv(root, "spec/abi/enum-macros.tsv")?.into_iter().map(|r| (r["name"].clone(), (r["enumerator"].clone(), r["not_in"].split(',').filter(|h| !h.is_empty()).map(String::from).collect()))).collect();
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, enum_macros, vis_index })
 }
 
 /// The scalar functions of the `libmvec.so.1` rows of versions.tsv (D-X.170). GCC's `simd ("notinbranch")` attribute
@@ -548,6 +552,15 @@ impl Gen<'_> {
                 }
                 continue;
             }
+            // An enumerator of an enumeration without a name (enumerators.tsv `anon FIRST`): that enumeration, once,
+            // under the condition of any member this header shows.
+            if let Some(tag) = (kind == "enumerator").then(|| self.anon_enum(&name)).flatten() {
+                if self.emitted.insert(tag.clone()) {
+                    let c = self.anon_cond(&tag);
+                    items.push((6, c, tag, "anon".into()));
+                }
+                continue;
+            }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
             if rank == 9 {
                 self.errors.push(format!("{}: {name}: kind {kind} is not generated yet", self.header));
@@ -582,7 +595,11 @@ impl Gen<'_> {
     fn item(&mut self, name: &str, kind: &str) {
         match kind {
             "macro" => {
-                let v = self.value(name);
+                // A macro that is an enumerator in the reference names it (enum-macros.tsv), where this header declares it.
+                let v = match self.enum_macro(name) {
+                    Some(e) => e,
+                    None => self.value(name),
+                };
                 self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
             }
             "enumerator" => {
@@ -599,9 +616,24 @@ impl Gen<'_> {
                     self.typedef(&td);
                     return;
                 }
+                // An enumerator of an enumeration without a name: the whole enumeration, once. Emitted outside any
+                // header that lists it (the rows test), with every member.
+                if let Some(tag) = self.anon_enum(name) {
+                    if self.t.vis_row(&self.header, name, "enumerator").is_none() {
+                        self.anon_body(&tag, "1", true);
+                    } else {
+                        let c = self.anon_cond(&tag);
+                        self.anon_body(&tag, &c, false);
+                    }
+                    return;
+                }
                 let v = self.value(name);
                 // A macro of the same name (a kernel header that came first) already provides the value.
                 self.guard(&format!("enum_{name}"), vec![format!("#  ifndef {name}"), format!("enum {{ {name} = {v} }};"), "#  endif".into()]);
+            }
+            "anon" => {
+                let c = self.anon_cond(name);
+                self.anon_body(name, &c, false);
             }
             "typedef" => self.typedef(name),
             "struct" | "union" | "enum" => self.tag(name, kind),
@@ -768,7 +800,10 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 owned.extend(rest.split_whitespace().map(String::from));
             }
             if let Some(n) = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("define ")).and_then(|l| l.split(|c: char| !(c.is_alphanumeric() || c == '_')).next()) {
-                if t.macros.contains_key(n) && !l.contains("@@") {
+                // A macro that names its own enumerator (enum-macros.tsv: `#define XATTR_CREATE XATTR_CREATE`) spells
+                // no value.
+                let names_itself = t.enum_macros.get(n).is_some_and(|(e, _)| e == n) && l.split_whitespace().last() == Some(n) && l.split_whitespace().filter(|w| *w == n).count() == 2;
+                if t.macros.contains_key(n) && !l.contains("@@") && !names_itself {
                     errors.push(format!("headers/{h}.in defines {n}, which macros.tsv owns: use @@value({n})"));
                 }
             }

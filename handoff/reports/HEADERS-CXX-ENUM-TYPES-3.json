@@ -1,0 +1,15 @@
+{"task": "HEADERS-CXX-ENUM-TYPES-3", "model": "sonnet", "tokens": null,
+ "result": "Merged origin/next, resolved the spec/abi/PROVENANCE conflict keeping both entries; headers-gen --check, clippy, static green; header_check 0 failed of 17663; xtask tests and plants green",
+ "branch": "task/headers-cxx-enum-types-3", "head": "738cd20e8",
+ "gate": {"affected": "FULL escalated (generated headers): the train's; direct: header_check.py 0 failed of 17663, cargo test -p xtask green (transcripts test after cargo xtask so), plants 4 CAUGHT / 1 EQUIVALENT", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["the_committed_gencat_transcripts_hold fails in a role whose product is not built (cargo xtask so not run yet): a plain cargo test -p xtask on a fresh role is red until the product exists", "plants baseline timed out at 600 s with two copies beside the xtask tests; one copy and --timeout 1800 passed"],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "CI conflict on spec/abi/PROVENANCE resolved: HEADERS-CXX-ENUM-TYPES can land", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "Plants default --timeout 600 is too short for header_check baselines when a host runs two jobs; the xtask test target needs the product but does not say so",
+ "next_step": "Land task/headers-cxx-enum-types-3",
+ "report_file": "handoff/HEADERS-CXX-ENUM-TYPES.md",
+ "jobs": ["headers-cxx-enum-types-3-lint1", "headers-cxx-enum-types-3-test2", "headers-cxx-enum-types-3-plants2"]}

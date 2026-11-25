@@ -34,7 +34,7 @@ struct sgttyb;
 extern int stty (int, const struct sgttyb *);
 # endif
 # ifndef CBRK
-#  define CBRK 0
+#  define CBRK '\000'
 # endif
 # ifndef CDISCARD
 #  define CDISCARD 15
@@ -46,7 +46,7 @@ extern int stty (int, const struct sgttyb *);
 #  define CEOF 4
 # endif
 # ifndef CEOL
-#  define CEOL 0
+#  define CEOL '\000'
 # endif
 # ifndef CEOT
 #  define CEOT 4
@@ -82,7 +82,7 @@ extern int stty (int, const struct sgttyb *);
 #  define CSTART 17
 # endif
 # ifndef CSTATUS
-#  define CSTATUS 0
+#  define CSTATUS '\000'
 # endif
 # ifndef CSTOP
 #  define CSTOP 19
