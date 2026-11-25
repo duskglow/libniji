@@ -412,6 +412,8 @@ def stage2_names():
     # entries of the GNU toolchain), each width and the unsized spelling (gnu-efi).
     out += [f"ELF{w}_{m}" for w in ("32", "64", "") for m in ("R_SYM", "R_TYPE", "R_INFO", "ST_BIND", "ST_TYPE",
                                                               "ST_INFO", "ST_VISIBILITY", "M_SYM", "M_SIZE", "M_INFO")]
+    # resolv.h's base64 helpers, the unprefixed names (resolver(3) family: the exported __b64_ntop and __b64_pton).
+    out += ["b64_ntop", "b64_pton"]
     return out
 
 

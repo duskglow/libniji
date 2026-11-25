@@ -44017,6 +44017,8 @@ resolv.h	access	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	acct	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	alarm	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	asprintf	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+resolv.h	b64_ntop	macro	!time64only
+resolv.h	b64_pton	macro	!time64only
 resolv.h	be16toh	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	bind	function	!time64only
 resolv.h	bindresvport	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23

@@ -159,6 +159,21 @@ def initializers(ctx):
         if cid in expand(ver["configs"], ctx.ids):
             res.append((cid, "initializers resolv.h __RES",
                         f"#include <resolv.h>\n#if !defined __RES || __RES != {ctx.macros['__RES']['value']}\n#error __RES\n#endif\nint niji_res;\n"))
+    # resolv.h's base64 helpers (no spec clause; HEADERS-STAGE2-GAPS-B-3): where resolv.h shows the macros b64_ntop and
+    # b64_pton, each names the exported function, so a call with the resolver's argument types compiles and the
+    # function-pointer types are exactly the exported functions' (the macros are the unprefixed names programs use).
+    b64 = {r["name"]: r for r in ctx.vis if r["header"] == "resolv.h" and r["name"] in ("b64_ntop", "b64_pton") and r["kind"] == "macro"}
+    if len(b64) != 2:
+        return res + [(ctx.ids[0], "initializers resolv.h b64", "#error visibility.tsv lacks the macros b64_ntop and b64_pton\n")]
+    for cid in expand(b64["b64_ntop"]["configs"], ctx.ids):
+        if cid in expand(b64["b64_pton"]["configs"], ctx.ids):
+            res.append((cid, "initializers resolv.h b64",
+                        "#include <resolv.h>\n"
+                        "#ifndef b64_ntop\n#error b64_ntop\n#endif\n#ifndef b64_pton\n#error b64_pton\n#endif\n"
+                        "int (*niji_enc) (const unsigned char *, size_t, char *, size_t) = b64_ntop;\n"
+                        "int (*niji_dec) (const char *, unsigned char *, size_t) = b64_pton;\n"
+                        "int niji_b64 (const unsigned char *s, size_t n, char *d, size_t m, unsigned char *o)\n"
+                        "{\n  int e = b64_ntop (s, n, d, m);\n  return e < 0 ? e : b64_pton (d, o, n);\n}\n"))
     # ELF gABI, e_ident[EI_MAG0..EI_MAG3] (HEADERS-STAGE2-GAPS-B): where elf.h shows ELFMAG, it is a string literal of
     # SELFMAG bytes (so `char m[] = ELFMAG` and memcmp(e_ident, ELFMAG, SELFMAG) work), and in C++11 and later its
     # bytes are ELFMAG0..ELFMAG3 (whose values the P1 units check) then the terminator.
