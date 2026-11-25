@@ -1,0 +1,19 @@
+{"task": "SL-HEADERS-COMPLEX-TGMATH", "model": "opus", "tokens": null,
+ "result": "libniji ships complex.h and tgmath.h: every type-generic macro resolves as the reference (8502 probe cases, 0 differences), CMPLX family constant expressions, C and C++ programs match the reference",
+ "branch": "task/sl-headers-complex-tgmath", "head": null,
+ "gate": {"affected": "707 passed / 0 failed (8 suites)", "peak": "2.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["header_check.py P6 now runs the slice-11 type-generic comparison in 4 configurations (4264 compile-only cases, about 1 min on 16 jobs); tgmath_probe.py --check covers all 8"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "a C or C++98 file including <complex.h> or <tgmath.h> compiles with niji-gcc/niji-cc (was: no such header)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "type-generic cases compared with the reference table (header_check P6 4264; tgmath_probe --check 8502)", "before": 0, "after": 8502, "unit": "cases", "measured": true},
+   {"kind": "coverage", "what": "programs in niji_cc_headers.rs complex_and_tgmath_programs_match_the_reference", "before": 0, "after": 11, "unit": "programs", "measured": true},
+   {"kind": "coverage", "what": "plants (validation/headers_complex_tgmath.plants), all caught", "before": 0, "after": 2, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "Yohane packages that include the headers (efivar, openssl tests, postgresql meson probe, ocaml-ctypes, mpclib3, guile, cython)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "tgmath_probe.py runs one compile per case for the reference (18 min); batching the reference run as --check does (150 cases a unit, failing batches split) would cut it to a few minutes",
+ "next_step": "land; the remaining unshipped headers are aio.h, mqueue.h, proc_service.h, thread_db.h and math-vector-fortran.h",
+ "report_file": "handoff/SL-HEADERS-COMPLEX-TGMATH.md",
+ "jobs": ["keke:sl-headers-complex-tgmath-gate", "keke:sl-headers-complex-tgmath-plants", "keke:sl-headers-complex-tgmath-lint"]}
