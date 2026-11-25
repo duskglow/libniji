@@ -31,10 +31,13 @@ pub(crate) const FLOATS: &[(&str, &str, &str, usize)] = &[
     ("_Float128", "f128", "f128", 36),
 ];
 
+/// A standard type of a `_FloatN` type's format: its name, literal suffix and builtin suffix.
+type FloatBase = (&'static str, &'static str, &'static str);
+
 /// The `_FloatN` types and constant suffixes of TS 18661-3 a compiler may lack (clang has none of them), with the type
 /// of the same format on x86-64 (psABI) and that type's literal and builtin suffixes; `None`: `_Float128`, whose
 /// format (binary128) no other standard type has.
-const FLOATN_BASE: &[(&str, &str, Option<(&str, &str, &str)>)] = &[
+const FLOATN_BASE: &[(&str, &str, Option<FloatBase>)] = &[
     ("_Float32", "f32", Some(("float", "f", "f"))),
     ("_Float64", "f64", Some(("double", "", ""))),
     ("_Float32x", "f32x", Some(("double", "", ""))),
