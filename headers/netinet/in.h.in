@@ -39,19 +39,6 @@ __NIJI_BEGIN_C
 @@owns IN6ADDR_ANY_INIT IN6ADDR_LOOPBACK_INIT
 @@emit
 
-/* The class of an IPv4 address `a` in host byte order, from its high bits (RFC 791 section 3.2, RFC 1112 section 4):
-   A 0, B 10, C 110, D 1110 (multicast), experimental 111, bad class 1111. `a` is converted to 32 bits and evaluated
-   once; each test is a comparison (int in C, bool in C++) and a constant expression for a constant `a`. */
-@@if IN_CLASSA
-# define IN_CLASSA(a) ((((unsigned int) (a)) & 0x80000000u) == 0)
-# define IN_CLASSB(a) ((((unsigned int) (a)) & 0xc0000000u) == 0x80000000u)
-# define IN_CLASSC(a) ((((unsigned int) (a)) & 0xe0000000u) == 0xc0000000u)
-# define IN_CLASSD(a) ((((unsigned int) (a)) & 0xf0000000u) == 0xe0000000u)
-# define IN_MULTICAST(a) IN_CLASSD (a)
-# define IN_EXPERIMENTAL(a) ((((unsigned int) (a)) & 0xe0000000u) == 0xe0000000u)
-# define IN_BADCLASS(a) ((((unsigned int) (a)) & 0xf0000000u) == 0xf0000000u)
-#endif
-
 /* POSIX <netinet/in.h>: initializers of a struct in6_addr for :: and ::1 (the values of in6addr_any and
    in6addr_loopback), braced for the structure, its union and the union's first member, the 16 bytes in network
    order, so that one initializes this header's struct in6_addr and the kernel's alike without a warning. */
