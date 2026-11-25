@@ -767,6 +767,9 @@ extern int vdprintf (int, const char *, __builtin_va_list) __attribute__ ((__for
 # ifndef _IO_USER_LOCK
 #  define _IO_USER_LOCK 32768
 # endif
+# ifndef _STDIO_H
+#  define _STDIO_H 1
+# endif
 #endif
 #if __NIJI_GNU
 # ifndef RENAME_EXCHANGE

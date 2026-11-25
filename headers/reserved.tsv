@@ -20,6 +20,7 @@ __CORRECT_ISO_CPP_STRING_H_PROTO	emit	R-H2: tested by the C++ library's <cstring
 __CORRECT_ISO_CPP_WCHAR_H_PROTO	emit	R-H2: tested by the C++ library's <cwchar>: wchar.h declares the [cwchar.syn] overloads
 _NETINET_IN_H	emit	R-H2: include guard tested by the kernel's linux/libc-compat.h
 _SYS_XATTR_H	emit	R-H2: include guard tested by the kernel's linux/libc-compat.h
+_STDIO_H	emit	R-H2: include guard tested by perl 5.40's nostdio.h (stdio.h already included: keep its FILE)
 _SIGSET_NWORDS	omit	internal size constant; sigset_t's size comes from typedefs.tsv
 _STRUCT_TIMESPEC	omit	internal guard of the reference
 __assert_fail	emit	C.9: assert expands to a call of __assert_fail
