@@ -195,8 +195,8 @@ def problems(ctx, only=None):
         rc, err = _compile(ctx, lang, flags, FLEX, False)
         if rc:
             out.append(f"FEATURES flex SIZE_MAX {lang}: rc {rc}: {err}")
-    if not only or only.search("FEATURES forms"):
-        out += _forms(ctx, only)
+    # _forms filters by `FEATURES forms <header>` itself (a regex naming one header does not match the bare prefix).
+    out += _forms(ctx, only)
     return out
 
 
