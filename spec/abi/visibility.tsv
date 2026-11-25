@@ -12032,6 +12032,7 @@ fcntl.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+fcntl.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -21179,6 +21180,7 @@ mqueue.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+mqueue.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -53467,6 +53469,7 @@ sys/fcntl.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/fcntl.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -53741,6 +53744,7 @@ sys/file.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/file.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -55158,6 +55162,7 @@ sys/mount.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -58005,6 +58010,7 @@ sys/pidfd.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/pidfd.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
