@@ -57,7 +57,30 @@ def units(ctx):
         body += "".join(f"typedef char niji_nl_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(forms))
         out.append((cid, "P1 langinfo.h _NL_ITEM forms", body))
-    return out + errcode_units(ctx)
+    return out + errcode_units(ctx) + static_assert_units(ctx)
+
+
+def static_assert_units(ctx):
+    """Spec clause: C 7.2 (C11, C17), the static_assert macro of <assert.h> (NL-LOCALE-NAME-ABI: perl's perl.h tests
+    `defined(static_assert)` beside `_NL_LOCALE_NAME`; slice 6, assert.h's slice, has no module, so the unit sits with
+    the other perl-driven rows). Per configuration: defined and usable at file scope where visibility.tsv shows it
+    (the reference's probed rows), undefined elsewhere (C23 and C++ have the keyword; strict C89 and C99 have neither).
+    Defects it catches: the macro missing, or defined in a C23 or C++ mode where it would shadow the keyword."""
+    row = next((r for r in ctx.vis if r["header"] == "assert.h" and r["name"] == "static_assert" and r["kind"] == "macro"), None)
+    if row is None:
+        return [(ctx.ids[0], "static_assert assert.h", "#error visibility.tsv has no static_assert row for assert.h\n")]
+    shown = header_check.expand(row["configs"], ctx.ids)
+    levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
+    out = []
+    for c in ctx.cfgs:
+        if levels[c["id"]]["reject"] == "1":
+            continue
+        if c["id"] in shown:
+            body = "#include <assert.h>\n#ifndef static_assert\n#error static_assert is not defined\n#endif\nstatic_assert (sizeof (int) == 4, \"int\");\n"
+        else:
+            body = "#include <assert.h>\n#ifdef static_assert\n#error static_assert is defined\n#endif\n"
+        out.append((c["id"], "static_assert assert.h", body))
+    return out
 
 
 def errcode_units(ctx):
