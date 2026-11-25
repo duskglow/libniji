@@ -15,10 +15,11 @@ reference probes and ISO C 7.2. No differences row, no compat option.
   macros.tsv value where shown and undefined where not (P1 skipped all guards: they were tested nowhere). Plants
   `handoff/NL-LOCALE-NAME-ABI-2-plants.txt` (3; results at its foot); release note
   `docs/release-notes.d/NL-LOCALE-NAME-ABI.md`.
-* Run 2 jobs (keke): lint0 (inherited head clean), p1g1 (P1G 0 failed of 507), test1 (header_check 0 failed of
-  20622; `cargo test -p xtask` all green), test2 (`cargo xtask so` + s07_locale_symbols 43 passed), plants3, lint/
-  precheck on the final head. test1's s07 part failed only on "the products are missing" (no `cargo xtask so` in
-  the role yet): rerun as test2. plants (1): the policy-row plant survived, see the plants file; plants2: field typo.
+* Run 2 jobs (keke): lint0 (inherited head clean), p1g1 (P1G 0 failed of 507), test3 (full header_check and
+  `cargo test -p xtask`), test2 (`cargo xtask so` + s07_locale_symbols 43 passed), plants3 (3 CAUGHT), lint and
+  precheck on the final head. Superseded: test1 (header_check 0 failed of 20622 and xtask green, but its s07 part
+  failed only on "the products are missing": no `cargo xtask so` in the role yet; split into test2 and test3);
+  plants (the policy-row plant survived, see the plants file); plants2 (field typo in the plants file).
 
 ## Probe-settled behaviour (keke, black-box, both libraries)
 * `_NL_LOCALE_NAME(c)` = `_NL_ITEM(c, 0xffff)`; type follows the argument; not usable in `#if`; langinfo.h in every
