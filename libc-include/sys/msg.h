@@ -40,6 +40,23 @@ struct msqid_ds {
   unsigned long __glibc_reserved5;
 };
 # endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_msginfo
+#  define __NIJI_D_struct_msginfo 1
+struct msginfo {
+  int msgpool;
+  int msgmap;
+  int msgmax;
+  int msgmnb;
+  int msgmni;
+  int msgssz;
+  int msgtql;
+  unsigned short msgseg;
+};
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_msglen_t
 #  define __NIJI_D_msglen_t 1
 typedef unsigned long msglen_t;
@@ -103,6 +120,12 @@ extern int msgsnd (int, const void *, unsigned long, int);
 # ifndef MSG_STAT_ANY
 #  define MSG_STAT_ANY 13
 # endif
+#endif
+
+/* The bytes now on a queue, by the name msgctl(2) gives them: a macro for the reserved member of struct msqid_ds that
+   holds them, in the configurations visibility.tsv lists (not the strict standards). */
+#if __NIJI_MISC
+# define msg_cbytes __msg_cbytes
 #endif
 
 __NIJI_END_C
