@@ -1,16 +1,56 @@
-{"task": "HEADERS-BUSYBOX-GAPS", "model": "opus", "tokens": null,
+{
+ "task": "HEADERS-BUSYBOX-GAPS",
+ "model": "opus",
+ "tokens": null,
  "result": "net/if.h ifr_*/ifc_* member macros (reference form), if_ppp/if_shaper include net/if.h, sys/mtio.h GMT_* and MT_TAPE_INFO, struct mtget via __daddr_t; busybox arp/arping/mt/xconnect compile; static build on mei not done (refused)",
- "branch": "task/headers-busybox-gaps", "head": null,
- "gate": {"affected": "FULL: the train's (generated headers and spec/abi tables); header_check 0 failed of 17657", "peak": null},
+ "branch": "task/headers-busybox-gaps",
+ "head": "e7c90cbd4",
+ "gate": {
+  "affected": "FULL: the train's (generated headers and spec/abi tables); hgcheck-2: header_check 0 failed of 17657, niji-abi appendix_c_layouts 285 passed",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
- "informational": ["busybox compile sweep: 79 libniji-only errors in 16 files outside this story's headers (netinet/tcp.h, ip_icmp.h, icmp6.h, ip6.h, if_ether.h, net/route.h, arpa/nameser.h, syslog.h SYSLOG_NAMES, scsi/sg.h, scsi/scsi.h, sys/msg.h, sys/shm.h, sys/personality.h, mntent.h); listed per file in handoff/HEADERS-BUSYBOX-GAPS.md",
-                   "net/if_packet.h sockaddr_pkt layout row not spliced (outside the three headers)"],
- "refused": [". ~/src/liella-ops/tools/vm_ssh.sh; vm_ssh_cmd mei; \"${VSSH[@]}\" 'ls ~/work/RELEASE-SNAPSHOT-1124D/ | head -40; grep -ln busybox ~/work/RELEASE-SNAPSHOT-1124D/*.sh 2>/dev/null'"],
- "impact": [{"kind": "correctness", "what": "busybox arp.c, arping.c, mt.c, libbb/xconnect.c compile against libniji headers (were errors)", "before": null, "after": 0, "unit": "errors", "measured": true},
-            {"kind": "coverage", "what": "header_check units: net/if.h member-name form/offset/not-shown, sys/mtio.h GMT_*/MT_TAPE_INFO; plants", "before": null, "after": 6, "unit": "plants", "measured": true},
-            {"kind": "unblock", "what": "static busybox for Yohane: remaining 16 files named for a follow-up", "before": null, "after": null, "unit": null, "measured": false}],
+ "informational": [
+  "busybox compile sweep: 79 libniji-only errors in 16 files outside this story's headers (netinet/tcp.h, ip_icmp.h, icmp6.h, ip6.h, if_ether.h, net/route.h, arpa/nameser.h, syslog.h SYSLOG_NAMES, scsi/sg.h, scsi/scsi.h, sys/msg.h, sys/shm.h, sys/personality.h, mntent.h); listed per file in handoff/HEADERS-BUSYBOX-GAPS.md",
+  "net/if_packet.h sockaddr_pkt layout row not spliced (outside the three headers)",
+  "superseded: hgcheck-1 and plants-1 (6/6 CAUGHT) ran before the abi-gen commit; gate-1 escalated to FULL; bbsweep-1 config error, bbsweep-2 is evidence (busybox compile sweep), not a head job",
+  "coordinator add #8510 (ifr_qlen, libiproute/ipaddress.c): included; ipaddress.c compiles in the make -k sweep"
+ ],
+ "refused": [
+  ". ~/src/liella-ops/tools/vm_ssh.sh; vm_ssh_cmd mei; \"${VSSH[@]}\" 'ls ~/work/RELEASE-SNAPSHOT-1124D/ | head -40; grep -ln busybox ~/work/RELEASE-SNAPSHOT-1124D/*.sh 2>/dev/null'"
+ ],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "busybox arp.c, arping.c, mt.c, libbb/xconnect.c compile against libniji headers (were errors)",
+   "before": null,
+   "after": 0,
+   "unit": "errors",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check units: net/if.h member-name form/offset/not-shown, sys/mtio.h GMT_*/MT_TAPE_INFO; plants",
+   "before": null,
+   "after": 6,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "static busybox for Yohane: remaining 16 files named for a follow-up",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
  "improvement": "the gate escalates every header slice to FULL because libc-include/ and spec/abi/ are 'generated table or input'; a header-only tier (headers-gen --check + header_check) would give header stories a direct gate",
  "next_step": "follow-up story for the sweep's remaining names (mostly the same member-name-macro pattern); static busybox link on mei by someone with mei access",
  "report_file": "handoff/HEADERS-BUSYBOX-GAPS.md",
- "jobs": ["keke:headers-busybox-gaps-hgcheck-1", "keke:headers-busybox-gaps-plants-1", "keke:headers-busybox-gaps-bbsweep-2"]}
+ "jobs": [
+  "keke:headers-busybox-gaps-hgcheck-2",
+  "keke:headers-busybox-gaps-plants-2"
+ ]
+}

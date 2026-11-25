@@ -12,6 +12,7 @@ black-box probes; no differences row.
   net/if_shaper.h.in include <net/if.h> (they show every name of net/if.h but include guards); if_ppp.h's own
   `ifr_mtu` (`ifr_ifru.ifru_metric`) where net/if.h does not show it; sys/mtio.h.in GMT_* and MT_TAPE_INFO;
   `__daddr_t` visibility +139 rows and typedefs row (struct mtget's mt_fileno/mt_blkno).
+* e7c90cbd4 abi: crates/abi layout tables regenerated (abi-gen; precheck found them stale).
 * 83efb5a0e header_check: s12.py `member_names` (form, offset, not-shown units), s15.py `mtio_units`; plants file
   handoff/HEADERS-BUSYBOX-GAPS-plants.txt (6 template mutants).
 
@@ -24,7 +25,8 @@ black-box probes; no differences row.
 * __daddr_t: int, size 4, align 4, shown by 139 headers (!time64only).
 
 ## Results
-* header_check.py --include libc-include: 0 failed of 17657 (job headers-busybox-gaps-hgcheck-1).
+* header_check.py --include libc-include: 0 failed of 17657, headers-gen --check clean, niji-abi appendix_c_layouts 285
+  passed (job headers-busybox-gaps-hgcheck-2, final code head e7c90cbd4).
 * clippy -D warnings and `cargo xtask static` on the role: clean (foreground).
 * Gate: `cargo xtask affected` escalates to FULL (generated headers and spec/abi tables): FULL is the train's.
 * busybox 1.37.0 defconfig + CONFIG_STATIC, `make -k` compile sweep on keke (bbsweep.sh, job
@@ -40,7 +42,8 @@ black-box probes; no differences row.
 * NOT DONE (refused): the static busybox build against the system flavour on mei and the debs/ypk steps (mei access
   refused, see the report). INFORMATIONAL: net/if_packet.h `sockaddr_pkt` not spliced (outside the three headers).
 
-* Plants (headers-busybox-gaps-plants-1): 6 of 6 CAUGHT, no WARN.
+* Plants: headers-busybox-gaps-plants-1 6 of 6 CAUGHT, no WARN (before the abi-gen commit); rerun on the final head:
+  headers-busybox-gaps-plants-2.
 * Coordinator add (#8510, ifr_qlen for libiproute/ipaddress.c): ifr_qlen is in the set; ipaddress.c compiles in the sweep
   (make -k runs every directory to the end).
 
