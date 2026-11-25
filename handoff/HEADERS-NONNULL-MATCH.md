@@ -1,65 +1,50 @@
-# HEADERS-NONNULL-MATCH handoff (end of leg 2; WIP)
+# HEADERS-NONNULL-MATCH handoff (end of leg 3; PENDING JOBS)
 
-**State:** branch task/headers-nonnull-match, head: `git log -1` (WIP commit "probe nonnull through (F)(..)").
-Role keke:~/w/n2. keke scratch `~/work/headers-nonnull-match/` (job scripts job6.sh, zstd.sh, nnonly.py, summ.py).
+**State:** branch task/headers-nonnull-match, head: `git log -1` on the branch. Role keke:~/w/n2. keke scratch
+`~/work/headers-nonnull-match/` (job scripts job6..job10.sh, zstd.sh; logs out7..out9). Decision D-X.174 (records/
+decisions/D-X/D-X.174.toml); provenance fragment spec/abi/provenance.d/HEADERS-NONNULL-MATCH.txt.
 
-## Cause (fixed in spec/tools/attr_probe.py)
-The nonnull column comes from attr_probe's `n.k` tests; five probe defects made it wrong:
-1. function-pointer arguments were a literal `0` on every line (pthread_create got 2,4, on_exit 2): now `v[j]`;
-2. numeric arguments were `1`, waking `access` attributes (write 2, fwrite 1, strxfrm 1, regexec 4, regerror 3, the
-   `*_r` buffers): now 0;
-3. builtin knowledge (printf/scanf formats, fputs, nan*, dcgettext 2): the n/rn unit compiles with `-fno-builtin`;
-4. coverage: recursive header walk, `locale_t` and pointer-typedef parameters (qsort 4, bsearch 5, statfs, rlimit, statx,
-   strto*_l ...);
-5. (leg 2) **a function-like macro hid the call**: the reference's C headers at -O2 turn `fread_unlocked`/
-   `fwrite_unlocked` calls into code -Wnonnull does not see; a parenthesised `(fwrite_unlocked)(..)` and every -O0
-   call warn on argument 4 (probe ul.c, fortify on and off). `n.k` now calls `(F)(..)`.
+## Result
+* **Cause** (spec/tools/attr_probe.py, the `n.k` test): a literal 0 for function-pointer arguments on every line
+  (pthread_create 2,4; on_exit 2); a size of 1 that woke `access` attributes (write 2, fwrite 1, strxfrm 1, regexec 4,
+  regerror 3, the `*_r` buffers); the compiler's builtin knowledge read as the header's (printf/scanf formats, fputs,
+  nan*, dcgettext 2; the nonnull unit now builds with -fno-builtin); no recursive header walk or pointer typedefs /
+  `locale_t` (qsort 4, bsearch 5, statfs, rlimit, statx, strto*_l); calls through a function-like macro (fread_unlocked,
+  fwrite_unlocked 4; the call is now `(F)(..)`).
+* **Counts vs origin/next:** 56 functions lose marks (62 params), 48 gain them (53 params; 25 are functions new to
+  the table).
+* **Proof (chk7/chk8/chk9, keke):** `check --kinds n,rn` 0 differ in base, gnu, default, fortify2, c++, c++-fortify3;
+  zstd 1.5.7 41 files with -Werror=nonnull: 0 failed (libniji and reference, fortify off and =2).
+* **Fortify:** the reference's nonnull sets do not depend on `_FORTIFY_SOURCE` (chk7 split columns empty). The
+  nonnull_fortify / nonnull_nofortify columns and the `__NIJI_NONNULL_F/NF` macros are removed; `table` now runs the
+  nonnull tests with fortify on and off and stops, naming the functions, if they ever differ.
+* **Full check (diagnostic_attributes_match_the_reference):** green on origin/next (2567 functions); the recursive
+  walk probes 2826, and the table lacked the new rows (191 differences). Fixed: `check` compares an n/rn line only on
+  its own signal (other attributes are judged on their own lines); rows spliced in from a full `table` run for
+  deprecated (17), wur (11) and pure (4). chk9 with a full table regen left 10 differences (fmaximum* ct), caused by
+  the full run dropping const on 30 committed double-function rows; the splice keeps the committed pure column
+  instead. Verification of the spliced table: job chk11 (full base check) and the gate.
 
-## Done in leg 2
-* Table from job tbl3 committed + headers regenerated (56 now nullable, 47 now nonnull, list: nndiff.py in scratch).
-  The fortify split leg 1 reported (atoi, feof ...) was an old-probe artifact: those warn with fortify on and off.
-* `check --kinds n,rn` compares only -Wnonnull / the rn marker (MEASURES); one-sided ERR = "not declared alike".
-* New column `nonnull_fortify` (`__NIJI_NONNULL_F`, features.h.in) next to `nonnull_nofortify` (`__NIJI_NONNULL_NF`);
-  `nonnull` = marked in both. Generator: xtask/src/headers.rs attr_text.
-* `table --columns nonnull*` runs only the nonnull tests. New xtask test `nonnull_columns_are_the_probes`
-  (xtask/src/headers/slices/s19.rs): regenerates the nonnull columns into a copy and requires the committed table.
-* Unit tests (item 3) added to existing tests: getentropy(NULL,0), write/pwrite NULL 0, fwrite NULL with 0, re_match_2
-  NULL empty first string. Already covered: strxfrm NULL 0, regerror NULL 0, regexec nmatch 0, re_search_2 NULL,
-  getgrnam_r NULL 0, pthread_create NULL attr/arg, snprintf(NULL,0). libniji's code needed no fix (conv::check:
-  length 0 is an empty slice before any NULL test). printf/fputs/nan with NULL are UB: not tested, not probed.
-* Job chk6 (table with the fortify split, before the (F) fix): base/gnu/default/fortify2 0 differ; c++ 2, c++-fortify3
-  1 (fread/fwrite_unlocked 4: the macro finding above). **zstd: libniji 41 files 0 failed, -U and -D_FORTIFY_SOURCE=2
-  (reference too).**
-* Plants file: handoff/HEADERS-NONNULL-MATCH-plants.txt (7 plants; patterns checked unique).
+## Jobs on the final head (keke, started 17:20Z, queued for slots)
+headers-nonnull-match-lint3 (clippy + static), -gate3 (affected --run), -plants3 (handoff/HEADERS-NONNULL-MATCH-plants.txt,
+6 plants), -chk11 (attr_probe check, base, all kinds: expect 0 differ). Superseded: chk6..chk9 (older heads), chk10
+(killed: origin/next table reproducibility probe, not needed).
 
 ## Exact next step
-1. `~/bin/jobwait headers-nonnull-match-chk7` (keke; table with the (F) probe -> role's spec/abi/diagattrs.tsv,
-   headers-gen, six `check --kinds n,rn`, full base check, zstd; logs `~/work/headers-nonnull-match/out7/`). Copy back:
-   `"${VSSH[@]}" 'cd ~/w/n2 && tar cf - libc-include spec/abi/diagattrs.tsv' </dev/null | tar xf -` in the worktree;
-   commit. Expect fread/fwrite_unlocked nonnull 4 and every config 0 differ.
-2. If `nonnull_fortify` and `nonnull_nofortify` both come out empty: decide whether to keep the machinery (then the
-   three fortify plants SURVIVE: drop them) or remove the columns/macros (simpler; the six-config check stays the guard).
-   Recommendation: remove, note in the report that fortify does not change the reference's nonnull sets.
-3. **Existing test `diagnostic_attributes_match_the_reference` (xtask s19) will likely be RED**: the full base check
-   reports 205 differences, none -Wnonnull: deprecated (inet6_option_*, ns_*, ftime, inet_neta), wur (getrandom,
-   preadv*, pwritev*, strdup/strndup on n lines), pure (gnu_dev_*, nan* -Wunused-value), execl sentinel and
-   v*printf -Wformat-extra-args on n lines, is*_l macros (ERR). Mostly newly visible through the recursive header
-   walk. First check whether it is green on origin/next (run the test there or the old probe). Then either fix the
-   cause per attribute (stale table columns: regenerate those columns with `--columns deprecated,wur` and check) or,
-   if it needs more than this story, RULING NEEDED. Never loosen the test.
-4. clippy (`cargo clippy --workspace --all-targets --all-features -- -D warnings`), `cargo xtask static`, gate
-   (`cargo xtask affected --run`, kind gate), plants (`cargo xtask plants handoff/HEADERS-NONNULL-MATCH-plants.txt
-   --dir /dev/shm/claude/headers-nonnull-match/plants-1`), precheck, report json, handback-check.
+`~/bin/jobwait headers-nonnull-match-lint3 headers-nonnull-match-gate3 headers-nonnull-match-plants3 headers-nonnull-match-chk11`;
+if all green: `cargo xtask precheck --jobs <those> --head <sha>` on the role, handback-check. A red chk11 / s19 test:
+read `~/logs/headers-nonnull-match-chk11.log` (`^line`) and splice the missing column for the named rows
+(script: the leg-3 scratch splice.py logic, documented in the provenance fragment).
 
-## For the report
-* INFORMATIONAL: the reference marks warn_unused_result only under _FORTIFY_SOURCE (gnu config: atoi, a64l, bsearch,
-  chdir ... warn on libniji only); libniji marks it always: a -Werror=unused-result build without fortify fails on
-  libniji only. Follow-up story recommended (same probe, wur per config).
-* INFORMATIONAL: libniji has no fread_unlocked/fwrite_unlocked macro: a direct C call with a literal NULL stream at -O2
-  warns on libniji, not on the reference (declarations equal).
-* INFORMATIONAL: c++: 55 functions build their test lines on the reference only (chmod, chown, frexp, getgroups ...).
-* COORDINATOR NOTE 15:51 (package sources only from the local mirror): zstd 1.5.7 in `zstd-dl` was fetched in leg 1,
-  before the note; its origin is not recorded beyond the sha256 (eb33e51f...). Say so in the hand-back; redo from the
-  mirror recipe (RELEASE-SNAPSHOT-1125B ystage2.sh/yapt.sh on mei) if the coordinator asks.
-* Leg 2 started chk6 with `test -s .. && setsid ..` chained: the local ssh held the channel and was killed at 10 min
-  (the job itself ran to the end). Start jobs bare.
+## Open / for the report
+* RULING NEEDED (follow-up story): the full `attr_probe table` no longer reproduces the committed pure column on 30
+  double functions (asinh, cos, floor, fmaximum ...) and would add const to 152 complex.h functions; not taken here.
+  Recommend a story to find why (the e/ct/bp tests with the three-unit split) before any full table regen.
+* INFORMATIONAL: the reference marks warn_unused_result only under _FORTIFY_SOURCE for many functions (atoi, a64l,
+  bsearch, chdir ...); libniji always: -Werror=unused-result without fortify fails on libniji only. Follow-up: wur
+  per configuration.
+* INFORMATIONAL: with -fno-builtin, libniji's explicit sentinel (execl), format (vprintf, strftime) and const (nan*)
+  marks warn where the reference relies on the compiler's builtins.
+* INFORMATIONAL: libniji has no fread_unlocked/fwrite_unlocked macro: a literal NULL stream at -O2 warns on libniji only.
+* INFORMATIONAL: c++: 55 functions build their test lines on the reference only (chmod, chown, frexp ...).
+* zstd 1.5.7 (`zstd-dl`) was fetched in leg 1, before the coordinator's local-mirror note (sha256 eb33e51f...).

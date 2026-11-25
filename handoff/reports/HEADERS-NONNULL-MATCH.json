@@ -1,0 +1,33 @@
+{
+  "task": "HEADERS-NONNULL-MATCH",
+  "model": "opus",
+  "tokens": null,
+  "result": "nonnull sets derived from fixed black-box probes: 0 differences in 6 configurations (C/C++, fortify 0/2/3, with and without _GNU_SOURCE); zstd 41 files build with -Werror=nonnull; cause was five attr_probe defects (D-X.174)",
+  "branch": "task/headers-nonnull-match",
+  "head": null,
+  "gate": {"affected": "pending: keke headers-nonnull-match-gate3", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "A full attr_probe table run no longer reproduces the committed pure column on 30 double functions (asinh, cos, floor, fmaximum ...) and would mark 152 complex.h functions const; this story kept the committed pure column and took only 4 new pure rows", "recommendation": "follow-up story: find why (e/ct/bp tests across the three compile units) before any full table regeneration"}
+  ],
+  "informational": [
+    "The reference's nonnull sets do not depend on _FORTIFY_SOURCE (per-configuration probe); the fortify split columns and macros were removed, and table stops if a split ever appears.",
+    "The reference marks warn_unused_result only under _FORTIFY_SOURCE for many functions (atoi, a64l, bsearch, chdir ...); libniji always: a -Werror=unused-result build without fortify fails on libniji only. Follow-up: wur per configuration.",
+    "With -fno-builtin, libniji's explicit sentinel (execl), format (vprintf, strftime) and const (nan*) marks warn where the reference relies on the compiler's builtins.",
+    "libniji has no fread_unlocked/fwrite_unlocked macro: a literal NULL stream at -O2 warns on libniji only (declarations equal).",
+    "c++: 55 functions build their probe lines on the reference only (chmod, chown, frexp, getgroups ...).",
+    "zstd 1.5.7 used for the proof was fetched in leg 1, before the coordinator's local-mirror note (sha256 eb33e51f...)."
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "correctness", "what": "nonnull marks removed where the reference allows NULL (pthread_create attr/arg, regexec, write, fwrite, strxfrm, *_r buffers, printf/scanf family ...): functions", "before": 56, "after": 0, "unit": "functions stricter than the reference", "measured": true},
+    {"kind": "correctness", "what": "nonnull marks added where the reference has them (qsort, bsearch, statfs/statvfs, rlimit, epoll_wait, signalfd, statx, strto*_l ...): functions", "before": 48, "after": 0, "unit": "functions looser than the reference", "measured": true},
+    {"kind": "unblock", "what": "libzstd (dpkg/apt) and libvoikko -Werror=nonnull builds (Yohane R-H7); zstd 1.5.7 41 files 0 failed", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "probe coverage: functions attr_probe compares", "before": 2567, "after": 2826, "unit": "functions", "measured": true},
+    {"kind": "coverage", "what": "tests: nonnull_columns_are_the_probes (xtask) plus NULL-with-0 unit cases; plants", "before": 0, "after": 6, "unit": "plants", "measured": false}
+  ],
+  "improvement": "A label reused across legs (headers-nonnull-match-hgen) made jobwait return the old row and jobrun silently not start; jobrun could refuse a used label loudly.",
+  "next_step": "collect keke jobs lint3, gate3, plants3, chk11; precheck; handback-check",
+  "report_file": "handoff/HEADERS-NONNULL-MATCH.md",
+  "jobs": ["keke:headers-nonnull-match-lint3", "keke:headers-nonnull-match-gate3", "keke:headers-nonnull-match-plants3", "keke:headers-nonnull-match-chk11"]
+}
