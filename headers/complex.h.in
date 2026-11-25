@@ -1,0 +1,54 @@
+@@generated
+/* complex.h: complex arithmetic (C 7.3, XSH <complex.h>, TS 18661-3 for the _FloatN forms). The imaginary unit is
+   GCC's imaginary constant (`1.0iF`, GCC manual "Complex Numbers") and the CMPLX family GCC's `__builtin_complex`
+   (manual "Other Built-in Functions"), so both are constant expressions usable in static initializers (C 7.3.1 p4,
+   7.3.9.3). `imaginary` and `_Imaginary_I` are not defined: the compiler has no imaginary types (C 7.3.1 p5, Annex G
+   optional). In C++ the C++ library's <complex.h> decides whether this header is read at all. */
+#ifndef __NIJI_H_complex_h
+#define __NIJI_H_complex_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro complex I
+@@emit-c
+
+__NIJI_END_C
+
+@@if-c complex
+# define complex _Complex
+#endif
+@@if-probe _Complex_I
+# define _Complex_I (__extension__ 1.0iF)
+#endif
+@@if-c I
+# define I _Complex_I
+#endif
+
+@@if-probe CMPLX
+# define CMPLX(x, y) __builtin_complex ((double) (x), (double) (y))
+#endif
+@@if-probe CMPLXF
+# define CMPLXF(x, y) __builtin_complex ((float) (x), (float) (y))
+#endif
+@@if-probe CMPLXL
+# define CMPLXL(x, y) __builtin_complex ((long double) (x), (long double) (y))
+#endif
+@@if-probe CMPLXF32 cabsf32
+# define CMPLXF32(x, y) __builtin_complex ((_Float32) (x), (_Float32) (y))
+#endif
+@@if-probe CMPLXF64 cabsf64
+# define CMPLXF64(x, y) __builtin_complex ((_Float64) (x), (_Float64) (y))
+#endif
+@@if-probe CMPLXF128 cabsf128
+# define CMPLXF128(x, y) __builtin_complex ((_Float128) (x), (_Float128) (y))
+#endif
+@@if-probe CMPLXF32X cabsf32x
+# define CMPLXF32X(x, y) __builtin_complex ((_Float32x) (x), (_Float32x) (y))
+#endif
+@@if-probe CMPLXF64X cabsf64x
+# define CMPLXF64X(x, y) __builtin_complex ((_Float64x) (x), (_Float64x) (y))
+#endif
+
+#endif

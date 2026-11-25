@@ -13,13 +13,17 @@
 //! * `@@emit-c`: the header's table rows under those configurations (functions, macros with a macros.tsv value,
 //!   typedefs), skipping what the included templates cover, the template's `@@owns-macro` names and reserved names,
 //!   as `@@emit` does.
-//! * `@@if-c NAME`: `#if` and the condition of NAME's macro row under those configurations (the template defines a
+//! * `@@if-c NAME [KIND]`: `#if` and the condition of NAME's macro row (or KIND row) under those configurations (the template defines a
 //!   function-like macro the tables have no value for: `CMPLX`, the type-generic macros).
+//! * `@@if-probe NAME [FUNCTION]`: `#if` and the condition under which spec/abi/typegeneric.tsv (the type-generic
+//!   probe, spec/tools/tgmath_probe.py) shows NAME defined, for the macros visibility.tsv has no row of
+//!   (`_Complex_I`, the `CMPLX` family); with FUNCTION, that function's visibility row gives the condition and the
+//!   probe is checked against it.
 use super::super::cond::{condition, mask_of};
 use super::super::{omitted, tsv, Gen, Marker, Slice};
 
 pub(super) const SLICE: Slice = Slice {
-    markers: &[Marker { name: "@@emit-c", run: emit_c }, Marker { name: "@@if-c", run: if_c }],
+    markers: &[Marker { name: "@@emit-c", run: emit_c }, Marker { name: "@@if-c", run: if_c }, Marker { name: "@@if-probe", run: if_probe }],
     inline: &[],
     linked_elsewhere: &[],
 };
@@ -75,10 +79,69 @@ fn c_header_cond(g: &mut Gen<'_>, name: &str, kind: &str, m: (u64, u64, u64)) ->
     }
 }
 
+/// `@@if-probe NAME`: `#if` and the condition under which spec/abi/typegeneric.tsv shows NAME (a `complex.h` row
+/// whose expression is NAME or `NAME(...)`) defined: the probe's configurations where it is not `undefined`, over
+/// the probe's configurations that ftm-configs.tsv has (C++98 standing for every C++ configuration, as above).
+/// For the macros the visibility table has no row of (`_Complex_I`, the `CMPLX` family).
+fn if_probe(g: &mut Gen<'_>, args: &[&str]) {
+    let Some(m) = masks(g) else { return };
+    let name = args.first().copied().unwrap_or("");
+    let rows = match tsv(g.root, "spec/abi/typegeneric.tsv") {
+        Ok(r) => r,
+        Err(e) => {
+            g.errors.push(format!("{}: @@if-probe {name}: {e}", g.header));
+            return;
+        }
+    };
+    let (mut target, mut care) = (0u64, 0u64);
+    for r in &rows {
+        let e = &r["expr"];
+        if r["header"] != g.header || !(e == name || e.strip_prefix(name).is_some_and(|s| s.starts_with('('))) {
+            continue;
+        }
+        let Some(i) = g.t.lv.ids.iter().position(|id| *id == r["config"]) else { continue };
+        let bit = if (1u64 << i) & m.2 != 0 { m.1 } else { 1u64 << i };
+        care |= bit;
+        if r["type"] != "undefined" {
+            target |= bit;
+        }
+    }
+    if care == 0 {
+        g.errors.push(format!("{}: @@if-probe {name}: no row in spec/abi/typegeneric.tsv", g.header));
+        g.out.push("#if 0".into());
+        return;
+    }
+    // `@@if-probe NAME FUNCTION`: NAME is visible with FUNCTION (the CMPLXF32 family with the _Float32 functions,
+    // TS 18661-3); FUNCTION's visibility row gives the condition over every configuration, where the probe's few
+    // configurations cannot tell the feature levels apart, and the probe must agree with it.
+    if let Some(&proxy) = args.get(1) {
+        let Some(r) = g.t.vis_row(&g.header, proxy, "function") else {
+            g.errors.push(format!("{}: @@if-probe {name}: no function row of {proxy} in visibility.tsv", g.header));
+            g.out.push("#if 0".into());
+            return;
+        };
+        let have = c_header_mask(&r["configs"], g, m);
+        if have & care != target {
+            g.errors.push(format!("{}: @@if-probe {name}: spec/abi/typegeneric.tsv disagrees with {proxy}'s visibility", g.header));
+        }
+        let c = c_header_cond(g, proxy, "function", m);
+        g.out.push(format!("#if {c}"));
+        return;
+    }
+    match condition(&g.t.lv, target, care) {
+        Some(c) => g.out.push(format!("#if {c}")),
+        None => {
+            g.errors.push(format!("{}: @@if-probe {name}: no condition over the levels selects the probe's configurations", g.header));
+            g.out.push("#if 0".into());
+        }
+    }
+}
+
 fn if_c(g: &mut Gen<'_>, args: &[&str]) {
     let Some(m) = masks(g) else { return };
     let name = args.first().copied().unwrap_or("");
-    let c = c_header_cond(g, name, "macro", m);
+    let kind = args.get(1).copied().unwrap_or("macro");
+    let c = c_header_cond(g, name, kind, m);
     g.out.push(format!("#if {c}"));
 }
 

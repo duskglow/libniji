@@ -286,18 +286,32 @@ def write(rows, path):
             f.write("\t".join(r) + "\n")
 
 
-def check(niji_cc, expected, jobs, sample=True):
-    """Differences between the table `expected` and libniji's headers through `niji_cc`: the cases the reference
-    compiles, in batches; of those it does not, one per (configuration, macro, outcome) when `sample`."""
+def tree_compiler(inc):
+    """The compiler of a header tree `inc` alone, as scripts/niji-cc orders it (no built products needed: the probe
+    only compiles): in C++ the C++ library's directories first, then the tree, then the compiler's own."""
+    gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    v = subprocess.run(["g++", "-x", "c++", "-E", "-v", "-"], input="", capture_output=True, text=True).stderr
+    cxx = [d.strip() for d in v.split("search starts here:")[-1].split("End of search list.")[0].splitlines() if "/c++/" in d]
+    tail = ["-nostdinc", "-isystem", inc, "-isystem", gccinc]
+    return lambda lang: (["g++"] + [a for d in cxx for a in ("-isystem", d)] + tail) if lang == "c++" else (["gcc"] + tail)
+
+
+def check(niji_cc, expected, jobs, sample=True, only=None):
+    """Differences between the table `expected` and libniji's headers through `niji_cc` (a driver command, or a
+    compiler function as `tree_compiler` returns): the cases the reference compiles, in batches; of those it does
+    not, one per (configuration, macro, outcome) when `sample`; only the configuration ids `only` if given."""
     select, seen = {}, set()
     for h, cid, label, sym, ty, form in expected:
+        if only is not None and cid not in only:
+            continue
         ok = sym not in ("error", "undefined")
         key = (cid, label.split("(")[0], sym)
         if ok or not sample or key not in seen:
             seen.add(key)
             select[(cid, h, label)] = ok
     configs = [c for c in CONFIGS if any(k[0] == c[0] for k in select)]
-    got = {(r[0], r[1], r[2]): r for r in probe(compiler_for(niji_cc), configs, jobs, select, batch=150)}
+    compiler = niji_cc if callable(niji_cc) else compiler_for(niji_cc)
+    got = {(r[0], r[1], r[2]): r for r in probe(compiler, configs, jobs, select, batch=150)}
     diffs = []
     for r in expected:
         if (r[1], r[0], r[2]) in select:
