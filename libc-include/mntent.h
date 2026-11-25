@@ -57,6 +57,39 @@ extern struct mntent *getmntent_r (FILE *, struct mntent *, char *, int) __NIJI_
 # endif
 #endif
 #if 1
+# ifndef MNTOPT_DEFAULTS
+#  define MNTOPT_DEFAULTS "defaults"
+# endif
+# ifndef MNTOPT_NOAUTO
+#  define MNTOPT_NOAUTO "noauto"
+# endif
+# ifndef MNTOPT_NOSUID
+#  define MNTOPT_NOSUID "nosuid"
+# endif
+# ifndef MNTOPT_RO
+#  define MNTOPT_RO "ro"
+# endif
+# ifndef MNTOPT_RW
+#  define MNTOPT_RW "rw"
+# endif
+# ifndef MNTOPT_SUID
+#  define MNTOPT_SUID "suid"
+# endif
+# ifndef MNTTAB
+#  define MNTTAB "/etc/fstab"
+# endif
+# ifndef MNTTYPE_IGNORE
+#  define MNTTYPE_IGNORE "ignore"
+# endif
+# ifndef MNTTYPE_NFS
+#  define MNTTYPE_NFS "nfs"
+# endif
+# ifndef MNTTYPE_SWAP
+#  define MNTTYPE_SWAP "swap"
+# endif
+# ifndef MOUNTED
+#  define MOUNTED "/etc/mtab"
+# endif
 # ifndef _PATH_BSHELL
 #  define _PATH_BSHELL "/bin/sh"
 # endif

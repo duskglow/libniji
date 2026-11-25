@@ -8,7 +8,14 @@
 
 __NIJI_BEGIN_C
 
+@@owns msg_cbytes
 @@emit
+
+/* The bytes now on a queue, by the name msgctl(2) gives them: a macro for the reserved member of struct msqid_ds that
+   holds them, in the configurations visibility.tsv lists (not the strict standards). */
+@@if msg_cbytes
+# define msg_cbytes __msg_cbytes
+#endif
 
 __NIJI_END_C
 

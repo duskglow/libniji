@@ -213,6 +213,11 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 
+/* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */
+#if 1
+# define rt_mss rt_mtu
+#endif
+
 __NIJI_END_C
 
 #endif
