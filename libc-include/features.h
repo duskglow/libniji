@@ -138,12 +138,15 @@
 # define __NIJI_FORTIFY 0
 #endif
 
-/* The nonnull attributes a declaration carries only when _FORTIFY_SOURCE is not in effect (diagattrs.tsv column
-   nonnull_nofortify, black-box probe of the reference's declarations in each configuration, HEADERS-NONNULL-MATCH):
-   in a fortified build the compiler may not assume those arguments non-null, so a caller's own checks stay. */
+/* The nonnull attributes a declaration carries only when _FORTIFY_SOURCE is in effect (__NIJI_NONNULL_F, diagattrs.tsv
+   column nonnull_fortify) or only when it is not (__NIJI_NONNULL_NF, column nonnull_nofortify): black-box probe of the
+   reference's declarations in each configuration (HEADERS-NONNULL-MATCH). Where a build does not mark an argument,
+   the compiler may not assume it non-null, so a caller's own checks on it stay. */
 #if __NIJI_FORTIFY
+# define __NIJI_NONNULL_F(params) __attribute__ ((__nonnull__ params))
 # define __NIJI_NONNULL_NF(params)
 #else
+# define __NIJI_NONNULL_F(params)
 # define __NIJI_NONNULL_NF(params) __attribute__ ((__nonnull__ params))
 #endif
 

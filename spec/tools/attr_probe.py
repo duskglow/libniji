@@ -29,7 +29,7 @@ Tests per function F (parameters from prototypes.tsv: a pointer is `v[k]`, an ar
 a `va_list` is an extern object; a function with a by-value aggregate parameter is not probed):
 * `r`   F(valid arguments) with the result unused: -Wunused-result, -Wdeprecated-declarations, -Wunused-value
         (a pure function).
-* `n.k` F with a null pointer constant for pointer parameter k, every other pointer (function pointers, pointer
+* `n.k` (F)(..), a call no function-like macro expands, with a null pointer constant for pointer parameter k, every other pointer (function pointers, pointer
         typedefs and `locale_t` included) a valid `v[j]` and every number 0: -Wnonnull. Compiled in a unit of
         its own with `-fno-builtin`, so the compiler's knowledge of a builtin (printf's format, fputs, nan)
         is not read as the header's, and a size of 0 keeps an `access` attribute quiet (a size of 1 would make
@@ -307,7 +307,9 @@ def corpus(names, heads, pr, cfg="base", every=None):
         add("void r_@N@(void) { %s(%s); }" % (n, args()), (n, "r"))
         for j, k in enumerate(fixed):
             if k in ("ptr", "constchar", "fn", "loc"):
-                add("void n_@N@(void) { %s(%s); }" % (n, args({j: null}, zero=True)), (n, "n", j + 1))
+                # `(F)(..)`: the declaration's attribute, not a function-like macro of the same name (the reference's
+                # C headers at -O2 turn fread_unlocked and fwrite_unlocked calls into code the warning does not see).
+                add("void n_@N@(void) { (%s)(%s); }" % (n, args({j: null}, zero=True)), (n, "n", j + 1))
         if isptr_ret:
             # returns_nonnull: the marker is dropped when the compiler may assume the result is not null.
             add("void rn_@N@(void) { if (%s(%s) == 0) mk_rn_@N@(); }" % (n, args(lit=False)), (n, "rn"))

@@ -562,7 +562,7 @@ extern int fputc_unlocked (int, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fread_unlocked
 #  define __NIJI_D_fread_unlocked 1
-extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__warn_unused_result__)) __NIJI_NONNULL_F ((4));
 # endif
 # ifndef __NIJI_D_fwrite_unlocked
 #  define __NIJI_D_fwrite_unlocked 1
