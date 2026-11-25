@@ -2,6 +2,7 @@
 /* netinet/ip_icmp.h: ICMP (RFC 792) */
 #ifndef __NIJI_H_netinet_ip_icmp_h
 #define __NIJI_H_netinet_ip_icmp_h 1
+#define __NETINET_IP_ICMP_H 1
 
 #include <features.h>
 #include <sys/types.h>

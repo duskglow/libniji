@@ -2,6 +2,7 @@
 /* stdint.h: integer types (C 7.20). */
 #ifndef __NIJI_H_stdint_h
 #define __NIJI_H_stdint_h 1
+#define _STDINT_H 1
 
 #include <features.h>
 

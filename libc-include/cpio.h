@@ -2,6 +2,7 @@
 /* cpio.h: cpio archive constants (POSIX XBD <cpio.h>). */
 #ifndef __NIJI_H_cpio_h
 #define __NIJI_H_cpio_h 1
+#define _CPIO_H 1
 
 #if 1
 # ifndef C_IRGRP

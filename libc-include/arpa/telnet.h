@@ -2,6 +2,7 @@
 /* arpa/telnet.h: TELNET protocol constants (RFC 854) */
 #ifndef __NIJI_H_arpa_telnet_h
 #define __NIJI_H_arpa_telnet_h 1
+#define _ARPA_TELNET_H 1
 
 #include <features.h>
 

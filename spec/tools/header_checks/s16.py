@@ -69,6 +69,20 @@ def units(ctx):
     out += [(cid, "S16 gnu/lib-names.h", body) for cid in ctx.ids]
     levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
     out += [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n") for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
+    # Spec clause: ar(5) / the System V archive format (HEADERS-STAGE2-GAPS-C, elfutils' libelf): the magic string, its
+    # length and the member-header trailer, and `struct ar_hdr` as the format lays it out (fixed-width character fields,
+    # 60 bytes), asserted from the format itself rather than from the tables the header is generated from.
+    fields = (("ar_name", 0, 16), ("ar_date", 16, 12), ("ar_uid", 28, 6), ("ar_gid", 34, 6), ("ar_mode", 40, 8),
+              ("ar_size", 48, 10), ("ar_fmag", 58, 2))
+    body = ["#include <ar.h>", "typedef char niji_ar_magic[__builtin_strcmp (ARMAG, \"!<arch>\\n\") == 0 && SARMAG == 8"
+            " && sizeof (ARMAG) == 9 ? 1 : -1];",
+            "typedef char niji_ar_fmag[__builtin_strcmp (ARFMAG, \"`\\n\") == 0 && sizeof (ARFMAG) == 3 ? 1 : -1];",
+            "#if SARMAG != 8\n#error \"SARMAG\"\n#endif",
+            "typedef char niji_ar_size[sizeof (struct ar_hdr) == 60 && __alignof__ (struct ar_hdr) == 1 ? 1 : -1];"]
+    body += [f"typedef char niji_ar_{m}[__builtin_offsetof (struct ar_hdr, {m}) == {o}"
+             f" && sizeof (((struct ar_hdr *) 0)->{m}) == {n} && sizeof (((struct ar_hdr *) 0)->{m}[0]) == 1 ? 1 : -1];"
+             for m, o, n in fields]
+    out += [(cid, "S16 ar.h format", "\n".join(body) + "\nint niji_ar_tu;\n") for cid in ("c89", "gnu17", "cxx98", "cxx17")]
     return out
 
 

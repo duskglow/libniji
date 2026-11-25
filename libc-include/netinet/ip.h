@@ -2,6 +2,7 @@
 /* netinet/ip.h: IPv4 (ip(7), RFC 791) */
 #ifndef __NIJI_H_netinet_ip_h
 #define __NIJI_H_netinet_ip_h 1
+#define __NETINET_IP_H 1
 
 #include <features.h>
 #include <sys/types.h>

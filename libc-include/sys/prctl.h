@@ -2,6 +2,7 @@
 /* sys/prctl.h: prctl(2): operations on a process or thread. */
 #ifndef __NIJI_H_sys_prctl_h
 #define __NIJI_H_sys_prctl_h 1
+#define _SYS_PRCTL_H 1
 
 #include <features.h>
 

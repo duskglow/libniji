@@ -3,6 +3,7 @@
    asm/debugreg.h that the reference system's header also gives (spec/tools/uapi_regs_table.py). */
 #ifndef __NIJI_H_sys_debugreg_h
 #define __NIJI_H_sys_debugreg_h 1
+#define _SYS_DEBUGREG_H 1
 
 #if 1
 # ifndef DR_CONTROL

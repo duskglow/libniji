@@ -6,6 +6,10 @@
    use does not compile (the C++ library's <cmath> and <complex> are the C++ forms). */
 #ifndef __NIJI_H_tgmath_h
 #define __NIJI_H_tgmath_h 1
+#include <features.h>
+#if __NIJI_CXX < 2
+# define _TGMATH_H 1
+#endif
 
 #include <math.h>
 #include <complex.h>

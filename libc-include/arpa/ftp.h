@@ -2,6 +2,7 @@
 /* arpa/ftp.h: FTP reply codes and command constants */
 #ifndef __NIJI_H_arpa_ftp_h
 #define __NIJI_H_arpa_ftp_h 1
+#define _ARPA_FTP_H 1
 
 #include <features.h>
 

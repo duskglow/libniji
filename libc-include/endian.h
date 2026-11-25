@@ -2,6 +2,7 @@
 /* endian.h: byte order (endian(3)). */
 #ifndef __NIJI_H_endian_h
 #define __NIJI_H_endian_h 1
+#define _ENDIAN_H 1
 
 #include <features.h>
 
