@@ -1,0 +1,24 @@
+{
+ "task": "HEADERS-FEATURES-FORMS-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "CI conflict resolved: origin/next merged (utmp.h.in keeps both sides' macros, generated headers regenerated); clippy, static and the direct gate green; 9 plants CAUGHT",
+ "branch": "task/headers-features-forms-3",
+ "head": "see handoff/HEADERS-FEATURES-FORMS.md",
+ "gate": {"affected": "701 passed / 0 failed (6 suites; bounded set, FULL is the train's)", "peak": "2.6G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The role's target/niji-test/gencat was a stale test link (interpreter target/niji/ld-linux-x86-64.so.2 gone) and the test only checks the link is a file, so xtask::transcripts the_committed_gencat_transcripts_hold fails with a bare 'No such file or directory' instead of skipping; `cargo xtask so` fixed the role. The test could check that the link runs, or skip when its interpreter is missing",
+  "Run 2's open items stand (kernel-spelled.tsv is name-level; the KNOWN guard mismatches in hand-written template text; other enumerators.tsv names may lack visibility.tsv rows)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "task/headers-features-forms-2's CI conflict (utmp.h.in, header_probe.py, 4 generated headers) resolved, so the __USE_* family, outright macro forms, F_OWNER_*, TIMESPEC_*, SUN_LEN, SOL_* can land", "before": null, "after": null, "unit": "story", "measured": false},
+  {"kind": "coverage", "what": "plant on the merged utmp.h.in TIMESPEC_TO_TIMEVAL macro (caught by FEATURES forms utmp.h)", "before": 0, "after": 1, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A stale test link in a role dir (interpreter deleted) makes a gate fail on a missing-file error; the test should skip or say 'run cargo xtask so' when the link cannot start",
+ "next_step": "Land (CI train runs the FULL gate)",
+ "jobs": ["headers-features-forms-3-lint", "headers-features-forms-3-gate3", "headers-features-forms-3-plants3", "headers-features-forms-3-plants4"],
+ "report_file": "handoff/HEADERS-FEATURES-FORMS.md"
+}

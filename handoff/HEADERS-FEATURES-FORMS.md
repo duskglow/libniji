@@ -1,9 +1,25 @@
-# HEADERS-FEATURES-FORMS (handoff, end of run 2, HEADERS-FEATURES-FORMS-2)
+# HEADERS-FEATURES-FORMS (handoff, end of run 3, HEADERS-FEATURES-FORMS-3)
 
-**State:** branch `task/headers-features-forms-2` (run 1's `task/headers-features-forms` plus run 2's commits; base
-origin/next db602e58c), role keke:~/w/r1. Head: the commit after this note. Report json:
-`handoff/reports/HEADERS-FEATURES-FORMS-2.json` (run 1: `...-FORMS.json`); plants records:
-`handoff/HEADERS-FEATURES-FORMS-plants.txt` (run 1, 7/7 CAUGHT), `handoff/HEADERS-FEATURES-FORMS-2-plants.txt` (1/1).
+**State:** branch `task/headers-features-forms-3` (run 2's branch plus run 3's merge of origin/next 8828f0ce8), role
+keke:~/w/r3. Report json: `handoff/reports/HEADERS-FEATURES-FORMS-3.json` (runs 1, 2: `...-FORMS.json`, `...-FORMS-2.json`);
+plants records: `handoff/HEADERS-FEATURES-FORMS-plants.txt` (run 1, 7/7 CAUGHT), `...-2-plants.txt` (1/1),
+`...-3-plants.txt` (run 3: those 8 re-run on the merged head, plus the utmp.h.in macro: 9/9 CAUGHT).
+
+## Run 3 (this run): the CI conflict
+* Merged origin/next by hand (the helper script works on the coordinator's checkout). Conflicts:
+  `headers/utmp.h.in` (this branch added TIMESPEC_TO_TIMEVAL/TIMEVAL_TO_TIMESPEC to <utmp.h>; next added the struct
+  utmp member-name macros ut_name/ut_time/ut_xtime/ut_addr): both kept, one definition each, `@@owns` is the union;
+  `spec/tools/header_probe.py` (both candidate lists kept). Generated `complex.h math.h utmp.h wchar.h` taken from
+  next then regenerated with `cargo xtask headers-gen`; `net/if.h` merged cleanly but regenerates differently
+  (both sides changed generator inputs), regenerated copy committed.
+* Plant on the merged utmp.h.in macro: the util-linux package pattern does not include <utmp.h> (SURVIVED); the
+  per-header comparison `FEATURES forms utmp.h` catches it.
+* Gate red twice on `xtask::transcripts the_committed_gencat_transcripts_hold`: not a header failure. The role's
+  `target/niji-test/gencat` was a stale test link whose interpreter (`target/niji/ld-linux-x86-64.so.2`) no longer
+  existed (the test only checks the link is a file). `cargo xtask so` on the role then `cargo test -p xtask --test
+  transcripts` passed (job -transcripts); the gate was re-run (-gate3).
+* Plants job 1 (-plants) failed its baseline-7 by the 600 s timeout because the gate ran beside it on the same role
+  (my mistake: one build/load per role at a time); -plants2 (timeout 1500, alone) is the run.
 
 ## Run 2 (this run)
 * Gate3's red (p2_visibility_of_the_fixed_rows: "extra sys/pidfd.h F_OWNER_GID enumerator") was a gap in the
