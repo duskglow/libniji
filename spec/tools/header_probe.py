@@ -345,6 +345,12 @@ def package_names():
     # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
     out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
     out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
+    # HEADERS-STAGE2-GAPS-D (Yohane stage 2): perl's pp_sys.c casts to `__priority_which_t`, perl and heimdal read
+    # `struct hostent`'s `h_addr`; glib calls IN_MULTICAST, with the other address-class tests of RFC 791 / RFC 1112
+    # (class A to D, experimental, bad class); google-perftools waits with `__WALL` (wait(2) names __WALL, __WCLONE,
+    # __WNOTHREAD); icu reads `__timezone` (exported with `__daylight` and `__tzname`, versions.tsv).
+    out += ["__priority_which_t", "h_addr", "IN_CLASSA", "IN_CLASSB", "IN_CLASSC", "IN_CLASSD", "IN_MULTICAST",
+            "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname"]
     return out
 
 
@@ -425,6 +431,7 @@ def candidates():
     bb, bb_tags = busybox_names()
     names.update(bb)
     tags.update(bb_tags)
+    tags.add("ip_mreq_source")  # HEADERS-STAGE2-GAPS-D: perl's Configure (d_ip_mreq_source); ip(7) IP_ADD_SOURCE_MEMBERSHIP
     tags.update(["exception", "ieee754_float", "ieee754_double", "ieee754_long_double", "ieee854_long_double"])
     # The enumerators and enumeration tags of enumerators.tsv (HEADERS-ENUM-FOLLOWUPS): `_REG_NOMATCH`, the
     # enumerator the macro REG_NOMATCH names, its typedef `reg_errcode_t`, and `ns_t_a` of `enum __ns_type` are

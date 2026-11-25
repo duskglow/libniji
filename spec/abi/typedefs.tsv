@@ -2182,6 +2182,7 @@ struct	ip6_hdr	netinet/ip6.h	40	4	ip6_hdr
 struct	ip6_hdrctl	netinet/ip6.h	8	4	
 struct	ip6_mtuinfo	arpa/inet.h	32	4	ip6_mtuinfo
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
+struct	ip_mreq_source	arpa/inet.h	12	4	ip_mreq_source
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
 struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm
