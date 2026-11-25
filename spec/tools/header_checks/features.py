@@ -56,7 +56,7 @@ KNOWN = {
 # header that guards them; libniji defines them outright there): the macros the reference keeps are left out there.
 KNOWN_KEPT = {"net/if_ppp.h", "net/if_shaper.h", "sys/mount.h", "sys/mtio.h", "sys/raw.h"}
 # An include guard: defining it first makes the reference skip the header, which is not a form question.
-GUARD = re.compile(r"^_[A-Z0-9_]*_H$")
+GUARD = re.compile(r"^_[A-Z0-9_]*_H_?$")  # `_PATHS_H_` and `_SYS_TTYDEFAULTS_H_` are guards too
 
 GLIBC = """#include <features.h>
 #if __GNU_LIBRARY__ != 6 || __GLIBC__ != 2 || __GLIBC_MINOR__ != 39
