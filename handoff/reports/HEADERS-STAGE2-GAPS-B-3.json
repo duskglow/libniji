@@ -2,11 +2,11 @@
  "task": "HEADERS-STAGE2-GAPS-B-3",
  "model": "sonnet",
  "tokens": null,
- "result": "Resolved the CI conflict by merging origin/next twice (attr_probe.py, diagattrs.tsv and reserved.tsv both sides kept, libintl.h regenerated, dcgettext's nonnull follows next); resolv.h now declares __b64_ntop/__b64_pton and defines b64_ntop/b64_pton; gate3 red only on a product-build race test in xtask (passes alone on the finished products), 3/3 plants caught",
+ "result": "PENDING JOBS: merged origin/next twice into the conflicting branch (attr_probe.py, diagattrs.tsv, reserved.tsv both sides kept, libintl.h regenerated); resolv.h now declares __b64_ntop/__b64_pton and defines b64_ntop/b64_pton; 3/3 plants caught; gate4 (same tree as gate3, which was red only on a product-build race test in xtask) still running",
  "branch": "task/headers-stage2-gaps-b-3",
- "head": "c232d5162",
+ "head": "3d4e3e719",
  "gate": {
-  "affected": "direct tier gate3: every suite ok except xtask so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint (see informational; the same test passes alone on the built products, job stale); conformance 103 passed / 0 failed; gate2 on the previous merge head: 18 suites ok, 11812 passed / 0 failed; clippy clean, static clean",
+  "affected": "gate3 (same content as the final head): every suite ok but xtask so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint (race beside the products build, see informational; alone on the built products it passes, job stale); conformance 103 passed / 0 failed; gate4 pending; gate2 on the previous merge head: 18 suites ok, 11812 passed / 0 failed; clippy and static clean",
   "peak": "11G"
  },
  "accepted_first_attempt": null,
@@ -47,12 +47,15 @@
   }
  ],
  "improvement": "sync_role syncs the committed HEAD only; a table fix needs a commit before the sync, and a killed gate leaves nextest children that keep the role BUSY until kill-mine --kill",
- "next_step": "none for this chain; land via the train",
+ "next_step": "collect gate4; if the race test fails again, its owner fixes the test (not this story)",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
  "jobs": [
   "keke:headers-stage2-gaps-b-3-clippy3",
-  "keke:headers-stage2-gaps-b-3-gate3",
+  "keke:headers-stage2-gaps-b-3-gate4",
   "keke:headers-stage2-gaps-b-3-plants3",
   "keke:headers-stage2-gaps-b-3-stale"
+ ],
+ "superseded": [
+  "keke:headers-stage2-gaps-b-3-gate3 (red on the race test only; rerun as gate4)"
  ]
 }
