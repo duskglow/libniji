@@ -1,0 +1,51 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-B-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Resolved the CI conflict by merging origin/next (attr_probe.py and diagattrs.tsv both sides kept, libintl.h regenerated, dcgettext's nonnull follows next); resolv.h now declares __b64_ntop/__b64_pton and defines b64_ntop/b64_pton; gate green, 3/3 plants caught",
+ "branch": "task/headers-stage2-gaps-b-3",
+ "head": "eaac957e6",
+ "gate": {
+  "affected": "direct tier: 18 suites ok, 11812 passed / 0 failed, 1227 ignored; conformance 103 passed / 0 failed; clippy clean, static clean",
+  "peak": "11G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the merge of diagattrs.tsv was row-wise three-way (not regenerated: ruling #8623); a first merge restored dcgettext's old nonnull value and the xtask tests nonnull_columns_are_the_probes and diagnostic_attributes_match_the_reference caught it (first gate red, killed; fixed; gate2 green)",
+  "the exec* rows keep no sentinel (the -fno-builtin unit of this chain), the gettext family rows carry the new format_arg column",
+  "b64_ntop/b64_pton probe rows: macro, !time64only (same as res_init)",
+  "plants run prints WARN-DEV-SHM for the /dev/shm plants directory: no test of these plants mounts its own /dev/shm"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2 header gaps branch (openssh, apt, binutils, krb5, systemd, apparmor, babeltrace, avahi) can land: CI conflict with next resolved",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "resolv.h: b64_ntop and b64_pton (and the declarations of __b64_ntop and __b64_pton) were missing, so a program calling b64_ntop failed to compile",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants and unit added (initializers resolv.h b64; 3 plants: 3 caught)",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "sync_role syncs the committed HEAD only; a table fix needs a commit before the sync, and a killed gate leaves nextest children that keep the role BUSY until kill-mine --kill",
+ "next_step": "none for this chain; land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
+ "jobs": ["keke:headers-stage2-gaps-b-3-clippy", "keke:headers-stage2-gaps-b-3-gate2", "keke:headers-stage2-gaps-b-3-plants2"]
+}
