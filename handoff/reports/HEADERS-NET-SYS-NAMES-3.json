@@ -1,0 +1,25 @@
+{
+ "task": "HEADERS-NET-SYS-NAMES-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "second CI conflict with next resolved (s15.py kept sg_timeout_units + enum_units; appendix_c_layouts.rs regenerated with abi-gen); header_check 0 failed of 20596, 15 of 15 plants caught",
+ "branch": "task/headers-net-sys-names-3",
+ "head": "8fd16c532",
+ "gate": {"affected": "FULL: the train's (crates/abi, generated header inputs); check-1: headers-gen --check, abi-gen --check, clippy -D warnings, static, header_check 0 failed of 20596", "peak": null},
+ "jobs": ["headers-net-sys-names-3-check-1", "headers-net-sys-names-3-plants-1"],
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "records-gen shows 2 views (plan/07-decisions/s26-29.md, spec/abi/PROVENANCE) pending regeneration by the train; not edited",
+  "busybox sweep and static link not rerun (merge changed no header content of this story)",
+  "reservation D-2.15 (unused; the decision is D-26.3) still to be released"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "HEADERS-NET-SYS-NAMES (TCP_*, icmp, ip6, if_ether, route, SYSLOG_NAMES, scsi, msg/shm, personality names) can land: the conflict with ENUM-FOLLOWUPS-2 is gone", "before": null, "after": null, "unit": "", "measured": false},
+  {"kind": "coverage", "what": "plants on the branch's header templates, all caught after the merge", "before": 0, "after": 15, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a merge-only leg reruns a 30 min plants job for a conflict in a test file; a selective plant rerun by touched file would be cheaper",
+ "next_step": "land through the train",
+ "report_file": "handoff/HEADERS-NET-SYS-NAMES.md"
+}

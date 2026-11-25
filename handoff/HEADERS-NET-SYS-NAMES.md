@@ -1,5 +1,11 @@
 # HEADERS-NET-SYS-NAMES: the header names a static busybox still misses (leg 4: final, handed back)
 
+**Leg 6 (HEADERS-NET-SYS-NAMES-3, branch task/headers-net-sys-names-3): second CI-conflict merge only.** Merged origin/next
+(ENUM-FOLLOWUPS-2 landed): s15.py kept both sides (sg_timeout_units and next's enum_units, one `units()` return);
+appendix_c_layouts.rs regenerated with abi-gen, not hand-merged. headers-gen --check ok before the jobs. Jobs:
+headers-net-sys-names-3-check-1 (headers-gen/abi-gen --check, clippy, static, full header_check),
+headers-net-sys-names-3-plants-1 (the 15 plants). records-gen shows 2 views pending: the train's, not edited here.
+
 **Leg 5 (HEADERS-NET-SYS-NAMES-2, branch task/headers-net-sys-names-2): CI-conflict merge only, no new header work.**
 Merged origin/next (e125f7e34): macros.tsv kept both sides (next's char-typed tar/ftp/netdb rows win over my int rows);
 header_check.py took next's `--only` (same need as my leg-4 one; it runs units only, no slice `problems()`, no P8);
