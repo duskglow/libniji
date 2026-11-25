@@ -2,7 +2,8 @@
 
 **State (end of leg 4, run 1's last leg).** Branch `task/headers-stage2-gaps-e` from origin/next ecc8c95e3; role
 keke:~/w/r1. Commits: 0253841b2 (probe + templates), 0cad32bf6 (values, includes, reserved emits, regen), 8302e1914
-(@@needs-if fix + header_check rows + plants file), 603e40de3 (one fd_set macro text), 0b078aedc (its plants), + this
+(@@needs-if fix + header_check rows + plants file), 603e40de3 (one fd_set macro text), 0b078aedc (its plants), 0a602098c
+(the __fdelt_chk assert), + this
 note and the report. Scratch: local `~/w/.scratch/HEADERS-STAGE2-GAPS-E/`; keke `~/work/headers-stage2-gaps-e/`
 (stock/ reference probe table, niji2/ + cmp2.out, pkg/ package sources, pkgproof3.sh, regen.sh). Decisions in force:
 D-11.4 (FD_* index through `__fdelt_chk`); no new rows; black-box probes only; no differences row.
@@ -18,13 +19,16 @@ D-11.4 (FD_* index through `__fdelt_chk`); no new rows; black-box probes only; n
   that define FD_SET/FD_CLR/FD_ISSET/FD_ZERO (stdlib.h, utmp.h, utmpx.h, sys/time.h, sys/procfs.h, sys/select.h,
   sys/types.h) carry one text, `<sys/select.h>`'s (index via `__fdelt_chk`, D-11.4), each guarded. New s07 unit
   "fd_set macros A then B": each defining header before and after `<sys/types.h>`, every configuration, macros expanded.
-  Two plants (fd-isset-time-division, fd-clr-stdlib-division).
+  Two plants (fd-isset-time-division, fd-clr-stdlib-division) SURVIVED that unit (plants4): with every block guarded
+  a drifted text causes no redefinition. 0a602098c: in C++11..C++23 the unit also asserts (constexpr search of the
+  stringified expansion) that FD_SET, FD_CLR and FD_ISSET name `__fdelt_chk`; a hand-mutated copy of sys/time.h fails it.
 
 ## Jobs (keke)
-* `headers-stage2-gaps-e-hc4` (603e40de3 tree): header_check --only new units + P5/P1 of the touched headers: 0 failed of 1053.
-* `headers-stage2-gaps-e-xtask4`: `cargo test -p xtask` (includes the full header_check) on 0b078aedc.
-* `headers-stage2-gaps-e-plants4`: 12 plants on 0b078aedc. Results: see the hand-back / plants file.
-SUPERSEDED: regen1, values, values2, tpdbg, pkgproof, pkgproof2, xtask (red, fixed), plants (8302e1914), hc3.
+* `headers-stage2-gaps-e-hc5` (0a602098c): header_check --only "fd_set macros": 0 failed of 468.
+* `headers-stage2-gaps-e-xtask5`: `cargo test -p xtask` (includes the full header_check) on 5b4f8a757 (final code).
+* `headers-stage2-gaps-e-plants5`: 12 plants on 5b4f8a757. Results: plants file / hand-back.
+SUPERSEDED: regen1, values, values2, tpdbg, pkgproof, pkgproof2, xtask (red, fixed), plants (8302e1914), hc3,
+hc4 (603e40de3), xtask4 (green, 0b078aedc, before the assert), plants4 (2 SURVIVED, fixed by 0a602098c).
 
 ## Not done: `<netinet/ip6.h>` (coordinator note 13:43Z) -> NEXT STORY
 Larger than the note says: besides the extension-header structs (ip6_ext, ip6_hbh, ip6_dest, ip6_rthdr, ip6_rthdr0,
@@ -38,4 +42,4 @@ header_check rows (P1 if ip6.h has p1 1); plants; an nftables source file compil
 Estimate: one full run (about 80-100 calls).
 
 ## Exact next step
-If xtask4 and plants4 are green: dispatcher verifies; coordinator lands. If red: fix what it names, rerun only that suite.
+If xtask5 and plants5 are green: dispatcher verifies; coordinator lands. If red: fix what it names, rerun only that suite.
