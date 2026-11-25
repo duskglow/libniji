@@ -30,16 +30,11 @@ D-11.4 (FD_* index through `__fdelt_chk`); no new rows; black-box probes only; n
 SUPERSEDED: regen1, values, values2, tpdbg, pkgproof, pkgproof2, xtask (red, fixed), plants (8302e1914), hc3,
 hc4 (603e40de3), xtask4 (green, 0b078aedc, before the assert), plants4 (2 SURVIVED, fixed by 0a602098c).
 
-## Not done: `<netinet/ip6.h>` (coordinator note 13:43Z) -> NEXT STORY
-Larger than the note says: besides the extension-header structs (ip6_ext, ip6_hbh, ip6_dest, ip6_rthdr, ip6_rthdr0,
-ip6_frag, ip6_opt, ip6_opt_jumbo/nsap/tunnel/router) and the IP6F_*/IP6OPT_*/IP6_ALERT_* constants, libniji's ip6.h
-also lacks the `struct ip6_hdr` member-name macros (ip6_vfc, ip6_flow, ip6_plen, ip6_nxt, ip6_hlim, ip6_hops):
-visibility.tsv lists only struct ip6_hdr, ip6_hdrctl, ip6_mtuinfo for it. The name list is RFC 3542 section 2 (an
-allowed spec). Steps: add the names to header_probe (stage2e_names or a new set), probe the reference for visibility,
-layouts (all structs) and macro values; rows in visibility/layouts/macros.tsv; template headers/netinet/ip6.h.in
-(member macros like arpa/tftp.h's th_* ones; member_names in header_checks/s12.py handles any nesting depth); regen;
-header_check rows (P1 if ip6.h has p1 1); plants; an nftables source file compiled with libniji's headers as proof.
-Estimate: one full run (about 80-100 calls).
-
-## Exact next step
-If xtask5 and plants5 are green: dispatcher verifies; coordinator lands. If red: fix what it names, rerun only that suite.
+## Leg 5 (HEADERS-STAGE2-GAPS-E-2): merge with next
+Merged origin/next (621e2c0c7): the conflict in header_checks/s12.py kept next's per-header MEMBER_MACROS table and
+member_names (HEADERS-NET-SYS-NAMES), with the tftphdr th_* names as its "arpa/tftp.h" entry; header_probe.py keeps
+stage2e_names and net_sys_names. headers-gen after the merge rewrote nothing (idempotent). next already landed the
+netinet/ip6.h work (member macros, ext-header structs), so the "Not done: ip6.h" item below is closed by next.
+Jobs on 621e2c0c7: clippy and static clean; headers-stage2-gaps-e-2-xtask (cargo test -p xtask): 665 + others pass,
+only xtask/tests/transcripts.rs the_committed_gencat_transcripts_hold fails (no built target/niji-test/gencat on the
+role: an unbuilt product, no header involvement); headers-stage2-gaps-e-2-plants: see hand-back.
