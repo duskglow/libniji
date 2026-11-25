@@ -18,13 +18,14 @@ train's.
 * Tests (header_check modules): s15 `enum_units` (both include orders, spelling, value, C++ enum type), s10
   `errcode_units`, s12 `nameser_enum_units`. `header_check.py --modules s10,s12,s15` runs only named modules (the
   full check is ~7 min serial; plants need < 600 s).
-* Results: header_check 0 failed of 17897 (job headers-enum-followups-test1); xtask lib tests 661 passed; plants
-  4/4 CAUGHT (headers-enum-followups-plants1); clippy clean (headers-enum-followups-lint1).
+* Results: job headers-enum-followups-test2 (cargo xtask so, cargo test -p xtask all green, header_check 0 failed
+  of 17897); plants 4/4 CAUGHT (headers-enum-followups-plants1); clippy and static clean (precheck). Superseded:
+  test1 (gencat transcripts need the products: red without `cargo xtask so`, green in test2), lint1 (static red on a
+  newline in the D-X.173 body, fixed in ec9d14c42), pre1 (precheck naming those two).
 
 ## Open / INFORMATIONAL
-* `xtask --test transcripts` the_committed_gencat_transcripts_hold fails on this role: `target/niji-test/gencat`
-  exists (the test's is_file check passes) but exec gives ENOENT, which points at its ELF interpreter (target/niji
-  not built on the role). No header involvement; not chased.
+* `xtask --test transcripts` (gencat) fails with exec ENOENT on a role without `cargo xtask so` although its is_file
+  skip check passes; it could skip instead.
 * form.py NOTE `SERVFAIL`/`YXDOMAIN` of `<arpa/nameser_compat.h>` (expression on one side only): pre-existing, the
   NOTE set is identical before and after the generator fix (1708 lines both).
 * Left out (not this story): nameser/resolv function-like macros MAX MIN clrbit howmany isclr isset powerof2 roundup
