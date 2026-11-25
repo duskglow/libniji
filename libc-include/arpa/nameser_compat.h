@@ -11,6 +11,26 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_HEADER
+#  define __NIJI_D_HEADER 1
+typedef struct {
+  unsigned int id : 16;
+  unsigned int rd : 1;
+  unsigned int tc : 1;
+  unsigned int aa : 1;
+  unsigned int opcode : 4;
+  unsigned int qr : 1;
+  unsigned int rcode : 4;
+  unsigned int cd : 1;
+  unsigned int ad : 1;
+  unsigned int unused : 1;
+  unsigned int ra : 1;
+  unsigned int qdcount : 16;
+  unsigned int ancount : 16;
+  unsigned int nscount : 16;
+  unsigned int arcount : 16;
+} HEADER;
+# endif
 # ifndef ADD
 #  define ADD 1
 # endif

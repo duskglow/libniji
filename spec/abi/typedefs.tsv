@@ -46,6 +46,7 @@ typedef	FTS64	fts.h	72	8	FTS64
 typedef	FTSENT	fts.h	120	8	_ftsent
 typedef	FTSENT64	fts.h	120	8	_ftsent64
 struct	FTW	ftw.h	8	4	FTW
+typedef	HEADER	arpa/nameser.h	12	4	HEADER
 typedef	La_x86_64_regs	link.h	768	16	
 typedef	La_x86_64_retval	link.h	240	16	
 typedef	La_x86_64_vector	link.h	64	16	

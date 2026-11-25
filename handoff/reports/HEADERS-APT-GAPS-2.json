@@ -1,0 +1,83 @@
+{
+ "task": "HEADERS-APT-GAPS-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged origin/next into task/headers-apt-gaps (generated appendix_c_layouts.rs regenerated, PROVENANCE both sides kept); header_check 0 failed of 18140, direct gate ok, 5 plants CAUGHT; apt build not run",
+ "branch": "task/headers-apt-gaps-2",
+ "head": "f3855b7ed (later commit: handoff only)",
+ "gate": {
+  "affected": "gate2 pending (first gate ok rc 0 but ran beside a headers-gen)",
+  "peak": "12G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  {
+   "item": "abi_extract.py --layouts-only at 522900c6f differs from layouts.tsv in rows this story did not touch (struct _fpstate / struct _libc_fpstate _st.*, _xmm.element; __sigset_t); only HEADER's 16 rows were spliced",
+   "recommendation": "a table-refresh story decides whether those rows belong in layouts.tsv"
+  },
+  {
+   "item": "apt 3.0.4 dpkg-buildpackage on the system flavour (brief step 4) not run: needs debs from this head and the ypk flow on mei",
+   "recommendation": "the next snapshot run builds apt with ypk.sh and reruns hp2.sh on the deb"
+  },
+  {
+   "item": "header_check job headers-apt-gaps-hc1 (0 failed of 17900) ran before the sys/pidfd.h si_* rows were added; the plants baseline ran header_check on the final tree",
+   "recommendation": "none"
+  },
+  {
+   "item": "merge of origin/next 31 commits ahead: only appendix_c_layouts.rs and PROVENANCE conflicted",
+   "recommendation": "none"
+  }
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "C++: connect/bind/accept/accept4/getsockname/getpeername/recvfrom/sendto accept struct sockaddr * and a null pointer (every C++ socket program; apt methods/connect.cc, aptwebserver.cc, gtest.cc)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "siginfo_t si_call_addr, si_syscall, si_arch, si_lower, si_upper, si_pkey at the reference's offsets (apt methods/aptmethod.h, 11 units)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "HEADER in arpa/nameser.h, arpa/nameser_compat.h, resolv.h with the reference's layout and bit positions (apt-pkg/contrib/srvrec.cc)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "apt 3.0.4 build on the system flavour (Yohane stage 2), pending the apt build check",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants (5 CAUGHT, 0 WARN) rerun on the merged head",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "sync_role roles are not git trees: a generated file must be copied back from the role after a host-side abi-gen; a one-command helper would save a step",
+ "next_step": "Land; the next snapshot run builds apt 3.0.4 with ypk.sh and reruns hp2.sh on the deb",
+ "report_file": "handoff/HEADERS-APT-GAPS.md",
+ "jobs": [
+  "headers-apt-gaps-2-lint3",
+  "headers-apt-gaps-2-gate2",
+  "headers-apt-gaps-2-plants"
+ ]
+}
