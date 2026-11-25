@@ -1,0 +1,8 @@
+# HEADERS-APT-GAPS plants (cargo xtask plants; docs/plants.md). Each regenerates the headers, then runs header_check
+# with the form probe off (these names are checked by the s08/s12 units). Templates and the generator are mutated, not
+# tables: the checks read their expectations from the tables, so a table mutant moves both.
+hag-cxx-sockaddr-union | xtask/src/headers/cond.rs | perl:s/\n +&& !aggregates::transparent_union\(self\.t\.layouts[^\n]*// | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL C\+\+ socket calls with struct sockaddr
+hag-si_syscall-offset | headers/signal.h.in | lit:# define si_syscall _sifields._sigsys._syscall ==> # define si_syscall _sifields._sigsys._arch | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL siginfo_t members in signal.h
+hag-si_call_addr-gone | headers/signal.h.in | perl:s/^\x40\x40when si_call_addr\n.*?#endif\n//ms | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact signal.h
+hag-pidfd-si_arch-gone | headers/sys/pidfd.h.in | perl:s/^\x40\x40when si_arch\n.*?#endif\n//ms | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact sys/pidfd.h
+hag-HEADER-gone | headers/arpa/nameser_compat.h.in | perl:s/^\x40\x40emit$/\x40\x40owns HEADER\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact arpa/nameser(_compat)?.h
