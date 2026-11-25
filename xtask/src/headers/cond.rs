@@ -8,6 +8,13 @@ use super::*;
 /// The generated configurations' probe (P2) is the check of each.
 const LANGUAGE_MODE: &[(&str, &str)] = &[("max_align_t", "(defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)")];
 
+/// Functions (header, name) that C and C++98/03 declare and C++11 on does not: the C++ library's own `<cmath>`
+/// declares `bool isinf (double)` there, which a C `int isinf (double)` contradicts. visibility.tsv cannot show this
+/// (its C++ probe reads the name through the C++ library's `<math.h>`, which has it either way); a black-box probe of
+/// the reference's own math.h under -nostdinc settles it (declared in C++98 and C++03, absent in C++11 to C++23, with
+/// and without _GNU_SOURCE, _DEFAULT_SOURCE, _XOPEN_SOURCE=700). P4 part 1 (validation/headers_p4.py) is the check.
+const NOT_CXX11: &[(&str, &str)] = &[("math.h", "isinf"), ("math.h", "isnan")];
+
 /// The level columns of `headers/levels.tsv`, their C names in `features.h` and the thresholds the
 /// condition search may test (an empty list: a 0/1 flag).
 pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
@@ -161,6 +168,12 @@ impl Gen<'_> {
         self.t.lv.values.iter().enumerate().filter(|(i, v)| v[col] > 0 && self.t.lv.reject >> i & 1 == 0).fold(0u64, |m, (i, _)| m | 1 << i)
     }
 
+    /// The configurations of C++11 and later (level column `cxx` 2 or more).
+    fn cxx11_mask(&self) -> u64 {
+        let col = LEVEL_COLS.iter().position(|c| c.0 == "cxx").unwrap_or(0);
+        self.t.lv.values.iter().enumerate().filter(|(_, v)| v[col] >= 2).fold(0u64, |m, (i, _)| m | 1 << i)
+    }
+
     /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
     pub(super) fn union_tag(&self, name: &str) -> bool {
         self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
@@ -196,6 +209,7 @@ impl Gen<'_> {
         // A union typedef without a C++ spelling is a union tag in C++, which the visibility probe does not classify as
         // a typedef: it is declared in every C++ configuration where the C typedef is.
         let target = if r["kind"] == "typedef" && self.union_tag(name) { target | self.cxx_mask() } else { target };
+        let target = if r["kind"] == "function" && NOT_CXX11.contains(&(self.header.as_str(), name)) { target & !self.cxx11_mask() } else { target };
         let configs = r["configs"].clone();
         // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
         // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.

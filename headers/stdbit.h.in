@@ -21,76 +21,76 @@ __NIJI_BEGIN_C
 __extension__ typedef unsigned long long __niji_stdbit_ull;
 __extension__ typedef _Bool __niji_stdbit_bool;
 
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_uc (unsigned char __v) { return __v == 0 ? 8u : ((unsigned int) __builtin_clzll (__v) - 56u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_us (unsigned short __v) { return __v == 0 ? 16u : ((unsigned int) __builtin_clzll (__v) - 48u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ui (unsigned int __v) { return __v == 0 ? 32u : ((unsigned int) __builtin_clzll (__v) - 32u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ul (unsigned long __v) { return __v == 0 ? 64u : ((unsigned int) __builtin_clzll (__v) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ull (__niji_stdbit_ull __v) { return __v == 0 ? 64u : ((unsigned int) __builtin_clzll (__v) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_uc (unsigned char __v) { return ((unsigned char) ~__v) == 0 ? 8u : ((unsigned int) __builtin_clzll (((unsigned char) ~__v)) - 56u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_us (unsigned short __v) { return ((unsigned short) ~__v) == 0 ? 16u : ((unsigned int) __builtin_clzll (((unsigned short) ~__v)) - 48u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ui (unsigned int __v) { return ((unsigned int) ~__v) == 0 ? 32u : ((unsigned int) __builtin_clzll (((unsigned int) ~__v)) - 32u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ul (unsigned long __v) { return ((unsigned long) ~__v) == 0 ? 64u : ((unsigned int) __builtin_clzll (((unsigned long) ~__v)) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ull (__niji_stdbit_ull __v) { return ((__niji_stdbit_ull) ~__v) == 0 ? 64u : ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) ~__v)) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_uc (unsigned char __v) { return __v == 0 ? 8u : ((unsigned int) __builtin_ctzll (__v)); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_us (unsigned short __v) { return __v == 0 ? 16u : ((unsigned int) __builtin_ctzll (__v)); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ui (unsigned int __v) { return __v == 0 ? 32u : ((unsigned int) __builtin_ctzll (__v)); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ul (unsigned long __v) { return __v == 0 ? 64u : ((unsigned int) __builtin_ctzll (__v)); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ull (__niji_stdbit_ull __v) { return __v == 0 ? 64u : ((unsigned int) __builtin_ctzll (__v)); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_uc (unsigned char __v) { return ((unsigned char) ~__v) == 0 ? 8u : ((unsigned int) __builtin_ctzll (((unsigned char) ~__v))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_us (unsigned short __v) { return ((unsigned short) ~__v) == 0 ? 16u : ((unsigned int) __builtin_ctzll (((unsigned short) ~__v))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ui (unsigned int __v) { return ((unsigned int) ~__v) == 0 ? 32u : ((unsigned int) __builtin_ctzll (((unsigned int) ~__v))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ul (unsigned long __v) { return ((unsigned long) ~__v) == 0 ? 64u : ((unsigned int) __builtin_ctzll (((unsigned long) ~__v))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ull (__niji_stdbit_ull __v) { return ((__niji_stdbit_ull) ~__v) == 0 ? 64u : ((unsigned int) __builtin_ctzll (((__niji_stdbit_ull) ~__v))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_uc (unsigned char __v) { return ((unsigned char) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned char) ~__v)) - 56u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_us (unsigned short __v) { return ((unsigned short) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned short) ~__v)) - 48u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ui (unsigned int __v) { return ((unsigned int) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned int) ~__v)) - 32u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ul (unsigned long __v) { return ((unsigned long) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned long) ~__v)) - 0u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ull (__niji_stdbit_ull __v) { return ((__niji_stdbit_ull) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) ~__v)) - 0u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_uc (unsigned char __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 56u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_us (unsigned short __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 48u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ui (unsigned int __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 32u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ul (unsigned long __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 0u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ull (__niji_stdbit_ull __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 0u) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_uc (unsigned char __v) { return ((unsigned char) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned char) ~__v))) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_us (unsigned short __v) { return ((unsigned short) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned short) ~__v))) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ui (unsigned int __v) { return ((unsigned int) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned int) ~__v))) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ul (unsigned long __v) { return ((unsigned long) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned long) ~__v))) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ull (__niji_stdbit_ull __v) { return ((__niji_stdbit_ull) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((__niji_stdbit_ull) ~__v))) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_uc (unsigned char __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_us (unsigned short __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ui (unsigned int __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ul (unsigned long __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ull (__niji_stdbit_ull __v) { return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_uc (unsigned char __v) { return 8u - (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_us (unsigned short __v) { return 16u - (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ui (unsigned int __v) { return 32u - (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ul (unsigned long __v) { return 64u - (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ull (__niji_stdbit_ull __v) { return 64u - (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_uc (unsigned char __v) { return (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_us (unsigned short __v) { return (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ui (unsigned int __v) { return (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ul (unsigned long __v) { return (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ull (__niji_stdbit_ull __v) { return (unsigned int) __builtin_popcountll (__v); }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_uc (unsigned char __v) { return __v != 0 && ((unsigned char) (__v & (unsigned char) (__v - 1))) == 0; }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_us (unsigned short __v) { return __v != 0 && ((unsigned short) (__v & (unsigned short) (__v - 1))) == 0; }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ui (unsigned int __v) { return __v != 0 && ((unsigned int) (__v & (unsigned int) (__v - 1))) == 0; }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ul (unsigned long __v) { return __v != 0 && ((unsigned long) (__v & (unsigned long) (__v - 1))) == 0; }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ull (__niji_stdbit_ull __v) { return __v != 0 && ((__niji_stdbit_ull) (__v & (__niji_stdbit_ull) (__v - 1))) == 0; }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_uc (unsigned char __v) { return __v == 0 ? 0u : 8u - ((unsigned int) __builtin_clzll (__v) - 56u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_us (unsigned short __v) { return __v == 0 ? 0u : 16u - ((unsigned int) __builtin_clzll (__v) - 48u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ui (unsigned int __v) { return __v == 0 ? 0u : 32u - ((unsigned int) __builtin_clzll (__v) - 32u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ul (unsigned long __v) { return __v == 0 ? 0u : 64u - ((unsigned int) __builtin_clzll (__v) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ull (__niji_stdbit_ull __v) { return __v == 0 ? 0u : 64u - ((unsigned int) __builtin_clzll (__v) - 0u); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned char stdc_bit_floor_uc (unsigned char __v) { return __v == 0 ? (unsigned char) 0 : (unsigned char) ((unsigned char) 1 << (8u - 1u - ((unsigned int) __builtin_clzll (__v) - 56u))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned short stdc_bit_floor_us (unsigned short __v) { return __v == 0 ? (unsigned short) 0 : (unsigned short) ((unsigned short) 1 << (16u - 1u - ((unsigned int) __builtin_clzll (__v) - 48u))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_floor_ui (unsigned int __v) { return __v == 0 ? (unsigned int) 0 : (unsigned int) ((unsigned int) 1 << (32u - 1u - ((unsigned int) __builtin_clzll (__v) - 32u))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned long stdc_bit_floor_ul (unsigned long __v) { return __v == 0 ? (unsigned long) 0 : (unsigned long) ((unsigned long) 1 << (64u - 1u - ((unsigned int) __builtin_clzll (__v) - 0u))); }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_ull stdc_bit_floor_ull (__niji_stdbit_ull __v) { return __v == 0 ? (__niji_stdbit_ull) 0 : (__niji_stdbit_ull) ((__niji_stdbit_ull) 1 << (64u - 1u - ((unsigned int) __builtin_clzll (__v) - 0u))); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned char stdc_bit_ceil_uc (unsigned char __v) { unsigned int __n = __v <= 1 ? 0u : 8u - ((unsigned int) __builtin_clzll (((unsigned char) (__v - 1))) - 56u); return __n >= 8u ? (unsigned char) 0 : (unsigned char) ((unsigned char) 1 << __n); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned short stdc_bit_ceil_us (unsigned short __v) { unsigned int __n = __v <= 1 ? 0u : 16u - ((unsigned int) __builtin_clzll (((unsigned short) (__v - 1))) - 48u); return __n >= 16u ? (unsigned short) 0 : (unsigned short) ((unsigned short) 1 << __n); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_ceil_ui (unsigned int __v) { unsigned int __n = __v <= 1 ? 0u : 32u - ((unsigned int) __builtin_clzll (((unsigned int) (__v - 1))) - 32u); return __n >= 32u ? (unsigned int) 0 : (unsigned int) ((unsigned int) 1 << __n); }
-extern __inline __attribute__ ((__gnu_inline__)) unsigned long stdc_bit_ceil_ul (unsigned long __v) { unsigned int __n = __v <= 1 ? 0u : 64u - ((unsigned int) __builtin_clzll (((unsigned long) (__v - 1))) - 0u); return __n >= 64u ? (unsigned long) 0 : (unsigned long) ((unsigned long) 1 << __n); }
-extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_ull stdc_bit_ceil_ull (__niji_stdbit_ull __v) { unsigned int __n = __v <= 1 ? 0u : 64u - ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) (__v - 1))) - 0u); return __n >= 64u ? (__niji_stdbit_ull) 0 : (__niji_stdbit_ull) ((__niji_stdbit_ull) 1 << __n); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 8u : ((unsigned int) __builtin_clzll (__v) - 56u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 16u : ((unsigned int) __builtin_clzll (__v) - 48u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? 32u : ((unsigned int) __builtin_clzll (__v) - 32u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? 64u : ((unsigned int) __builtin_clzll (__v) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? 64u : ((unsigned int) __builtin_clzll (__v) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_uc (unsigned char __v) __NIJI_NOTHROW {return ((unsigned char) ~__v) == 0 ? 8u : ((unsigned int) __builtin_clzll (((unsigned char) ~__v)) - 56u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_us (unsigned short __v) __NIJI_NOTHROW {return ((unsigned short) ~__v) == 0 ? 16u : ((unsigned int) __builtin_clzll (((unsigned short) ~__v)) - 48u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ui (unsigned int __v) __NIJI_NOTHROW {return ((unsigned int) ~__v) == 0 ? 32u : ((unsigned int) __builtin_clzll (((unsigned int) ~__v)) - 32u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ul (unsigned long __v) __NIJI_NOTHROW {return ((unsigned long) ~__v) == 0 ? 64u : ((unsigned int) __builtin_clzll (((unsigned long) ~__v)) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_ones_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return ((__niji_stdbit_ull) ~__v) == 0 ? 64u : ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) ~__v)) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 8u : ((unsigned int) __builtin_ctzll (__v)); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 16u : ((unsigned int) __builtin_ctzll (__v)); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? 32u : ((unsigned int) __builtin_ctzll (__v)); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? 64u : ((unsigned int) __builtin_ctzll (__v)); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_zeros_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? 64u : ((unsigned int) __builtin_ctzll (__v)); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_uc (unsigned char __v) __NIJI_NOTHROW {return ((unsigned char) ~__v) == 0 ? 8u : ((unsigned int) __builtin_ctzll (((unsigned char) ~__v))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_us (unsigned short __v) __NIJI_NOTHROW {return ((unsigned short) ~__v) == 0 ? 16u : ((unsigned int) __builtin_ctzll (((unsigned short) ~__v))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ui (unsigned int __v) __NIJI_NOTHROW {return ((unsigned int) ~__v) == 0 ? 32u : ((unsigned int) __builtin_ctzll (((unsigned int) ~__v))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ul (unsigned long __v) __NIJI_NOTHROW {return ((unsigned long) ~__v) == 0 ? 64u : ((unsigned int) __builtin_ctzll (((unsigned long) ~__v))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_trailing_ones_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return ((__niji_stdbit_ull) ~__v) == 0 ? 64u : ((unsigned int) __builtin_ctzll (((__niji_stdbit_ull) ~__v))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_uc (unsigned char __v) __NIJI_NOTHROW {return ((unsigned char) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned char) ~__v)) - 56u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_us (unsigned short __v) __NIJI_NOTHROW {return ((unsigned short) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned short) ~__v)) - 48u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ui (unsigned int __v) __NIJI_NOTHROW {return ((unsigned int) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned int) ~__v)) - 32u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ul (unsigned long __v) __NIJI_NOTHROW {return ((unsigned long) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((unsigned long) ~__v)) - 0u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_zero_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return ((__niji_stdbit_ull) ~__v) == 0 ? 0u : ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) ~__v)) - 0u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 56u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 48u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 32u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 0u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_leading_one_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_clzll (__v) - 0u) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_uc (unsigned char __v) __NIJI_NOTHROW {return ((unsigned char) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned char) ~__v))) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_us (unsigned short __v) __NIJI_NOTHROW {return ((unsigned short) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned short) ~__v))) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ui (unsigned int __v) __NIJI_NOTHROW {return ((unsigned int) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned int) ~__v))) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ul (unsigned long __v) __NIJI_NOTHROW {return ((unsigned long) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((unsigned long) ~__v))) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_zero_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return ((__niji_stdbit_ull) ~__v) == 0 ? 0u : ((unsigned int) __builtin_ctzll (((__niji_stdbit_ull) ~__v))) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_first_trailing_one_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? 0u : ((unsigned int) __builtin_ctzll (__v)) + 1u; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_uc (unsigned char __v) __NIJI_NOTHROW {return 8u - (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_us (unsigned short __v) __NIJI_NOTHROW {return 16u - (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ui (unsigned int __v) __NIJI_NOTHROW {return 32u - (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ul (unsigned long __v) __NIJI_NOTHROW {return 64u - (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_zeros_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return 64u - (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_uc (unsigned char __v) __NIJI_NOTHROW {return (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_us (unsigned short __v) __NIJI_NOTHROW {return (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ui (unsigned int __v) __NIJI_NOTHROW {return (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ul (unsigned long __v) __NIJI_NOTHROW {return (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return (unsigned int) __builtin_popcountll (__v); }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_uc (unsigned char __v) __NIJI_NOTHROW {return __v != 0 && ((unsigned char) (__v & (unsigned char) (__v - 1))) == 0; }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_us (unsigned short __v) __NIJI_NOTHROW {return __v != 0 && ((unsigned short) (__v & (unsigned short) (__v - 1))) == 0; }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ui (unsigned int __v) __NIJI_NOTHROW {return __v != 0 && ((unsigned int) (__v & (unsigned int) (__v - 1))) == 0; }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ul (unsigned long __v) __NIJI_NOTHROW {return __v != 0 && ((unsigned long) (__v & (unsigned long) (__v - 1))) == 0; }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_bool stdc_has_single_bit_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v != 0 && ((__niji_stdbit_ull) (__v & (__niji_stdbit_ull) (__v - 1))) == 0; }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 0u : 8u - ((unsigned int) __builtin_clzll (__v) - 56u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 0u : 16u - ((unsigned int) __builtin_clzll (__v) - 48u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? 0u : 32u - ((unsigned int) __builtin_clzll (__v) - 32u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? 0u : 64u - ((unsigned int) __builtin_clzll (__v) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_width_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? 0u : 64u - ((unsigned int) __builtin_clzll (__v) - 0u); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned char stdc_bit_floor_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? (unsigned char) 0 : (unsigned char) ((unsigned char) 1 << (8u - 1u - ((unsigned int) __builtin_clzll (__v) - 56u))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned short stdc_bit_floor_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? (unsigned short) 0 : (unsigned short) ((unsigned short) 1 << (16u - 1u - ((unsigned int) __builtin_clzll (__v) - 48u))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_floor_ui (unsigned int __v) __NIJI_NOTHROW {return __v == 0 ? (unsigned int) 0 : (unsigned int) ((unsigned int) 1 << (32u - 1u - ((unsigned int) __builtin_clzll (__v) - 32u))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned long stdc_bit_floor_ul (unsigned long __v) __NIJI_NOTHROW {return __v == 0 ? (unsigned long) 0 : (unsigned long) ((unsigned long) 1 << (64u - 1u - ((unsigned int) __builtin_clzll (__v) - 0u))); }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_ull stdc_bit_floor_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {return __v == 0 ? (__niji_stdbit_ull) 0 : (__niji_stdbit_ull) ((__niji_stdbit_ull) 1 << (64u - 1u - ((unsigned int) __builtin_clzll (__v) - 0u))); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned char stdc_bit_ceil_uc (unsigned char __v) __NIJI_NOTHROW {unsigned int __n = __v <= 1 ? 0u : 8u - ((unsigned int) __builtin_clzll (((unsigned char) (__v - 1))) - 56u); return __n >= 8u ? (unsigned char) 0 : (unsigned char) ((unsigned char) 1 << __n); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned short stdc_bit_ceil_us (unsigned short __v) __NIJI_NOTHROW {unsigned int __n = __v <= 1 ? 0u : 16u - ((unsigned int) __builtin_clzll (((unsigned short) (__v - 1))) - 48u); return __n >= 16u ? (unsigned short) 0 : (unsigned short) ((unsigned short) 1 << __n); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_bit_ceil_ui (unsigned int __v) __NIJI_NOTHROW {unsigned int __n = __v <= 1 ? 0u : 32u - ((unsigned int) __builtin_clzll (((unsigned int) (__v - 1))) - 32u); return __n >= 32u ? (unsigned int) 0 : (unsigned int) ((unsigned int) 1 << __n); }
+extern __inline __attribute__ ((__gnu_inline__)) unsigned long stdc_bit_ceil_ul (unsigned long __v) __NIJI_NOTHROW {unsigned int __n = __v <= 1 ? 0u : 64u - ((unsigned int) __builtin_clzll (((unsigned long) (__v - 1))) - 0u); return __n >= 64u ? (unsigned long) 0 : (unsigned long) ((unsigned long) 1 << __n); }
+extern __inline __attribute__ ((__gnu_inline__)) __niji_stdbit_ull stdc_bit_ceil_ull (__niji_stdbit_ull __v) __NIJI_NOTHROW {unsigned int __n = __v <= 1 ? 0u : 64u - ((unsigned int) __builtin_clzll (((__niji_stdbit_ull) (__v - 1))) - 0u); return __n >= 64u ? (__niji_stdbit_ull) 0 : (__niji_stdbit_ull) ((__niji_stdbit_ull) 1 << __n); }
 
 /* The functions are also macros of their own name, so `#ifdef stdc_bit_width_uc` is true. */
 #define stdc_leading_zeros_uc stdc_leading_zeros_uc
@@ -185,76 +185,76 @@ __NIJI_END_C
 
 #ifdef __cplusplus
 extern "C++" {
-inline unsigned int __niji_stdbit_leading_zeros (unsigned char __v) { return stdc_leading_zeros_uc (__v); }
-inline unsigned int __niji_stdbit_leading_zeros (unsigned short __v) { return stdc_leading_zeros_us (__v); }
-inline unsigned int __niji_stdbit_leading_zeros (unsigned int __v) { return stdc_leading_zeros_ui (__v); }
-inline unsigned int __niji_stdbit_leading_zeros (unsigned long __v) { return stdc_leading_zeros_ul (__v); }
-inline unsigned int __niji_stdbit_leading_zeros (__niji_stdbit_ull __v) { return stdc_leading_zeros_ull (__v); }
-inline unsigned int __niji_stdbit_leading_ones (unsigned char __v) { return stdc_leading_ones_uc (__v); }
-inline unsigned int __niji_stdbit_leading_ones (unsigned short __v) { return stdc_leading_ones_us (__v); }
-inline unsigned int __niji_stdbit_leading_ones (unsigned int __v) { return stdc_leading_ones_ui (__v); }
-inline unsigned int __niji_stdbit_leading_ones (unsigned long __v) { return stdc_leading_ones_ul (__v); }
-inline unsigned int __niji_stdbit_leading_ones (__niji_stdbit_ull __v) { return stdc_leading_ones_ull (__v); }
-inline unsigned int __niji_stdbit_trailing_zeros (unsigned char __v) { return stdc_trailing_zeros_uc (__v); }
-inline unsigned int __niji_stdbit_trailing_zeros (unsigned short __v) { return stdc_trailing_zeros_us (__v); }
-inline unsigned int __niji_stdbit_trailing_zeros (unsigned int __v) { return stdc_trailing_zeros_ui (__v); }
-inline unsigned int __niji_stdbit_trailing_zeros (unsigned long __v) { return stdc_trailing_zeros_ul (__v); }
-inline unsigned int __niji_stdbit_trailing_zeros (__niji_stdbit_ull __v) { return stdc_trailing_zeros_ull (__v); }
-inline unsigned int __niji_stdbit_trailing_ones (unsigned char __v) { return stdc_trailing_ones_uc (__v); }
-inline unsigned int __niji_stdbit_trailing_ones (unsigned short __v) { return stdc_trailing_ones_us (__v); }
-inline unsigned int __niji_stdbit_trailing_ones (unsigned int __v) { return stdc_trailing_ones_ui (__v); }
-inline unsigned int __niji_stdbit_trailing_ones (unsigned long __v) { return stdc_trailing_ones_ul (__v); }
-inline unsigned int __niji_stdbit_trailing_ones (__niji_stdbit_ull __v) { return stdc_trailing_ones_ull (__v); }
-inline unsigned int __niji_stdbit_first_leading_zero (unsigned char __v) { return stdc_first_leading_zero_uc (__v); }
-inline unsigned int __niji_stdbit_first_leading_zero (unsigned short __v) { return stdc_first_leading_zero_us (__v); }
-inline unsigned int __niji_stdbit_first_leading_zero (unsigned int __v) { return stdc_first_leading_zero_ui (__v); }
-inline unsigned int __niji_stdbit_first_leading_zero (unsigned long __v) { return stdc_first_leading_zero_ul (__v); }
-inline unsigned int __niji_stdbit_first_leading_zero (__niji_stdbit_ull __v) { return stdc_first_leading_zero_ull (__v); }
-inline unsigned int __niji_stdbit_first_leading_one (unsigned char __v) { return stdc_first_leading_one_uc (__v); }
-inline unsigned int __niji_stdbit_first_leading_one (unsigned short __v) { return stdc_first_leading_one_us (__v); }
-inline unsigned int __niji_stdbit_first_leading_one (unsigned int __v) { return stdc_first_leading_one_ui (__v); }
-inline unsigned int __niji_stdbit_first_leading_one (unsigned long __v) { return stdc_first_leading_one_ul (__v); }
-inline unsigned int __niji_stdbit_first_leading_one (__niji_stdbit_ull __v) { return stdc_first_leading_one_ull (__v); }
-inline unsigned int __niji_stdbit_first_trailing_zero (unsigned char __v) { return stdc_first_trailing_zero_uc (__v); }
-inline unsigned int __niji_stdbit_first_trailing_zero (unsigned short __v) { return stdc_first_trailing_zero_us (__v); }
-inline unsigned int __niji_stdbit_first_trailing_zero (unsigned int __v) { return stdc_first_trailing_zero_ui (__v); }
-inline unsigned int __niji_stdbit_first_trailing_zero (unsigned long __v) { return stdc_first_trailing_zero_ul (__v); }
-inline unsigned int __niji_stdbit_first_trailing_zero (__niji_stdbit_ull __v) { return stdc_first_trailing_zero_ull (__v); }
-inline unsigned int __niji_stdbit_first_trailing_one (unsigned char __v) { return stdc_first_trailing_one_uc (__v); }
-inline unsigned int __niji_stdbit_first_trailing_one (unsigned short __v) { return stdc_first_trailing_one_us (__v); }
-inline unsigned int __niji_stdbit_first_trailing_one (unsigned int __v) { return stdc_first_trailing_one_ui (__v); }
-inline unsigned int __niji_stdbit_first_trailing_one (unsigned long __v) { return stdc_first_trailing_one_ul (__v); }
-inline unsigned int __niji_stdbit_first_trailing_one (__niji_stdbit_ull __v) { return stdc_first_trailing_one_ull (__v); }
-inline unsigned int __niji_stdbit_count_zeros (unsigned char __v) { return stdc_count_zeros_uc (__v); }
-inline unsigned int __niji_stdbit_count_zeros (unsigned short __v) { return stdc_count_zeros_us (__v); }
-inline unsigned int __niji_stdbit_count_zeros (unsigned int __v) { return stdc_count_zeros_ui (__v); }
-inline unsigned int __niji_stdbit_count_zeros (unsigned long __v) { return stdc_count_zeros_ul (__v); }
-inline unsigned int __niji_stdbit_count_zeros (__niji_stdbit_ull __v) { return stdc_count_zeros_ull (__v); }
-inline unsigned int __niji_stdbit_count_ones (unsigned char __v) { return stdc_count_ones_uc (__v); }
-inline unsigned int __niji_stdbit_count_ones (unsigned short __v) { return stdc_count_ones_us (__v); }
-inline unsigned int __niji_stdbit_count_ones (unsigned int __v) { return stdc_count_ones_ui (__v); }
-inline unsigned int __niji_stdbit_count_ones (unsigned long __v) { return stdc_count_ones_ul (__v); }
-inline unsigned int __niji_stdbit_count_ones (__niji_stdbit_ull __v) { return stdc_count_ones_ull (__v); }
-inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned char __v) { return stdc_has_single_bit_uc (__v); }
-inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned short __v) { return stdc_has_single_bit_us (__v); }
-inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned int __v) { return stdc_has_single_bit_ui (__v); }
-inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned long __v) { return stdc_has_single_bit_ul (__v); }
-inline __niji_stdbit_bool __niji_stdbit_has_single_bit (__niji_stdbit_ull __v) { return stdc_has_single_bit_ull (__v); }
-inline unsigned int __niji_stdbit_bit_width (unsigned char __v) { return stdc_bit_width_uc (__v); }
-inline unsigned int __niji_stdbit_bit_width (unsigned short __v) { return stdc_bit_width_us (__v); }
-inline unsigned int __niji_stdbit_bit_width (unsigned int __v) { return stdc_bit_width_ui (__v); }
-inline unsigned int __niji_stdbit_bit_width (unsigned long __v) { return stdc_bit_width_ul (__v); }
-inline unsigned int __niji_stdbit_bit_width (__niji_stdbit_ull __v) { return stdc_bit_width_ull (__v); }
-inline unsigned char __niji_stdbit_bit_floor (unsigned char __v) { return stdc_bit_floor_uc (__v); }
-inline unsigned short __niji_stdbit_bit_floor (unsigned short __v) { return stdc_bit_floor_us (__v); }
-inline unsigned int __niji_stdbit_bit_floor (unsigned int __v) { return stdc_bit_floor_ui (__v); }
-inline unsigned long __niji_stdbit_bit_floor (unsigned long __v) { return stdc_bit_floor_ul (__v); }
-inline __niji_stdbit_ull __niji_stdbit_bit_floor (__niji_stdbit_ull __v) { return stdc_bit_floor_ull (__v); }
-inline unsigned char __niji_stdbit_bit_ceil (unsigned char __v) { return stdc_bit_ceil_uc (__v); }
-inline unsigned short __niji_stdbit_bit_ceil (unsigned short __v) { return stdc_bit_ceil_us (__v); }
-inline unsigned int __niji_stdbit_bit_ceil (unsigned int __v) { return stdc_bit_ceil_ui (__v); }
-inline unsigned long __niji_stdbit_bit_ceil (unsigned long __v) { return stdc_bit_ceil_ul (__v); }
-inline __niji_stdbit_ull __niji_stdbit_bit_ceil (__niji_stdbit_ull __v) { return stdc_bit_ceil_ull (__v); }
+inline unsigned int __niji_stdbit_leading_zeros (unsigned char __v) __NIJI_NOTHROW {return stdc_leading_zeros_uc (__v); }
+inline unsigned int __niji_stdbit_leading_zeros (unsigned short __v) __NIJI_NOTHROW {return stdc_leading_zeros_us (__v); }
+inline unsigned int __niji_stdbit_leading_zeros (unsigned int __v) __NIJI_NOTHROW {return stdc_leading_zeros_ui (__v); }
+inline unsigned int __niji_stdbit_leading_zeros (unsigned long __v) __NIJI_NOTHROW {return stdc_leading_zeros_ul (__v); }
+inline unsigned int __niji_stdbit_leading_zeros (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_leading_zeros_ull (__v); }
+inline unsigned int __niji_stdbit_leading_ones (unsigned char __v) __NIJI_NOTHROW {return stdc_leading_ones_uc (__v); }
+inline unsigned int __niji_stdbit_leading_ones (unsigned short __v) __NIJI_NOTHROW {return stdc_leading_ones_us (__v); }
+inline unsigned int __niji_stdbit_leading_ones (unsigned int __v) __NIJI_NOTHROW {return stdc_leading_ones_ui (__v); }
+inline unsigned int __niji_stdbit_leading_ones (unsigned long __v) __NIJI_NOTHROW {return stdc_leading_ones_ul (__v); }
+inline unsigned int __niji_stdbit_leading_ones (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_leading_ones_ull (__v); }
+inline unsigned int __niji_stdbit_trailing_zeros (unsigned char __v) __NIJI_NOTHROW {return stdc_trailing_zeros_uc (__v); }
+inline unsigned int __niji_stdbit_trailing_zeros (unsigned short __v) __NIJI_NOTHROW {return stdc_trailing_zeros_us (__v); }
+inline unsigned int __niji_stdbit_trailing_zeros (unsigned int __v) __NIJI_NOTHROW {return stdc_trailing_zeros_ui (__v); }
+inline unsigned int __niji_stdbit_trailing_zeros (unsigned long __v) __NIJI_NOTHROW {return stdc_trailing_zeros_ul (__v); }
+inline unsigned int __niji_stdbit_trailing_zeros (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_trailing_zeros_ull (__v); }
+inline unsigned int __niji_stdbit_trailing_ones (unsigned char __v) __NIJI_NOTHROW {return stdc_trailing_ones_uc (__v); }
+inline unsigned int __niji_stdbit_trailing_ones (unsigned short __v) __NIJI_NOTHROW {return stdc_trailing_ones_us (__v); }
+inline unsigned int __niji_stdbit_trailing_ones (unsigned int __v) __NIJI_NOTHROW {return stdc_trailing_ones_ui (__v); }
+inline unsigned int __niji_stdbit_trailing_ones (unsigned long __v) __NIJI_NOTHROW {return stdc_trailing_ones_ul (__v); }
+inline unsigned int __niji_stdbit_trailing_ones (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_trailing_ones_ull (__v); }
+inline unsigned int __niji_stdbit_first_leading_zero (unsigned char __v) __NIJI_NOTHROW {return stdc_first_leading_zero_uc (__v); }
+inline unsigned int __niji_stdbit_first_leading_zero (unsigned short __v) __NIJI_NOTHROW {return stdc_first_leading_zero_us (__v); }
+inline unsigned int __niji_stdbit_first_leading_zero (unsigned int __v) __NIJI_NOTHROW {return stdc_first_leading_zero_ui (__v); }
+inline unsigned int __niji_stdbit_first_leading_zero (unsigned long __v) __NIJI_NOTHROW {return stdc_first_leading_zero_ul (__v); }
+inline unsigned int __niji_stdbit_first_leading_zero (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_first_leading_zero_ull (__v); }
+inline unsigned int __niji_stdbit_first_leading_one (unsigned char __v) __NIJI_NOTHROW {return stdc_first_leading_one_uc (__v); }
+inline unsigned int __niji_stdbit_first_leading_one (unsigned short __v) __NIJI_NOTHROW {return stdc_first_leading_one_us (__v); }
+inline unsigned int __niji_stdbit_first_leading_one (unsigned int __v) __NIJI_NOTHROW {return stdc_first_leading_one_ui (__v); }
+inline unsigned int __niji_stdbit_first_leading_one (unsigned long __v) __NIJI_NOTHROW {return stdc_first_leading_one_ul (__v); }
+inline unsigned int __niji_stdbit_first_leading_one (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_first_leading_one_ull (__v); }
+inline unsigned int __niji_stdbit_first_trailing_zero (unsigned char __v) __NIJI_NOTHROW {return stdc_first_trailing_zero_uc (__v); }
+inline unsigned int __niji_stdbit_first_trailing_zero (unsigned short __v) __NIJI_NOTHROW {return stdc_first_trailing_zero_us (__v); }
+inline unsigned int __niji_stdbit_first_trailing_zero (unsigned int __v) __NIJI_NOTHROW {return stdc_first_trailing_zero_ui (__v); }
+inline unsigned int __niji_stdbit_first_trailing_zero (unsigned long __v) __NIJI_NOTHROW {return stdc_first_trailing_zero_ul (__v); }
+inline unsigned int __niji_stdbit_first_trailing_zero (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_first_trailing_zero_ull (__v); }
+inline unsigned int __niji_stdbit_first_trailing_one (unsigned char __v) __NIJI_NOTHROW {return stdc_first_trailing_one_uc (__v); }
+inline unsigned int __niji_stdbit_first_trailing_one (unsigned short __v) __NIJI_NOTHROW {return stdc_first_trailing_one_us (__v); }
+inline unsigned int __niji_stdbit_first_trailing_one (unsigned int __v) __NIJI_NOTHROW {return stdc_first_trailing_one_ui (__v); }
+inline unsigned int __niji_stdbit_first_trailing_one (unsigned long __v) __NIJI_NOTHROW {return stdc_first_trailing_one_ul (__v); }
+inline unsigned int __niji_stdbit_first_trailing_one (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_first_trailing_one_ull (__v); }
+inline unsigned int __niji_stdbit_count_zeros (unsigned char __v) __NIJI_NOTHROW {return stdc_count_zeros_uc (__v); }
+inline unsigned int __niji_stdbit_count_zeros (unsigned short __v) __NIJI_NOTHROW {return stdc_count_zeros_us (__v); }
+inline unsigned int __niji_stdbit_count_zeros (unsigned int __v) __NIJI_NOTHROW {return stdc_count_zeros_ui (__v); }
+inline unsigned int __niji_stdbit_count_zeros (unsigned long __v) __NIJI_NOTHROW {return stdc_count_zeros_ul (__v); }
+inline unsigned int __niji_stdbit_count_zeros (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_count_zeros_ull (__v); }
+inline unsigned int __niji_stdbit_count_ones (unsigned char __v) __NIJI_NOTHROW {return stdc_count_ones_uc (__v); }
+inline unsigned int __niji_stdbit_count_ones (unsigned short __v) __NIJI_NOTHROW {return stdc_count_ones_us (__v); }
+inline unsigned int __niji_stdbit_count_ones (unsigned int __v) __NIJI_NOTHROW {return stdc_count_ones_ui (__v); }
+inline unsigned int __niji_stdbit_count_ones (unsigned long __v) __NIJI_NOTHROW {return stdc_count_ones_ul (__v); }
+inline unsigned int __niji_stdbit_count_ones (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_count_ones_ull (__v); }
+inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned char __v) __NIJI_NOTHROW {return stdc_has_single_bit_uc (__v); }
+inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned short __v) __NIJI_NOTHROW {return stdc_has_single_bit_us (__v); }
+inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned int __v) __NIJI_NOTHROW {return stdc_has_single_bit_ui (__v); }
+inline __niji_stdbit_bool __niji_stdbit_has_single_bit (unsigned long __v) __NIJI_NOTHROW {return stdc_has_single_bit_ul (__v); }
+inline __niji_stdbit_bool __niji_stdbit_has_single_bit (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_has_single_bit_ull (__v); }
+inline unsigned int __niji_stdbit_bit_width (unsigned char __v) __NIJI_NOTHROW {return stdc_bit_width_uc (__v); }
+inline unsigned int __niji_stdbit_bit_width (unsigned short __v) __NIJI_NOTHROW {return stdc_bit_width_us (__v); }
+inline unsigned int __niji_stdbit_bit_width (unsigned int __v) __NIJI_NOTHROW {return stdc_bit_width_ui (__v); }
+inline unsigned int __niji_stdbit_bit_width (unsigned long __v) __NIJI_NOTHROW {return stdc_bit_width_ul (__v); }
+inline unsigned int __niji_stdbit_bit_width (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_bit_width_ull (__v); }
+inline unsigned char __niji_stdbit_bit_floor (unsigned char __v) __NIJI_NOTHROW {return stdc_bit_floor_uc (__v); }
+inline unsigned short __niji_stdbit_bit_floor (unsigned short __v) __NIJI_NOTHROW {return stdc_bit_floor_us (__v); }
+inline unsigned int __niji_stdbit_bit_floor (unsigned int __v) __NIJI_NOTHROW {return stdc_bit_floor_ui (__v); }
+inline unsigned long __niji_stdbit_bit_floor (unsigned long __v) __NIJI_NOTHROW {return stdc_bit_floor_ul (__v); }
+inline __niji_stdbit_ull __niji_stdbit_bit_floor (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_bit_floor_ull (__v); }
+inline unsigned char __niji_stdbit_bit_ceil (unsigned char __v) __NIJI_NOTHROW {return stdc_bit_ceil_uc (__v); }
+inline unsigned short __niji_stdbit_bit_ceil (unsigned short __v) __NIJI_NOTHROW {return stdc_bit_ceil_us (__v); }
+inline unsigned int __niji_stdbit_bit_ceil (unsigned int __v) __NIJI_NOTHROW {return stdc_bit_ceil_ui (__v); }
+inline unsigned long __niji_stdbit_bit_ceil (unsigned long __v) __NIJI_NOTHROW {return stdc_bit_ceil_ul (__v); }
+inline __niji_stdbit_ull __niji_stdbit_bit_ceil (__niji_stdbit_ull __v) __NIJI_NOTHROW {return stdc_bit_ceil_ull (__v); }
 }
 
 /* In C++ the type-generic names are macros too, over the overload set above. */
