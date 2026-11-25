@@ -1,43 +1,44 @@
 # HEADERS-BUSYBOX-GAPS: net/if.h ifreq member names, netpacket/packet.h, sys/mtio.h (static busybox)
 
-**State (leg 1 done, 2026-11-25 ~03:00Z).** Branch `task/headers-busybox-gaps` from origin/next 522900c6f; role
-keke:~/w/n4 (the reference system too: Ubuntu GLIBC 2.39, GCC 13.3). Scratch: `~/w/.scratch/HEADERS-BUSYBOX-GAPS/`
-(local), `~/work/headers-busybox-gaps/` (keke: probe1.sh, probe2.sh, member_form.py, names.txt, busybox source
-tarballs in dl/ = busybox_1.37.0.orig.tar.bz2 + busybox_1.37.0-6.debian.tar.xz from the trixie mirror).
-Decisions: none new (everything follows probes; no differences row).
+**State (leg 2, 2026-11-25).** Branch `task/headers-busybox-gaps` from origin/next 522900c6f; role keke:~/w/n4 (also the
+reference system: Ubuntu GLIBC 2.39, GCC 13.3). Scratch: `~/w/.scratch/HEADERS-BUSYBOX-GAPS/` (local),
+`~/work/headers-busybox-gaps/` on keke (probes, bbsweep.sh, *.errors). Decisions: none new; everything follows
+black-box probes; no differences row.
 
-## Done (commits)
-* ad0444409 `header_probe.py busybox_names()` (candidates from netdevice(7), packet(7), st(4), UAPI linux/if.h,
-  if_packet.h, mtio.h) wired into candidates(); `abi_extract.py` TYPES + sys/mtio.h in HEADERS.
-* f1feb557c visibility.tsv +201 rows (header_probe --names), layouts.tsv +59 rows (8 tags: ifconf, ifaddr,
-  packet_mreq, mtop, mtget, mtpos, mtconfiginfo, mt_tape_info). net/if_packet.h `sockaddr_pkt` row NOT spliced
-  (outside the three headers; INFORMATIONAL).
-* 1ac58ed72 macros.tsv +122 (PACKET_*, MT*, MT_ST_*, MTIOC*, DEFTAPE), typedefs.tsv +8.
+## Commits
+* ad0444409, f1feb557c, 1ac58ed72 (leg 1): header_probe busybox_names(), visibility +201, layouts +59, macros +122,
+  typedefs +8.
+* 93761ceac headers: net/if.h.in ifr_*/ifc_* member macros (`@@when ifreq` / `@@when ifconf`); net/if_ppp.h.in and
+  net/if_shaper.h.in include <net/if.h> (they show every name of net/if.h but include guards); if_ppp.h's own
+  `ifr_mtu` (`ifr_ifru.ifru_metric`) where net/if.h does not show it; sys/mtio.h.in GMT_* and MT_TAPE_INFO;
+  `__daddr_t` visibility +139 rows and typedefs row (struct mtget's mt_fileno/mt_blkno).
+* 83efb5a0e header_check: s12.py `member_names` (form, offset, not-shown units), s15.py `mtio_units`; plants file
+  handoff/HEADERS-BUSYBOX-GAPS-plants.txt (6 template mutants).
 
-## Probe-settled
-* net/if.h: ifr_*/ifc_* are MACROS wherever struct ifreq is shown (gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,
-  time64,dynstack,reentrant,fortify1-3,C++; not strict C/POSIX). Form (member_form.py: `#define <token>
-  niji_no_member` after the header, which `sizeof(r->M)` lines fail): ifr_name = ifr_ifrn.ifrn_name;
-  ifr_hwaddr/addr/dstaddr/broadaddr/netmask/flags/mtu/map/slave/data/newname = ifr_ifru.ifru_<same>;
-  ifr_metric, ifr_ifindex, ifr_bandwidth, ifr_qlen = ifr_ifru.ifru_ivalue; ifc_buf = ifc_ifcu.ifcu_buf,
-  ifc_req = ifc_ifcu.ifcu_req. ifr_settings: not in the reference. libniji today: none of them (busybox's failure).
-* Not in the reference anywhere: PACKET_USER, PACKET_KERNEL, MTWEOFI, MT_ISONSTREAM_SC, GMT_CLN, MT_ST_TIMEOUTS,
-  MT_ST_SET_TIMEOUT, MT_ST_SET_LONG_TIMEOUT, MT_ST_SET_CLN, MT_ST_SYSV, MT_ST_NOWAIT, MT_ST_SILI, MT_ST_NOWAIT_EOF,
-  tags tpacket_req/stats/auxdata/hdr.
-* sys/mtio.h: include-error in time64only only; netpacket/packet.h names in every configuration (`*`).
+## Probe-settled (black box, keke)
+* ifr_*/ifc_* form: leg 1 (handoff history). ifr_mtu in net/if_ppp.h: net/if.h's `ifr_ifru.ifru_mtu` where struct
+  ifreq is shown (gnu17, c++17), `ifr_ifru.ifru_metric` in strict C (c17): poison-after-header probe, ppp_form.sh.
+* GMT_*: each `GMT_X(1UL<<k)` nonzero only for its bit and equal to it; type unsigned int for GMT_EOF, int for the
+  others (int argument), unsigned long for an unsigned long argument. MT_TAPE_INFO: 17 rows, t_type = the MT_IS*
+  values, names as in the template, last row {0, NULL}.
+* __daddr_t: int, size 4, align 4, shown by 139 headers (!time64only).
 
-## Exact next steps (leg 2)
-1. Value probe (black box, run a program against the reference on keke): GMT_EOF..GMT_IM_REP_EN (12 function-like:
-   mask by evaluating each on 1UL<<k, k 0..63, and the result type) and MT_TAPE_INFO (`struct mt_tape_info t[] =
-   MT_TAPE_INFO;` count, t_type, t_name). Spell them in headers/sys/mtio.h.in (`@@when`/`@@if` like signal.h.in).
-2. headers/net/if.h.in: `@@when ifreq` block with the ifr_* macros, `@@when ifconf` with ifc_buf/ifc_req (exact
-   spelling above; see headers/signal.h.in si_* for the pattern; `@@owns-macro` if needed).
-3. `cargo xtask headers-gen`; check packet.h/mtio.h emit the structs and macros; `cargo xtask abi-gen` if layouts
-   feed crates/abi (HEADERS-TABLES-NET did: crates/abi/src/layout.rs, appendix_c_layouts.rs).
-4. header_check rows: s12.py (net/if.h): per config, macro form via C++11 stringification (`niji_streq(XS(ifr_name),
-   "ifr_ifrn.ifrn_name")`), offsetof/type equal to the nested member; ctx.exact for ifc/ifr names. s13/s15 P1 cover
-   packet.h/mtio.h values and sizes automatically (check). GMT_* value test in s15.py.
-5. busybox sweep on keke (`make -k` stock vs `-nostdinc -isystem libc-include`), then debs (keke, like
-   ~/w/.scratch/HEADERS-SNAPSHOT-GAPS/debs.sh, ~38 min) + ypk.sh on mei (~5 min). Plants file
-   handoff/HEADERS-BUSYBOX-GAPS-plants.txt (template mutants: drop an ifr_ macro, ifr_ifindex via ifru_mtu, a GMT
-   mask, MTWEOF value via template). header_check, clippy, static, precheck; report json.
+## Results
+* header_check.py --include libc-include: 0 failed of 17657 (job headers-busybox-gaps-hgcheck-1).
+* clippy -D warnings and `cargo xtask static` on the role: clean (foreground).
+* Gate: `cargo xtask affected` escalates to FULL (generated headers and spec/abi tables): FULL is the train's.
+* busybox 1.37.0 defconfig + CONFIG_STATIC, `make -k` compile sweep on keke (bbsweep.sh, job
+  headers-busybox-gaps-bbsweep-2): stock 15 errors in 1 file; libniji headers 94 in 17 files, 79 libniji-only in 16
+  files; none in arp.c, arping.c, mt.c, libbb/xconnect.c. Remaining (outside this story's three headers), first
+  error per file: ftpd.c, nbd-client.c TCP_NODELAY (netinet/tcp.h); nslookup.c HEADER (arpa/nameser.h); ping.c,
+  traceroute.c icmp6_data8/icmp6_id (netinet/icmp6.h) and icmp_id/icmp_seq/icmp_data (netinet/ip_icmp.h); route.c
+  rt_mss (net/route.h); udhcp/d6_dhcpc.c, d6_packet.c ip6_nxt/ip6_hlim (netinet/ip6.h); zcip.c arp_hln.. (netinet/
+  if_ether.h); logger.c, syslogd.c, syslogd_and_logger.c CODE/facilitynames/INTERNAL_MARK (syslog.h SYSLOG_NAMES);
+  eject.c ALLOW_MEDIUM_REMOVAL, sg_io_hdr_t (scsi/scsi.h, scsi/sg.h); ipcs.c msginfo/shminfo/shm_info, msg_cbytes
+  (sys/msg.h, sys/shm.h); setarch.c PER_LINUX32 (sys/personality.h); swaponoff.c MNTOPT_NOAUTO (mntent.h). Most are
+  the same member-name-macro pattern as ifr_* (one follow-up story).
+* NOT DONE (refused): the static busybox build against the system flavour on mei and the debs/ypk steps (mei access
+  refused, see the report). INFORMATIONAL: net/if_packet.h `sockaddr_pkt` not spliced (outside the three headers).
+
+## Next step
+Plants job headers-busybox-gaps-plants-1 result, precheck, hand-back. Follow-up story for the sweep's remaining names.
