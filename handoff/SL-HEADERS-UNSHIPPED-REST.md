@@ -45,3 +45,4 @@ recompute); headers_unshipped.tsv now lists only math-vector-fortran.h; the know
 header. Regenerating headers on the merged tree changed one file, signal.h (union sigval has sival_int/sival_ptr again;
 the merge had taken an opaque form), committed. Clippy and static clean on the merged head. Gate and plants (run 2's
 plants file, unchanged) are the jobs in the report json. Nothing else changed; no design change.
+Run 3 gate 1 was red on the xtask stale-products test: the four headers had no tools/deb/manifest.tsv row (added, sorted). Gate 2 and plants 2 on that head are green. The first lines of the red were a race of that test with the products build (also seen 11-24 in another story).
