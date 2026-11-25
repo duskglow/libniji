@@ -1,18 +1,88 @@
-{"task": "RELEASE-SNAPSHOT-1125A", "model": "opus", "tokens": null,
+{
+ "task": "RELEASE-SNAPSHOT-1125A",
+ "model": "opus",
+ "tokens": null,
  "result": "522900c6f closes every 24.2 header gap (hp 104 SAME / 0 DIFF; 7 of 7 packages incl. tree and xxhash; sweeps 0 FAIL C and C++) and equals 24.2 on every other check; apt configures (sig_t) but does not build: 3 new gaps (si_syscall, HEADER, C++ sockaddr args) -> HEADERS-APT-GAPS; static busybox still fails (net/if.h, sys/mtio.h; not blocking)",
- "branch": "task/release-snapshot-1125a", "head": null,
- "gate": {"affected": "GATE bad=0 (release-snapshot-1125a-gate-1, direct tier)", "peak": "1.2G"},
+ "branch": "task/release-snapshot-1125a",
+ "head": null,
+ "gate": {
+  "affected": "GATE bad=0 (release-snapshot-1125a-gate-1, direct tier)",
+  "peak": "1.2G"
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "publish 522900c6f with apt (3 header gaps) and static busybox as stated limitations", "recommendation": "publish (coordinator ruled so 04:05Z); re-cut when HEADERS-APT-GAPS lands, rerunning yapt.sh and hp2.sh"}],
- "informational": ["busybox static also misses struct ifreq ifr_qlen (add to HEADERS-BUSYBOX-GAPS)",
-                   "heap_meta_products find_over_200000_entries_bounds_its_address_space still red on next (36,672..38,464 KiB > 35,000; = 24.2)",
-                   "copy.sh/subst.sed ref241->ref242 renamed y23p's data file ref241.txt (trixie 2.41 table); fixed in the job dir, y23p-2 rc 0"],
+ "rulings": [
+  {
+   "item": "publish 522900c6f with apt (3 header gaps) and static busybox as stated limitations",
+   "recommendation": "publish (coordinator ruled so 04:05Z); re-cut when HEADERS-APT-GAPS lands, rerunning yapt.sh and hp2.sh"
+  }
+ ],
+ "informational": [
+  "busybox static also misses struct ifreq ifr_qlen (add to HEADERS-BUSYBOX-GAPS)",
+  "heap_meta_products find_over_200000_entries_bounds_its_address_space still red on next (36,672..38,464 KiB > 35,000; = 24.2)",
+  "copy.sh/subst.sed ref241->ref242 renamed y23p's data file ref241.txt (trixie 2.41 table); fixed in the job dir, y23p-2 rc 0"
+ ],
+ "evidence_jobs_rc_nonzero_by_finding": [
+  "release-snapshot-1125a-heapnode-1 (rc 101: #21 bound, = 24.2)",
+  "mei:release-snapshot-1125a-hp2-1 (rc 1: the 3 apt gaps, 20 DIFF)",
+  "mei:release-snapshot-1125a-yapt-2 (rc 1: apt builds on stock only)",
+  "mei:release-snapshot-1125a-yhc-1 (rc 1: niji-cc rows, not shipped; = 24.2)"
+ ],
  "refused": [],
- "impact": [{"kind": "correctness", "what": "header identifiers equal to stock 2.39 (sig_t, sighandler_t, u_long, RE_TRANSLATE_TYPE, utmp/wtmp paths, S_IF*/S_IS*): DIFF probes", "before": 48, "after": 0, "unit": "probes differing of 104", "measured": true},
-            {"kind": "correctness", "what": "Debian packages building on the system flavour (ypk set)", "before": 5, "after": 7, "unit": "packages of 7", "measured": true},
-            {"kind": "unblock", "what": "apt configure passes on libniji (Yohane R-H7); build still blocked by HEADERS-APT-GAPS", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "perf", "what": "start-up user instructions, 3 libraries, Zen 1 (libc.so.6 and ld.so byte-identical to 24.2)", "before": 241564, "after": 241564, "unit": "instr/start", "measured": true}],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "header identifiers equal to stock 2.39 (sig_t, sighandler_t, u_long, RE_TRANSLATE_TYPE, utmp/wtmp paths, S_IF*/S_IS*): DIFF probes",
+   "before": 48,
+   "after": 0,
+   "unit": "probes differing of 104",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "Debian packages building on the system flavour (ypk set)",
+   "before": 5,
+   "after": 7,
+   "unit": "packages of 7",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "apt configure passes on libniji (Yohane R-H7); build still blocked by HEADERS-APT-GAPS",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "start-up user instructions, 3 libraries, Zen 1 (libc.so.6 and ld.so byte-identical to 24.2)",
+   "before": 241564,
+   "after": 241564,
+   "unit": "instr/start",
+   "measured": true
+  }
+ ],
  "improvement": "copy.sh's label substitutions should be anchored to labels (-ref241, logs-*-ref241) so data files such as ref241.txt keep their names; and an ninja -k 0 pass in package builds gives the fix story every gap at once instead of one per cycle",
  "next_step": "coordinator: publish 522900c6f with the stated limitations; HEADERS-APT-GAPS then re-cut (yapt.sh + hp2.sh must pass)",
  "report_file": "handoff/RELEASE-SNAPSHOT-1125A.md",
- "jobs": ["release-snapshot-1125a-smoke-keke-1", "release-snapshot-1125a-gate-1", "release-snapshot-1125a-heapnode-1", "release-snapshot-1125a-debs-1", "release-snapshot-1125a-plants-1", "release-snapshot-1125a-pkgdiff-1", "release-snapshot-1125a-stage-1", "release-snapshot-1125a-install-1", "release-snapshot-1125a-gaimass-1", "release-snapshot-1125a-startup-keke-1", "mei:release-snapshot-1125a-hp-1", "mei:release-snapshot-1125a-hp2-1", "mei:release-snapshot-1125a-yapt-2", "mei:release-snapshot-1125a-ypk-1", "mei:release-snapshot-1125a-yh-1", "mei:release-snapshot-1125a-yhc-1", "mei:release-snapshot-1125a-roots-1", "mei:release-snapshot-1125a-lint-1", "mei:release-snapshot-1125a-y23p-2", "mei:release-snapshot-1125a-y21-1", "mei:release-snapshot-1125a-smoke-mei-1", "mei:release-snapshot-1125a-startup-mei-1"]}
+ "jobs": [
+  "release-snapshot-1125a-smoke-keke-1",
+  "release-snapshot-1125a-gate-1",
+  "release-snapshot-1125a-debs-1",
+  "release-snapshot-1125a-plants-1",
+  "release-snapshot-1125a-pkgdiff-1",
+  "release-snapshot-1125a-stage-1",
+  "release-snapshot-1125a-install-1",
+  "release-snapshot-1125a-gaimass-1",
+  "release-snapshot-1125a-startup-keke-1",
+  "mei:release-snapshot-1125a-hp-1",
+  "mei:release-snapshot-1125a-ypk-1",
+  "mei:release-snapshot-1125a-yh-1",
+  "mei:release-snapshot-1125a-roots-1",
+  "mei:release-snapshot-1125a-lint-1",
+  "mei:release-snapshot-1125a-y23p-2",
+  "mei:release-snapshot-1125a-y21-1",
+  "mei:release-snapshot-1125a-smoke-mei-1",
+  "mei:release-snapshot-1125a-startup-mei-1"
+ ]
+}
