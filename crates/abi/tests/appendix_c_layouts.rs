@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (355 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (356 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1477,21 +1477,37 @@ fn abi_struct_sockaddr_storage() {
 #[test]
 fn abi_sockaddr_arg() {
     expect_type("__SOCKADDR_ARG", size_of::<__SOCKADDR_ARG>(), align_of::<__SOCKADDR_ARG>());
-    expect_member("__SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__SOCKADDR_ARG, __tu_sockaddr));
-    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in));
-    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in6));
-    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_un));
-    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_x25));
+    expect_member("__SOCKADDR_ARG", "__sockaddr__", offset_of!(__SOCKADDR_ARG, __sockaddr__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_at__", offset_of!(__SOCKADDR_ARG, __sockaddr_at__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_ax25__", offset_of!(__SOCKADDR_ARG, __sockaddr_ax25__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_dl__", offset_of!(__SOCKADDR_ARG, __sockaddr_dl__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_eon__", offset_of!(__SOCKADDR_ARG, __sockaddr_eon__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_in__", offset_of!(__SOCKADDR_ARG, __sockaddr_in__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_in6__", offset_of!(__SOCKADDR_ARG, __sockaddr_in6__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_inarp__", offset_of!(__SOCKADDR_ARG, __sockaddr_inarp__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_ipx__", offset_of!(__SOCKADDR_ARG, __sockaddr_ipx__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_iso__", offset_of!(__SOCKADDR_ARG, __sockaddr_iso__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_ns__", offset_of!(__SOCKADDR_ARG, __sockaddr_ns__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_un__", offset_of!(__SOCKADDR_ARG, __sockaddr_un__));
+    expect_member("__SOCKADDR_ARG", "__sockaddr_x25__", offset_of!(__SOCKADDR_ARG, __sockaddr_x25__));
 }
 
 #[test]
 fn abi_const_sockaddr_arg() {
     expect_type("__CONST_SOCKADDR_ARG", size_of::<__CONST_SOCKADDR_ARG>(), align_of::<__CONST_SOCKADDR_ARG>());
-    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr));
-    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in));
-    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in6));
-    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_un));
-    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_x25));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_at__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_at__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_ax25__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_ax25__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_dl__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_dl__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_eon__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_eon__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_in__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_in__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_in6__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_in6__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_inarp__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_inarp__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_ipx__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_ipx__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_iso__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_iso__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_ns__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_ns__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_un__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_un__));
+    expect_member("__CONST_SOCKADDR_ARG", "__sockaddr_x25__", offset_of!(__CONST_SOCKADDR_ARG, __sockaddr_x25__));
 }
 
 #[test]
@@ -2665,6 +2681,17 @@ fn abi_struct_ip_mreqn() {
     expect_member("struct ip_mreqn", "imr_address", offset_of!(struct_ip_mreqn, imr_address));
     expect_member("struct ip_mreqn", "imr_address.s_addr", offset_of!(struct_ip_mreqn, imr_address.s_addr));
     expect_member("struct ip_mreqn", "imr_ifindex", offset_of!(struct_ip_mreqn, imr_ifindex));
+}
+
+#[test]
+fn abi_struct_ip_mreq_source() {
+    expect_type("struct ip_mreq_source", size_of::<struct_ip_mreq_source>(), align_of::<struct_ip_mreq_source>());
+    expect_member("struct ip_mreq_source", "imr_multiaddr", offset_of!(struct_ip_mreq_source, imr_multiaddr));
+    expect_member("struct ip_mreq_source", "imr_multiaddr.s_addr", offset_of!(struct_ip_mreq_source, imr_multiaddr.s_addr));
+    expect_member("struct ip_mreq_source", "imr_interface", offset_of!(struct_ip_mreq_source, imr_interface));
+    expect_member("struct ip_mreq_source", "imr_interface.s_addr", offset_of!(struct_ip_mreq_source, imr_interface.s_addr));
+    expect_member("struct ip_mreq_source", "imr_sourceaddr", offset_of!(struct_ip_mreq_source, imr_sourceaddr));
+    expect_member("struct ip_mreq_source", "imr_sourceaddr.s_addr", offset_of!(struct_ip_mreq_source, imr_sourceaddr.s_addr));
 }
 
 #[test]
