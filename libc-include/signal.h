@@ -843,6 +843,10 @@ typedef union {
 #  define __NIJI_D_fpregset_t 1
 typedef struct _libc_fpstate * fpregset_t;
 # endif
+# ifndef __NIJI_D_greg_t
+#  define __NIJI_D_greg_t 1
+typedef long long greg_t;
+# endif
 # ifndef __NIJI_D_gregset_t
 #  define __NIJI_D_gregset_t 1
 typedef long long gregset_t[23];

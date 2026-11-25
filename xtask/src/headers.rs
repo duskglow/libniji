@@ -879,7 +879,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
             g.errors.push(format!("headers/{h}.in has no @@generated line"));
         }
         errors.extend(g.errors);
-        out.push((h, g.out.join("\n") + "\n"));
+        out.push((h, values::floatn_guards(g.out).join("\n") + "\n"));
     }
     Ok((out, errors))
 }
@@ -1033,6 +1033,25 @@ mod tests {
         assert_eq!(literal("unsigned long", "18446744073709551615").unwrap(), "18446744073709551615UL");
         assert_eq!(literal("int", "-128").unwrap(), "(-128)");
         assert!(literal("double", "1.0").is_err());
+    }
+
+    // No spec clause (TS 18661-3 types by compiler support; HEADERS-GETTEXT-CLANG): a _Float128 line is kept only
+    // under __NIJI_FLOAT128; a _Float32/64/32x/64x declaration has a C-only fallback in the base types; a constant
+    // with such a suffix or builtin has the base type's; casts alone, other lines and look-alike words are untouched.
+    #[test]
+    fn floatn_lines_are_guarded_by_compiler_support() {
+        let g = |l: &str| values::floatn_guards(vec![l.to_string()]);
+        assert_eq!(g("extern _Float128 sinf128 (_Float128);"), ["#  if __NIJI_FLOAT128", "extern _Float128 sinf128 (_Float128);", "#  endif"]);
+        assert_eq!(
+            g("extern _Complex _Float32x cexpf32x (_Complex _Float64x) __asm__ (\"cexpf32x\");"),
+            ["#  if __NIJI_FLOATN", "extern _Complex _Float32x cexpf32x (_Complex _Float64x) __asm__ (\"cexpf32x\");", "#  elif !defined __cplusplus", "extern _Complex double cexpf32x (_Complex long double) __asm__ (\"cexpf32x\");", "#  endif"]
+        );
+        assert_eq!(g("#  define M_PIf64x (3.14e+0f64x)"), ["#  if __NIJI_FLOATN", "#  define M_PIf64x (3.14e+0f64x)", "#  else", "#  define M_PIf64x (3.14e+0L)", "#  endif"]);
+        assert_eq!(g("# define SNANF32 (__builtin_nansf32 (\"\"))")[3], "# define SNANF32 (__builtin_nansf (\"\"))");
+        assert_eq!(g("# define HUGE_VALF128 (__builtin_inff128 ())")[0], "# if __NIJI_FLOAT128");
+        for same in ["# define CMPLXF32(x, y) __builtin_complex ((_Float32) (x), (_Float32) (y))", "# define X 0x1f32", "extern int f32 (int);", "/* _Float128 */"] {
+            assert_eq!(g(same), [same]);
+        }
     }
 
     // C11 5.2.4.2.2 (*_DECIMAL_DIG), C99 6.4.4.2 and C++17 [lex.fcon]: a floating value is spelled in decimal, which
