@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Probe which diagnostic attributes each function carries (plan/headers.md slice 19, Appendix C.14).
 
-    python3 spec/tools/attr_probe.py table [--include DIR] [--out FILE] [--keep DIR]
-    python3 spec/tools/attr_probe.py check --include DIR [--keep DIR]
+    python3 spec/tools/attr_probe.py table [--include DIR] [--out FILE] [--keep DIR] [--columns C,..]
+    python3 spec/tools/attr_probe.py check --include DIR [--keep DIR] [--config CFG] [--kinds K,..]
+
+`--config` names the build configuration (base: `_GNU_SOURCE`, `-O2`, `_FORTIFY_SOURCE=3`; gnu, default
+(no feature macro), fortify2, c++, c++-fortify3); outside base only the nonnull tests (`n.k`, `rn`) run, and a
+test line that builds on one side only is listed as "not declared alike", not counted. The table is written
+from base; `--columns nonnull,nonnull_nofortify` writes those columns and keeps the others' values. `check
+--kinds n,rn` compares only those test kinds.
 
 `table` compiles a corpus against the system's public headers (the reference) and writes
 `spec/abi/diagattrs.tsv`: for each function that libniji's headers (DIR, default libc-include/) declare,
@@ -23,7 +29,13 @@ Tests per function F (parameters from prototypes.tsv: a pointer is `v[k]`, an ar
 a `va_list` is an extern object; a function with a by-value aggregate parameter is not probed):
 * `r`   F(valid arguments) with the result unused: -Wunused-result, -Wdeprecated-declarations, -Wunused-value
         (a pure function).
-* `n.k` F with a null pointer constant for pointer parameter k: -Wnonnull.
+* `n.k` F with a null pointer constant for pointer parameter k, every other pointer (function pointers, pointer
+        typedefs and `locale_t` included) a valid `v[j]` and every number 0: -Wnonnull. Compiled in a unit of
+        its own with `-fno-builtin`, so the compiler's knowledge of a builtin (printf's format, fputs, nan)
+        is not read as the header's, and a size of 0 keeps an `access` attribute quiet (a size of 1 would make
+        it warn about a null buffer the header does not mark nonnull).
+* `rn`  r = F(valid arguments); mk_rn() when r is null: the marker is dropped when the result is known non-null
+        (returns_nonnull); `check` compares it, the table has no column for it.
 * `f.j` F with an unknown `char *` for the `const char *` parameter j (and, for a variadic F, the same
         parameter replaced by the literal "%d" with a string argument in a second test `g.j`): -Wformat*.
 * `h.j` a non-variadic F with the unknown conversion "%y" for the `const char *` parameter j: -Wformat= (the
@@ -46,7 +58,9 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma list of
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure nonnull_nofortify`):
+nonnull_nofortify lists the parameters marked only with `_FORTIFY_SOURCE` off (the `n.k` tests again in the gnu
+configuration; headers-gen emits them as `__NIJI_NONNULL_NF`); nonnull is the comma list of
 1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
 parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
@@ -224,9 +238,10 @@ def cxx_type(p):
     return re.sub(r"\s*\[[^\]]*\]\s*$", " *", p)
 
 
-def corpus(names, heads, pr, cfg="base"):
+def corpus(names, heads, pr, cfg="base", every=None):
+    """The probe program; every=False keeps only the nonnull tests (the default: every test in base only)."""
     cxx = CONFIGS[cfg]["lang"] == "c++"
-    every_test = cfg == "base"
+    every_test = cfg == "base" if every is None else every
     # unistd.h first: with fcntl.h included before it, the reference's lockf loses its warn_unused_result (the header
     # order changes the answer), and a program that includes unistd.h alone sees it.
     order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
@@ -602,7 +617,9 @@ def main():
     pr = protos()
     names, heads = declared(args.include, pr, cfg)
     PTR_TYPEDEFS.update(pointer_typedefs(pr, names, heads, cfg))
-    text, meta = corpus(names, heads, pr, cfg)
+    # A table run that writes only the nonnull columns needs only the nonnull tests (a fraction of the corpus).
+    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull", "nonnull_nofortify"}
+    text, meta = corpus(names, heads, pr, cfg, False if nn_only else None)
     ref = results(text, meta, None, args.keep, "ref", cfg)
     if args.mode == "table":
         rn = sorted(n for n, r in derive(ref, pr, names).items() if r["returns_nonnull"])
