@@ -4,8 +4,12 @@
 + regenerated headers, fdf52784e accept list + plants); this note and the report json on top. Role keke:~/w/n4.
 Jobs: `sl-headers-p4-callsites-gate` (direct tier: `cargo xtask affected --run --base origin/next`),
 `sl-headers-p4-callsites-xtask-headers` (`cargo test -p xtask --bin xtask headers`: the rows test and the generator's
-tests, which `affected` does not list), `sl-headers-p4-callsites-plants` (handoff/SL-HEADERS-P4-CALLSITES-plants.txt),
-`sl-headers-p4-callsites-p4run2` (headers-gen + so + full P4 on the code). Results: see "Results" below.
+tests, which `affected` does not list), `sl-headers-p4-callsites-plants-2` (handoff/SL-HEADERS-P4-CALLSITES-plants.txt).
+**Results.** Gate rc 0: 6 suites, 695 passed, 0 failed, peak 1.8G. xtask headers: 26 passed, 0 failed (rows test
+included). Plants-2: 6 CAUGHT, no WARN; its baselines are P4 part 2 (--no-cxx) and part 1 (--no-noexcept) green on
+the code head. clippy (workspace, all targets, all features) and static clean. Superseded: `-p4run1` (math.h failed
+in C++11+, fixed by 5dff4e3e8), `-p4run2` (rc 1: the 43 lines before the accept list), `-plants` (stopped; its
+reserved.tsv emit->omit plant SURVIVED by design, see Plants).
 
 **Ruling in force.** #8468 (challenge accepted): P4 part 2 follows D-X.107 (R-H2/R-H3) and the headers/reserved.tsv
 exclusion P2/P3 use; the math.h `__` names stay omitted; emit stdio_ext.h's documented `__f*` names. D-X.158 (-O2
