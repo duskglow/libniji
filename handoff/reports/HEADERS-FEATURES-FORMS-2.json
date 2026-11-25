@@ -1,6 +1,6 @@
 {"task": "HEADERS-FEATURES-FORMS-2", "model": "opus", "tokens": null,
  "result": "gate3's red fixed at the cause: the reference shows F_OWNER_GID (probe), visibility.tsv lacked its 6 rows; spliced, gate green, plant caught",
- "branch": "task/headers-features-forms-2", "head": null,
+ "branch": "task/headers-features-forms-2", "head": "f4cb131dd (code; report commits follow)",
  "gate": {"affected": "699 passed / 0 failed (6 suites; bounded xtask set, FULL is the train's)", "peak": "2.6G"},
  "accepted_first_attempt": null,
  "rulings": [],
