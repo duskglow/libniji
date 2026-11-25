@@ -4537,6 +4537,7 @@ assert.h	__assert_fail	function	!time64only
 assert.h	__assert_perror_fail	function	!time64only
 assert.h	assert	macro	!time64only
 assert.h	assert_perror	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+assert.h	static_assert	macro	!c89,c99,c2x,gnu2x,isoc99,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 byteswap.h	-	include-error	time64only
 byteswap.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 byteswap.h	_BITS_BYTESWAP_H	macro	!time64only

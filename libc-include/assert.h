@@ -32,6 +32,14 @@ __NIJI_END_C
 # endif
 #endif
 
+/* C 7.2 (C11, C17): static_assert expands to _Static_assert. Shown in the configurations where black-box probes of
+   the reference show it (spec/abi/visibility.tsv): not strict C89 or C99, not C23 modes (a keyword there), not C++
+   (a keyword). perl's perl.h tests `defined(static_assert)`. The levels table has no column for the language's own
+   standard version, so the condition is written here: C11 names visible, and the language is neither C23 nor C++. */
+#if __NIJI_ISOC >= 2011 && !defined __cplusplus && !(defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L)
+# define static_assert _Static_assert
+#endif
+
 #if __NIJI_GNU
 # ifdef NDEBUG
 #  define assert_perror(errnum) ((void) 0)

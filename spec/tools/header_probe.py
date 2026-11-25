@@ -348,6 +348,8 @@ def package_names():
     # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
     # the interpreter structure's layout with it.
     out += ["_NL_LOCALE_NAME"]
+    # NL-LOCALE-NAME-ABI: ISO C11 7.2's `static_assert` macro of <assert.h>; perl.h tests `defined(static_assert)`.
+    out += ["static_assert"]
     return out
 
 
