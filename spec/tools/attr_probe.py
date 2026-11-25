@@ -8,7 +8,8 @@
 (no feature macro), fortify2, c++, c++-fortify3); outside base only the nonnull tests (`n.k`, `rn`) run, and a
 test line that builds on one side only is listed as "not declared alike", not counted. The table is written
 from base; `--columns nonnull` writes that column and keeps the others' values. `check
---kinds n,rn` compares only those test kinds, and of each line only the signal the kind measures (MEASURES).
+--kinds n,rn` compares only those test kinds; an `n` or `rn` line is compared on the signal it measures only
+(MEASURES), in every mode.
 
 `table` compiles a corpus against the system's public headers (the reference) and writes
 `spec/abi/diagattrs.tsv`: for each function that libniji's headers (DIR, default libc-include/) declare,
@@ -700,7 +701,11 @@ def main():
         if (cfg != "base" or focus) and ref[ln][2] != got[ln][2]:
             unseen.setdefault("reference only" if got[ln][2] else "libniji only", set()).add(ref[ln][0][0])
             continue
-        if focus is not None:
+        # A nonnull line (n, rn) is compared on the signal it measures only, in every mode: its unit is built with
+        # -fno-builtin and its null and zero arguments wake other attributes (a sentinel, a format, a deprecation),
+        # which the r, s, f and h lines judge as the program's own build sees them. A line that builds on one side
+        # only is still a difference below.
+        if focus is not None or (ref[ln][0][1] in MEASURES and ref[ln][2] == got[ln][2]):
             if ref[ln][1] & MEASURES[ref[ln][0][1]] != got[ln][1] & MEASURES[ref[ln][0][1]]:
                 diff += 1
                 print("line %d %s: reference %s, libniji %s" % (ln, " ".join(map(str, ref[ln][0])), sorted(ref[ln][1]), sorted(got[ln][1])))
