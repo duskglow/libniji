@@ -205,6 +205,11 @@ struct Tables {
     /// enum-macros.tsv (HEADERS-CXX-ENUM-TYPES): a macro that is an enumerator in the reference -> the enumerator it
     /// names (itself, or the enumerator of the same enumeration with its value), and the headers where it does not.
     enum_macros: BTreeMap<String, (String, BTreeSet<String>)>,
+    /// macro-forms.tsv (HEADERS-FEATURES-FORMS): the (header, macro) pairs whose definition the reference does NOT put
+    /// in force over a program's earlier definition of the name (a black-box probe of every macro visibility.tsv shows
+    /// under `_GNU_SOURCE`). Those, and macros not visible there (not probed), are emitted under `#ifndef`; every
+    /// other one is defined outright, as the reference does.
+    guarded: BTreeSet<(String, String)>,
     /// `vis` by header and name.
     vis_index: VisIndex,
 }
@@ -272,6 +277,14 @@ impl Tables {
     /// The first visibility.tsv row of (`name`, `kind`) in `header`.
     fn vis_row(&self, header: &str, name: &str, kind: &str) -> Option<&BTreeMap<String, String>> {
         self.vis_index.row(&self.vis, header, name, kind)
+    }
+
+    /// Whether `header` defines the macro `name` outright (see `guarded`): visible there under `_GNU_SOURCE`
+    /// (configuration `gnu`, where the form was probed) and not a macro-forms.tsv row.
+    fn redefined(&self, header: &str, name: &str) -> bool {
+        let gnu = self.lv.ids.iter().position(|i| i == "gnu");
+        let shown = self.vis_row(header, name, "macro").and_then(|r| mask_of(&self.lv, &r["configs"]).ok());
+        matches!((gnu, shown), (Some(g), Some(m)) if m >> g & 1 == 1) && !self.guarded.contains(&(header.to_string(), name.to_string()))
     }
 
     /// The visibility.tsv rows of `header`, in table order.
@@ -388,9 +401,10 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let enum_macros = tsv(root, "spec/abi/enum-macros.tsv")?.into_iter().map(|r| (r["name"].clone(), (r["enumerator"].clone(), r["not_in"].split(',').filter(|h| !h.is_empty()).map(String::from).collect()))).collect();
+    let guarded = tsv(root, "spec/abi/macro-forms.tsv")?.into_iter().filter(|r| !r["result"].starts_with("replaced")).map(|r| (r["header"].clone(), r["name"].clone())).collect();
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, guarded, vis_index })
 }
 
 /// The scalar functions of the `libmvec.so.1` rows of versions.tsv (D-X.170). GCC's `simd ("notinbranch")` attribute
@@ -611,7 +625,13 @@ impl Gen<'_> {
                     Some(e) => e,
                     None => self.value(name),
                 };
-                self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+                // The reference's form (macro-forms.tsv): a definition that replaces a program's earlier one is emitted
+                // unconditionally, so the program's spelling (flex's `SIZE_MAX (~(size_t)0)`) is not the one in force.
+                if self.t.redefined(&self.header, name) {
+                    self.out.push(format!("# define {name} {v}"));
+                } else {
+                    self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+                }
             }
             "enumerator" => {
                 // The name is an enumerator and (its macro row) a macro of the same value, as the reference's

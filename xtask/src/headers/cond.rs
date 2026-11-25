@@ -21,8 +21,12 @@ pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
     ("isoc", "__NIJI_ISOC", &[1999, 2011, 2023]),
     ("posix", "__NIJI_POSIX", &[1, 2, 199309, 199506, 200112, 200809]),
     ("xsi", "__NIJI_XSI", &[400, 450, 500, 600, 700]),
-    ("misc", "__NIJI_MISC", &[]),
-    ("gnu", "__NIJI_GNU", &[]),
+    // The two flag levels other software also tests by their reference names (features.h defines `__USE_MISC` and
+    // `__USE_GNU` exactly when `__NIJI_MISC` and `__NIJI_GNU` are 1): a header tests the name when it is included, so
+    // a program that defines `__USE_GNU` itself after a first libc header (less's pattern.h, before <regex.h>) sees
+    // the GNU declarations of later headers, as with the reference (black-box probe, HEADERS-FEATURES-FORMS).
+    ("misc", "defined __USE_MISC", &[]),
+    ("gnu", "defined __USE_GNU", &[]),
     ("lfs64", "__NIJI_LFS64", &[]),
     ("fob64", "__NIJI_FOB64", &[]),
     ("time64", "__NIJI_TIME64", &[]),

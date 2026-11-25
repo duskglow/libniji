@@ -17,8 +17,13 @@
 __NIJI_BEGIN_C
 
 @@owns max_align_t
-@@owns-macro strdupa strndupa NULL
+@@owns-macro strdupa strndupa NULL SUN_LEN
 @@emit
+
+/* unix(7): the length of the address part of a struct sockaddr_un through the end of its sun_path string. */
+@@when SUN_LEN
+# define SUN_LEN(ptr) (__builtin_offsetof (struct sockaddr_un, sun_path) + strlen ((ptr)->sun_path))
+#endif
 
 __NIJI_END_C
 
