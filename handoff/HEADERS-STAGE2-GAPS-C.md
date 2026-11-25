@@ -32,12 +32,12 @@ every row follows black-box probes; no differences row. Do not redo: anything be
 ## Jobs (keke) for the final code head 146de4e37
 * `headers-stage2-gaps-c-hc3`: clippy -D warnings, static, headers-gen --check, abi-gen --check, FULL header_check
   **0 failed of 21049** (FORM-DIFF notes 1557 as before, none in the six headers), `cargo test -p xtask`, `cargo test -p
-  niji-abi`. Result: see hand-back.
+  niji-abi`: **rc 0** (xtask 665 + 367 tests passed, niji-abi green).
 * `headers-stage2-gaps-c-plants3`: **3 plants, 3 CAUGHT, 0 WARN** (handoff/HEADERS-STAGE2-GAPS-C-plants3.txt).
 * `headers-stage2-gaps-c-plants4`: the 13 leg-2 plants re-run on this head (handoff/HEADERS-STAGE2-GAPS-C-plants.txt;
   13/13 CAUGHT on 9275c0042 before).
 * Proofs: `-proof8` net-tools 2.10 lib/ax25.c, ax25_gr.c, netrom*.c, rose*.c, ipx*.c, econet.c, ash.c, af.c with every
-  family on, against libniji's headers (`-proof7` SUPERSEDED: version.h, a make product, was missing). `-proof6`
+  family on, against libniji's headers: **13 of 13 modules ok, 0 warnings** (`-proof7` SUPERSEDED: version.h, a make product, was missing). `-proof6`
   coreutils: `src/expr.c` compiles with gmp.h (0 warnings, 10 `__gmpz` references); the link of expr fails on
   `rpl_mbrtoc32`: gnulib's localename.c needs a complete `struct __locale_struct` (`error: invalid use of undefined type`),
   so mbrtoc32's replacement was not built. Not this story's headers: INFORMATIONAL, next story (locale_t's layout key,
