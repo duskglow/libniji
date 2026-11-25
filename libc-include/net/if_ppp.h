@@ -7,85 +7,11 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <sys/ioctl.h>
 
 __NIJI_BEGIN_C
 
-#if 1
-# ifndef __NIJI_D_struct_if_nameindex
-#  define __NIJI_D_struct_if_nameindex 1
-struct if_nameindex {
-  unsigned int if_index;
-  char * if_name;
-};
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_ifmap
-#  define __NIJI_D_struct_ifmap 1
-struct ifmap {
-  unsigned long mem_start;
-  unsigned long mem_end;
-  unsigned short base_addr;
-  unsigned char irq;
-  unsigned char dma;
-  unsigned char port;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_ifmap
-#  define __NIJI_D_struct_ifmap 1
-struct ifmap {
-  unsigned long mem_start;
-  unsigned long mem_end;
-  unsigned short base_addr;
-  unsigned char irq;
-  unsigned char dma;
-  unsigned char port;
-};
-# endif
-# ifndef __NIJI_D_struct_ifreq
-#  define __NIJI_D_struct_ifreq 1
-struct ifreq {
-  union { char ifrn_name[16]; } ifr_ifrn;
-  union { struct sockaddr ifru_addr; struct sockaddr ifru_dstaddr; struct sockaddr ifru_broadaddr; struct sockaddr ifru_netmask; struct sockaddr ifru_hwaddr; short ifru_flags; int ifru_ivalue; int ifru_mtu; struct ifmap ifru_map; char ifru_slave[16]; char ifru_newname[16]; char * ifru_data; } ifr_ifru;
-};
-# endif
-#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -96,147 +22,12 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+
+/* The PPP header names ifr_mtu itself where <net/if.h> does not show struct ifreq's member names, as the metric
+   member (black-box form probe, HEADERS-BUSYBOX-GAPS); elsewhere the name is <net/if.h>'s. */
 #if 1
-struct if_nameindex;
-# ifndef __NIJI_D_if_freenameindex
-#  define __NIJI_D_if_freenameindex 1
-extern void if_freenameindex (struct if_nameindex *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_if_indextoname
-#  define __NIJI_D_if_indextoname 1
-extern char *if_indextoname (unsigned int, char *) __NIJI_NOTHROW;
-# endif
-struct if_nameindex;
-# ifndef __NIJI_D_if_nameindex
-#  define __NIJI_D_if_nameindex 1
-extern struct if_nameindex *if_nameindex (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_if_nametoindex
-#  define __NIJI_D_if_nametoindex 1
-extern unsigned int if_nametoindex (const char *) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_anon_IFF_ALLMULTI
-#  define __NIJI_D_anon_IFF_ALLMULTI 1
-#  if !defined IFF_UP || !defined IFF_BROADCAST || !defined IFF_DEBUG || !defined IFF_LOOPBACK || !defined IFF_POINTOPOINT || !defined IFF_NOTRAILERS \
-    || !defined IFF_RUNNING || !defined IFF_NOARP || !defined IFF_PROMISC || !defined IFF_ALLMULTI || !defined IFF_MASTER || !defined IFF_SLAVE \
-    || !defined IFF_MULTICAST || !defined IFF_PORTSEL || !defined IFF_AUTOMEDIA || !defined IFF_DYNAMIC
-enum {
-#  ifndef IFF_UP
-  IFF_UP = 1,
-#  endif
-#  ifndef IFF_BROADCAST
-  IFF_BROADCAST = 2,
-#  endif
-#  ifndef IFF_DEBUG
-  IFF_DEBUG = 4,
-#  endif
-#  ifndef IFF_LOOPBACK
-  IFF_LOOPBACK = 8,
-#  endif
-#  ifndef IFF_POINTOPOINT
-  IFF_POINTOPOINT = 16,
-#  endif
-#  ifndef IFF_NOTRAILERS
-  IFF_NOTRAILERS = 32,
-#  endif
-#  ifndef IFF_RUNNING
-  IFF_RUNNING = 64,
-#  endif
-#  ifndef IFF_NOARP
-  IFF_NOARP = 128,
-#  endif
-#  ifndef IFF_PROMISC
-  IFF_PROMISC = 256,
-#  endif
-#  ifndef IFF_ALLMULTI
-  IFF_ALLMULTI = 512,
-#  endif
-#  ifndef IFF_MASTER
-  IFF_MASTER = 1024,
-#  endif
-#  ifndef IFF_SLAVE
-  IFF_SLAVE = 2048,
-#  endif
-#  ifndef IFF_MULTICAST
-  IFF_MULTICAST = 4096,
-#  endif
-#  ifndef IFF_PORTSEL
-  IFF_PORTSEL = 8192,
-#  endif
-#  ifndef IFF_AUTOMEDIA
-  IFF_AUTOMEDIA = 16384,
-#  endif
-#  ifndef IFF_DYNAMIC
-  IFF_DYNAMIC = 32768,
-#  endif
-};
-#  endif
-# endif
-#endif
-#if 1
-# ifndef IF_NAMESIZE
-#  define IF_NAMESIZE 16
-# endif
-# ifndef _NET_IF_H
-#  define _NET_IF_H 1
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef IFF_ALLMULTI
-#  define IFF_ALLMULTI IFF_ALLMULTI
-# endif
-# ifndef IFF_AUTOMEDIA
-#  define IFF_AUTOMEDIA IFF_AUTOMEDIA
-# endif
-# ifndef IFF_BROADCAST
-#  define IFF_BROADCAST IFF_BROADCAST
-# endif
-# ifndef IFF_DEBUG
-#  define IFF_DEBUG IFF_DEBUG
-# endif
-# ifndef IFF_DYNAMIC
-#  define IFF_DYNAMIC IFF_DYNAMIC
-# endif
-# ifndef IFF_LOOPBACK
-#  define IFF_LOOPBACK IFF_LOOPBACK
-# endif
-# ifndef IFF_MASTER
-#  define IFF_MASTER IFF_MASTER
-# endif
-# ifndef IFF_MULTICAST
-#  define IFF_MULTICAST IFF_MULTICAST
-# endif
-# ifndef IFF_NOARP
-#  define IFF_NOARP IFF_NOARP
-# endif
-# ifndef IFF_NOTRAILERS
-#  define IFF_NOTRAILERS IFF_NOTRAILERS
-# endif
-# ifndef IFF_POINTOPOINT
-#  define IFF_POINTOPOINT IFF_POINTOPOINT
-# endif
-# ifndef IFF_PORTSEL
-#  define IFF_PORTSEL IFF_PORTSEL
-# endif
-# ifndef IFF_PROMISC
-#  define IFF_PROMISC IFF_PROMISC
-# endif
-# ifndef IFF_RUNNING
-#  define IFF_RUNNING IFF_RUNNING
-# endif
-# ifndef IFF_SLAVE
-#  define IFF_SLAVE IFF_SLAVE
-# endif
-# ifndef IFF_UP
-#  define IFF_UP IFF_UP
-# endif
-# ifndef IFHWADDRLEN
-#  define IFHWADDRLEN 6
-# endif
-# ifndef IFNAMSIZ
-#  define IFNAMSIZ 16
+# ifndef ifr_mtu
+#  define ifr_mtu ifr_ifru.ifru_metric
 # endif
 #endif
 

@@ -20,6 +20,43 @@ struct if_nameindex {
 # endif
 #endif
 #if __NIJI_MISC
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_ifaddr
+#  define __NIJI_D_struct_ifaddr 1
+struct ifaddr {
+  struct sockaddr ifa_addr;
+  union { struct sockaddr ifu_broadaddr; struct sockaddr ifu_dstaddr; } ifa_ifu;
+  struct iface * ifa_ifp;
+  struct ifaddr * ifa_next;
+};
+# endif
+# ifndef __NIJI_D_struct_ifconf
+#  define __NIJI_D_struct_ifconf 1
+struct ifconf {
+  int ifc_len;
+  union { char * ifcu_buf; struct ifreq * ifcu_req; } ifc_ifcu;
+};
+# endif
 # ifndef __NIJI_D_struct_ifmap
 #  define __NIJI_D_struct_ifmap 1
 struct ifmap {
@@ -235,6 +272,32 @@ enum {
 # ifndef IFNAMSIZ
 #  define IFNAMSIZ 16
 # endif
+#endif
+
+/* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro
+   for the member of the union the layout table records (the metric, index, bandwidth and queue length share the
+   integer member). */
+#if __NIJI_MISC
+# define ifr_name ifr_ifrn.ifrn_name
+# define ifr_hwaddr ifr_ifru.ifru_hwaddr
+# define ifr_addr ifr_ifru.ifru_addr
+# define ifr_dstaddr ifr_ifru.ifru_dstaddr
+# define ifr_broadaddr ifr_ifru.ifru_broadaddr
+# define ifr_netmask ifr_ifru.ifru_netmask
+# define ifr_flags ifr_ifru.ifru_flags
+# define ifr_metric ifr_ifru.ifru_ivalue
+# define ifr_mtu ifr_ifru.ifru_mtu
+# define ifr_map ifr_ifru.ifru_map
+# define ifr_slave ifr_ifru.ifru_slave
+# define ifr_data ifr_ifru.ifru_data
+# define ifr_ifindex ifr_ifru.ifru_ivalue
+# define ifr_bandwidth ifr_ifru.ifru_ivalue
+# define ifr_qlen ifr_ifru.ifru_ivalue
+# define ifr_newname ifr_ifru.ifru_newname
+#endif
+#if __NIJI_MISC
+# define ifc_buf ifc_ifcu.ifcu_buf
+# define ifc_req ifc_ifcu.ifcu_req
 #endif
 
 __NIJI_END_C
