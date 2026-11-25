@@ -66,6 +66,28 @@ int niji_thin_utmp (struct utmp *u)
   return (int) strlen (u->ut_name) + (int) u->ut_tv.tv_sec + (int) u->ut_addr_v6[0] + (&u->ut_name[0] == &u->ut_user[0]) + (UTMP_FILENAME[0] == '/');
 }
 """),
+    ("arpa/nameser.h", "ns_rr_ttl", """#include <arpa/nameser.h>
+typedef char niji_thin_ns[sizeof (ns_msg_id (*(ns_msg *) 0)) == sizeof (int) && sizeof (ns_msg_size (*(ns_msg *) 0)) == sizeof (long)
+                          && sizeof (ns_msg_count (*(ns_msg *) 0, ns_s_an)) == sizeof (int)
+                          && sizeof (ns_rr_ttl (*(ns_rr *) 0)) == sizeof (unsigned int) && sizeof (ns_rr_rdlen (*(ns_rr *) 0)) == sizeof (int)
+                          && sizeof (ns_rr_name (*(ns_rr *) 0)) == sizeof (char *) && sizeof (ns_rr_type (*(ns_rr *) 0)) == sizeof (ns_type)
+                          && sizeof (NS_TSIG_ALG_HMAC_MD5) == 25 ? 1 : -1];
+int niji_thin_nsuse (const unsigned char *cp, unsigned char *op, ns_msg *m, ns_rr *rr)
+{
+  unsigned short s;
+  unsigned long l;
+  GETSHORT (s, cp);
+  GETLONG (l, cp);
+  NS_GET16 (s, cp);
+  NS_GET32 (l, cp);
+  PUTSHORT (s, op);
+  PUTLONG (l, op);
+  NS_PUT16 (s, op);
+  NS_PUT32 (l, op);
+  return ns_msg_id (*m) + (int) (ns_msg_end (*m) - ns_msg_base (*m)) + (int) ns_rr_type (*rr) + (int) ns_rr_class (*rr)
+         + (int) ns_rr_rdlen (*rr) + (ns_rr_name (*rr)[0] == 0) + (ns_rr_rdata (*rr) != 0) + (int) ns_rr_ttl (*rr);
+}
+"""),
 ]
 
 
