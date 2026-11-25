@@ -96,3 +96,19 @@ def problems(ctx):
     if cxx.returncode:
         out.append(f"SYSLOG_NAMES syslog.h in C++: {' | '.join(cxx.stderr.strip().splitlines()[:3])[:400]}")
     return out
+
+
+if __name__ == "__main__":
+    # The tables' comparison alone (header_check.py --only runs units, not problems): a plant's command, seconds.
+    import argparse
+    import sys
+    import tempfile
+    from types import SimpleNamespace
+    ap = argparse.ArgumentParser(description="the SYSLOG_NAMES table comparison of slice 26")
+    ap.add_argument("--include", default="libc-include")
+    a = ap.parse_args()
+    res = problems(SimpleNamespace(inc=os.path.abspath(a.include), work=tempfile.mkdtemp(prefix="s26.")))
+    for line in res:
+        print("FAIL " + line)
+    print(f"s26: {len(res)} failed")
+    sys.exit(1 if res else 0)

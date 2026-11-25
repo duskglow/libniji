@@ -1,5 +1,5 @@
 # Plants of HEADERS-NET-SYS-NAMES (cargo xtask plants; docs/plants.md): template mutants of the headers this story
-# fills, each caught by header_check.py's units (header_checks/s12.py member_names, s14.py syslog_units, s15.py
+# fills, each caught by header_check.py's units (header_checks/s12.py member_names, s26.py syslog units and tables, s15.py
 # sg_timeout_units, the P1 table units) run with --only on the planted header, or by P10 (header_checks/s12.py).
 ns-icmp6-seq-index | headers/netinet/icmp6.h.in | perl:s/(# define icmp6_seq icmp6_dataun\.icmp6_un_data16\[)1\]/${1}0]/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only netinet/icmp6 | msg:FAIL member names netinet/icmp6\.h
 ns-icmp-id-void | headers/netinet/ip_icmp.h.in | perl:s/(# define icmp_id icmp_hun\.ih_)idseq\.icd_id/${1}void/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only netinet/ip_icmp | msg:FAIL member names netinet/ip_icmp\.h
@@ -8,7 +8,7 @@ ns-rt-mss-mtu | headers/net/route.h.in | perl:s/# define rt_mss rt_mtu/# define 
 ns-msg-cbytes-strict | headers/sys/msg.h.in | perl:s/\@\@if msg_cbytes\n/#if 1\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only sys/msg | msg:FAIL member names sys/msg\.h \(not shown\)
 ns-log-makepri-plus | headers/syslog.h.in | perl:s/LOG_MAKEPRI\(fac, pri\) \(\(fac\) \| \(pri\)\)/LOG_MAKEPRI(fac, pri) ((fac) + (pri))/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only [sS][yY][sS][lL][oO][gG] | msg:FAIL LOG_PRI syslog\.h
 ns-syslog-row-drop | headers/syslog.h.in | perl:s/  \{ "daemon", LOG_DAEMON \},\n// | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only [sS][yY][sS][lL][oO][gG] | msg:FAIL SYSLOG_NAMES syslog\.h
-ns-syslog-row-order | headers/syslog.h.in | perl:s/(  \{ "auth", LOG_AUTH \},\n)(  \{ "authpriv", LOG_AUTHPRIV \},\n)/$2$1/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only [sS][yY][sS][lL][oO][gG] | msg:SYSLOG_NAMES tables: rc 2
+ns-syslog-row-order | headers/syslog.h.in | perl:s/(  \{ "auth", LOG_AUTH \},\n)(  \{ "authpriv", LOG_AUTHPRIV \},\n)/$2$1/ | cargo xtask headers-gen && python3 spec/tools/header_checks/s26.py --include libc-include | msg:SYSLOG_NAMES tables: rc 2
 ns-syslog-strict | headers/syslog.h.in | perl:s/#if __NIJI_MISC\n/#if 1\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only [sS][yY][sS][lL][oO][gG] | msg:FAIL SYSLOG_NAMES syslog\.h \(not shown\)
 ns-sg-timeout-paren | headers/scsi/sg.h.in | perl:s/# define SG_DEFAULT_TIMEOUT \(60\*HZ\)/# define SG_DEFAULT_TIMEOUT 60*HZ/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only scsi/sg | msg:FAIL SG_DEFAULT_TIMEOUT scsi/sg\.h
 ns-scsi-ioctl-emit | headers/scsi/scsi_ioctl.h.in | perl:s/\@\@emit\n// | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include --only scsi/scsi_ioctl | msg:FAIL P1 scsi/scsi_ioctl\.h
