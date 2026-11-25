@@ -1,0 +1,6 @@
+# Plants for HEADERS-STAGE2-GAPS-C leg 3 (cargo xtask plants; docs/plants.md): the amateur-radio and legacy protocol
+# structures. Each breaks one layout row the generator builds the headers from and names the header_check unit that
+# must catch it (spec clauses in spec/tools/header_checks/s13.py).
+hs2c-ax25-call-width | spec/abi/layouts.tsv | perl:s/^(ax25_address\tax25_call\t0\t\t)char\[7\]/${1}char[8]/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 ax25 use' | msg:FAIL S13 ax25 use
+hs2c-ax25-family-type | spec/abi/layouts.tsv | perl:s/^(struct sockaddr_ax25\tsax25_family\t0\t\t)sa_family_t/${1}int/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 offsets netax25' | msg:FAIL S13 offsets netax25/ax25\.h
+hs2c-ax25-digis | spec/abi/layouts.tsv | perl:s/^(struct full_sockaddr_ax25\tfsa_digipeater\t16\t\t)ax25_address\[8\]/${1}ax25_address[7]/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S13 ax25 use' | msg:FAIL S13 ax25 use

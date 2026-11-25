@@ -44,7 +44,8 @@ sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfil
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
 net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
-net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h""".split()
+net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h
+netax25/ax25.h netrom/netrom.h netrose/rose.h netipx/ipx.h netash/ash.h neteconet/ec.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -160,6 +161,15 @@ TYPES = [
      "mtop", "mtget", "mtpos", "mtconfiginfo", "mt_tape_info")],
  # HEADERS-STAGE2-GAPS-C: the archive member header of ar(5) (elfutils) and XSH <utime.h>'s struct utimbuf (bzip2, cmake).
  ("struct ar_hdr", "struct ar_hdr"), ("struct utimbuf", "struct utimbuf"),
+ # The address, route and control structures of the amateur-radio and legacy protocol headers (header_probe.py
+ # radio_names() names the sources; net-tools names struct sockaddr_ax25).
+ ("ax25_address", "ax25_address"), ("rose_address", "rose_address"),
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "sockaddr_ax25", "full_sockaddr_ax25", "ax25_routes_struct", "ax25_route_opt_struct", "ax25_ctl_struct",
+     "ax25_info_struct_deprecated", "ax25_info_struct", "ax25_fwd_struct", "nr_route_struct", "sockaddr_rose",
+     "full_sockaddr_rose", "rose_route_struct", "rose_cause_struct", "rose_facilities_struct", "sockaddr_ipx",
+     "ipx_route_definition", "ipx_interface_definition", "ipx_config_data", "ipx_route_def", "sockaddr_ec",
+     "ec_addr", "sockaddr_ash")],
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),
