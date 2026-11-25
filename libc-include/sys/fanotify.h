@@ -18,30 +18,78 @@ extern int fanotify_init (unsigned int, unsigned int) __NIJI_NOTHROW;
 extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) __NIJI_NOTHROW;
 # endif
 # define FANOTIFY_METADATA_VERSION 3
-# define FAN_ACCESS 1
-# define FAN_ACCESS_PERM 131072
-# define FAN_ALLOW 1
-# define FAN_ALL_CLASS_BITS 12
-# define FAN_ALL_EVENTS 59
-# define FAN_ALL_INIT_FLAGS 63
-# define FAN_ALL_MARK_FLAGS 255
-# define FAN_ALL_OUTGOING_EVENTS 213051
-# define FAN_ALL_PERM_EVENTS 196608
-# define FAN_ATTRIB 4
-# define FAN_AUDIT 16
-# define FAN_CLASS_CONTENT 4
-# define FAN_CLASS_NOTIF 0
-# define FAN_CLASS_PRE_CONTENT 8
-# define FAN_CLOEXEC 1
-# define FAN_CLOSE 24
-# define FAN_CLOSE_NOWRITE 16
-# define FAN_CLOSE_WRITE 8
-# define FAN_CREATE 256
-# define FAN_DELETE 512
-# define FAN_DELETE_SELF 1024
-# define FAN_DENY 2
-# define FAN_ENABLE_AUDIT 64
-# define FAN_EPIDFD (-2)
+# ifndef FAN_ACCESS
+#  define FAN_ACCESS 1
+# endif
+# ifndef FAN_ACCESS_PERM
+#  define FAN_ACCESS_PERM 131072
+# endif
+# ifndef FAN_ALLOW
+#  define FAN_ALLOW 1
+# endif
+# ifndef FAN_ALL_CLASS_BITS
+#  define FAN_ALL_CLASS_BITS 12
+# endif
+# ifndef FAN_ALL_EVENTS
+#  define FAN_ALL_EVENTS 59
+# endif
+# ifndef FAN_ALL_INIT_FLAGS
+#  define FAN_ALL_INIT_FLAGS 63
+# endif
+# ifndef FAN_ALL_MARK_FLAGS
+#  define FAN_ALL_MARK_FLAGS 255
+# endif
+# ifndef FAN_ALL_OUTGOING_EVENTS
+#  define FAN_ALL_OUTGOING_EVENTS 213051
+# endif
+# ifndef FAN_ALL_PERM_EVENTS
+#  define FAN_ALL_PERM_EVENTS 196608
+# endif
+# ifndef FAN_ATTRIB
+#  define FAN_ATTRIB 4
+# endif
+# ifndef FAN_AUDIT
+#  define FAN_AUDIT 16
+# endif
+# ifndef FAN_CLASS_CONTENT
+#  define FAN_CLASS_CONTENT 4
+# endif
+# ifndef FAN_CLASS_NOTIF
+#  define FAN_CLASS_NOTIF 0
+# endif
+# ifndef FAN_CLASS_PRE_CONTENT
+#  define FAN_CLASS_PRE_CONTENT 8
+# endif
+# ifndef FAN_CLOEXEC
+#  define FAN_CLOEXEC 1
+# endif
+# ifndef FAN_CLOSE
+#  define FAN_CLOSE 24
+# endif
+# ifndef FAN_CLOSE_NOWRITE
+#  define FAN_CLOSE_NOWRITE 16
+# endif
+# ifndef FAN_CLOSE_WRITE
+#  define FAN_CLOSE_WRITE 8
+# endif
+# ifndef FAN_CREATE
+#  define FAN_CREATE 256
+# endif
+# ifndef FAN_DELETE
+#  define FAN_DELETE 512
+# endif
+# ifndef FAN_DELETE_SELF
+#  define FAN_DELETE_SELF 1024
+# endif
+# ifndef FAN_DENY
+#  define FAN_DENY 2
+# endif
+# ifndef FAN_ENABLE_AUDIT
+#  define FAN_ENABLE_AUDIT 64
+# endif
+# ifndef FAN_EPIDFD
+#  define FAN_EPIDFD (-2)
+# endif
 # define FAN_EVENT_INFO_TYPE_DFID 3
 # define FAN_EVENT_INFO_TYPE_DFID_NAME 2
 # define FAN_EVENT_INFO_TYPE_ERROR 5
@@ -49,51 +97,137 @@ extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) _
 # define FAN_EVENT_INFO_TYPE_NEW_DFID_NAME 12
 # define FAN_EVENT_INFO_TYPE_OLD_DFID_NAME 10
 # define FAN_EVENT_INFO_TYPE_PIDFD 4
-# define FAN_EVENT_METADATA_LEN 24UL
-# define FAN_EVENT_ON_CHILD 134217728
-# define FAN_FS_ERROR 32768
-# define FAN_INFO 32
-# define FAN_MARK_ADD 1
-# define FAN_MARK_DONT_FOLLOW 4
-# define FAN_MARK_EVICTABLE 512
-# define FAN_MARK_FILESYSTEM 256
-# define FAN_MARK_FLUSH 128
-# define FAN_MARK_IGNORE 1024
-# define FAN_MARK_IGNORED_MASK 32
-# define FAN_MARK_IGNORED_SURV_MODIFY 64
-# define FAN_MARK_IGNORE_SURV 1088
-# define FAN_MARK_INODE 0
-# define FAN_MARK_MOUNT 16
-# define FAN_MARK_ONLYDIR 8
-# define FAN_MARK_REMOVE 2
-# define FAN_MODIFY 2
-# define FAN_MOVE 192
-# define FAN_MOVED_FROM 64
-# define FAN_MOVED_TO 128
-# define FAN_MOVE_SELF 2048
-# define FAN_NOFD (-1)
-# define FAN_NONBLOCK 2
-# define FAN_NOPIDFD (-1)
-# define FAN_ONDIR 1073741824
-# define FAN_OPEN 32
-# define FAN_OPEN_EXEC 4096
-# define FAN_OPEN_EXEC_PERM 262144
-# define FAN_OPEN_PERM 65536
-# define FAN_Q_OVERFLOW 16384
-# define FAN_RENAME 268435456
-# define FAN_REPORT_DFID_NAME 3072
-# define FAN_REPORT_DFID_NAME_TARGET 7680
-# define FAN_REPORT_DIR_FID 1024
-# define FAN_REPORT_FD_ERROR 8192
-# define FAN_REPORT_FID 512
-# define FAN_REPORT_NAME 2048
-# define FAN_REPORT_PIDFD 128
-# define FAN_REPORT_TARGET_FID 4096
-# define FAN_REPORT_TID 256
+# ifndef FAN_EVENT_METADATA_LEN
+#  define FAN_EVENT_METADATA_LEN 24UL
+# endif
+# ifndef FAN_EVENT_ON_CHILD
+#  define FAN_EVENT_ON_CHILD 134217728
+# endif
+# ifndef FAN_FS_ERROR
+#  define FAN_FS_ERROR 32768
+# endif
+# ifndef FAN_INFO
+#  define FAN_INFO 32
+# endif
+# ifndef FAN_MARK_ADD
+#  define FAN_MARK_ADD 1
+# endif
+# ifndef FAN_MARK_DONT_FOLLOW
+#  define FAN_MARK_DONT_FOLLOW 4
+# endif
+# ifndef FAN_MARK_EVICTABLE
+#  define FAN_MARK_EVICTABLE 512
+# endif
+# ifndef FAN_MARK_FILESYSTEM
+#  define FAN_MARK_FILESYSTEM 256
+# endif
+# ifndef FAN_MARK_FLUSH
+#  define FAN_MARK_FLUSH 128
+# endif
+# ifndef FAN_MARK_IGNORE
+#  define FAN_MARK_IGNORE 1024
+# endif
+# ifndef FAN_MARK_IGNORED_MASK
+#  define FAN_MARK_IGNORED_MASK 32
+# endif
+# ifndef FAN_MARK_IGNORED_SURV_MODIFY
+#  define FAN_MARK_IGNORED_SURV_MODIFY 64
+# endif
+# ifndef FAN_MARK_IGNORE_SURV
+#  define FAN_MARK_IGNORE_SURV 1088
+# endif
+# ifndef FAN_MARK_INODE
+#  define FAN_MARK_INODE 0
+# endif
+# ifndef FAN_MARK_MOUNT
+#  define FAN_MARK_MOUNT 16
+# endif
+# ifndef FAN_MARK_ONLYDIR
+#  define FAN_MARK_ONLYDIR 8
+# endif
+# ifndef FAN_MARK_REMOVE
+#  define FAN_MARK_REMOVE 2
+# endif
+# ifndef FAN_MODIFY
+#  define FAN_MODIFY 2
+# endif
+# ifndef FAN_MOVE
+#  define FAN_MOVE 192
+# endif
+# ifndef FAN_MOVED_FROM
+#  define FAN_MOVED_FROM 64
+# endif
+# ifndef FAN_MOVED_TO
+#  define FAN_MOVED_TO 128
+# endif
+# ifndef FAN_MOVE_SELF
+#  define FAN_MOVE_SELF 2048
+# endif
+# ifndef FAN_NOFD
+#  define FAN_NOFD (-1)
+# endif
+# ifndef FAN_NONBLOCK
+#  define FAN_NONBLOCK 2
+# endif
+# ifndef FAN_NOPIDFD
+#  define FAN_NOPIDFD (-1)
+# endif
+# ifndef FAN_ONDIR
+#  define FAN_ONDIR 1073741824
+# endif
+# ifndef FAN_OPEN
+#  define FAN_OPEN 32
+# endif
+# ifndef FAN_OPEN_EXEC
+#  define FAN_OPEN_EXEC 4096
+# endif
+# ifndef FAN_OPEN_EXEC_PERM
+#  define FAN_OPEN_EXEC_PERM 262144
+# endif
+# ifndef FAN_OPEN_PERM
+#  define FAN_OPEN_PERM 65536
+# endif
+# ifndef FAN_Q_OVERFLOW
+#  define FAN_Q_OVERFLOW 16384
+# endif
+# ifndef FAN_RENAME
+#  define FAN_RENAME 268435456
+# endif
+# ifndef FAN_REPORT_DFID_NAME
+#  define FAN_REPORT_DFID_NAME 3072
+# endif
+# ifndef FAN_REPORT_DFID_NAME_TARGET
+#  define FAN_REPORT_DFID_NAME_TARGET 7680
+# endif
+# ifndef FAN_REPORT_DIR_FID
+#  define FAN_REPORT_DIR_FID 1024
+# endif
+# ifndef FAN_REPORT_FD_ERROR
+#  define FAN_REPORT_FD_ERROR 8192
+# endif
+# ifndef FAN_REPORT_FID
+#  define FAN_REPORT_FID 512
+# endif
+# ifndef FAN_REPORT_NAME
+#  define FAN_REPORT_NAME 2048
+# endif
+# ifndef FAN_REPORT_PIDFD
+#  define FAN_REPORT_PIDFD 128
+# endif
+# ifndef FAN_REPORT_TARGET_FID
+#  define FAN_REPORT_TARGET_FID 4096
+# endif
+# ifndef FAN_REPORT_TID
+#  define FAN_REPORT_TID 256
+# endif
 # define FAN_RESPONSE_INFO_AUDIT_RULE 1
 # define FAN_RESPONSE_INFO_NONE 0
-# define FAN_UNLIMITED_MARKS 32
-# define FAN_UNLIMITED_QUEUE 16
+# ifndef FAN_UNLIMITED_MARKS
+#  define FAN_UNLIMITED_MARKS 32
+# endif
+# ifndef FAN_UNLIMITED_QUEUE
+#  define FAN_UNLIMITED_QUEUE 16
+# endif
 #endif
 
 __NIJI_END_C

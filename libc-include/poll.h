@@ -72,23 +72,49 @@ extern int ppoll (struct pollfd *, unsigned long, const struct timespec *, const
 # endif
 #endif
 #if 1
-# define POLLERR 8
-# define POLLHUP 16
-# define POLLIN 1
-# define POLLNVAL 32
-# define POLLOUT 4
-# define POLLPRI 2
+# ifndef POLLERR
+#  define POLLERR 8
+# endif
+# ifndef POLLHUP
+#  define POLLHUP 16
+# endif
+# ifndef POLLIN
+#  define POLLIN 1
+# endif
+# ifndef POLLNVAL
+#  define POLLNVAL 32
+# endif
+# ifndef POLLOUT
+#  define POLLOUT 4
+# endif
+# ifndef POLLPRI
+#  define POLLPRI 2
+# endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
-# define POLLRDBAND 128
-# define POLLRDNORM 64
-# define POLLWRBAND 512
-# define POLLWRNORM 256
+# ifndef POLLRDBAND
+#  define POLLRDBAND 128
+# endif
+# ifndef POLLRDNORM
+#  define POLLRDNORM 64
+# endif
+# ifndef POLLWRBAND
+#  define POLLWRBAND 512
+# endif
+# ifndef POLLWRNORM
+#  define POLLWRNORM 256
+# endif
 #endif
 #if defined __USE_GNU
-# define POLLMSG 1024
-# define POLLRDHUP 8192
-# define POLLREMOVE 4096
+# ifndef POLLMSG
+#  define POLLMSG 1024
+# endif
+# ifndef POLLRDHUP
+#  define POLLRDHUP 8192
+# endif
+# ifndef POLLREMOVE
+#  define POLLREMOVE 4096
+# endif
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS

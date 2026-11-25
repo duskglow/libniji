@@ -237,9 +237,15 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # define EMPTY 0
 # define FD_SETSIZE 1024
 # define INIT_PROCESS 5
-# define ITIMER_PROF ITIMER_PROF
-# define ITIMER_REAL ITIMER_REAL
-# define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# ifndef ITIMER_PROF
+#  define ITIMER_PROF ITIMER_PROF
+# endif
+# ifndef ITIMER_REAL
+#  define ITIMER_REAL ITIMER_REAL
+# endif
+# ifndef ITIMER_VIRTUAL
+#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# endif
 # define LOGIN_PROCESS 6
 # define NEW_TIME 3
 # define OLD_TIME 4

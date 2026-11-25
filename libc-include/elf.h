@@ -293,7 +293,9 @@ typedef struct {
 } Elf64_auxv_t;
 # endif
 # define AT_BASE 7
-# define AT_BASE_PLATFORM 24
+# ifndef AT_BASE_PLATFORM
+#  define AT_BASE_PLATFORM 24
+# endif
 # define AT_CLKTCK 17
 # define AT_DCACHEBSIZE 19
 # define AT_EGID 14
@@ -384,8 +386,12 @@ typedef struct {
 # define DT_AARCH64_PAC_PLT 1879048195
 # define DT_AARCH64_VARIANT_PCS 1879048197
 # define DT_ADDRNUM 11
-# define DT_ADDRRNGHI 1879047935
-# define DT_ADDRRNGLO 1879047680
+# ifndef DT_ADDRRNGHI
+#  define DT_ADDRRNGHI 1879047935
+# endif
+# ifndef DT_ADDRRNGLO
+#  define DT_ADDRRNGLO 1879047680
+# endif
 # define DT_ALPHA_NUM 1
 # define DT_ALPHA_PLTRO 1879048192
 # define DT_AUDIT 1879047932
@@ -403,7 +409,9 @@ typedef struct {
 # define DT_FINI_ARRAY 26
 # define DT_FINI_ARRAYSZ 28
 # define DT_FLAGS 30
-# define DT_FLAGS_1 1879048187
+# ifndef DT_FLAGS_1
+#  define DT_FLAGS_1 1879048187
+# endif
 # define DT_GNU_CONFLICT 1879047928
 # define DT_GNU_CONFLICTSZ 1879047670
 # define DT_GNU_HASH 1879047925
@@ -411,16 +419,24 @@ typedef struct {
 # define DT_GNU_LIBLISTSZ 1879047671
 # define DT_GNU_PRELINKED 1879047669
 # define DT_HASH 4
-# define DT_HIOS 1879044096
-# define DT_HIPROC 2147483647
+# ifndef DT_HIOS
+#  define DT_HIOS 1879044096
+# endif
+# ifndef DT_HIPROC
+#  define DT_HIPROC 2147483647
+# endif
 # define DT_IA_64_NUM 1
 # define DT_IA_64_PLT_RESERVE 1879048192
 # define DT_INIT 12
 # define DT_INIT_ARRAY 25
 # define DT_INIT_ARRAYSZ 27
 # define DT_JMPREL 23
-# define DT_LOOS 1610612749
-# define DT_LOPROC 1879048192
+# ifndef DT_LOOS
+#  define DT_LOOS 1610612749
+# endif
+# ifndef DT_LOPROC
+#  define DT_LOPROC 1879048192
+# endif
 # define DT_MIPS_AUX_DYNAMIC 1879048241
 # define DT_MIPS_BASE_ADDRESS 1879048198
 # define DT_MIPS_COMPACT_SIZE 1879048239
@@ -495,10 +511,14 @@ typedef struct {
 # define DT_PROCNUM 55
 # define DT_REL 17
 # define DT_RELA 7
-# define DT_RELACOUNT 1879048185
+# ifndef DT_RELACOUNT
+#  define DT_RELACOUNT 1879048185
+# endif
 # define DT_RELAENT 9
 # define DT_RELASZ 8
-# define DT_RELCOUNT 1879048186
+# ifndef DT_RELCOUNT
+#  define DT_RELCOUNT 1879048186
+# endif
 # define DT_RELENT 19
 # define DT_RELR 36
 # define DT_RELRENT 37
@@ -523,14 +543,28 @@ typedef struct {
 # define DT_TLSDESC_GOT 1879047927
 # define DT_TLSDESC_PLT 1879047926
 # define DT_VALNUM 12
-# define DT_VALRNGHI 1879047679
-# define DT_VALRNGLO 1879047424
-# define DT_VERDEF 1879048188
-# define DT_VERDEFNUM 1879048189
-# define DT_VERNEED 1879048190
-# define DT_VERNEEDNUM 1879048191
+# ifndef DT_VALRNGHI
+#  define DT_VALRNGHI 1879047679
+# endif
+# ifndef DT_VALRNGLO
+#  define DT_VALRNGLO 1879047424
+# endif
+# ifndef DT_VERDEF
+#  define DT_VERDEF 1879048188
+# endif
+# ifndef DT_VERDEFNUM
+#  define DT_VERDEFNUM 1879048189
+# endif
+# ifndef DT_VERNEED
+#  define DT_VERNEED 1879048190
+# endif
+# ifndef DT_VERNEEDNUM
+#  define DT_VERNEEDNUM 1879048191
+# endif
 # define DT_VERSIONTAGNUM 16
-# define DT_VERSYM 1879048176
+# ifndef DT_VERSYM
+#  define DT_VERSYM 1879048176
+# endif
 # define DT_X86_64_NUM 4
 # define DT_X86_64_PLT 1879048192
 # define DT_X86_64_PLTENT 1879048195
@@ -699,7 +733,9 @@ typedef struct {
 # define EI_MAG3 3
 # define EI_NIDENT 16
 # define EI_OSABI 7
-# define EI_PAD 9
+# ifndef EI_PAD
+#  define EI_PAD 9
+# endif
 # define EI_VERSION 6
 # define ELFCLASS32 1
 # define ELFCLASS64 2
@@ -715,7 +751,9 @@ typedef struct {
 # define ELFDATA2MSB 2
 # define ELFDATANONE 0
 # define ELFDATANUM 3
-# define ELFMAG0 127
+# ifndef ELFMAG0
+#  define ELFMAG0 127
+# endif
 # define ELFMAG1 'E'
 # define ELFMAG2 'L'
 # define ELFMAG3 'F'
@@ -755,7 +793,9 @@ typedef struct {
 # define EM_88K 5
 # define EM_960 19
 # define EM_AARCH64 183
-# define EM_ALPHA 36902
+# ifndef EM_ALPHA
+#  define EM_ALPHA 36902
+# endif
 # define EM_ALTERA_NIOS2 113
 # define EM_AMDGPU 224
 # define EM_ARC 45
@@ -848,7 +888,9 @@ typedef struct {
 # define EM_MSP430 105
 # define EM_NCPU 56
 # define EM_NDR1 57
-# define EM_NDS32 167
+# ifndef EM_NDS32
+#  define EM_NDS32 167
+# endif
 # define EM_NONE 0
 # define EM_NORC 218
 # define EM_NS32K 97
@@ -929,9 +971,13 @@ typedef struct {
 # define ET_DYN 3
 # define ET_EXEC 2
 # define ET_HIOS 65279
-# define ET_HIPROC 65535
+# ifndef ET_HIPROC
+#  define ET_HIPROC 65535
+# endif
 # define ET_LOOS 65024
-# define ET_LOPROC 65280
+# ifndef ET_LOPROC
+#  define ET_LOPROC 65280
+# endif
 # define ET_NONE 0
 # define ET_NUM 5
 # define ET_REL 1
@@ -947,8 +993,12 @@ typedef struct {
 # define E_MIPS_ARCH_64 1610612736
 # define GNU_PROPERTY_1_NEEDED 2952822784U
 # define GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS 1U
-# define GNU_PROPERTY_AARCH64_FEATURE_1_AND 3221225472U
-# define GNU_PROPERTY_AARCH64_FEATURE_1_BTI 1U
+# ifndef GNU_PROPERTY_AARCH64_FEATURE_1_AND
+#  define GNU_PROPERTY_AARCH64_FEATURE_1_AND 3221225472U
+# endif
+# ifndef GNU_PROPERTY_AARCH64_FEATURE_1_BTI
+#  define GNU_PROPERTY_AARCH64_FEATURE_1_BTI 1U
+# endif
 # define GNU_PROPERTY_AARCH64_FEATURE_1_PAC 2U
 # define GNU_PROPERTY_HIPROC 3758096383U
 # define GNU_PROPERTY_HIUSER 4294967295U
@@ -1020,23 +1070,51 @@ typedef struct {
 # define MIPS_AFL_REG_32 1
 # define MIPS_AFL_REG_64 2
 # define MIPS_AFL_REG_NONE 0
-# define NT_386_IOPERM 513
-# define NT_386_TLS 512
-# define NT_ARM_HW_BREAK 1026
-# define NT_ARM_HW_WATCH 1027
-# define NT_ARM_PACA_KEYS 1031
-# define NT_ARM_PACG_KEYS 1032
-# define NT_ARM_PAC_ENABLED_KEYS 1034
-# define NT_ARM_PAC_MASK 1030
-# define NT_ARM_SVE 1029
-# define NT_ARM_SYSTEM_CALL 1028
-# define NT_ARM_TAGGED_ADDR_CTRL 1033
-# define NT_ARM_TLS 1025
-# define NT_ARM_VFP 1024
+# ifndef NT_386_IOPERM
+#  define NT_386_IOPERM 513
+# endif
+# ifndef NT_386_TLS
+#  define NT_386_TLS 512
+# endif
+# ifndef NT_ARM_HW_BREAK
+#  define NT_ARM_HW_BREAK 1026
+# endif
+# ifndef NT_ARM_HW_WATCH
+#  define NT_ARM_HW_WATCH 1027
+# endif
+# ifndef NT_ARM_PACA_KEYS
+#  define NT_ARM_PACA_KEYS 1031
+# endif
+# ifndef NT_ARM_PACG_KEYS
+#  define NT_ARM_PACG_KEYS 1032
+# endif
+# ifndef NT_ARM_PAC_ENABLED_KEYS
+#  define NT_ARM_PAC_ENABLED_KEYS 1034
+# endif
+# ifndef NT_ARM_PAC_MASK
+#  define NT_ARM_PAC_MASK 1030
+# endif
+# ifndef NT_ARM_SVE
+#  define NT_ARM_SVE 1029
+# endif
+# ifndef NT_ARM_SYSTEM_CALL
+#  define NT_ARM_SYSTEM_CALL 1028
+# endif
+# ifndef NT_ARM_TAGGED_ADDR_CTRL
+#  define NT_ARM_TAGGED_ADDR_CTRL 1033
+# endif
+# ifndef NT_ARM_TLS
+#  define NT_ARM_TLS 1025
+# endif
+# ifndef NT_ARM_VFP
+#  define NT_ARM_VFP 1024
+# endif
 # define NT_ASRS 8
 # define NT_AUXV 6
 # define NT_FDO_PACKAGING_METADATA 3405650558U
-# define NT_FILE 1179208773
+# ifndef NT_FILE
+#  define NT_FILE 1179208773
+# endif
 # define NT_FPREGSET 2
 # define NT_GNU_ABI_TAG 1
 # define NT_GNU_BUILD_ID 3
@@ -1044,71 +1122,173 @@ typedef struct {
 # define NT_GNU_HWCAP 2
 # define NT_GNU_PROPERTY_TYPE_0 5
 # define NT_GWINDOWS 7
-# define NT_LOONGARCH_CPUCFG 2560
-# define NT_LOONGARCH_CSR 2561
-# define NT_LOONGARCH_HW_BREAK 2565
-# define NT_LOONGARCH_HW_WATCH 2566
-# define NT_LOONGARCH_LASX 2563
-# define NT_LOONGARCH_LBT 2564
-# define NT_LOONGARCH_LSX 2562
+# ifndef NT_LOONGARCH_CPUCFG
+#  define NT_LOONGARCH_CPUCFG 2560
+# endif
+# ifndef NT_LOONGARCH_CSR
+#  define NT_LOONGARCH_CSR 2561
+# endif
+# ifndef NT_LOONGARCH_HW_BREAK
+#  define NT_LOONGARCH_HW_BREAK 2565
+# endif
+# ifndef NT_LOONGARCH_HW_WATCH
+#  define NT_LOONGARCH_HW_WATCH 2566
+# endif
+# ifndef NT_LOONGARCH_LASX
+#  define NT_LOONGARCH_LASX 2563
+# endif
+# ifndef NT_LOONGARCH_LBT
+#  define NT_LOONGARCH_LBT 2564
+# endif
+# ifndef NT_LOONGARCH_LSX
+#  define NT_LOONGARCH_LSX 2562
+# endif
 # define NT_LWPSINFO 17
 # define NT_LWPSTATUS 16
-# define NT_MIPS_DSP 2048
-# define NT_MIPS_FP_MODE 2049
-# define NT_MIPS_MSA 2050
+# ifndef NT_MIPS_DSP
+#  define NT_MIPS_DSP 2048
+# endif
+# ifndef NT_MIPS_FP_MODE
+#  define NT_MIPS_FP_MODE 2049
+# endif
+# ifndef NT_MIPS_MSA
+#  define NT_MIPS_MSA 2050
+# endif
 # define NT_PLATFORM 5
-# define NT_PPC_DEXCR 273
-# define NT_PPC_DSCR 261
-# define NT_PPC_EBB 262
-# define NT_PPC_HASHKEYR 274
-# define NT_PPC_PKEY 272
-# define NT_PPC_PMU 263
-# define NT_PPC_PPR 260
-# define NT_PPC_SPE 257
-# define NT_PPC_TAR 259
-# define NT_PPC_TM_CDSCR 271
-# define NT_PPC_TM_CFPR 265
-# define NT_PPC_TM_CGPR 264
-# define NT_PPC_TM_CPPR 270
-# define NT_PPC_TM_CTAR 269
-# define NT_PPC_TM_CVMX 266
-# define NT_PPC_TM_CVSX 267
-# define NT_PPC_TM_SPR 268
-# define NT_PPC_VMX 256
-# define NT_PPC_VSX 258
+# ifndef NT_PPC_DEXCR
+#  define NT_PPC_DEXCR 273
+# endif
+# ifndef NT_PPC_DSCR
+#  define NT_PPC_DSCR 261
+# endif
+# ifndef NT_PPC_EBB
+#  define NT_PPC_EBB 262
+# endif
+# ifndef NT_PPC_HASHKEYR
+#  define NT_PPC_HASHKEYR 274
+# endif
+# ifndef NT_PPC_PKEY
+#  define NT_PPC_PKEY 272
+# endif
+# ifndef NT_PPC_PMU
+#  define NT_PPC_PMU 263
+# endif
+# ifndef NT_PPC_PPR
+#  define NT_PPC_PPR 260
+# endif
+# ifndef NT_PPC_SPE
+#  define NT_PPC_SPE 257
+# endif
+# ifndef NT_PPC_TAR
+#  define NT_PPC_TAR 259
+# endif
+# ifndef NT_PPC_TM_CDSCR
+#  define NT_PPC_TM_CDSCR 271
+# endif
+# ifndef NT_PPC_TM_CFPR
+#  define NT_PPC_TM_CFPR 265
+# endif
+# ifndef NT_PPC_TM_CGPR
+#  define NT_PPC_TM_CGPR 264
+# endif
+# ifndef NT_PPC_TM_CPPR
+#  define NT_PPC_TM_CPPR 270
+# endif
+# ifndef NT_PPC_TM_CTAR
+#  define NT_PPC_TM_CTAR 269
+# endif
+# ifndef NT_PPC_TM_CVMX
+#  define NT_PPC_TM_CVMX 266
+# endif
+# ifndef NT_PPC_TM_CVSX
+#  define NT_PPC_TM_CVSX 267
+# endif
+# ifndef NT_PPC_TM_SPR
+#  define NT_PPC_TM_SPR 268
+# endif
+# ifndef NT_PPC_VMX
+#  define NT_PPC_VMX 256
+# endif
+# ifndef NT_PPC_VSX
+#  define NT_PPC_VSX 258
+# endif
 # define NT_PRCRED 14
 # define NT_PRFPREG 2
 # define NT_PRFPXREG 20
 # define NT_PRPSINFO 3
 # define NT_PRSTATUS 1
-# define NT_PRXFPREG 1189489535
+# ifndef NT_PRXFPREG
+#  define NT_PRXFPREG 1189489535
+# endif
 # define NT_PRXREG 4
 # define NT_PSINFO 13
 # define NT_PSTATUS 10
-# define NT_RISCV_CSR 2304
-# define NT_RISCV_VECTOR 2305
-# define NT_S390_CTRS 772
-# define NT_S390_GS_BC 780
-# define NT_S390_GS_CB 779
-# define NT_S390_HIGH_GPRS 768
-# define NT_S390_LAST_BREAK 774
-# define NT_S390_PREFIX 773
-# define NT_S390_PV_CPU_DATA 782
-# define NT_S390_RI_CB 781
-# define NT_S390_SYSTEM_CALL 775
-# define NT_S390_TDB 776
-# define NT_S390_TIMER 769
-# define NT_S390_TODCMP 770
-# define NT_S390_TODPREG 771
-# define NT_S390_VXRS_HIGH 778
-# define NT_S390_VXRS_LOW 777
-# define NT_SIGINFO 1397311305
+# ifndef NT_RISCV_CSR
+#  define NT_RISCV_CSR 2304
+# endif
+# ifndef NT_RISCV_VECTOR
+#  define NT_RISCV_VECTOR 2305
+# endif
+# ifndef NT_S390_CTRS
+#  define NT_S390_CTRS 772
+# endif
+# ifndef NT_S390_GS_BC
+#  define NT_S390_GS_BC 780
+# endif
+# ifndef NT_S390_GS_CB
+#  define NT_S390_GS_CB 779
+# endif
+# ifndef NT_S390_HIGH_GPRS
+#  define NT_S390_HIGH_GPRS 768
+# endif
+# ifndef NT_S390_LAST_BREAK
+#  define NT_S390_LAST_BREAK 774
+# endif
+# ifndef NT_S390_PREFIX
+#  define NT_S390_PREFIX 773
+# endif
+# ifndef NT_S390_PV_CPU_DATA
+#  define NT_S390_PV_CPU_DATA 782
+# endif
+# ifndef NT_S390_RI_CB
+#  define NT_S390_RI_CB 781
+# endif
+# ifndef NT_S390_SYSTEM_CALL
+#  define NT_S390_SYSTEM_CALL 775
+# endif
+# ifndef NT_S390_TDB
+#  define NT_S390_TDB 776
+# endif
+# ifndef NT_S390_TIMER
+#  define NT_S390_TIMER 769
+# endif
+# ifndef NT_S390_TODCMP
+#  define NT_S390_TODCMP 770
+# endif
+# ifndef NT_S390_TODPREG
+#  define NT_S390_TODPREG 771
+# endif
+# ifndef NT_S390_VXRS_HIGH
+#  define NT_S390_VXRS_HIGH 778
+# endif
+# ifndef NT_S390_VXRS_LOW
+#  define NT_S390_VXRS_LOW 777
+# endif
+# ifndef NT_SIGINFO
+#  define NT_SIGINFO 1397311305
+# endif
 # define NT_TASKSTRUCT 4
 # define NT_UTSNAME 15
 # define NT_VERSION 1
-# define NT_VMCOREDD 1792
-# define NT_X86_SHSTK 516
-# define NT_X86_XSTATE 514
+# ifndef NT_VMCOREDD
+#  define NT_VMCOREDD 1792
+# endif
+# ifndef NT_X86_SHSTK
+#  define NT_X86_SHSTK 516
+# endif
+# ifndef NT_X86_XSTATE
+#  define NT_X86_XSTATE 514
+# endif
 # define ODK_EXCEPTIONS 2
 # define ODK_FILL 5
 # define ODK_HWAND 7
@@ -1154,24 +1334,46 @@ typedef struct {
 # define PF_MASKPROC 4026531840U
 # define PF_MIPS_LOCAL 268435456
 # define PF_PARISC_SBP 134217728
-# define PF_R 4
-# define PF_W 2
-# define PF_X 1
-# define PN_XNUM 65535
+# ifndef PF_R
+#  define PF_R 4
+# endif
+# ifndef PF_W
+#  define PF_W 2
+# endif
+# ifndef PF_X
+#  define PF_X 1
+# endif
+# ifndef PN_XNUM
+#  define PN_XNUM 65535
+# endif
 # define PPC64_OPT_LOCALENTRY 4
 # define PPC64_OPT_MULTI_TOC 2
 # define PPC64_OPT_TLS 1
 # define PPC_OPT_TLS 1
-# define PT_AARCH64_MEMTAG_MTE 1879048194
+# ifndef PT_AARCH64_MEMTAG_MTE
+#  define PT_AARCH64_MEMTAG_MTE 1879048194
+# endif
 # define PT_ARM_EXIDX 1879048193
 # define PT_DYNAMIC 2
-# define PT_GNU_EH_FRAME 1685382480
-# define PT_GNU_PROPERTY 1685382483
-# define PT_GNU_RELRO 1685382482
+# ifndef PT_GNU_EH_FRAME
+#  define PT_GNU_EH_FRAME 1685382480
+# endif
+# ifndef PT_GNU_PROPERTY
+#  define PT_GNU_PROPERTY 1685382483
+# endif
+# ifndef PT_GNU_RELRO
+#  define PT_GNU_RELRO 1685382482
+# endif
 # define PT_GNU_SFRAME 1685382484
-# define PT_GNU_STACK 1685382481
-# define PT_HIOS 1879048191
-# define PT_HIPROC 2147483647
+# ifndef PT_GNU_STACK
+#  define PT_GNU_STACK 1685382481
+# endif
+# ifndef PT_HIOS
+#  define PT_HIOS 1879048191
+# endif
+# ifndef PT_HIPROC
+#  define PT_HIPROC 2147483647
+# endif
 # define PT_HISUNW 1879048191
 # define PT_HP_CORE_COMM 1610612740
 # define PT_HP_CORE_KERNEL 1610612739
@@ -1195,8 +1397,12 @@ typedef struct {
 # define PT_IA_64_UNWIND 1879048193
 # define PT_INTERP 3
 # define PT_LOAD 1
-# define PT_LOOS 1610612736
-# define PT_LOPROC 1879048192
+# ifndef PT_LOOS
+#  define PT_LOOS 1610612736
+# endif
+# ifndef PT_LOPROC
+#  define PT_LOPROC 1879048192
+# endif
 # define PT_LOSUNW 1879048186
 # define PT_MIPS_ABIFLAGS 1879048195
 # define PT_MIPS_OPTIONS 1879048194
@@ -3132,13 +3338,17 @@ typedef struct {
 # define R_X86_64_TPOFF32 23
 # define R_X86_64_TPOFF64 18
 # define SELFMAG 4
-# define SHF_ALLOC 2
+# ifndef SHF_ALLOC
+#  define SHF_ALLOC 2
+# endif
 # define SHF_ALPHA_GPREL 268435456
 # define SHF_ARM_COMDEF 2147483648U
 # define SHF_ARM_ENTRYSECT 268435456
 # define SHF_COMPRESSED 2048
 # define SHF_EXCLUDE 2147483648U
-# define SHF_EXECINSTR 4
+# ifndef SHF_EXECINSTR
+#  define SHF_EXECINSTR 4
+# endif
 # define SHF_GNU_RETAIN 2097152
 # define SHF_GROUP 512
 # define SHF_IA_64_NORECOV 536870912
@@ -3146,7 +3356,9 @@ typedef struct {
 # define SHF_INFO_LINK 64
 # define SHF_LINK_ORDER 128
 # define SHF_MASKOS 267386880
-# define SHF_MASKPROC 4026531840U
+# ifndef SHF_MASKPROC
+#  define SHF_MASKPROC 4026531840U
+# endif
 # define SHF_MERGE 16
 # define SHF_MIPS_ADDR 1073741824
 # define SHF_MIPS_GPREL 268435456
@@ -3163,17 +3375,31 @@ typedef struct {
 # define SHF_PARISC_SHORT 536870912
 # define SHF_STRINGS 32
 # define SHF_TLS 1024
-# define SHF_WRITE 1
-# define SHN_ABS 65521
+# ifndef SHF_WRITE
+#  define SHF_WRITE 1
+# endif
+# ifndef SHN_ABS
+#  define SHN_ABS 65521
+# endif
 # define SHN_AFTER 65281
 # define SHN_BEFORE 65280
-# define SHN_COMMON 65522
+# ifndef SHN_COMMON
+#  define SHN_COMMON 65522
+# endif
 # define SHN_HIOS 65343
-# define SHN_HIPROC 65311
-# define SHN_HIRESERVE 65535
+# ifndef SHN_HIPROC
+#  define SHN_HIPROC 65311
+# endif
+# ifndef SHN_HIRESERVE
+#  define SHN_HIRESERVE 65535
+# endif
 # define SHN_LOOS 65312
-# define SHN_LOPROC 65280
-# define SHN_LORESERVE 65280
+# ifndef SHN_LOPROC
+#  define SHN_LOPROC 65280
+# endif
+# ifndef SHN_LORESERVE
+#  define SHN_LORESERVE 65280
+# endif
 # define SHN_MIPS_ACOMMON 65280
 # define SHN_MIPS_DATA 65282
 # define SHN_MIPS_SCOMMON 65283
@@ -3203,16 +3429,24 @@ typedef struct {
 # define SHT_GROUP 17
 # define SHT_HASH 5
 # define SHT_HIOS 1879048191
-# define SHT_HIPROC 2147483647
+# ifndef SHT_HIPROC
+#  define SHT_HIPROC 2147483647
+# endif
 # define SHT_HISUNW 1879048191
-# define SHT_HIUSER 2415919103U
+# ifndef SHT_HIUSER
+#  define SHT_HIUSER 2415919103U
+# endif
 # define SHT_IA_64_EXT 1879048192
 # define SHT_IA_64_UNWIND 1879048193
 # define SHT_INIT_ARRAY 14
 # define SHT_LOOS 1610612736
-# define SHT_LOPROC 1879048192
+# ifndef SHT_LOPROC
+#  define SHT_LOPROC 1879048192
+# endif
 # define SHT_LOSUNW 1879048186
-# define SHT_LOUSER 2147483648U
+# ifndef SHT_LOUSER
+#  define SHT_LOUSER 2147483648U
+# endif
 # define SHT_MIPS_ABIFLAGS 1879048234
 # define SHT_MIPS_AUXSYM 1879048214
 # define SHT_MIPS_CONFLICT 1879048194
@@ -3257,7 +3491,9 @@ typedef struct {
 # define SHT_NOBITS 8
 # define SHT_NOTE 7
 # define SHT_NULL 0
-# define SHT_NUM 20
+# ifndef SHT_NUM
+#  define SHT_NUM 20
+# endif
 # define SHT_PARISC_DOC 1879048194
 # define SHT_PARISC_EXT 1879048192
 # define SHT_PARISC_UNWIND 1879048193

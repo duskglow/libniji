@@ -62,109 +62,313 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ETH_FCS_LEN 4
 # define ETH_FRAME_LEN 1514
 # define ETH_HLEN 14
-# define ETH_MAX_MTU 65535U
+# ifndef ETH_MAX_MTU
+#  define ETH_MAX_MTU 65535U
+# endif
 # define ETH_MIN_MTU 68
-# define ETH_P_1588 35063
-# define ETH_P_8021AD 34984
-# define ETH_P_8021AH 35047
-# define ETH_P_8021Q 33024
-# define ETH_P_80221 35095
-# define ETH_P_802_2 4
-# define ETH_P_802_3 1
-# define ETH_P_802_3_MIN 1536
-# define ETH_P_802_EX1 34997
-# define ETH_P_AARP 33011
-# define ETH_P_AF_IUCV 64507
-# define ETH_P_ALL 3
-# define ETH_P_AOE 34978
-# define ETH_P_ARCNET 26
-# define ETH_P_ARP 2054
-# define ETH_P_ATALK 32923
-# define ETH_P_ATMFATE 34948
-# define ETH_P_ATMMPOA 34892
-# define ETH_P_AX25 2
-# define ETH_P_BATMAN 17157
-# define ETH_P_BPQ 2303
-# define ETH_P_CAIF 247
-# define ETH_P_CAN 12
-# define ETH_P_CANFD 13
-# define ETH_P_CANXL 14
-# define ETH_P_CFM 35074
-# define ETH_P_CONTROL 22
-# define ETH_P_CUST 24582
-# define ETH_P_DDCMP 6
-# define ETH_P_DEC 24576
-# define ETH_P_DIAG 24581
-# define ETH_P_DNA_DL 24577
-# define ETH_P_DNA_RC 24578
-# define ETH_P_DNA_RT 24579
-# define ETH_P_DSA 27
-# define ETH_P_DSA_8021Q 56027
-# define ETH_P_DSA_A5PSW 57345
-# define ETH_P_ECONET 24
-# define ETH_P_EDSA 56026
-# define ETH_P_ERSPAN 35006
-# define ETH_P_ERSPAN2 8939
-# define ETH_P_ETHERCAT 34980
-# define ETH_P_FCOE 35078
-# define ETH_P_FIP 35092
-# define ETH_P_HDLC 25
-# define ETH_P_HSR 35119
-# define ETH_P_IBOE 35093
-# define ETH_P_IEEE802154 246
-# define ETH_P_IEEEPUP 2560
-# define ETH_P_IEEEPUPAT 2561
-# define ETH_P_IFE 60734
-# define ETH_P_IP 2048
-# define ETH_P_IPV6 34525
-# define ETH_P_IPX 33079
-# define ETH_P_IRDA 23
-# define ETH_P_LAT 24580
-# define ETH_P_LINK_CTL 34924
-# define ETH_P_LLDP 35020
-# define ETH_P_LOCALTALK 9
-# define ETH_P_LOOP 96
-# define ETH_P_LOOPBACK 36864
-# define ETH_P_MACSEC 35045
-# define ETH_P_MAP 249
-# define ETH_P_MCTP 250
-# define ETH_P_MOBITEX 21
-# define ETH_P_MPLS_MC 34888
-# define ETH_P_MPLS_UC 34887
-# define ETH_P_MRP 35043
-# define ETH_P_MVRP 35061
-# define ETH_P_NCSI 35064
-# define ETH_P_NSH 35151
-# define ETH_P_PAE 34958
-# define ETH_P_PAUSE 34824
-# define ETH_P_PHONET 245
-# define ETH_P_PPPTALK 16
-# define ETH_P_PPP_DISC 34915
-# define ETH_P_PPP_MP 8
-# define ETH_P_PPP_SES 34916
-# define ETH_P_PREAUTH 35015
-# define ETH_P_PROFINET 34962
-# define ETH_P_PRP 35067
-# define ETH_P_PUP 512
-# define ETH_P_PUPAT 513
-# define ETH_P_QINQ1 37120
-# define ETH_P_QINQ2 37376
-# define ETH_P_QINQ3 37632
-# define ETH_P_RARP 32821
-# define ETH_P_REALTEK 34969
-# define ETH_P_SCA 24583
-# define ETH_P_SLOW 34825
-# define ETH_P_SNAP 5
-# define ETH_P_TDLS 35085
-# define ETH_P_TEB 25944
-# define ETH_P_TIPC 35018
-# define ETH_P_TRAILER 28
-# define ETH_P_TR_802_2 17
-# define ETH_P_TSN 8944
-# define ETH_P_WAN_PPP 7
-# define ETH_P_WCCP 34878
-# define ETH_P_X25 2053
-# define ETH_P_XDSA 248
+# ifndef ETH_P_1588
+#  define ETH_P_1588 35063
+# endif
+# ifndef ETH_P_8021AD
+#  define ETH_P_8021AD 34984
+# endif
+# ifndef ETH_P_8021AH
+#  define ETH_P_8021AH 35047
+# endif
+# ifndef ETH_P_8021Q
+#  define ETH_P_8021Q 33024
+# endif
+# ifndef ETH_P_80221
+#  define ETH_P_80221 35095
+# endif
+# ifndef ETH_P_802_2
+#  define ETH_P_802_2 4
+# endif
+# ifndef ETH_P_802_3
+#  define ETH_P_802_3 1
+# endif
+# ifndef ETH_P_802_3_MIN
+#  define ETH_P_802_3_MIN 1536
+# endif
+# ifndef ETH_P_802_EX1
+#  define ETH_P_802_EX1 34997
+# endif
+# ifndef ETH_P_AARP
+#  define ETH_P_AARP 33011
+# endif
+# ifndef ETH_P_AF_IUCV
+#  define ETH_P_AF_IUCV 64507
+# endif
+# ifndef ETH_P_ALL
+#  define ETH_P_ALL 3
+# endif
+# ifndef ETH_P_AOE
+#  define ETH_P_AOE 34978
+# endif
+# ifndef ETH_P_ARCNET
+#  define ETH_P_ARCNET 26
+# endif
+# ifndef ETH_P_ARP
+#  define ETH_P_ARP 2054
+# endif
+# ifndef ETH_P_ATALK
+#  define ETH_P_ATALK 32923
+# endif
+# ifndef ETH_P_ATMFATE
+#  define ETH_P_ATMFATE 34948
+# endif
+# ifndef ETH_P_ATMMPOA
+#  define ETH_P_ATMMPOA 34892
+# endif
+# ifndef ETH_P_AX25
+#  define ETH_P_AX25 2
+# endif
+# ifndef ETH_P_BATMAN
+#  define ETH_P_BATMAN 17157
+# endif
+# ifndef ETH_P_BPQ
+#  define ETH_P_BPQ 2303
+# endif
+# ifndef ETH_P_CAIF
+#  define ETH_P_CAIF 247
+# endif
+# ifndef ETH_P_CAN
+#  define ETH_P_CAN 12
+# endif
+# ifndef ETH_P_CANFD
+#  define ETH_P_CANFD 13
+# endif
+# ifndef ETH_P_CANXL
+#  define ETH_P_CANXL 14
+# endif
+# ifndef ETH_P_CFM
+#  define ETH_P_CFM 35074
+# endif
+# ifndef ETH_P_CONTROL
+#  define ETH_P_CONTROL 22
+# endif
+# ifndef ETH_P_CUST
+#  define ETH_P_CUST 24582
+# endif
+# ifndef ETH_P_DDCMP
+#  define ETH_P_DDCMP 6
+# endif
+# ifndef ETH_P_DEC
+#  define ETH_P_DEC 24576
+# endif
+# ifndef ETH_P_DIAG
+#  define ETH_P_DIAG 24581
+# endif
+# ifndef ETH_P_DNA_DL
+#  define ETH_P_DNA_DL 24577
+# endif
+# ifndef ETH_P_DNA_RC
+#  define ETH_P_DNA_RC 24578
+# endif
+# ifndef ETH_P_DNA_RT
+#  define ETH_P_DNA_RT 24579
+# endif
+# ifndef ETH_P_DSA
+#  define ETH_P_DSA 27
+# endif
+# ifndef ETH_P_DSA_8021Q
+#  define ETH_P_DSA_8021Q 56027
+# endif
+# ifndef ETH_P_DSA_A5PSW
+#  define ETH_P_DSA_A5PSW 57345
+# endif
+# ifndef ETH_P_ECONET
+#  define ETH_P_ECONET 24
+# endif
+# ifndef ETH_P_EDSA
+#  define ETH_P_EDSA 56026
+# endif
+# ifndef ETH_P_ERSPAN
+#  define ETH_P_ERSPAN 35006
+# endif
+# ifndef ETH_P_ERSPAN2
+#  define ETH_P_ERSPAN2 8939
+# endif
+# ifndef ETH_P_ETHERCAT
+#  define ETH_P_ETHERCAT 34980
+# endif
+# ifndef ETH_P_FCOE
+#  define ETH_P_FCOE 35078
+# endif
+# ifndef ETH_P_FIP
+#  define ETH_P_FIP 35092
+# endif
+# ifndef ETH_P_HDLC
+#  define ETH_P_HDLC 25
+# endif
+# ifndef ETH_P_HSR
+#  define ETH_P_HSR 35119
+# endif
+# ifndef ETH_P_IBOE
+#  define ETH_P_IBOE 35093
+# endif
+# ifndef ETH_P_IEEE802154
+#  define ETH_P_IEEE802154 246
+# endif
+# ifndef ETH_P_IEEEPUP
+#  define ETH_P_IEEEPUP 2560
+# endif
+# ifndef ETH_P_IEEEPUPAT
+#  define ETH_P_IEEEPUPAT 2561
+# endif
+# ifndef ETH_P_IFE
+#  define ETH_P_IFE 60734
+# endif
+# ifndef ETH_P_IP
+#  define ETH_P_IP 2048
+# endif
+# ifndef ETH_P_IPV6
+#  define ETH_P_IPV6 34525
+# endif
+# ifndef ETH_P_IPX
+#  define ETH_P_IPX 33079
+# endif
+# ifndef ETH_P_IRDA
+#  define ETH_P_IRDA 23
+# endif
+# ifndef ETH_P_LAT
+#  define ETH_P_LAT 24580
+# endif
+# ifndef ETH_P_LINK_CTL
+#  define ETH_P_LINK_CTL 34924
+# endif
+# ifndef ETH_P_LLDP
+#  define ETH_P_LLDP 35020
+# endif
+# ifndef ETH_P_LOCALTALK
+#  define ETH_P_LOCALTALK 9
+# endif
+# ifndef ETH_P_LOOP
+#  define ETH_P_LOOP 96
+# endif
+# ifndef ETH_P_LOOPBACK
+#  define ETH_P_LOOPBACK 36864
+# endif
+# ifndef ETH_P_MACSEC
+#  define ETH_P_MACSEC 35045
+# endif
+# ifndef ETH_P_MAP
+#  define ETH_P_MAP 249
+# endif
+# ifndef ETH_P_MCTP
+#  define ETH_P_MCTP 250
+# endif
+# ifndef ETH_P_MOBITEX
+#  define ETH_P_MOBITEX 21
+# endif
+# ifndef ETH_P_MPLS_MC
+#  define ETH_P_MPLS_MC 34888
+# endif
+# ifndef ETH_P_MPLS_UC
+#  define ETH_P_MPLS_UC 34887
+# endif
+# ifndef ETH_P_MRP
+#  define ETH_P_MRP 35043
+# endif
+# ifndef ETH_P_MVRP
+#  define ETH_P_MVRP 35061
+# endif
+# ifndef ETH_P_NCSI
+#  define ETH_P_NCSI 35064
+# endif
+# ifndef ETH_P_NSH
+#  define ETH_P_NSH 35151
+# endif
+# ifndef ETH_P_PAE
+#  define ETH_P_PAE 34958
+# endif
+# ifndef ETH_P_PAUSE
+#  define ETH_P_PAUSE 34824
+# endif
+# ifndef ETH_P_PHONET
+#  define ETH_P_PHONET 245
+# endif
+# ifndef ETH_P_PPPTALK
+#  define ETH_P_PPPTALK 16
+# endif
+# ifndef ETH_P_PPP_DISC
+#  define ETH_P_PPP_DISC 34915
+# endif
+# ifndef ETH_P_PPP_MP
+#  define ETH_P_PPP_MP 8
+# endif
+# ifndef ETH_P_PPP_SES
+#  define ETH_P_PPP_SES 34916
+# endif
+# ifndef ETH_P_PREAUTH
+#  define ETH_P_PREAUTH 35015
+# endif
+# ifndef ETH_P_PROFINET
+#  define ETH_P_PROFINET 34962
+# endif
+# ifndef ETH_P_PRP
+#  define ETH_P_PRP 35067
+# endif
+# ifndef ETH_P_PUP
+#  define ETH_P_PUP 512
+# endif
+# ifndef ETH_P_PUPAT
+#  define ETH_P_PUPAT 513
+# endif
+# ifndef ETH_P_QINQ1
+#  define ETH_P_QINQ1 37120
+# endif
+# ifndef ETH_P_QINQ2
+#  define ETH_P_QINQ2 37376
+# endif
+# ifndef ETH_P_QINQ3
+#  define ETH_P_QINQ3 37632
+# endif
+# ifndef ETH_P_RARP
+#  define ETH_P_RARP 32821
+# endif
+# ifndef ETH_P_REALTEK
+#  define ETH_P_REALTEK 34969
+# endif
+# ifndef ETH_P_SCA
+#  define ETH_P_SCA 24583
+# endif
+# ifndef ETH_P_SLOW
+#  define ETH_P_SLOW 34825
+# endif
+# ifndef ETH_P_SNAP
+#  define ETH_P_SNAP 5
+# endif
+# ifndef ETH_P_TDLS
+#  define ETH_P_TDLS 35085
+# endif
+# ifndef ETH_P_TEB
+#  define ETH_P_TEB 25944
+# endif
+# ifndef ETH_P_TIPC
+#  define ETH_P_TIPC 35018
+# endif
+# ifndef ETH_P_TRAILER
+#  define ETH_P_TRAILER 28
+# endif
+# ifndef ETH_P_TR_802_2
+#  define ETH_P_TR_802_2 17
+# endif
+# ifndef ETH_P_TSN
+#  define ETH_P_TSN 8944
+# endif
+# ifndef ETH_P_WAN_PPP
+#  define ETH_P_WAN_PPP 7
+# endif
+# ifndef ETH_P_WCCP
+#  define ETH_P_WCCP 34878
+# endif
+# ifndef ETH_P_X25
+#  define ETH_P_X25 2053
+# endif
+# ifndef ETH_P_XDSA
+#  define ETH_P_XDSA 248
+# endif
 # define ETH_TLEN 2
 # define ETH_ZLEN 60
 #endif

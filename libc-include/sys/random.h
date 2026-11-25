@@ -27,9 +27,15 @@ extern int getentropy (void *, unsigned long) __attribute__ ((__nonnull__ (1), _
 #  define __NIJI_D_getrandom 1
 extern long getrandom (void *, unsigned long, unsigned int);
 # endif
-# define GRND_INSECURE 4
-# define GRND_NONBLOCK 1
-# define GRND_RANDOM 2
+# ifndef GRND_INSECURE
+#  define GRND_INSECURE 4
+# endif
+# ifndef GRND_NONBLOCK
+#  define GRND_NONBLOCK 1
+# endif
+# ifndef GRND_RANDOM
+#  define GRND_RANDOM 2
+# endif
 #endif
 
 __NIJI_END_C

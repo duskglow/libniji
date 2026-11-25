@@ -572,7 +572,9 @@ enum {
 # define PF_NFC 39
 # define PF_PACKET 17
 # define PF_PHONET 35
-# define PF_PPPOX 24
+# ifndef PF_PPPOX
+#  define PF_PPPOX 24
+# endif
 # define PF_QIPCRTR 42
 # define PF_RDS 21
 # define PF_ROSE 11
@@ -581,7 +583,9 @@ enum {
 # define PF_SECURITY 14
 # define PF_SMC 43
 # define PF_SNA 22
-# define PF_TIPC 30
+# ifndef PF_TIPC
+#  define PF_TIPC 30
+# endif
 # define PF_UNIX 1
 # define PF_UNSPEC 0
 # define PF_VSOCK 40
@@ -640,14 +644,24 @@ enum {
 # define SO_OOBINLINE 10
 # define SO_RCVBUF 8
 # define SO_RCVLOWAT 18
-# define SO_RCVTIMEO 20
+# ifndef SO_RCVTIMEO
+#  define SO_RCVTIMEO 20
+# endif
 # define SO_REUSEADDR 2
 # define SO_SNDBUF 7
 # define SO_SNDLOWAT 19
-# define SO_SNDTIMEO 21
-# define SO_TIMESTAMP 29
-# define SO_TIMESTAMPING 37
-# define SO_TIMESTAMPNS 35
+# ifndef SO_SNDTIMEO
+#  define SO_SNDTIMEO 21
+# endif
+# ifndef SO_TIMESTAMP
+#  define SO_TIMESTAMP 29
+# endif
+# ifndef SO_TIMESTAMPING
+#  define SO_TIMESTAMPING 37
+# endif
+# ifndef SO_TIMESTAMPNS
+#  define SO_TIMESTAMPNS 35
+# endif
 # define SO_TYPE 3
 # define _SS_PADSIZE 118UL
 # define _SS_SIZE 128
@@ -659,20 +673,44 @@ enum {
 # define SCM_SECURITY SCM_SECURITY
 #endif
 #if defined __USE_MISC
-# define FIOGETOWN 35075
-# define FIOSETOWN 35073
-# define SCM_TIMESTAMP 29
-# define SCM_TIMESTAMPING 37
+# ifndef FIOGETOWN
+#  define FIOGETOWN 35075
+# endif
+# ifndef FIOSETOWN
+#  define FIOSETOWN 35073
+# endif
+# ifndef SCM_TIMESTAMP
+#  define SCM_TIMESTAMP 29
+# endif
+# ifndef SCM_TIMESTAMPING
+#  define SCM_TIMESTAMPING 37
+# endif
 # define SCM_TIMESTAMPING_OPT_STATS 54
 # define SCM_TIMESTAMPING_PKTINFO 58
-# define SCM_TIMESTAMPNS 35
-# define SCM_TXTIME 61
-# define SCM_WIFI_STATUS 41
-# define SIOCATMARK 35077
-# define SIOCGPGRP 35076
-# define SIOCGSTAMPNS_OLD 35079
-# define SIOCGSTAMP_OLD 35078
-# define SIOCSPGRP 35074
+# ifndef SCM_TIMESTAMPNS
+#  define SCM_TIMESTAMPNS 35
+# endif
+# ifndef SCM_TXTIME
+#  define SCM_TXTIME 61
+# endif
+# ifndef SCM_WIFI_STATUS
+#  define SCM_WIFI_STATUS 41
+# endif
+# ifndef SIOCATMARK
+#  define SIOCATMARK 35077
+# endif
+# ifndef SIOCGPGRP
+#  define SIOCGPGRP 35076
+# endif
+# ifndef SIOCGSTAMPNS_OLD
+#  define SIOCGSTAMPNS_OLD 35079
+# endif
+# ifndef SIOCGSTAMP_OLD
+#  define SIOCGSTAMP_OLD 35078
+# endif
+# ifndef SIOCSPGRP
+#  define SIOCSPGRP 35074
+# endif
 # define SO_ATTACH_BPF 50
 # define SO_ATTACH_FILTER 26
 # define SO_ATTACH_REUSEPORT_CBPF 51
@@ -686,11 +724,15 @@ enum {
 # define SO_BUSY_POLL_BUDGET 70
 # define SO_CNX_ADVICE 53
 # define SO_COOKIE 57
-# define SO_DETACH_BPF 27
+# ifndef SO_DETACH_BPF
+#  define SO_DETACH_BPF 27
+# endif
 # define SO_DETACH_FILTER 27
 # define SO_DETACH_REUSEPORT_BPF 68
 # define SO_DOMAIN 39
-# define SO_GET_FILTER 26
+# ifndef SO_GET_FILTER
+#  define SO_GET_FILTER 26
+# endif
 # define SO_INCOMING_CPU 49
 # define SO_INCOMING_NAPI_ID 56
 # define SO_LOCK_FILTER 44

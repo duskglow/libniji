@@ -132,7 +132,9 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ARPHRD_FCPP 784
 # define ARPHRD_FDDI 774
 # define ARPHRD_FRAD 770
-# define ARPHRD_HDLC 513
+# ifndef ARPHRD_HDLC
+#  define ARPHRD_HDLC 513
+# endif
 # define ARPHRD_HIPPI 780
 # define ARPHRD_HWX25 272
 # define ARPHRD_IEEE1394 24
@@ -153,7 +155,9 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ARPHRD_MCTP 290
 # define ARPHRD_METRICOM 23
 # define ARPHRD_NETROM 0
-# define ARPHRD_NONE 65534
+# ifndef ARPHRD_NONE
+#  define ARPHRD_NONE 65534
+# endif
 # define ARPHRD_PIMREG 779
 # define ARPHRD_PPP 512
 # define ARPHRD_PRONET 4
@@ -167,7 +171,9 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ARPHRD_SLIP6 258
 # define ARPHRD_TUNNEL 768
 # define ARPHRD_TUNNEL6 769
-# define ARPHRD_VOID 65535
+# ifndef ARPHRD_VOID
+#  define ARPHRD_VOID 65535
+# endif
 # define ARPHRD_X25 271
 # define ARPOP_InREPLY 9
 # define ARPOP_InREQUEST 8
@@ -176,14 +182,28 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ARPOP_REQUEST 1
 # define ARPOP_RREPLY 4
 # define ARPOP_RREQUEST 3
-# define ATF_COM 2
-# define ATF_DONTPUB 64
+# ifndef ATF_COM
+#  define ATF_COM 2
+# endif
+# ifndef ATF_DONTPUB
+#  define ATF_DONTPUB 64
+# endif
 # define ATF_MAGIC 128
-# define ATF_NETMASK 32
-# define ATF_PERM 4
-# define ATF_PUBL 8
-# define ATF_USETRAILERS 16
-# define MAX_ADDR_LEN 7
+# ifndef ATF_NETMASK
+#  define ATF_NETMASK 32
+# endif
+# ifndef ATF_PERM
+#  define ATF_PERM 4
+# endif
+# ifndef ATF_PUBL
+#  define ATF_PUBL 8
+# endif
+# ifndef ATF_USETRAILERS
+#  define ATF_USETRAILERS 16
+# endif
+# ifndef MAX_ADDR_LEN
+#  define MAX_ADDR_LEN 7
+# endif
 #endif
 
 __NIJI_END_C

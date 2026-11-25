@@ -408,50 +408,130 @@ extern long timegm (struct tm *) __NIJI_NOTHROW;
 # define CLOCK_REALTIME_COARSE 5
 # define CLOCK_TAI 11
 # define CLOCK_THREAD_CPUTIME_ID 3
-# define TIMER_ABSTIME 1
+# ifndef TIMER_ABSTIME
+#  define TIMER_ABSTIME 1
+# endif
 #endif
 #if defined __USE_GNU
-# define ADJ_ESTERROR 8
-# define ADJ_FREQUENCY 2
-# define ADJ_MAXERROR 4
-# define ADJ_MICRO 4096
-# define ADJ_NANO 8192
-# define ADJ_OFFSET 1
-# define ADJ_OFFSET_SINGLESHOT 32769
-# define ADJ_OFFSET_SS_READ 40961
-# define ADJ_SETOFFSET 256
-# define ADJ_STATUS 16
-# define ADJ_TAI 128
-# define ADJ_TICK 16384
-# define ADJ_TIMECONST 32
+# ifndef ADJ_ESTERROR
+#  define ADJ_ESTERROR 8
+# endif
+# ifndef ADJ_FREQUENCY
+#  define ADJ_FREQUENCY 2
+# endif
+# ifndef ADJ_MAXERROR
+#  define ADJ_MAXERROR 4
+# endif
+# ifndef ADJ_MICRO
+#  define ADJ_MICRO 4096
+# endif
+# ifndef ADJ_NANO
+#  define ADJ_NANO 8192
+# endif
+# ifndef ADJ_OFFSET
+#  define ADJ_OFFSET 1
+# endif
+# ifndef ADJ_OFFSET_SINGLESHOT
+#  define ADJ_OFFSET_SINGLESHOT 32769
+# endif
+# ifndef ADJ_OFFSET_SS_READ
+#  define ADJ_OFFSET_SS_READ 40961
+# endif
+# ifndef ADJ_SETOFFSET
+#  define ADJ_SETOFFSET 256
+# endif
+# ifndef ADJ_STATUS
+#  define ADJ_STATUS 16
+# endif
+# ifndef ADJ_TAI
+#  define ADJ_TAI 128
+# endif
+# ifndef ADJ_TICK
+#  define ADJ_TICK 16384
+# endif
+# ifndef ADJ_TIMECONST
+#  define ADJ_TIMECONST 32
+# endif
 # define MOD_CLKA 32769
 # define MOD_CLKB 16384
-# define MOD_ESTERROR 8
-# define MOD_FREQUENCY 2
-# define MOD_MAXERROR 4
-# define MOD_MICRO 4096
-# define MOD_NANO 8192
-# define MOD_OFFSET 1
-# define MOD_STATUS 16
-# define MOD_TAI 128
-# define MOD_TIMECONST 32
-# define STA_CLK 32768
-# define STA_CLOCKERR 4096
-# define STA_DEL 32
-# define STA_FLL 8
-# define STA_FREQHOLD 128
-# define STA_INS 16
-# define STA_MODE 16384
-# define STA_NANO 8192
-# define STA_PLL 1
-# define STA_PPSERROR 2048
-# define STA_PPSFREQ 2
-# define STA_PPSJITTER 512
-# define STA_PPSSIGNAL 256
-# define STA_PPSTIME 4
-# define STA_PPSWANDER 1024
-# define STA_RONLY 65280
-# define STA_UNSYNC 64
+# ifndef MOD_ESTERROR
+#  define MOD_ESTERROR 8
+# endif
+# ifndef MOD_FREQUENCY
+#  define MOD_FREQUENCY 2
+# endif
+# ifndef MOD_MAXERROR
+#  define MOD_MAXERROR 4
+# endif
+# ifndef MOD_MICRO
+#  define MOD_MICRO 4096
+# endif
+# ifndef MOD_NANO
+#  define MOD_NANO 8192
+# endif
+# ifndef MOD_OFFSET
+#  define MOD_OFFSET 1
+# endif
+# ifndef MOD_STATUS
+#  define MOD_STATUS 16
+# endif
+# ifndef MOD_TAI
+#  define MOD_TAI 128
+# endif
+# ifndef MOD_TIMECONST
+#  define MOD_TIMECONST 32
+# endif
+# ifndef STA_CLK
+#  define STA_CLK 32768
+# endif
+# ifndef STA_CLOCKERR
+#  define STA_CLOCKERR 4096
+# endif
+# ifndef STA_DEL
+#  define STA_DEL 32
+# endif
+# ifndef STA_FLL
+#  define STA_FLL 8
+# endif
+# ifndef STA_FREQHOLD
+#  define STA_FREQHOLD 128
+# endif
+# ifndef STA_INS
+#  define STA_INS 16
+# endif
+# ifndef STA_MODE
+#  define STA_MODE 16384
+# endif
+# ifndef STA_NANO
+#  define STA_NANO 8192
+# endif
+# ifndef STA_PLL
+#  define STA_PLL 1
+# endif
+# ifndef STA_PPSERROR
+#  define STA_PPSERROR 2048
+# endif
+# ifndef STA_PPSFREQ
+#  define STA_PPSFREQ 2
+# endif
+# ifndef STA_PPSJITTER
+#  define STA_PPSJITTER 512
+# endif
+# ifndef STA_PPSSIGNAL
+#  define STA_PPSSIGNAL 256
+# endif
+# ifndef STA_PPSTIME
+#  define STA_PPSTIME 4
+# endif
+# ifndef STA_PPSWANDER
+#  define STA_PPSWANDER 1024
+# endif
+# ifndef STA_RONLY
+#  define STA_RONLY 65280
+# endif
+# ifndef STA_UNSYNC
+#  define STA_UNSYNC 64
+# endif
 #endif
 
 #if 1

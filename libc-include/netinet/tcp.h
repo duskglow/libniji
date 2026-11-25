@@ -259,7 +259,9 @@ enum { TCP_TIME_WAIT = 6 };
 #endif
 #if 1
 # define TCP_CC_INFO 26
-# define TCP_CM_INQ 36
+# ifndef TCP_CM_INQ
+#  define TCP_CM_INQ 36
+# endif
 # define TCP_CONGESTION 13
 # define TCP_COOKIE_TRANSACTIONS 15
 # define TCP_CORK 3
@@ -283,7 +285,9 @@ enum { TCP_TIME_WAIT = 6 };
 # define TCP_QUICKACK 12
 # define TCP_REPAIR 19
 # define TCP_REPAIR_OFF 0
-# define TCP_REPAIR_OFF_NO_WP (-1)
+# ifndef TCP_REPAIR_OFF_NO_WP
+#  define TCP_REPAIR_OFF_NO_WP (-1)
+# endif
 # define TCP_REPAIR_ON 1
 # define TCP_REPAIR_OPTIONS 22
 # define TCP_REPAIR_QUEUE 20
@@ -328,8 +332,12 @@ enum { TCP_TIME_WAIT = 6 };
 # define TCP_COOKIE_PAIR_SIZE 32
 # define TCP_MAXWIN 65535
 # define TCP_MAX_WINSHIFT 14
-# define TCP_MD5SIG_FLAG_IFINDEX 2
-# define TCP_MD5SIG_FLAG_PREFIX 1
+# ifndef TCP_MD5SIG_FLAG_IFINDEX
+#  define TCP_MD5SIG_FLAG_IFINDEX 2
+# endif
+# ifndef TCP_MD5SIG_FLAG_PREFIX
+#  define TCP_MD5SIG_FLAG_PREFIX 1
+# endif
 # define TCP_MD5SIG_MAXKEYLEN 80
 # define TCP_MSS 512
 # define TCP_MSS_DEFAULT 536U

@@ -87,17 +87,27 @@ typedef union pthread_attr_t pthread_attr_t;
 # define MTBSR 4
 # define MTBSS 26
 # define MTCOMPRESSION 32
-# define MTEOM 12
+# ifndef MTEOM
+#  define MTEOM 12
+# endif
 # define MTERASE 13
-# define MTFSF 1
+# ifndef MTFSF
+#  define MTFSF 1
+# endif
 # define MTFSFM 11
 # define MTFSR 3
 # define MTFSS 25
-# define MTIOCGET 2150657282UL
+# ifndef MTIOCGET
+#  define MTIOCGET 2150657282UL
+# endif
 # define MTIOCGETCONFIG 2150657284UL
-# define MTIOCPOS 2148035843UL
+# ifndef MTIOCPOS
+#  define MTIOCPOS 2148035843UL
+# endif
 # define MTIOCSETCONFIG 1076915461UL
-# define MTIOCTOP 1074294017UL
+# ifndef MTIOCTOP
+#  define MTIOCTOP 1074294017UL
+# endif
 # define MTLOAD 30
 # define MTLOCK 28
 # define MTMKPART 34
@@ -119,56 +129,148 @@ typedef union pthread_attr_t pthread_attr_t;
 # define MTUNLOCK 29
 # define MTWEOF 5
 # define MTWSM 27
-# define MT_ISARCHIVESC499 10
-# define MT_ISARCHIVE_2060L 9
-# define MT_ISARCHIVE_2150L 8
-# define MT_ISARCHIVE_5945L2 4
-# define MT_ISARCHIVE_VP60I 7
-# define MT_ISCMSJ500 5
-# define MT_ISDDS1 81
-# define MT_ISDDS2 82
-# define MT_ISEVEREX_FT40A 50
-# define MT_ISFTAPE_FLAG 8388608
-# define MT_ISFTAPE_UNKNOWN 8388608
-# define MT_ISQIC02 2
-# define MT_ISQIC02_ALL_FEATURES 15
-# define MT_ISSCSI1 113
-# define MT_ISSCSI2 114
-# define MT_ISTDC3610 6
-# define MT_ISTEAC_MT2ST 18
-# define MT_ISUNKNOWN 1
-# define MT_ISWT5099EEN24 17
-# define MT_ISWT5150 3
-# define MT_ST_ASYNC_WRITES 2
-# define MT_ST_AUTO_LOCK 64
-# define MT_ST_BLKSIZE_MASK 16777215
+# ifndef MT_ISARCHIVESC499
+#  define MT_ISARCHIVESC499 10
+# endif
+# ifndef MT_ISARCHIVE_2060L
+#  define MT_ISARCHIVE_2060L 9
+# endif
+# ifndef MT_ISARCHIVE_2150L
+#  define MT_ISARCHIVE_2150L 8
+# endif
+# ifndef MT_ISARCHIVE_5945L2
+#  define MT_ISARCHIVE_5945L2 4
+# endif
+# ifndef MT_ISARCHIVE_VP60I
+#  define MT_ISARCHIVE_VP60I 7
+# endif
+# ifndef MT_ISCMSJ500
+#  define MT_ISCMSJ500 5
+# endif
+# ifndef MT_ISDDS1
+#  define MT_ISDDS1 81
+# endif
+# ifndef MT_ISDDS2
+#  define MT_ISDDS2 82
+# endif
+# ifndef MT_ISEVEREX_FT40A
+#  define MT_ISEVEREX_FT40A 50
+# endif
+# ifndef MT_ISFTAPE_FLAG
+#  define MT_ISFTAPE_FLAG 8388608
+# endif
+# ifndef MT_ISFTAPE_UNKNOWN
+#  define MT_ISFTAPE_UNKNOWN 8388608
+# endif
+# ifndef MT_ISQIC02
+#  define MT_ISQIC02 2
+# endif
+# ifndef MT_ISQIC02_ALL_FEATURES
+#  define MT_ISQIC02_ALL_FEATURES 15
+# endif
+# ifndef MT_ISSCSI1
+#  define MT_ISSCSI1 113
+# endif
+# ifndef MT_ISSCSI2
+#  define MT_ISSCSI2 114
+# endif
+# ifndef MT_ISTDC3610
+#  define MT_ISTDC3610 6
+# endif
+# ifndef MT_ISTEAC_MT2ST
+#  define MT_ISTEAC_MT2ST 18
+# endif
+# ifndef MT_ISUNKNOWN
+#  define MT_ISUNKNOWN 1
+# endif
+# ifndef MT_ISWT5099EEN24
+#  define MT_ISWT5099EEN24 17
+# endif
+# ifndef MT_ISWT5150
+#  define MT_ISWT5150 3
+# endif
+# ifndef MT_ST_ASYNC_WRITES
+#  define MT_ST_ASYNC_WRITES 2
+# endif
+# ifndef MT_ST_AUTO_LOCK
+#  define MT_ST_AUTO_LOCK 64
+# endif
+# ifndef MT_ST_BLKSIZE_MASK
+#  define MT_ST_BLKSIZE_MASK 16777215
+# endif
 # define MT_ST_BLKSIZE_SHIFT 0
-# define MT_ST_BOOLEANS 268435456
-# define MT_ST_BUFFER_WRITES 1
-# define MT_ST_CAN_BSR 256
-# define MT_ST_CAN_PARTITIONS 1024
-# define MT_ST_CLEARBOOLEANS 1073741824
-# define MT_ST_CLEAR_DEFAULT 1048575
-# define MT_ST_DEBUGGING 8
-# define MT_ST_DEF_BLKSIZE 1342177280
-# define MT_ST_DEF_COMPRESSION 1612709888
-# define MT_ST_DEF_DENSITY 1611661312
-# define MT_ST_DEF_DRVBUFFER 1613758464
-# define MT_ST_DEF_OPTIONS 1610612736
-# define MT_ST_DEF_WRITES 128
-# define MT_ST_DENSITY_MASK 4278190080U
+# ifndef MT_ST_BOOLEANS
+#  define MT_ST_BOOLEANS 268435456
+# endif
+# ifndef MT_ST_BUFFER_WRITES
+#  define MT_ST_BUFFER_WRITES 1
+# endif
+# ifndef MT_ST_CAN_BSR
+#  define MT_ST_CAN_BSR 256
+# endif
+# ifndef MT_ST_CAN_PARTITIONS
+#  define MT_ST_CAN_PARTITIONS 1024
+# endif
+# ifndef MT_ST_CLEARBOOLEANS
+#  define MT_ST_CLEARBOOLEANS 1073741824
+# endif
+# ifndef MT_ST_CLEAR_DEFAULT
+#  define MT_ST_CLEAR_DEFAULT 1048575
+# endif
+# ifndef MT_ST_DEBUGGING
+#  define MT_ST_DEBUGGING 8
+# endif
+# ifndef MT_ST_DEF_BLKSIZE
+#  define MT_ST_DEF_BLKSIZE 1342177280
+# endif
+# ifndef MT_ST_DEF_COMPRESSION
+#  define MT_ST_DEF_COMPRESSION 1612709888
+# endif
+# ifndef MT_ST_DEF_DENSITY
+#  define MT_ST_DEF_DENSITY 1611661312
+# endif
+# ifndef MT_ST_DEF_DRVBUFFER
+#  define MT_ST_DEF_DRVBUFFER 1613758464
+# endif
+# ifndef MT_ST_DEF_OPTIONS
+#  define MT_ST_DEF_OPTIONS 1610612736
+# endif
+# ifndef MT_ST_DEF_WRITES
+#  define MT_ST_DEF_WRITES 128
+# endif
+# ifndef MT_ST_DENSITY_MASK
+#  define MT_ST_DENSITY_MASK 4278190080U
+# endif
 # define MT_ST_DENSITY_SHIFT 24
-# define MT_ST_FAST_MTEOM 32
+# ifndef MT_ST_FAST_MTEOM
+#  define MT_ST_FAST_MTEOM 32
+# endif
 # define MT_ST_HPLOADER_OFFSET 10000
-# define MT_ST_NO_BLKLIMS 512
-# define MT_ST_OPTIONS 4026531840U
-# define MT_ST_READ_AHEAD 4
-# define MT_ST_SCSI2LOGICAL 2048
-# define MT_ST_SETBOOLEANS 805306368
-# define MT_ST_SOFTERR_MASK 65535
+# ifndef MT_ST_NO_BLKLIMS
+#  define MT_ST_NO_BLKLIMS 512
+# endif
+# ifndef MT_ST_OPTIONS
+#  define MT_ST_OPTIONS 4026531840U
+# endif
+# ifndef MT_ST_READ_AHEAD
+#  define MT_ST_READ_AHEAD 4
+# endif
+# ifndef MT_ST_SCSI2LOGICAL
+#  define MT_ST_SCSI2LOGICAL 2048
+# endif
+# ifndef MT_ST_SETBOOLEANS
+#  define MT_ST_SETBOOLEANS 805306368
+# endif
+# ifndef MT_ST_SOFTERR_MASK
+#  define MT_ST_SOFTERR_MASK 65535
+# endif
 # define MT_ST_SOFTERR_SHIFT 0
-# define MT_ST_TWO_FM 16
-# define MT_ST_WRITE_THRESHOLD 536870912
+# ifndef MT_ST_TWO_FM
+#  define MT_ST_TWO_FM 16
+# endif
+# ifndef MT_ST_WRITE_THRESHOLD
+#  define MT_ST_WRITE_THRESHOLD 536870912
+# endif
 #endif
 
 /* st(4): the generic status bits of mt_gstat, each a test of one bit of its argument (the mask's type is that of

@@ -745,9 +745,15 @@ extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ (
 # define L_ctermid 9
 #endif
 #if defined __USE_GNU
-# define RENAME_EXCHANGE 2
-# define RENAME_NOREPLACE 1
-# define RENAME_WHITEOUT 4
+# ifndef RENAME_EXCHANGE
+#  define RENAME_EXCHANGE 2
+# endif
+# ifndef RENAME_NOREPLACE
+#  define RENAME_NOREPLACE 1
+# endif
+# ifndef RENAME_WHITEOUT
+#  define RENAME_WHITEOUT 4
+# endif
 # define SEEK_DATA 3
 # define SEEK_HOLE 4
 #endif

@@ -119,80 +119,228 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# define B0 0
-# define B1000000 4104
-# define B110 3
-# define B115200 4098
-# define B1152000 4105
-# define B1200 9
-# define B134 4
-# define B150 5
-# define B1500000 4106
-# define B1800 10
-# define B19200 14
-# define B200 6
-# define B2000000 4107
-# define B230400 4099
-# define B2400 11
-# define B2500000 4108
-# define B300 7
-# define B3000000 4109
-# define B3500000 4110
-# define B38400 15
-# define B4000000 4111
-# define B460800 4100
-# define B4800 12
-# define B50 1
-# define B500000 4101
-# define B57600 4097
-# define B576000 4102
-# define B600 8
-# define B75 2
-# define B921600 4103
-# define B9600 13
-# define BRKINT 2
-# define CLOCAL 2048
-# define CREAD 128
-# define CS5 0
-# define CS6 16
-# define CS7 32
-# define CS8 48
-# define CSIZE 48
-# define CSTOPB 64
-# define ECHO 8
-# define ECHOE 16
-# define ECHOK 32
-# define ECHONL 64
-# define HUPCL 1024
-# define ICANON 2
-# define ICRNL 256
-# define IEXTEN 32768
-# define IGNBRK 1
-# define IGNCR 128
-# define IGNPAR 4
-# define IMAXBEL 8192
-# define INLCR 64
-# define INPCK 16
-# define ISIG 1
-# define ISTRIP 32
-# define IUCLC 512
-# define IUTF8 16384
-# define IXANY 2048
-# define IXOFF 4096
-# define IXON 1024
-# define NCCS 32
-# define NOFLSH 128
-# define OCRNL 8
-# define OFDEL 128
-# define OFILL 64
-# define OLCUC 2
-# define ONLCR 4
-# define ONLRET 32
-# define ONOCR 16
-# define OPOST 1
-# define PARENB 256
-# define PARMRK 8
-# define PARODD 512
+# ifndef B0
+#  define B0 0
+# endif
+# ifndef B1000000
+#  define B1000000 4104
+# endif
+# ifndef B110
+#  define B110 3
+# endif
+# ifndef B115200
+#  define B115200 4098
+# endif
+# ifndef B1152000
+#  define B1152000 4105
+# endif
+# ifndef B1200
+#  define B1200 9
+# endif
+# ifndef B134
+#  define B134 4
+# endif
+# ifndef B150
+#  define B150 5
+# endif
+# ifndef B1500000
+#  define B1500000 4106
+# endif
+# ifndef B1800
+#  define B1800 10
+# endif
+# ifndef B19200
+#  define B19200 14
+# endif
+# ifndef B200
+#  define B200 6
+# endif
+# ifndef B2000000
+#  define B2000000 4107
+# endif
+# ifndef B230400
+#  define B230400 4099
+# endif
+# ifndef B2400
+#  define B2400 11
+# endif
+# ifndef B2500000
+#  define B2500000 4108
+# endif
+# ifndef B300
+#  define B300 7
+# endif
+# ifndef B3000000
+#  define B3000000 4109
+# endif
+# ifndef B3500000
+#  define B3500000 4110
+# endif
+# ifndef B38400
+#  define B38400 15
+# endif
+# ifndef B4000000
+#  define B4000000 4111
+# endif
+# ifndef B460800
+#  define B460800 4100
+# endif
+# ifndef B4800
+#  define B4800 12
+# endif
+# ifndef B50
+#  define B50 1
+# endif
+# ifndef B500000
+#  define B500000 4101
+# endif
+# ifndef B57600
+#  define B57600 4097
+# endif
+# ifndef B576000
+#  define B576000 4102
+# endif
+# ifndef B600
+#  define B600 8
+# endif
+# ifndef B75
+#  define B75 2
+# endif
+# ifndef B921600
+#  define B921600 4103
+# endif
+# ifndef B9600
+#  define B9600 13
+# endif
+# ifndef BRKINT
+#  define BRKINT 2
+# endif
+# ifndef CLOCAL
+#  define CLOCAL 2048
+# endif
+# ifndef CREAD
+#  define CREAD 128
+# endif
+# ifndef CS5
+#  define CS5 0
+# endif
+# ifndef CS6
+#  define CS6 16
+# endif
+# ifndef CS7
+#  define CS7 32
+# endif
+# ifndef CS8
+#  define CS8 48
+# endif
+# ifndef CSIZE
+#  define CSIZE 48
+# endif
+# ifndef CSTOPB
+#  define CSTOPB 64
+# endif
+# ifndef ECHO
+#  define ECHO 8
+# endif
+# ifndef ECHOE
+#  define ECHOE 16
+# endif
+# ifndef ECHOK
+#  define ECHOK 32
+# endif
+# ifndef ECHONL
+#  define ECHONL 64
+# endif
+# ifndef HUPCL
+#  define HUPCL 1024
+# endif
+# ifndef ICANON
+#  define ICANON 2
+# endif
+# ifndef ICRNL
+#  define ICRNL 256
+# endif
+# ifndef IEXTEN
+#  define IEXTEN 32768
+# endif
+# ifndef IGNBRK
+#  define IGNBRK 1
+# endif
+# ifndef IGNCR
+#  define IGNCR 128
+# endif
+# ifndef IGNPAR
+#  define IGNPAR 4
+# endif
+# ifndef IMAXBEL
+#  define IMAXBEL 8192
+# endif
+# ifndef INLCR
+#  define INLCR 64
+# endif
+# ifndef INPCK
+#  define INPCK 16
+# endif
+# ifndef ISIG
+#  define ISIG 1
+# endif
+# ifndef ISTRIP
+#  define ISTRIP 32
+# endif
+# ifndef IUCLC
+#  define IUCLC 512
+# endif
+# ifndef IUTF8
+#  define IUTF8 16384
+# endif
+# ifndef IXANY
+#  define IXANY 2048
+# endif
+# ifndef IXOFF
+#  define IXOFF 4096
+# endif
+# ifndef IXON
+#  define IXON 1024
+# endif
+# ifndef NCCS
+#  define NCCS 32
+# endif
+# ifndef NOFLSH
+#  define NOFLSH 128
+# endif
+# ifndef OCRNL
+#  define OCRNL 8
+# endif
+# ifndef OFDEL
+#  define OFDEL 128
+# endif
+# ifndef OFILL
+#  define OFILL 64
+# endif
+# ifndef OLCUC
+#  define OLCUC 2
+# endif
+# ifndef ONLCR
+#  define ONLCR 4
+# endif
+# ifndef ONLRET
+#  define ONLRET 32
+# endif
+# ifndef ONOCR
+#  define ONOCR 16
+# endif
+# ifndef OPOST
+#  define OPOST 1
+# endif
+# ifndef PARENB
+#  define PARENB 256
+# endif
+# ifndef PARMRK
+#  define PARMRK 8
+# endif
+# ifndef PARODD
+#  define PARODD 512
+# endif
 # define TCIFLUSH 0
 # define TCIOFF 2
 # define TCIOFLUSH 2
@@ -203,7 +351,9 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define TCSADRAIN 1
 # define TCSAFLUSH 2
 # define TCSANOW 0
-# define TOSTOP 256
+# ifndef TOSTOP
+#  define TOSTOP 256
+# endif
 # define VDISCARD 13
 # define VEOF 4
 # define VEOL 11
@@ -219,18 +369,30 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define VSTOP 9
 # define VSUSP 10
 # define VSWTC 7
-# define VT0 0
-# define VT1 16384
-# define VTDLY 16384
+# ifndef VT0
+#  define VT0 0
+# endif
+# ifndef VT1
+#  define VT1 16384
+# endif
+# ifndef VTDLY
+#  define VTDLY 16384
+# endif
 # define VTIME 5
 # define VWERASE 14
 # define _HAVE_STRUCT_TERMIOS_C_ISPEED 1
 # define _HAVE_STRUCT_TERMIOS_C_OSPEED 1
 #endif
 #if defined __USE_MISC
-# define ADDRB 536870912
-# define CBAUD 4111
-# define CBAUDEX 4096
+# ifndef ADDRB
+#  define ADDRB 536870912
+# endif
+# ifndef CBAUD
+#  define CBAUD 4111
+# endif
+# ifndef CBAUDEX
+#  define CBAUDEX 4096
+# endif
 # define CBRK '\000'
 # define CDISCARD 15
 # define CDSUSP 25
@@ -239,30 +401,52 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define CEOT 4
 # define CERASE 127
 # define CFLUSH 15
-# define CIBAUD 269418496
+# ifndef CIBAUD
+#  define CIBAUD 269418496
+# endif
 # define CINTR 3
 # define CKILL 21
 # define CLNEXT 22
 # define CMIN 1
-# define CMSPAR 1073741824
+# ifndef CMSPAR
+#  define CMSPAR 1073741824
+# endif
 # define CQUIT 28
 # define CREPRINT 18
 # define CRPRNT 18
-# define CRTSCTS 2147483648U
+# ifndef CRTSCTS
+#  define CRTSCTS 2147483648U
+# endif
 # define CSTART 17
 # define CSTATUS '\000'
 # define CSTOP 19
 # define CSUSP 26
 # define CTIME 0
 # define CWERASE 23
-# define ECHOCTL 512
-# define ECHOKE 2048
-# define ECHOPRT 1024
-# define EXTA 14
-# define EXTB 15
-# define EXTPROC 65536
-# define FLUSHO 4096
-# define PENDIN 16384
+# ifndef ECHOCTL
+#  define ECHOCTL 512
+# endif
+# ifndef ECHOKE
+#  define ECHOKE 2048
+# endif
+# ifndef ECHOPRT
+#  define ECHOPRT 1024
+# endif
+# ifndef EXTA
+#  define EXTA 14
+# endif
+# ifndef EXTB
+#  define EXTB 15
+# endif
+# ifndef EXTPROC
+#  define EXTPROC 65536
+# endif
+# ifndef FLUSHO
+#  define FLUSHO 4096
+# endif
+# ifndef PENDIN
+#  define PENDIN 16384
+# endif
 # ifndef TIOCSER_TEMT
 #  define TIOCSER_TEMT 1
 # endif
@@ -271,31 +455,73 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
 # define TTYDEF_SPEED 13
-# define XTABS 6144
+# ifndef XTABS
+#  define XTABS 6144
+# endif
 #endif
 #if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
-# define XCASE 4
+# ifndef XCASE
+#  define XCASE 4
+# endif
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 400
-# define BS0 0
-# define BS1 8192
-# define BSDLY 8192
-# define CR0 0
-# define CR1 512
-# define CR2 1024
-# define CR3 1536
-# define CRDLY 1536
-# define FF0 0
-# define FF1 32768
-# define FFDLY 32768
-# define NL0 0
-# define NL1 256
-# define NLDLY 256
-# define TAB0 0
-# define TAB1 2048
-# define TAB2 4096
-# define TAB3 6144
-# define TABDLY 6144
+# ifndef BS0
+#  define BS0 0
+# endif
+# ifndef BS1
+#  define BS1 8192
+# endif
+# ifndef BSDLY
+#  define BSDLY 8192
+# endif
+# ifndef CR0
+#  define CR0 0
+# endif
+# ifndef CR1
+#  define CR1 512
+# endif
+# ifndef CR2
+#  define CR2 1024
+# endif
+# ifndef CR3
+#  define CR3 1536
+# endif
+# ifndef CRDLY
+#  define CRDLY 1536
+# endif
+# ifndef FF0
+#  define FF0 0
+# endif
+# ifndef FF1
+#  define FF1 32768
+# endif
+# ifndef FFDLY
+#  define FFDLY 32768
+# endif
+# ifndef NL0
+#  define NL0 0
+# endif
+# ifndef NL1
+#  define NL1 256
+# endif
+# ifndef NLDLY
+#  define NLDLY 256
+# endif
+# ifndef TAB0
+#  define TAB0 0
+# endif
+# ifndef TAB1
+#  define TAB1 2048
+# endif
+# ifndef TAB2
+#  define TAB2 4096
+# endif
+# ifndef TAB3
+#  define TAB3 6144
+# endif
+# ifndef TABDLY
+#  define TABDLY 6144
+# endif
 #endif
 
 __NIJI_END_C

@@ -117,11 +117,21 @@ extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64")
 # define UIO_MAXIOV 1024
 #endif
 #if defined __USE_GNU
-# define RWF_APPEND 16
-# define RWF_DSYNC 2
-# define RWF_HIPRI 1
-# define RWF_NOWAIT 8
-# define RWF_SYNC 4
+# ifndef RWF_APPEND
+#  define RWF_APPEND 16
+# endif
+# ifndef RWF_DSYNC
+#  define RWF_DSYNC 2
+# endif
+# ifndef RWF_HIPRI
+#  define RWF_HIPRI 1
+# endif
+# ifndef RWF_NOWAIT
+#  define RWF_NOWAIT 8
+# endif
+# ifndef RWF_SYNC
+#  define RWF_SYNC 4
+# endif
 #endif
 
 

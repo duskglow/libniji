@@ -98,11 +98,17 @@ extern long msgrcv (int, void *, unsigned long, long int, int);
 #  define __NIJI_D_msgsnd 1
 extern int msgsnd (int, const void *, unsigned long, int);
 # endif
-# define MSG_NOERROR 4096
+# ifndef MSG_NOERROR
+#  define MSG_NOERROR 4096
+# endif
 #endif
 #if defined __USE_GNU
-# define MSG_COPY 16384
-# define MSG_EXCEPT 8192
+# ifndef MSG_COPY
+#  define MSG_COPY 16384
+# endif
+# ifndef MSG_EXCEPT
+#  define MSG_EXCEPT 8192
+# endif
 #endif
 #if defined __USE_MISC
 # define MSG_INFO 12

@@ -2092,8 +2092,12 @@ enum {
 # define _POSIX_THREAD_ROBUST_PRIO_PROTECT (-1)
 #endif
 #if defined __USE_GNU
-# define CLOSE_RANGE_CLOEXEC 4U
-# define CLOSE_RANGE_UNSHARE 2U
+# ifndef CLOSE_RANGE_CLOEXEC
+#  define CLOSE_RANGE_CLOEXEC 4U
+# endif
+# ifndef CLOSE_RANGE_UNSHARE
+#  define CLOSE_RANGE_UNSHARE 2U
+# endif
 # define SEEK_DATA 3
 # define SEEK_HOLE 4
 #endif

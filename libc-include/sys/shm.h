@@ -105,21 +105,37 @@ extern int shmdt (const void *) __NIJI_NOTHROW;
 #  define __NIJI_D_shmget 1
 extern int shmget (int, unsigned long, int) __NIJI_NOTHROW;
 # endif
-# define SHM_EXEC 32768
+# ifndef SHM_EXEC
+#  define SHM_EXEC 32768
+# endif
 # define SHM_LOCK 11
-# define SHM_R 256
-# define SHM_RDONLY 4096
-# define SHM_REMAP 16384
-# define SHM_RND 8192
+# ifndef SHM_R
+#  define SHM_R 256
+# endif
+# ifndef SHM_RDONLY
+#  define SHM_RDONLY 4096
+# endif
+# ifndef SHM_REMAP
+#  define SHM_REMAP 16384
+# endif
+# ifndef SHM_RND
+#  define SHM_RND 8192
+# endif
 # define SHM_UNLOCK 12
-# define SHM_W 128
+# ifndef SHM_W
+#  define SHM_W 128
+# endif
 #endif
 #if defined __USE_MISC
 # define SHM_DEST 512
-# define SHM_HUGETLB 2048
+# ifndef SHM_HUGETLB
+#  define SHM_HUGETLB 2048
+# endif
 # define SHM_INFO 14
 # define SHM_LOCKED 1024
-# define SHM_NORESERVE 4096
+# ifndef SHM_NORESERVE
+#  define SHM_NORESERVE 4096
+# endif
 # define SHM_STAT 13
 # define SHM_STAT_ANY 15
 #endif

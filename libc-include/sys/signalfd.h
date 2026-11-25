@@ -63,8 +63,12 @@ enum {
 };
 #  endif
 # endif
-# define SFD_CLOEXEC SFD_CLOEXEC
-# define SFD_NONBLOCK SFD_NONBLOCK
+# ifndef SFD_CLOEXEC
+#  define SFD_CLOEXEC SFD_CLOEXEC
+# endif
+# ifndef SFD_NONBLOCK
+#  define SFD_NONBLOCK SFD_NONBLOCK
+# endif
 #endif
 
 __NIJI_END_C

@@ -1179,14 +1179,26 @@ extern void srandom (unsigned int) __NIJI_NOTHROW;
 # define RAND_MAX 2147483647
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
-# define WNOHANG 1
-# define WUNTRACED 2
+# ifndef WNOHANG
+#  define WNOHANG 1
+# endif
+# ifndef WUNTRACED
+#  define WUNTRACED 2
+# endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# define WCONTINUED 8
-# define WEXITED 4
-# define WNOWAIT 16777216
-# define WSTOPPED 2
+# ifndef WCONTINUED
+#  define WCONTINUED 8
+# endif
+# ifndef WEXITED
+#  define WEXITED 4
+# endif
+# ifndef WNOWAIT
+#  define WNOWAIT 16777216
+# endif
+# ifndef WSTOPPED
+#  define WSTOPPED 2
+# endif
 #endif
 #if defined __USE_MISC
 # define BIG_ENDIAN 4321

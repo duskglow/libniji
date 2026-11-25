@@ -215,98 +215,268 @@ enum {
 };
 #  endif
 # endif
-# define BLKBSZGET 2148012656UL
-# define BLKBSZSET 1074270833UL
-# define BLKFLSBUF 4705U
-# define BLKFRAGET 4709U
-# define BLKFRASET 4708U
-# define BLKGETSIZE 4704U
-# define BLKGETSIZE64 2148012658UL
-# define BLKRAGET 4707U
-# define BLKRASET 4706U
-# define BLKROGET 4702U
-# define BLKROSET 4701U
-# define BLKRRPART 4703U
-# define BLKSECTGET 4711U
-# define BLKSECTSET 4710U
-# define BLKSSZGET 4712U
-# define BLOCK_SIZE 1024
+# ifndef BLKBSZGET
+#  define BLKBSZGET 2148012656UL
+# endif
+# ifndef BLKBSZSET
+#  define BLKBSZSET 1074270833UL
+# endif
+# ifndef BLKFLSBUF
+#  define BLKFLSBUF 4705U
+# endif
+# ifndef BLKFRAGET
+#  define BLKFRAGET 4709U
+# endif
+# ifndef BLKFRASET
+#  define BLKFRASET 4708U
+# endif
+# ifndef BLKGETSIZE
+#  define BLKGETSIZE 4704U
+# endif
+# ifndef BLKGETSIZE64
+#  define BLKGETSIZE64 2148012658UL
+# endif
+# ifndef BLKRAGET
+#  define BLKRAGET 4707U
+# endif
+# ifndef BLKRASET
+#  define BLKRASET 4706U
+# endif
+# ifndef BLKROGET
+#  define BLKROGET 4702U
+# endif
+# ifndef BLKROSET
+#  define BLKROSET 4701U
+# endif
+# ifndef BLKRRPART
+#  define BLKRRPART 4703U
+# endif
+# ifndef BLKSECTGET
+#  define BLKSECTGET 4711U
+# endif
+# ifndef BLKSECTSET
+#  define BLKSECTSET 4710U
+# endif
+# ifndef BLKSSZGET
+#  define BLKSSZGET 4712U
+# endif
+# ifndef BLOCK_SIZE
+#  define BLOCK_SIZE 1024
+# endif
 # define BLOCK_SIZE_BITS 10
-# define FSMOUNT_CLOEXEC 1
-# define FSOPEN_CLOEXEC 1
-# define FSPICK_CLOEXEC 1
-# define FSPICK_EMPTY_PATH 8
-# define FSPICK_NO_AUTOMOUNT 4
-# define FSPICK_SYMLINK_NOFOLLOW 2
-# define LSMT_ROOT 18446744073709551615UL
+# ifndef FSMOUNT_CLOEXEC
+#  define FSMOUNT_CLOEXEC 1
+# endif
+# ifndef FSOPEN_CLOEXEC
+#  define FSOPEN_CLOEXEC 1
+# endif
+# ifndef FSPICK_CLOEXEC
+#  define FSPICK_CLOEXEC 1
+# endif
+# ifndef FSPICK_EMPTY_PATH
+#  define FSPICK_EMPTY_PATH 8
+# endif
+# ifndef FSPICK_NO_AUTOMOUNT
+#  define FSPICK_NO_AUTOMOUNT 4
+# endif
+# ifndef FSPICK_SYMLINK_NOFOLLOW
+#  define FSPICK_SYMLINK_NOFOLLOW 2
+# endif
+# ifndef LSMT_ROOT
+#  define LSMT_ROOT 18446744073709551615UL
+# endif
 # define MNT_DETACH MNT_DETACH
 # define MNT_EXPIRE MNT_EXPIRE
 # define MNT_FORCE MNT_FORCE
 # define MNT_ID_REQ_SIZE_VER0 24
-# define MOUNT_ATTR_IDMAP 1048576
-# define MOUNT_ATTR_NOATIME 16
-# define MOUNT_ATTR_NODEV 4
-# define MOUNT_ATTR_NODIRATIME 128
-# define MOUNT_ATTR_NOEXEC 8
-# define MOUNT_ATTR_NOSUID 2
-# define MOUNT_ATTR_NOSYMFOLLOW 2097152
-# define MOUNT_ATTR_RDONLY 1
-# define MOUNT_ATTR_RELATIME 0
+# ifndef MOUNT_ATTR_IDMAP
+#  define MOUNT_ATTR_IDMAP 1048576
+# endif
+# ifndef MOUNT_ATTR_NOATIME
+#  define MOUNT_ATTR_NOATIME 16
+# endif
+# ifndef MOUNT_ATTR_NODEV
+#  define MOUNT_ATTR_NODEV 4
+# endif
+# ifndef MOUNT_ATTR_NODIRATIME
+#  define MOUNT_ATTR_NODIRATIME 128
+# endif
+# ifndef MOUNT_ATTR_NOEXEC
+#  define MOUNT_ATTR_NOEXEC 8
+# endif
+# ifndef MOUNT_ATTR_NOSUID
+#  define MOUNT_ATTR_NOSUID 2
+# endif
+# ifndef MOUNT_ATTR_NOSYMFOLLOW
+#  define MOUNT_ATTR_NOSYMFOLLOW 2097152
+# endif
+# ifndef MOUNT_ATTR_RDONLY
+#  define MOUNT_ATTR_RDONLY 1
+# endif
+# ifndef MOUNT_ATTR_RELATIME
+#  define MOUNT_ATTR_RELATIME 0
+# endif
 # define MOUNT_ATTR_SIZE_VER0 32
-# define MOUNT_ATTR_STRICTATIME 32
-# define MOUNT_ATTR__ATIME 112
-# define MOVE_MOUNT_BENEATH 512
-# define MOVE_MOUNT_F_AUTOMOUNTS 2
-# define MOVE_MOUNT_F_EMPTY_PATH 4
-# define MOVE_MOUNT_F_SYMLINKS 1
-# define MOVE_MOUNT_SET_GROUP 256
-# define MOVE_MOUNT_T_AUTOMOUNTS 32
-# define MOVE_MOUNT_T_EMPTY_PATH 64
-# define MOVE_MOUNT_T_SYMLINKS 16
-# define MOVE_MOUNT__MASK 887
-# define MS_ACTIVE MS_ACTIVE
-# define MS_BIND MS_BIND
-# define MS_BORN 536870912
-# define MS_DIRSYNC MS_DIRSYNC
-# define MS_I_VERSION MS_I_VERSION
-# define MS_KERNMOUNT MS_KERNMOUNT
-# define MS_LAZYTIME MS_LAZYTIME
-# define MS_MANDLOCK MS_MANDLOCK
-# define MS_MGC_MSK 4294901760U
-# define MS_MGC_VAL 3236757504U
-# define MS_MOVE MS_MOVE
-# define MS_NOATIME MS_NOATIME
-# define MS_NODEV MS_NODEV
-# define MS_NODIRATIME MS_NODIRATIME
-# define MS_NOEXEC MS_NOEXEC
-# define MS_NOREMOTELOCK 134217728
-# define MS_NOSEC 268435456
-# define MS_NOSUID MS_NOSUID
-# define MS_NOSYMFOLLOW MS_NOSYMFOLLOW
-# define MS_NOUSER MS_NOUSER
-# define MS_POSIXACL MS_POSIXACL
-# define MS_PRIVATE MS_PRIVATE
-# define MS_RDONLY MS_RDONLY
-# define MS_REC MS_REC
-# define MS_RELATIME MS_RELATIME
-# define MS_REMOUNT MS_REMOUNT
-# define MS_RMT_MASK 41943121
-# define MS_SHARED MS_SHARED
-# define MS_SILENT MS_SILENT
-# define MS_SLAVE MS_SLAVE
-# define MS_STRICTATIME MS_STRICTATIME
-# define MS_SUBMOUNT 67108864
-# define MS_SYNCHRONOUS MS_SYNCHRONOUS
-# define MS_UNBINDABLE MS_UNBINDABLE
-# define MS_VERBOSE 32768
-# define OPEN_TREE_CLOEXEC 524288
+# ifndef MOUNT_ATTR_STRICTATIME
+#  define MOUNT_ATTR_STRICTATIME 32
+# endif
+# ifndef MOUNT_ATTR__ATIME
+#  define MOUNT_ATTR__ATIME 112
+# endif
+# ifndef MOVE_MOUNT_BENEATH
+#  define MOVE_MOUNT_BENEATH 512
+# endif
+# ifndef MOVE_MOUNT_F_AUTOMOUNTS
+#  define MOVE_MOUNT_F_AUTOMOUNTS 2
+# endif
+# ifndef MOVE_MOUNT_F_EMPTY_PATH
+#  define MOVE_MOUNT_F_EMPTY_PATH 4
+# endif
+# ifndef MOVE_MOUNT_F_SYMLINKS
+#  define MOVE_MOUNT_F_SYMLINKS 1
+# endif
+# ifndef MOVE_MOUNT_SET_GROUP
+#  define MOVE_MOUNT_SET_GROUP 256
+# endif
+# ifndef MOVE_MOUNT_T_AUTOMOUNTS
+#  define MOVE_MOUNT_T_AUTOMOUNTS 32
+# endif
+# ifndef MOVE_MOUNT_T_EMPTY_PATH
+#  define MOVE_MOUNT_T_EMPTY_PATH 64
+# endif
+# ifndef MOVE_MOUNT_T_SYMLINKS
+#  define MOVE_MOUNT_T_SYMLINKS 16
+# endif
+# ifndef MOVE_MOUNT__MASK
+#  define MOVE_MOUNT__MASK 887
+# endif
+# ifndef MS_ACTIVE
+#  define MS_ACTIVE MS_ACTIVE
+# endif
+# ifndef MS_BIND
+#  define MS_BIND MS_BIND
+# endif
+# ifndef MS_BORN
+#  define MS_BORN 536870912
+# endif
+# ifndef MS_DIRSYNC
+#  define MS_DIRSYNC MS_DIRSYNC
+# endif
+# ifndef MS_I_VERSION
+#  define MS_I_VERSION MS_I_VERSION
+# endif
+# ifndef MS_KERNMOUNT
+#  define MS_KERNMOUNT MS_KERNMOUNT
+# endif
+# ifndef MS_LAZYTIME
+#  define MS_LAZYTIME MS_LAZYTIME
+# endif
+# ifndef MS_MANDLOCK
+#  define MS_MANDLOCK MS_MANDLOCK
+# endif
+# ifndef MS_MGC_MSK
+#  define MS_MGC_MSK 4294901760U
+# endif
+# ifndef MS_MGC_VAL
+#  define MS_MGC_VAL 3236757504U
+# endif
+# ifndef MS_MOVE
+#  define MS_MOVE MS_MOVE
+# endif
+# ifndef MS_NOATIME
+#  define MS_NOATIME MS_NOATIME
+# endif
+# ifndef MS_NODEV
+#  define MS_NODEV MS_NODEV
+# endif
+# ifndef MS_NODIRATIME
+#  define MS_NODIRATIME MS_NODIRATIME
+# endif
+# ifndef MS_NOEXEC
+#  define MS_NOEXEC MS_NOEXEC
+# endif
+# ifndef MS_NOREMOTELOCK
+#  define MS_NOREMOTELOCK 134217728
+# endif
+# ifndef MS_NOSEC
+#  define MS_NOSEC 268435456
+# endif
+# ifndef MS_NOSUID
+#  define MS_NOSUID MS_NOSUID
+# endif
+# ifndef MS_NOSYMFOLLOW
+#  define MS_NOSYMFOLLOW MS_NOSYMFOLLOW
+# endif
+# ifndef MS_NOUSER
+#  define MS_NOUSER MS_NOUSER
+# endif
+# ifndef MS_POSIXACL
+#  define MS_POSIXACL MS_POSIXACL
+# endif
+# ifndef MS_PRIVATE
+#  define MS_PRIVATE MS_PRIVATE
+# endif
+# ifndef MS_RDONLY
+#  define MS_RDONLY MS_RDONLY
+# endif
+# ifndef MS_REC
+#  define MS_REC MS_REC
+# endif
+# ifndef MS_RELATIME
+#  define MS_RELATIME MS_RELATIME
+# endif
+# ifndef MS_REMOUNT
+#  define MS_REMOUNT MS_REMOUNT
+# endif
+# ifndef MS_RMT_MASK
+#  define MS_RMT_MASK 41943121
+# endif
+# ifndef MS_SHARED
+#  define MS_SHARED MS_SHARED
+# endif
+# ifndef MS_SILENT
+#  define MS_SILENT MS_SILENT
+# endif
+# ifndef MS_SLAVE
+#  define MS_SLAVE MS_SLAVE
+# endif
+# ifndef MS_STRICTATIME
+#  define MS_STRICTATIME MS_STRICTATIME
+# endif
+# ifndef MS_SUBMOUNT
+#  define MS_SUBMOUNT 67108864
+# endif
+# ifndef MS_SYNCHRONOUS
+#  define MS_SYNCHRONOUS MS_SYNCHRONOUS
+# endif
+# ifndef MS_UNBINDABLE
+#  define MS_UNBINDABLE MS_UNBINDABLE
+# endif
+# ifndef MS_VERBOSE
+#  define MS_VERBOSE 32768
+# endif
+# ifndef OPEN_TREE_CLOEXEC
+#  define OPEN_TREE_CLOEXEC 524288
+# endif
 # define OPEN_TREE_CLONE 1
-# define STATMOUNT_FS_TYPE 32U
-# define STATMOUNT_MNT_BASIC 2U
-# define STATMOUNT_MNT_POINT 16U
-# define STATMOUNT_MNT_ROOT 8U
-# define STATMOUNT_PROPAGATE_FROM 4U
-# define STATMOUNT_SB_BASIC 1U
+# ifndef STATMOUNT_FS_TYPE
+#  define STATMOUNT_FS_TYPE 32U
+# endif
+# ifndef STATMOUNT_MNT_BASIC
+#  define STATMOUNT_MNT_BASIC 2U
+# endif
+# ifndef STATMOUNT_MNT_POINT
+#  define STATMOUNT_MNT_POINT 16U
+# endif
+# ifndef STATMOUNT_MNT_ROOT
+#  define STATMOUNT_MNT_ROOT 8U
+# endif
+# ifndef STATMOUNT_PROPAGATE_FROM
+#  define STATMOUNT_PROPAGATE_FROM 4U
+# endif
+# ifndef STATMOUNT_SB_BASIC
+#  define STATMOUNT_SB_BASIC 1U
+# endif
 # define UMOUNT_NOFOLLOW UMOUNT_NOFOLLOW
 #endif
 

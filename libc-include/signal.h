@@ -3041,7 +3041,9 @@ enum {
 # define SIGIOT 6
 # define SIGKILL 9
 # define SIGPIPE 13
-# define SIGPOLL 29
+# ifndef SIGPOLL
+#  define SIGPOLL 29
+# endif
 # define SIGPROF 27
 # define SIGPWR 30
 # define SIGQUIT 3
@@ -3061,7 +3063,9 @@ enum {
 # define SIGWINCH 28
 # define SIGXCPU 24
 # define SIGXFSZ 25
-# define _NSIG 65
+# ifndef _NSIG
+#  define _NSIG 65
+# endif
 #endif
 #if __NIJI_DYNSTACK
 # ifndef F_LOCK
@@ -3475,92 +3479,238 @@ enum {
 # define _XOPEN_XPG4 1
 #endif
 #if __NIJI_POSIX >= 1
-# define SA_NOCLDSTOP 1
-# define SA_NOCLDWAIT 2
-# define SA_SIGINFO 4
+# ifndef SA_NOCLDSTOP
+#  define SA_NOCLDSTOP 1
+# endif
+# ifndef SA_NOCLDWAIT
+#  define SA_NOCLDWAIT 2
+# endif
+# ifndef SA_SIGINFO
+#  define SA_SIGINFO 4
+# endif
 # define SIG_BLOCK 0
 # define SIG_SETMASK 2
 # define SIG_UNBLOCK 1
 #endif
 #if __NIJI_POSIX >= 199309
-# define SIGEV_NONE SIGEV_NONE
-# define SIGEV_SIGNAL SIGEV_SIGNAL
-# define SIGEV_THREAD SIGEV_THREAD
-# define SIGEV_THREAD_ID SIGEV_THREAD_ID
+# ifndef SIGEV_NONE
+#  define SIGEV_NONE SIGEV_NONE
+# endif
+# ifndef SIGEV_SIGNAL
+#  define SIGEV_SIGNAL SIGEV_SIGNAL
+# endif
+# ifndef SIGEV_THREAD
+#  define SIGEV_THREAD SIGEV_THREAD
+# endif
+# ifndef SIGEV_THREAD_ID
+#  define SIGEV_THREAD_ID SIGEV_THREAD_ID
+# endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
-# define SI_ASYNCIO SI_ASYNCIO
-# define SI_ASYNCNL SI_ASYNCNL
-# define SI_DETHREAD SI_DETHREAD
-# define SI_KERNEL SI_KERNEL
-# define SI_MESGQ SI_MESGQ
-# define SI_QUEUE SI_QUEUE
-# define SI_SIGIO SI_SIGIO
-# define SI_TIMER SI_TIMER
-# define SI_TKILL SI_TKILL
-# define SI_USER SI_USER
+# ifndef SI_ASYNCIO
+#  define SI_ASYNCIO SI_ASYNCIO
+# endif
+# ifndef SI_ASYNCNL
+#  define SI_ASYNCNL SI_ASYNCNL
+# endif
+# ifndef SI_DETHREAD
+#  define SI_DETHREAD SI_DETHREAD
+# endif
+# ifndef SI_KERNEL
+#  define SI_KERNEL SI_KERNEL
+# endif
+# ifndef SI_MESGQ
+#  define SI_MESGQ SI_MESGQ
+# endif
+# ifndef SI_QUEUE
+#  define SI_QUEUE SI_QUEUE
+# endif
+# ifndef SI_SIGIO
+#  define SI_SIGIO SI_SIGIO
+# endif
+# ifndef SI_TIMER
+#  define SI_TIMER SI_TIMER
+# endif
+# ifndef SI_TKILL
+#  define SI_TKILL SI_TKILL
+# endif
+# ifndef SI_USER
+#  define SI_USER SI_USER
+# endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# define BUS_ADRALN BUS_ADRALN
-# define BUS_ADRERR BUS_ADRERR
-# define BUS_MCEERR_AO BUS_MCEERR_AO
-# define BUS_MCEERR_AR BUS_MCEERR_AR
-# define BUS_OBJERR BUS_OBJERR
-# define CLD_CONTINUED CLD_CONTINUED
-# define CLD_DUMPED CLD_DUMPED
-# define CLD_EXITED CLD_EXITED
-# define CLD_KILLED CLD_KILLED
-# define CLD_STOPPED CLD_STOPPED
-# define CLD_TRAPPED CLD_TRAPPED
-# define FPE_CONDTRAP FPE_CONDTRAP
-# define FPE_FLTDIV FPE_FLTDIV
-# define FPE_FLTINV FPE_FLTINV
-# define FPE_FLTOVF FPE_FLTOVF
-# define FPE_FLTRES FPE_FLTRES
-# define FPE_FLTSUB FPE_FLTSUB
-# define FPE_FLTUND FPE_FLTUND
-# define FPE_FLTUNK FPE_FLTUNK
-# define FPE_INTDIV FPE_INTDIV
-# define FPE_INTOVF FPE_INTOVF
-# define ILL_BADIADDR ILL_BADIADDR
-# define ILL_BADSTK ILL_BADSTK
-# define ILL_COPROC ILL_COPROC
-# define ILL_ILLADR ILL_ILLADR
-# define ILL_ILLOPC ILL_ILLOPC
-# define ILL_ILLOPN ILL_ILLOPN
-# define ILL_ILLTRP ILL_ILLTRP
-# define ILL_PRVOPC ILL_PRVOPC
-# define ILL_PRVREG ILL_PRVREG
-# define POLL_ERR POLL_ERR
-# define POLL_HUP POLL_HUP
-# define POLL_IN POLL_IN
-# define POLL_MSG POLL_MSG
-# define POLL_OUT POLL_OUT
-# define POLL_PRI POLL_PRI
-# define SA_NODEFER 1073741824
-# define SA_RESETHAND 2147483648U
-# define SA_RESTART 268435456
-# define SEGV_ACCADI SEGV_ACCADI
-# define SEGV_ACCERR SEGV_ACCERR
-# define SEGV_ADIDERR SEGV_ADIDERR
-# define SEGV_ADIPERR SEGV_ADIPERR
-# define SEGV_BNDERR SEGV_BNDERR
-# define SEGV_CPERR SEGV_CPERR
-# define SEGV_MAPERR SEGV_MAPERR
-# define SEGV_MTEAERR SEGV_MTEAERR
-# define SEGV_MTESERR SEGV_MTESERR
-# define SEGV_PKUERR SEGV_PKUERR
+# ifndef BUS_ADRALN
+#  define BUS_ADRALN BUS_ADRALN
+# endif
+# ifndef BUS_ADRERR
+#  define BUS_ADRERR BUS_ADRERR
+# endif
+# ifndef BUS_MCEERR_AO
+#  define BUS_MCEERR_AO BUS_MCEERR_AO
+# endif
+# ifndef BUS_MCEERR_AR
+#  define BUS_MCEERR_AR BUS_MCEERR_AR
+# endif
+# ifndef BUS_OBJERR
+#  define BUS_OBJERR BUS_OBJERR
+# endif
+# ifndef CLD_CONTINUED
+#  define CLD_CONTINUED CLD_CONTINUED
+# endif
+# ifndef CLD_DUMPED
+#  define CLD_DUMPED CLD_DUMPED
+# endif
+# ifndef CLD_EXITED
+#  define CLD_EXITED CLD_EXITED
+# endif
+# ifndef CLD_KILLED
+#  define CLD_KILLED CLD_KILLED
+# endif
+# ifndef CLD_STOPPED
+#  define CLD_STOPPED CLD_STOPPED
+# endif
+# ifndef CLD_TRAPPED
+#  define CLD_TRAPPED CLD_TRAPPED
+# endif
+# ifndef FPE_CONDTRAP
+#  define FPE_CONDTRAP FPE_CONDTRAP
+# endif
+# ifndef FPE_FLTDIV
+#  define FPE_FLTDIV FPE_FLTDIV
+# endif
+# ifndef FPE_FLTINV
+#  define FPE_FLTINV FPE_FLTINV
+# endif
+# ifndef FPE_FLTOVF
+#  define FPE_FLTOVF FPE_FLTOVF
+# endif
+# ifndef FPE_FLTRES
+#  define FPE_FLTRES FPE_FLTRES
+# endif
+# ifndef FPE_FLTSUB
+#  define FPE_FLTSUB FPE_FLTSUB
+# endif
+# ifndef FPE_FLTUND
+#  define FPE_FLTUND FPE_FLTUND
+# endif
+# ifndef FPE_FLTUNK
+#  define FPE_FLTUNK FPE_FLTUNK
+# endif
+# ifndef FPE_INTDIV
+#  define FPE_INTDIV FPE_INTDIV
+# endif
+# ifndef FPE_INTOVF
+#  define FPE_INTOVF FPE_INTOVF
+# endif
+# ifndef ILL_BADIADDR
+#  define ILL_BADIADDR ILL_BADIADDR
+# endif
+# ifndef ILL_BADSTK
+#  define ILL_BADSTK ILL_BADSTK
+# endif
+# ifndef ILL_COPROC
+#  define ILL_COPROC ILL_COPROC
+# endif
+# ifndef ILL_ILLADR
+#  define ILL_ILLADR ILL_ILLADR
+# endif
+# ifndef ILL_ILLOPC
+#  define ILL_ILLOPC ILL_ILLOPC
+# endif
+# ifndef ILL_ILLOPN
+#  define ILL_ILLOPN ILL_ILLOPN
+# endif
+# ifndef ILL_ILLTRP
+#  define ILL_ILLTRP ILL_ILLTRP
+# endif
+# ifndef ILL_PRVOPC
+#  define ILL_PRVOPC ILL_PRVOPC
+# endif
+# ifndef ILL_PRVREG
+#  define ILL_PRVREG ILL_PRVREG
+# endif
+# ifndef POLL_ERR
+#  define POLL_ERR POLL_ERR
+# endif
+# ifndef POLL_HUP
+#  define POLL_HUP POLL_HUP
+# endif
+# ifndef POLL_IN
+#  define POLL_IN POLL_IN
+# endif
+# ifndef POLL_MSG
+#  define POLL_MSG POLL_MSG
+# endif
+# ifndef POLL_OUT
+#  define POLL_OUT POLL_OUT
+# endif
+# ifndef POLL_PRI
+#  define POLL_PRI POLL_PRI
+# endif
+# ifndef SA_NODEFER
+#  define SA_NODEFER 1073741824
+# endif
+# ifndef SA_RESETHAND
+#  define SA_RESETHAND 2147483648U
+# endif
+# ifndef SA_RESTART
+#  define SA_RESTART 268435456
+# endif
+# ifndef SEGV_ACCADI
+#  define SEGV_ACCADI SEGV_ACCADI
+# endif
+# ifndef SEGV_ACCERR
+#  define SEGV_ACCERR SEGV_ACCERR
+# endif
+# ifndef SEGV_ADIDERR
+#  define SEGV_ADIDERR SEGV_ADIDERR
+# endif
+# ifndef SEGV_ADIPERR
+#  define SEGV_ADIPERR SEGV_ADIPERR
+# endif
+# ifndef SEGV_BNDERR
+#  define SEGV_BNDERR SEGV_BNDERR
+# endif
+# ifndef SEGV_CPERR
+#  define SEGV_CPERR SEGV_CPERR
+# endif
+# ifndef SEGV_MAPERR
+#  define SEGV_MAPERR SEGV_MAPERR
+# endif
+# ifndef SEGV_MTEAERR
+#  define SEGV_MTEAERR SEGV_MTEAERR
+# endif
+# ifndef SEGV_MTESERR
+#  define SEGV_MTESERR SEGV_MTESERR
+# endif
+# ifndef SEGV_PKUERR
+#  define SEGV_PKUERR SEGV_PKUERR
+# endif
 #endif
 #if __NIJI_XSI >= 450
-# define TRAP_BRANCH TRAP_BRANCH
-# define TRAP_BRKPT TRAP_BRKPT
-# define TRAP_HWBKPT TRAP_HWBKPT
-# define TRAP_TRACE TRAP_TRACE
-# define TRAP_UNK TRAP_UNK
+# ifndef TRAP_BRANCH
+#  define TRAP_BRANCH TRAP_BRANCH
+# endif
+# ifndef TRAP_BRKPT
+#  define TRAP_BRKPT TRAP_BRKPT
+# endif
+# ifndef TRAP_HWBKPT
+#  define TRAP_HWBKPT TRAP_HWBKPT
+# endif
+# ifndef TRAP_TRACE
+#  define TRAP_TRACE TRAP_TRACE
+# endif
+# ifndef TRAP_UNK
+#  define TRAP_UNK TRAP_UNK
+# endif
 #endif
 #if defined __USE_GNU
-# define CLOSE_RANGE_CLOEXEC 4U
-# define CLOSE_RANGE_UNSHARE 2U
+# ifndef CLOSE_RANGE_CLOEXEC
+#  define CLOSE_RANGE_CLOEXEC 4U
+# endif
+# ifndef CLOSE_RANGE_UNSHARE
+#  define CLOSE_RANGE_UNSHARE 2U
+# endif
 # define REG_CR2 REG_CR2
 # define REG_CSGSFS REG_CSGSFS
 # define REG_EFL REG_EFL
@@ -3588,20 +3738,38 @@ enum {
 # define SEEK_HOLE 4
 #endif
 #if defined __USE_MISC
-# define FP_XSTATE_MAGIC1 1179670611U
-# define FP_XSTATE_MAGIC2 1179670597U
-# define FP_XSTATE_MAGIC2_SIZE 4UL
+# ifndef FP_XSTATE_MAGIC1
+#  define FP_XSTATE_MAGIC1 1179670611U
+# endif
+# ifndef FP_XSTATE_MAGIC2
+#  define FP_XSTATE_MAGIC2 1179670597U
+# endif
+# ifndef FP_XSTATE_MAGIC2_SIZE
+#  define FP_XSTATE_MAGIC2_SIZE 4UL
+# endif
 # define NGREG 23
-# define NSIG 65
+# ifndef NSIG
+#  define NSIG 65
+# endif
 # define SA_INTERRUPT 536870912
-# define SA_NOMASK 1073741824
-# define SA_ONESHOT 2147483648U
+# ifndef SA_NOMASK
+#  define SA_NOMASK 1073741824
+# endif
+# ifndef SA_ONESHOT
+#  define SA_ONESHOT 2147483648U
+# endif
 # define SA_STACK 134217728
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 450
-# define SA_ONSTACK 134217728
-# define SS_DISABLE SS_DISABLE
-# define SS_ONSTACK SS_ONSTACK
+# ifndef SA_ONSTACK
+#  define SA_ONSTACK 134217728
+# endif
+# ifndef SS_DISABLE
+#  define SS_DISABLE SS_DISABLE
+# endif
+# ifndef SS_ONSTACK
+#  define SS_ONSTACK SS_ONSTACK
+# endif
 #endif
 
 #if __NIJI_DYNSTACK

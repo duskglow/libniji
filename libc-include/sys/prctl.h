@@ -26,17 +26,35 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # define PR_FPEMU_SIGFPE 2
 # define PR_FP_EXC_ASYNC 2
 # define PR_FP_EXC_DISABLED 0
-# define PR_FP_EXC_DIV 65536
-# define PR_FP_EXC_INV 1048576
+# ifndef PR_FP_EXC_DIV
+#  define PR_FP_EXC_DIV 65536
+# endif
+# ifndef PR_FP_EXC_INV
+#  define PR_FP_EXC_INV 1048576
+# endif
 # define PR_FP_EXC_NONRECOV 1
-# define PR_FP_EXC_OVF 131072
+# ifndef PR_FP_EXC_OVF
+#  define PR_FP_EXC_OVF 131072
+# endif
 # define PR_FP_EXC_PRECISE 3
-# define PR_FP_EXC_RES 524288
-# define PR_FP_EXC_SW_ENABLE 128
-# define PR_FP_EXC_UND 262144
-# define PR_FP_MODE_FR 1
-# define PR_FP_MODE_FRE 2
-# define PR_GET_AUXV 1096112214
+# ifndef PR_FP_EXC_RES
+#  define PR_FP_EXC_RES 524288
+# endif
+# ifndef PR_FP_EXC_SW_ENABLE
+#  define PR_FP_EXC_SW_ENABLE 128
+# endif
+# ifndef PR_FP_EXC_UND
+#  define PR_FP_EXC_UND 262144
+# endif
+# ifndef PR_FP_MODE_FR
+#  define PR_FP_MODE_FR 1
+# endif
+# ifndef PR_FP_MODE_FRE
+#  define PR_FP_MODE_FRE 2
+# endif
+# ifndef PR_GET_AUXV
+#  define PR_GET_AUXV 1096112214
+# endif
 # define PR_GET_CHILD_SUBREAPER 37
 # define PR_GET_DUMPABLE 3
 # define PR_GET_ENDIAN 19
@@ -67,32 +85,62 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # define PR_MCE_KILL_GET 34
 # define PR_MCE_KILL_LATE 0
 # define PR_MCE_KILL_SET 1
-# define PR_MDWE_NO_INHERIT 2UL
-# define PR_MDWE_REFUSE_EXEC_GAIN 1UL
+# ifndef PR_MDWE_NO_INHERIT
+#  define PR_MDWE_NO_INHERIT 2UL
+# endif
+# ifndef PR_MDWE_REFUSE_EXEC_GAIN
+#  define PR_MDWE_REFUSE_EXEC_GAIN 1UL
+# endif
 # define PR_MPX_DISABLE_MANAGEMENT 44
 # define PR_MPX_ENABLE_MANAGEMENT 43
-# define PR_MTE_TAG_MASK 524280UL
+# ifndef PR_MTE_TAG_MASK
+#  define PR_MTE_TAG_MASK 524280UL
+# endif
 # define PR_MTE_TAG_SHIFT 3
-# define PR_MTE_TCF_ASYNC 4UL
-# define PR_MTE_TCF_MASK 6UL
+# ifndef PR_MTE_TCF_ASYNC
+#  define PR_MTE_TCF_ASYNC 4UL
+# endif
+# ifndef PR_MTE_TCF_MASK
+#  define PR_MTE_TCF_MASK 6UL
+# endif
 # define PR_MTE_TCF_NONE 0UL
 # define PR_MTE_TCF_SHIFT 1
-# define PR_MTE_TCF_SYNC 2UL
-# define PR_PAC_APDAKEY 4UL
-# define PR_PAC_APDBKEY 8UL
-# define PR_PAC_APGAKEY 16UL
-# define PR_PAC_APIAKEY 1UL
-# define PR_PAC_APIBKEY 2UL
+# ifndef PR_MTE_TCF_SYNC
+#  define PR_MTE_TCF_SYNC 2UL
+# endif
+# ifndef PR_PAC_APDAKEY
+#  define PR_PAC_APDAKEY 4UL
+# endif
+# ifndef PR_PAC_APDBKEY
+#  define PR_PAC_APDBKEY 8UL
+# endif
+# ifndef PR_PAC_APGAKEY
+#  define PR_PAC_APGAKEY 16UL
+# endif
+# ifndef PR_PAC_APIAKEY
+#  define PR_PAC_APIAKEY 1UL
+# endif
+# ifndef PR_PAC_APIBKEY
+#  define PR_PAC_APIBKEY 2UL
+# endif
 # define PR_PAC_GET_ENABLED_KEYS 61
 # define PR_PAC_RESET_KEYS 54
 # define PR_PAC_SET_ENABLED_KEYS 60
 # define PR_RISCV_V_GET_CONTROL 70
 # define PR_RISCV_V_SET_CONTROL 69
-# define PR_RISCV_V_VSTATE_CTRL_CUR_MASK 3
+# ifndef PR_RISCV_V_VSTATE_CTRL_CUR_MASK
+#  define PR_RISCV_V_VSTATE_CTRL_CUR_MASK 3
+# endif
 # define PR_RISCV_V_VSTATE_CTRL_DEFAULT 0
-# define PR_RISCV_V_VSTATE_CTRL_INHERIT 16
-# define PR_RISCV_V_VSTATE_CTRL_MASK 31
-# define PR_RISCV_V_VSTATE_CTRL_NEXT_MASK 12
+# ifndef PR_RISCV_V_VSTATE_CTRL_INHERIT
+#  define PR_RISCV_V_VSTATE_CTRL_INHERIT 16
+# endif
+# ifndef PR_RISCV_V_VSTATE_CTRL_MASK
+#  define PR_RISCV_V_VSTATE_CTRL_MASK 31
+# endif
+# ifndef PR_RISCV_V_VSTATE_CTRL_NEXT_MASK
+#  define PR_RISCV_V_VSTATE_CTRL_NEXT_MASK 12
+# endif
 # define PR_RISCV_V_VSTATE_CTRL_OFF 1
 # define PR_RISCV_V_VSTATE_CTRL_ON 2
 # define PR_SCHED_CORE 62
@@ -133,8 +181,12 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # define PR_SET_NAME 15
 # define PR_SET_NO_NEW_PRIVS 38
 # define PR_SET_PDEATHSIG 1
-# define PR_SET_PTRACER 1499557217
-# define PR_SET_PTRACER_ANY 18446744073709551615UL
+# ifndef PR_SET_PTRACER
+#  define PR_SET_PTRACER 1499557217
+# endif
+# ifndef PR_SET_PTRACER_ANY
+#  define PR_SET_PTRACER_ANY 18446744073709551615UL
+# endif
 # define PR_SET_SECCOMP 22
 # define PR_SET_SECUREBITS 28
 # define PR_SET_SPECULATION_CTRL 53
@@ -145,34 +197,64 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # define PR_SET_TIMING 14
 # define PR_SET_TSC 26
 # define PR_SET_UNALIGN 6
-# define PR_SET_VMA 1398164801
+# ifndef PR_SET_VMA
+#  define PR_SET_VMA 1398164801
+# endif
 # define PR_SET_VMA_ANON_NAME 0
 # define PR_SME_GET_VL 64
 # define PR_SME_SET_VL 63
-# define PR_SME_SET_VL_ONEXEC 262144
-# define PR_SME_VL_INHERIT 131072
-# define PR_SME_VL_LEN_MASK 65535
-# define PR_SPEC_DISABLE 4UL
-# define PR_SPEC_DISABLE_NOEXEC 16UL
-# define PR_SPEC_ENABLE 2UL
-# define PR_SPEC_FORCE_DISABLE 8UL
+# ifndef PR_SME_SET_VL_ONEXEC
+#  define PR_SME_SET_VL_ONEXEC 262144
+# endif
+# ifndef PR_SME_VL_INHERIT
+#  define PR_SME_VL_INHERIT 131072
+# endif
+# ifndef PR_SME_VL_LEN_MASK
+#  define PR_SME_VL_LEN_MASK 65535
+# endif
+# ifndef PR_SPEC_DISABLE
+#  define PR_SPEC_DISABLE 4UL
+# endif
+# ifndef PR_SPEC_DISABLE_NOEXEC
+#  define PR_SPEC_DISABLE_NOEXEC 16UL
+# endif
+# ifndef PR_SPEC_ENABLE
+#  define PR_SPEC_ENABLE 2UL
+# endif
+# ifndef PR_SPEC_FORCE_DISABLE
+#  define PR_SPEC_FORCE_DISABLE 8UL
+# endif
 # define PR_SPEC_INDIRECT_BRANCH 1
 # define PR_SPEC_L1D_FLUSH 2
 # define PR_SPEC_NOT_AFFECTED 0
-# define PR_SPEC_PRCTL 1UL
+# ifndef PR_SPEC_PRCTL
+#  define PR_SPEC_PRCTL 1UL
+# endif
 # define PR_SPEC_STORE_BYPASS 0
 # define PR_SVE_GET_VL 51
 # define PR_SVE_SET_VL 50
-# define PR_SVE_SET_VL_ONEXEC 262144
-# define PR_SVE_VL_INHERIT 131072
-# define PR_SVE_VL_LEN_MASK 65535
+# ifndef PR_SVE_SET_VL_ONEXEC
+#  define PR_SVE_SET_VL_ONEXEC 262144
+# endif
+# ifndef PR_SVE_VL_INHERIT
+#  define PR_SVE_VL_INHERIT 131072
+# endif
+# ifndef PR_SVE_VL_LEN_MASK
+#  define PR_SVE_VL_LEN_MASK 65535
+# endif
 # define PR_SYS_DISPATCH_OFF 0
 # define PR_SYS_DISPATCH_ON 1
-# define PR_TAGGED_ADDR_ENABLE 1UL
+# ifndef PR_TAGGED_ADDR_ENABLE
+#  define PR_TAGGED_ADDR_ENABLE 1UL
+# endif
 # define PR_TASK_PERF_EVENTS_DISABLE 31
 # define PR_TASK_PERF_EVENTS_ENABLE 32
-# define PR_TIMING_STATISTICAL 0
-# define PR_TIMING_TIMESTAMP 1
+# ifndef PR_TIMING_STATISTICAL
+#  define PR_TIMING_STATISTICAL 0
+# endif
+# ifndef PR_TIMING_TIMESTAMP
+#  define PR_TIMING_TIMESTAMP 1
+# endif
 # define PR_TSC_ENABLE 1
 # define PR_TSC_SIGSEGV 2
 # define PR_UNALIGN_NOPRINT 1

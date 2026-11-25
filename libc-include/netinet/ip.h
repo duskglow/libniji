@@ -82,27 +82,57 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # define IPDEFTTL 64
 # define IPFRAGTTL 60
-# define IPOPT_CLASS_MASK 96
-# define IPOPT_CONTROL 0
-# define IPOPT_COPY 128
+# ifndef IPOPT_CLASS_MASK
+#  define IPOPT_CLASS_MASK 96
+# endif
+# ifndef IPOPT_CONTROL
+#  define IPOPT_CONTROL 0
+# endif
+# ifndef IPOPT_COPY
+#  define IPOPT_COPY 128
+# endif
 # define IPOPT_DEBMEAS 64
-# define IPOPT_END 0
-# define IPOPT_EOL 0
-# define IPOPT_LSRR 131
-# define IPOPT_MEASUREMENT 64
+# ifndef IPOPT_END
+#  define IPOPT_END 0
+# endif
+# ifndef IPOPT_EOL
+#  define IPOPT_EOL 0
+# endif
+# ifndef IPOPT_LSRR
+#  define IPOPT_LSRR 131
+# endif
+# ifndef IPOPT_MEASUREMENT
+#  define IPOPT_MEASUREMENT 64
+# endif
 # define IPOPT_MINOFF 4
-# define IPOPT_NOOP 1
-# define IPOPT_NOP 1
-# define IPOPT_NUMBER_MASK 31
+# ifndef IPOPT_NOOP
+#  define IPOPT_NOOP 1
+# endif
+# ifndef IPOPT_NOP
+#  define IPOPT_NOP 1
+# endif
+# ifndef IPOPT_NUMBER_MASK
+#  define IPOPT_NUMBER_MASK 31
+# endif
 # define IPOPT_OFFSET 2
 # define IPOPT_OLEN 1
 # define IPOPT_OPTVAL 0
-# define IPOPT_RA 148
-# define IPOPT_RESERVED1 32
-# define IPOPT_RESERVED2 96
-# define IPOPT_RR 7
+# ifndef IPOPT_RA
+#  define IPOPT_RA 148
+# endif
+# ifndef IPOPT_RESERVED1
+#  define IPOPT_RESERVED1 32
+# endif
+# ifndef IPOPT_RESERVED2
+#  define IPOPT_RESERVED2 96
+# endif
+# ifndef IPOPT_RR
+#  define IPOPT_RR 7
+# endif
 # define IPOPT_SATID 136
-# define IPOPT_SEC 130
+# ifndef IPOPT_SEC
+#  define IPOPT_SEC 130
+# endif
 # define IPOPT_SECURITY 130
 # define IPOPT_SECUR_CONFID 61749
 # define IPOPT_SECUR_EFTO 30874
@@ -111,10 +141,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # define IPOPT_SECUR_SECRET 55176
 # define IPOPT_SECUR_TOPSECRET 27589
 # define IPOPT_SECUR_UNCLASS 0
-# define IPOPT_SID 136
-# define IPOPT_SSRR 137
-# define IPOPT_TIMESTAMP 68
-# define IPOPT_TS 68
+# ifndef IPOPT_SID
+#  define IPOPT_SID 136
+# endif
+# ifndef IPOPT_SSRR
+#  define IPOPT_SSRR 137
+# endif
+# ifndef IPOPT_TIMESTAMP
+#  define IPOPT_TIMESTAMP 68
+# endif
+# ifndef IPOPT_TS
+#  define IPOPT_TS 68
+# endif
 # define IPOPT_TS_PRESPEC 3
 # define IPOPT_TS_TSANDADDR 1
 # define IPOPT_TS_TSONLY 0
@@ -149,20 +187,48 @@ typedef union pthread_attr_t pthread_attr_t;
 # define IPTOS_ECN_MASK 3
 # define IPTOS_ECN_NOT_ECT 0
 # define IPTOS_LOWCOST 2
-# define IPTOS_LOWDELAY 16
-# define IPTOS_MINCOST 2
-# define IPTOS_PREC_CRITIC_ECP 160
-# define IPTOS_PREC_FLASH 96
-# define IPTOS_PREC_FLASHOVERRIDE 128
-# define IPTOS_PREC_IMMEDIATE 64
-# define IPTOS_PREC_INTERNETCONTROL 192
-# define IPTOS_PREC_MASK 224
-# define IPTOS_PREC_NETCONTROL 224
-# define IPTOS_PREC_PRIORITY 32
-# define IPTOS_PREC_ROUTINE 0
-# define IPTOS_RELIABILITY 4
-# define IPTOS_THROUGHPUT 8
-# define IPTOS_TOS_MASK 30
+# ifndef IPTOS_LOWDELAY
+#  define IPTOS_LOWDELAY 16
+# endif
+# ifndef IPTOS_MINCOST
+#  define IPTOS_MINCOST 2
+# endif
+# ifndef IPTOS_PREC_CRITIC_ECP
+#  define IPTOS_PREC_CRITIC_ECP 160
+# endif
+# ifndef IPTOS_PREC_FLASH
+#  define IPTOS_PREC_FLASH 96
+# endif
+# ifndef IPTOS_PREC_FLASHOVERRIDE
+#  define IPTOS_PREC_FLASHOVERRIDE 128
+# endif
+# ifndef IPTOS_PREC_IMMEDIATE
+#  define IPTOS_PREC_IMMEDIATE 64
+# endif
+# ifndef IPTOS_PREC_INTERNETCONTROL
+#  define IPTOS_PREC_INTERNETCONTROL 192
+# endif
+# ifndef IPTOS_PREC_MASK
+#  define IPTOS_PREC_MASK 224
+# endif
+# ifndef IPTOS_PREC_NETCONTROL
+#  define IPTOS_PREC_NETCONTROL 224
+# endif
+# ifndef IPTOS_PREC_PRIORITY
+#  define IPTOS_PREC_PRIORITY 32
+# endif
+# ifndef IPTOS_PREC_ROUTINE
+#  define IPTOS_PREC_ROUTINE 0
+# endif
+# ifndef IPTOS_RELIABILITY
+#  define IPTOS_RELIABILITY 4
+# endif
+# ifndef IPTOS_THROUGHPUT
+#  define IPTOS_THROUGHPUT 8
+# endif
+# ifndef IPTOS_TOS_MASK
+#  define IPTOS_TOS_MASK 30
+# endif
 # define IPTTLDEC 1
 # define IPVERSION 4
 # define IP_MAXPACKET 65535

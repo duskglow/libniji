@@ -9,21 +9,37 @@
 __NIJI_BEGIN_C
 
 #if 1
-# define IOCSIZE_MASK 1073676288
-# define IOCSIZE_SHIFT 16
-# define IOC_IN 1073741824U
-# define IOC_INOUT 3221225472U
-# define IOC_OUT 2147483648U
+# ifndef IOCSIZE_MASK
+#  define IOCSIZE_MASK 1073676288
+# endif
+# ifndef IOCSIZE_SHIFT
+#  define IOCSIZE_SHIFT 16
+# endif
+# ifndef IOC_IN
+#  define IOC_IN 1073741824U
+# endif
+# ifndef IOC_INOUT
+#  define IOC_INOUT 3221225472U
+# endif
+# ifndef IOC_OUT
+#  define IOC_OUT 2147483648U
+# endif
 # ifndef _IOC_DIRBITS
 #  define _IOC_DIRBITS 2
 # endif
-# define _IOC_DIRMASK 3
-# define _IOC_DIRSHIFT 30
+# ifndef _IOC_DIRMASK
+#  define _IOC_DIRMASK 3
+# endif
+# ifndef _IOC_DIRSHIFT
+#  define _IOC_DIRSHIFT 30
+# endif
 # ifndef _IOC_NONE
 #  define _IOC_NONE 0U
 # endif
 # define _IOC_NRBITS 8
-# define _IOC_NRMASK 255
+# ifndef _IOC_NRMASK
+#  define _IOC_NRMASK 255
+# endif
 # define _IOC_NRSHIFT 0
 # ifndef _IOC_READ
 #  define _IOC_READ 2U
@@ -31,11 +47,19 @@ __NIJI_BEGIN_C
 # ifndef _IOC_SIZEBITS
 #  define _IOC_SIZEBITS 14
 # endif
-# define _IOC_SIZEMASK 16383
-# define _IOC_SIZESHIFT 16
+# ifndef _IOC_SIZEMASK
+#  define _IOC_SIZEMASK 16383
+# endif
+# ifndef _IOC_SIZESHIFT
+#  define _IOC_SIZESHIFT 16
+# endif
 # define _IOC_TYPEBITS 8
-# define _IOC_TYPEMASK 255
-# define _IOC_TYPESHIFT 8
+# ifndef _IOC_TYPEMASK
+#  define _IOC_TYPEMASK 255
+# endif
+# ifndef _IOC_TYPESHIFT
+#  define _IOC_TYPESHIFT 8
+# endif
 # ifndef _IOC_WRITE
 #  define _IOC_WRITE 1U
 # endif

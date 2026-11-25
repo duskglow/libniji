@@ -55,10 +55,18 @@ typedef unsigned int uid_t;
 #  define __NIJI_D_ftok 1
 extern int ftok (const char *, int) __NIJI_NOTHROW;
 # endif
-# define IPC_CREAT 512
-# define IPC_EXCL 1024
-# define IPC_NOWAIT 2048
-# define IPC_PRIVATE 0
+# ifndef IPC_CREAT
+#  define IPC_CREAT 512
+# endif
+# ifndef IPC_EXCL
+#  define IPC_EXCL 1024
+# endif
+# ifndef IPC_NOWAIT
+#  define IPC_NOWAIT 2048
+# endif
+# ifndef IPC_PRIVATE
+#  define IPC_PRIVATE 0
+# endif
 # define IPC_RMID 0
 # define IPC_SET 1
 # define IPC_STAT 2

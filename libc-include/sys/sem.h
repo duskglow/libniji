@@ -103,7 +103,9 @@ extern int semtimedop (int, struct sembuf *, unsigned long, const struct timespe
 # define GETPID 11
 # define GETVAL 12
 # define GETZCNT 15
-# define SEM_UNDO 4096
+# ifndef SEM_UNDO
+#  define SEM_UNDO 4096
+# endif
 # define SETALL 17
 # define SETVAL 16
 # define _SEM_SEMUN_UNDEFINED 1

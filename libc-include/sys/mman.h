@@ -147,30 +147,72 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# define MAP_32BIT 64
-# define MAP_ABOVE4G 128
+# ifndef MAP_32BIT
+#  define MAP_32BIT 64
+# endif
+# ifndef MAP_ABOVE4G
+#  define MAP_ABOVE4G 128
+# endif
 # define MAP_ANON 32
-# define MAP_ANONYMOUS 32
-# define MAP_DENYWRITE 2048
-# define MAP_EXECUTABLE 4096
+# ifndef MAP_ANONYMOUS
+#  define MAP_ANONYMOUS 32
+# endif
+# ifndef MAP_DENYWRITE
+#  define MAP_DENYWRITE 2048
+# endif
+# ifndef MAP_EXECUTABLE
+#  define MAP_EXECUTABLE 4096
+# endif
 # define MAP_FAILED ((void *) (-1L))
 # define MAP_FILE 0
-# define MAP_FIXED 16
-# define MAP_FIXED_NOREPLACE 1048576
-# define MAP_GROWSDOWN 256
-# define MAP_HUGETLB 262144
-# define MAP_HUGE_MASK 63
-# define MAP_HUGE_SHIFT 26
-# define MAP_LOCKED 8192
-# define MAP_NONBLOCK 65536
-# define MAP_NORESERVE 16384
-# define MAP_POPULATE 32768
-# define MAP_PRIVATE 2
-# define MAP_SHARED 1
-# define MAP_SHARED_VALIDATE 3
-# define MAP_STACK 131072
-# define MAP_SYNC 524288
-# define MAP_TYPE 15
+# ifndef MAP_FIXED
+#  define MAP_FIXED 16
+# endif
+# ifndef MAP_FIXED_NOREPLACE
+#  define MAP_FIXED_NOREPLACE 1048576
+# endif
+# ifndef MAP_GROWSDOWN
+#  define MAP_GROWSDOWN 256
+# endif
+# ifndef MAP_HUGETLB
+#  define MAP_HUGETLB 262144
+# endif
+# ifndef MAP_HUGE_MASK
+#  define MAP_HUGE_MASK 63
+# endif
+# ifndef MAP_HUGE_SHIFT
+#  define MAP_HUGE_SHIFT 26
+# endif
+# ifndef MAP_LOCKED
+#  define MAP_LOCKED 8192
+# endif
+# ifndef MAP_NONBLOCK
+#  define MAP_NONBLOCK 65536
+# endif
+# ifndef MAP_NORESERVE
+#  define MAP_NORESERVE 16384
+# endif
+# ifndef MAP_POPULATE
+#  define MAP_POPULATE 32768
+# endif
+# ifndef MAP_PRIVATE
+#  define MAP_PRIVATE 2
+# endif
+# ifndef MAP_SHARED
+#  define MAP_SHARED 1
+# endif
+# ifndef MAP_SHARED_VALIDATE
+#  define MAP_SHARED_VALIDATE 3
+# endif
+# ifndef MAP_STACK
+#  define MAP_STACK 131072
+# endif
+# ifndef MAP_SYNC
+#  define MAP_SYNC 524288
+# endif
+# ifndef MAP_TYPE
+#  define MAP_TYPE 15
+# endif
 # ifndef MCL_CURRENT
 #  define MCL_CURRENT 1
 # endif
@@ -179,12 +221,24 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # define MS_ASYNC 1
 # define MS_INVALIDATE 2
 # define MS_SYNC 4
-# define PROT_EXEC 4
-# define PROT_GROWSDOWN 16777216
-# define PROT_GROWSUP 33554432
-# define PROT_NONE 0
-# define PROT_READ 1
-# define PROT_WRITE 2
+# ifndef PROT_EXEC
+#  define PROT_EXEC 4
+# endif
+# ifndef PROT_GROWSDOWN
+#  define PROT_GROWSDOWN 16777216
+# endif
+# ifndef PROT_GROWSUP
+#  define PROT_GROWSUP 33554432
+# endif
+# ifndef PROT_NONE
+#  define PROT_NONE 0
+# endif
+# ifndef PROT_READ
+#  define PROT_READ 1
+# endif
+# ifndef PROT_WRITE
+#  define PROT_WRITE 2
+# endif
 #endif
 #if __NIJI_POSIX >= 200112
 # define POSIX_MADV_DONTNEED 4
@@ -194,12 +248,18 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # define POSIX_MADV_WILLNEED 3
 #endif
 #if defined __USE_GNU
-# define MFD_ALLOW_SEALING 2U
+# ifndef MFD_ALLOW_SEALING
+#  define MFD_ALLOW_SEALING 2U
+# endif
 # ifndef MFD_CLOEXEC
 #  define MFD_CLOEXEC 1U
 # endif
-# define MFD_EXEC 16U
-# define MFD_HUGETLB 4U
+# ifndef MFD_EXEC
+#  define MFD_EXEC 16U
+# endif
+# ifndef MFD_HUGETLB
+#  define MFD_HUGETLB 4U
+# endif
 # ifndef MFD_NOEXEC_SEAL
 #  define MFD_NOEXEC_SEAL 8U
 # endif
@@ -212,14 +272,18 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # ifndef PKEY_DISABLE_ACCESS
 #  define PKEY_DISABLE_ACCESS 1
 # endif
-# define PKEY_DISABLE_WRITE 2
+# ifndef PKEY_DISABLE_WRITE
+#  define PKEY_DISABLE_WRITE 2
+# endif
 #endif
 #if defined __USE_MISC
 # define MADV_COLD 20
 # define MADV_COLLAPSE 25
 # define MADV_DODUMP 17
 # define MADV_DOFORK 11
-# define MADV_DONTDUMP 16
+# ifndef MADV_DONTDUMP
+#  define MADV_DONTDUMP 16
+# endif
 # define MADV_DONTFORK 10
 # define MADV_DONTNEED 4
 # define MADV_DONTNEED_LOCKED 24
@@ -239,7 +303,9 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # define MADV_UNMERGEABLE 13
 # define MADV_WILLNEED 3
 # define MADV_WIPEONFORK 18
-# define SHADOW_STACK_SET_TOKEN 1
+# ifndef SHADOW_STACK_SET_TOKEN
+#  define SHADOW_STACK_SET_TOKEN 1
+# endif
 #endif
 
 __NIJI_END_C

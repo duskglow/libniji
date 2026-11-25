@@ -382,21 +382,29 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef F_GETLK
 #  define F_GETLK 5
 # endif
-# define F_GETLK64 5
+# ifndef F_GETLK64
+#  define F_GETLK64 5
+# endif
 # ifndef F_RDLCK
 #  define F_RDLCK 0
 # endif
 # define F_SETFD 2
 # define F_SETFL 4
 # define F_SETLK 6
-# define F_SETLK64 6
+# ifndef F_SETLK64
+#  define F_SETLK64 6
+# endif
 # define F_SETLKW 7
-# define F_SETLKW64 7
+# ifndef F_SETLKW64
+#  define F_SETLKW64 7
+# endif
 # define F_SHLCK 8
 # define F_UNLCK 2
 # define F_WRLCK 1
 # define LOCK_EX 2
-# define LOCK_NB 4
+# ifndef LOCK_NB
+#  define LOCK_NB 4
+# endif
 # define LOCK_SH 1
 # define LOCK_UN 8
 # define L_INCR 1
@@ -404,7 +412,9 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 #  define L_SET 0
 # endif
 # define L_XTND 2
-# define O_ACCMODE 3
+# ifndef O_ACCMODE
+#  define O_ACCMODE 3
+# endif
 # ifndef O_APPEND
 #  define O_APPEND 1024
 # endif
@@ -427,21 +437,31 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef O_NONBLOCK
 #  define O_NONBLOCK 2048
 # endif
-# define O_RDONLY 0
-# define O_RDWR 2
+# ifndef O_RDONLY
+#  define O_RDONLY 0
+# endif
+# ifndef O_RDWR
+#  define O_RDWR 2
+# endif
 # ifndef O_SYNC
 #  define O_SYNC 1052672
 # endif
 # ifndef O_TRUNC
 #  define O_TRUNC 512
 # endif
-# define O_WRONLY 1
+# ifndef O_WRONLY
+#  define O_WRONLY 1
+# endif
 #endif
 #if __NIJI_LFS64
-# define O_LARGEFILE 0
+# ifndef O_LARGEFILE
+#  define O_LARGEFILE 0
+# endif
 #endif
 #if __NIJI_POSIX >= 199309
-# define O_DSYNC 4096
+# ifndef O_DSYNC
+#  define O_DSYNC 4096
+# endif
 # define O_RSYNC 1052672
 #endif
 #if __NIJI_POSIX >= 200112
@@ -453,15 +473,33 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # define POSIX_FADV_WILLNEED 3
 #endif
 #if __NIJI_POSIX >= 200809
-# define AT_EACCESS 512
-# define AT_FDCWD (-100)
-# define AT_REMOVEDIR 512
-# define AT_SYMLINK_FOLLOW 1024
-# define AT_SYMLINK_NOFOLLOW 256
-# define F_DUPFD_CLOEXEC 1030
-# define O_CLOEXEC 524288
-# define O_DIRECTORY 65536
-# define O_NOFOLLOW 131072
+# ifndef AT_EACCESS
+#  define AT_EACCESS 512
+# endif
+# ifndef AT_FDCWD
+#  define AT_FDCWD (-100)
+# endif
+# ifndef AT_REMOVEDIR
+#  define AT_REMOVEDIR 512
+# endif
+# ifndef AT_SYMLINK_FOLLOW
+#  define AT_SYMLINK_FOLLOW 1024
+# endif
+# ifndef AT_SYMLINK_NOFOLLOW
+#  define AT_SYMLINK_NOFOLLOW 256
+# endif
+# ifndef F_DUPFD_CLOEXEC
+#  define F_DUPFD_CLOEXEC 1030
+# endif
+# ifndef O_CLOEXEC
+#  define O_CLOEXEC 524288
+# endif
+# ifndef O_DIRECTORY
+#  define O_DIRECTORY 65536
+# endif
+# ifndef O_NOFOLLOW
+#  define O_NOFOLLOW 131072
+# endif
 # define UTIME_NOW 1073741823L
 # define UTIME_OMIT 1073741822L
 #endif
@@ -469,91 +507,225 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # define SEEK_CUR 1
 # define SEEK_END 2
 # define SEEK_SET 0
-# define S_IFBLK 24576
-# define S_IFCHR 8192
-# define S_IFDIR 16384
-# define S_IFIFO 4096
-# define S_IFLNK 40960
-# define S_IFMT 61440
-# define S_IFREG 32768
-# define S_IRGRP 32
-# define S_IROTH 4
-# define S_IRUSR 256
-# define S_IRWXG 56
-# define S_IRWXO 7
-# define S_IRWXU 448
-# define S_ISGID 1024
-# define S_ISUID 2048
-# define S_IWGRP 16
-# define S_IWOTH 2
-# define S_IWUSR 128
-# define S_IXGRP 8
-# define S_IXOTH 1
-# define S_IXUSR 64
+# ifndef S_IFBLK
+#  define S_IFBLK 24576
+# endif
+# ifndef S_IFCHR
+#  define S_IFCHR 8192
+# endif
+# ifndef S_IFDIR
+#  define S_IFDIR 16384
+# endif
+# ifndef S_IFIFO
+#  define S_IFIFO 4096
+# endif
+# ifndef S_IFLNK
+#  define S_IFLNK 40960
+# endif
+# ifndef S_IFMT
+#  define S_IFMT 61440
+# endif
+# ifndef S_IFREG
+#  define S_IFREG 32768
+# endif
+# ifndef S_IRGRP
+#  define S_IRGRP 32
+# endif
+# ifndef S_IROTH
+#  define S_IROTH 4
+# endif
+# ifndef S_IRUSR
+#  define S_IRUSR 256
+# endif
+# ifndef S_IRWXG
+#  define S_IRWXG 56
+# endif
+# ifndef S_IRWXO
+#  define S_IRWXO 7
+# endif
+# ifndef S_IRWXU
+#  define S_IRWXU 448
+# endif
+# ifndef S_ISGID
+#  define S_ISGID 1024
+# endif
+# ifndef S_ISUID
+#  define S_ISUID 2048
+# endif
+# ifndef S_IWGRP
+#  define S_IWGRP 16
+# endif
+# ifndef S_IWOTH
+#  define S_IWOTH 2
+# endif
+# ifndef S_IWUSR
+#  define S_IWUSR 128
+# endif
+# ifndef S_IXGRP
+#  define S_IXGRP 8
+# endif
+# ifndef S_IXOTH
+#  define S_IXOTH 1
+# endif
+# ifndef S_IXUSR
+#  define S_IXUSR 64
+# endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
 # define F_GETOWN 9
 # define F_SETOWN 8
-# define S_IFSOCK 49152
+# ifndef S_IFSOCK
+#  define S_IFSOCK 49152
+# endif
 #endif
 #if defined __USE_GNU
-# define AT_EMPTY_PATH 4096
-# define AT_HANDLE_FID 512
-# define AT_NO_AUTOMOUNT 2048
-# define AT_RECURSIVE 32768
-# define AT_STATX_DONT_SYNC 16384
-# define AT_STATX_FORCE_SYNC 8192
-# define AT_STATX_SYNC_AS_STAT 0
-# define AT_STATX_SYNC_TYPE 24576
-# define DN_ACCESS 1
-# define DN_ATTRIB 32
-# define DN_CREATE 4
-# define DN_DELETE 8
-# define DN_MODIFY 2
-# define DN_MULTISHOT 2147483648U
-# define DN_RENAME 16
-# define FALLOC_FL_ALLOCATE_RANGE 0
-# define FALLOC_FL_COLLAPSE_RANGE 8
-# define FALLOC_FL_INSERT_RANGE 32
-# define FALLOC_FL_KEEP_SIZE 1
-# define FALLOC_FL_NO_HIDE_STALE 4
-# define FALLOC_FL_PUNCH_HOLE 2
-# define FALLOC_FL_UNSHARE_RANGE 64
-# define FALLOC_FL_ZERO_RANGE 16
-# define F_ADD_SEALS 1033
-# define F_GETLEASE 1025
+# ifndef AT_EMPTY_PATH
+#  define AT_EMPTY_PATH 4096
+# endif
+# ifndef AT_HANDLE_FID
+#  define AT_HANDLE_FID 512
+# endif
+# ifndef AT_NO_AUTOMOUNT
+#  define AT_NO_AUTOMOUNT 2048
+# endif
+# ifndef AT_RECURSIVE
+#  define AT_RECURSIVE 32768
+# endif
+# ifndef AT_STATX_DONT_SYNC
+#  define AT_STATX_DONT_SYNC 16384
+# endif
+# ifndef AT_STATX_FORCE_SYNC
+#  define AT_STATX_FORCE_SYNC 8192
+# endif
+# ifndef AT_STATX_SYNC_AS_STAT
+#  define AT_STATX_SYNC_AS_STAT 0
+# endif
+# ifndef AT_STATX_SYNC_TYPE
+#  define AT_STATX_SYNC_TYPE 24576
+# endif
+# ifndef DN_ACCESS
+#  define DN_ACCESS 1
+# endif
+# ifndef DN_ATTRIB
+#  define DN_ATTRIB 32
+# endif
+# ifndef DN_CREATE
+#  define DN_CREATE 4
+# endif
+# ifndef DN_DELETE
+#  define DN_DELETE 8
+# endif
+# ifndef DN_MODIFY
+#  define DN_MODIFY 2
+# endif
+# ifndef DN_MULTISHOT
+#  define DN_MULTISHOT 2147483648U
+# endif
+# ifndef DN_RENAME
+#  define DN_RENAME 16
+# endif
+# ifndef FALLOC_FL_ALLOCATE_RANGE
+#  define FALLOC_FL_ALLOCATE_RANGE 0
+# endif
+# ifndef FALLOC_FL_COLLAPSE_RANGE
+#  define FALLOC_FL_COLLAPSE_RANGE 8
+# endif
+# ifndef FALLOC_FL_INSERT_RANGE
+#  define FALLOC_FL_INSERT_RANGE 32
+# endif
+# ifndef FALLOC_FL_KEEP_SIZE
+#  define FALLOC_FL_KEEP_SIZE 1
+# endif
+# ifndef FALLOC_FL_NO_HIDE_STALE
+#  define FALLOC_FL_NO_HIDE_STALE 4
+# endif
+# ifndef FALLOC_FL_PUNCH_HOLE
+#  define FALLOC_FL_PUNCH_HOLE 2
+# endif
+# ifndef FALLOC_FL_UNSHARE_RANGE
+#  define FALLOC_FL_UNSHARE_RANGE 64
+# endif
+# ifndef FALLOC_FL_ZERO_RANGE
+#  define FALLOC_FL_ZERO_RANGE 16
+# endif
+# ifndef F_ADD_SEALS
+#  define F_ADD_SEALS 1033
+# endif
+# ifndef F_GETLEASE
+#  define F_GETLEASE 1025
+# endif
 # define F_GETOWN_EX 16
-# define F_GETPIPE_SZ 1032
+# ifndef F_GETPIPE_SZ
+#  define F_GETPIPE_SZ 1032
+# endif
 # define F_GETSIG 11
-# define F_GET_FILE_RW_HINT 1037
-# define F_GET_RW_HINT 1035
-# define F_GET_SEALS 1034
-# define F_NOTIFY 1026
+# ifndef F_GET_FILE_RW_HINT
+#  define F_GET_FILE_RW_HINT 1037
+# endif
+# ifndef F_GET_RW_HINT
+#  define F_GET_RW_HINT 1035
+# endif
+# ifndef F_GET_SEALS
+#  define F_GET_SEALS 1034
+# endif
+# ifndef F_NOTIFY
+#  define F_NOTIFY 1026
+# endif
 # define F_OFD_GETLK 36
 # define F_OFD_SETLK 37
 # define F_OFD_SETLKW 38
-# define F_SEAL_EXEC 32
-# define F_SEAL_FUTURE_WRITE 16
-# define F_SEAL_GROW 4
-# define F_SEAL_SEAL 1
-# define F_SEAL_SHRINK 2
-# define F_SEAL_WRITE 8
-# define F_SETLEASE 1024
+# ifndef F_SEAL_EXEC
+#  define F_SEAL_EXEC 32
+# endif
+# ifndef F_SEAL_FUTURE_WRITE
+#  define F_SEAL_FUTURE_WRITE 16
+# endif
+# ifndef F_SEAL_GROW
+#  define F_SEAL_GROW 4
+# endif
+# ifndef F_SEAL_SEAL
+#  define F_SEAL_SEAL 1
+# endif
+# ifndef F_SEAL_SHRINK
+#  define F_SEAL_SHRINK 2
+# endif
+# ifndef F_SEAL_WRITE
+#  define F_SEAL_WRITE 8
+# endif
+# ifndef F_SETLEASE
+#  define F_SETLEASE 1024
+# endif
 # define F_SETOWN_EX 15
-# define F_SETPIPE_SZ 1031
+# ifndef F_SETPIPE_SZ
+#  define F_SETPIPE_SZ 1031
+# endif
 # define F_SETSIG 10
-# define F_SET_FILE_RW_HINT 1038
-# define F_SET_RW_HINT 1036
+# ifndef F_SET_FILE_RW_HINT
+#  define F_SET_FILE_RW_HINT 1038
+# endif
+# ifndef F_SET_RW_HINT
+#  define F_SET_RW_HINT 1036
+# endif
 # define LOCK_MAND 32
 # define LOCK_READ 64
 # define LOCK_RW 192
 # define LOCK_WRITE 128
 # define MAX_HANDLE_SZ 128
-# define O_DIRECT 16384
-# define O_NOATIME 262144
-# define O_PATH 2097152
-# define O_TMPFILE 4259840
-# define RWF_WRITE_LIFE_NOT_SET 0
+# ifndef O_DIRECT
+#  define O_DIRECT 16384
+# endif
+# ifndef O_NOATIME
+#  define O_NOATIME 262144
+# endif
+# ifndef O_PATH
+#  define O_PATH 2097152
+# endif
+# ifndef O_TMPFILE
+#  define O_TMPFILE 4259840
+# endif
+# ifndef RWF_WRITE_LIFE_NOT_SET
+#  define RWF_WRITE_LIFE_NOT_SET 0
+# endif
 # define RWH_WRITE_LIFE_EXTREME 5
 # define RWH_WRITE_LIFE_LONG 4
 # define RWH_WRITE_LIFE_MEDIUM 3
@@ -567,11 +739,15 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # define SYNC_FILE_RANGE_WAIT_AFTER 4
 # define SYNC_FILE_RANGE_WAIT_BEFORE 1
 # define SYNC_FILE_RANGE_WRITE 2
-# define SYNC_FILE_RANGE_WRITE_AND_WAIT 7
+# ifndef SYNC_FILE_RANGE_WRITE_AND_WAIT
+#  define SYNC_FILE_RANGE_WRITE_AND_WAIT 7
+# endif
 #endif
 #if defined __USE_MISC
 # define FAPPEND 1024
-# define FASYNC 8192
+# ifndef FASYNC
+#  define FASYNC 8192
+# endif
 # define FFSYNC 1052672
 # define FNDELAY 2048
 # define FNONBLOCK 2048
@@ -589,7 +765,9 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # define X_OK 1
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 400
-# define S_ISVTX 512
+# ifndef S_ISVTX
+#  define S_ISVTX 512
+# endif
 #endif
 
 

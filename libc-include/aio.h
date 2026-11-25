@@ -422,10 +422,18 @@ enum {
 # define LIO_READ LIO_READ
 # define LIO_WAIT LIO_WAIT
 # define LIO_WRITE LIO_WRITE
-# define SIGEV_NONE SIGEV_NONE
-# define SIGEV_SIGNAL SIGEV_SIGNAL
-# define SIGEV_THREAD SIGEV_THREAD
-# define SIGEV_THREAD_ID SIGEV_THREAD_ID
+# ifndef SIGEV_NONE
+#  define SIGEV_NONE SIGEV_NONE
+# endif
+# ifndef SIGEV_SIGNAL
+#  define SIGEV_SIGNAL SIGEV_SIGNAL
+# endif
+# ifndef SIGEV_THREAD
+#  define SIGEV_THREAD SIGEV_THREAD
+# endif
+# ifndef SIGEV_THREAD_ID
+#  define SIGEV_THREAD_ID SIGEV_THREAD_ID
+# endif
 #endif
 
 __NIJI_END_C

@@ -405,9 +405,15 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # define ELF_NGREG 27UL
 # define ELF_PRARGSZ 80
 # define FD_SETSIZE 1024
-# define ITIMER_PROF ITIMER_PROF
-# define ITIMER_REAL ITIMER_REAL
-# define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# ifndef ITIMER_PROF
+#  define ITIMER_PROF ITIMER_PROF
+# endif
+# ifndef ITIMER_REAL
+#  define ITIMER_REAL ITIMER_REAL
+# endif
+# ifndef ITIMER_VIRTUAL
+#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# endif
 #endif
 
 /* struct timeval <-> struct timespec: the same text as <sys/time.h>. */

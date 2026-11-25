@@ -40,10 +40,16 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define __NIJI_D_quotactl 1
 extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # endif
-# define DQF_ROOT_SQUASH 1
-# define DQF_SYS_FILE 65536
+# ifndef DQF_ROOT_SQUASH
+#  define DQF_ROOT_SQUASH 1
+# endif
+# ifndef DQF_SYS_FILE
+#  define DQF_SYS_FILE 65536
+# endif
 # define GRPQUOTA 1
-# define IIF_ALL 7
+# ifndef IIF_ALL
+#  define IIF_ALL 7
+# endif
 # define IIF_BGRACE 1
 # define IIF_FLAGS 4
 # define IIF_IGRACE 2
@@ -58,41 +64,87 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # define QFMT_VFS_OLD 1
 # define QFMT_VFS_V0 2
 # define QFMT_VFS_V1 4
-# define QIF_ALL 63
-# define QIF_BLIMITS 1
-# define QIF_BTIME 16
-# define QIF_DQBLKSIZE 1024
+# ifndef QIF_ALL
+#  define QIF_ALL 63
+# endif
+# ifndef QIF_BLIMITS
+#  define QIF_BLIMITS 1
+# endif
+# ifndef QIF_BTIME
+#  define QIF_BTIME 16
+# endif
+# ifndef QIF_DQBLKSIZE
+#  define QIF_DQBLKSIZE 1024
+# endif
 # define QIF_DQBLKSIZE_BITS 10
-# define QIF_ILIMITS 4
-# define QIF_INODES 8
-# define QIF_ITIME 32
-# define QIF_LIMITS 5
-# define QIF_SPACE 2
-# define QIF_TIMES 48
-# define QIF_USAGE 10
-# define QUOTA_NL_A_MAX 7
+# ifndef QIF_ILIMITS
+#  define QIF_ILIMITS 4
+# endif
+# ifndef QIF_INODES
+#  define QIF_INODES 8
+# endif
+# ifndef QIF_ITIME
+#  define QIF_ITIME 32
+# endif
+# ifndef QIF_LIMITS
+#  define QIF_LIMITS 5
+# endif
+# ifndef QIF_SPACE
+#  define QIF_SPACE 2
+# endif
+# ifndef QIF_TIMES
+#  define QIF_TIMES 48
+# endif
+# ifndef QIF_USAGE
+#  define QIF_USAGE 10
+# endif
+# ifndef QUOTA_NL_A_MAX
+#  define QUOTA_NL_A_MAX 7
+# endif
 # define QUOTA_NL_BHARDBELOW 9
 # define QUOTA_NL_BHARDWARN 4
 # define QUOTA_NL_BSOFTBELOW 10
 # define QUOTA_NL_BSOFTLONGWARN 5
 # define QUOTA_NL_BSOFTWARN 6
-# define QUOTA_NL_C_MAX 1
+# ifndef QUOTA_NL_C_MAX
+#  define QUOTA_NL_C_MAX 1
+# endif
 # define QUOTA_NL_IHARDBELOW 7
 # define QUOTA_NL_IHARDWARN 1
 # define QUOTA_NL_ISOFTBELOW 8
 # define QUOTA_NL_ISOFTLONGWARN 2
 # define QUOTA_NL_ISOFTWARN 3
 # define QUOTA_NL_NOWARN 0
-# define Q_GETFMT 8388612
-# define Q_GETINFO 8388613
-# define Q_GETNEXTQUOTA 8388617
-# define Q_GETQUOTA 8388615
-# define Q_QUOTAOFF 8388611
-# define Q_QUOTAON 8388610
-# define Q_SETINFO 8388614
-# define Q_SETQUOTA 8388616
-# define Q_SYNC 8388609
-# define SUBCMDMASK 255
+# ifndef Q_GETFMT
+#  define Q_GETFMT 8388612
+# endif
+# ifndef Q_GETINFO
+#  define Q_GETINFO 8388613
+# endif
+# ifndef Q_GETNEXTQUOTA
+#  define Q_GETNEXTQUOTA 8388617
+# endif
+# ifndef Q_GETQUOTA
+#  define Q_GETQUOTA 8388615
+# endif
+# ifndef Q_QUOTAOFF
+#  define Q_QUOTAOFF 8388611
+# endif
+# ifndef Q_QUOTAON
+#  define Q_QUOTAON 8388610
+# endif
+# ifndef Q_SETINFO
+#  define Q_SETINFO 8388614
+# endif
+# ifndef Q_SETQUOTA
+#  define Q_SETQUOTA 8388616
+# endif
+# ifndef Q_SYNC
+#  define Q_SYNC 8388609
+# endif
+# ifndef SUBCMDMASK
+#  define SUBCMDMASK 255
+# endif
 # define SUBCMDSHIFT 8
 # define USRQUOTA 0
 #endif

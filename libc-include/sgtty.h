@@ -57,18 +57,36 @@ extern int stty (int, const struct sgttyb *);
 # ifndef FIOASYNC
 #  define FIOASYNC 21586
 # endif
-# define FIOCLEX 21585
-# define FIONBIO 21537
-# define FIONCLEX 21584
-# define FIONREAD 21531
+# ifndef FIOCLEX
+#  define FIOCLEX 21585
+# endif
+# ifndef FIONBIO
+#  define FIONBIO 21537
+# endif
+# ifndef FIONCLEX
+#  define FIONCLEX 21584
+# endif
+# ifndef FIONREAD
+#  define FIONREAD 21531
+# endif
 # ifndef FIOQSIZE
 #  define FIOQSIZE 21600
 # endif
-# define IOCSIZE_MASK 1073676288
-# define IOCSIZE_SHIFT 16
-# define IOC_IN 1073741824U
-# define IOC_INOUT 3221225472U
-# define IOC_OUT 2147483648U
+# ifndef IOCSIZE_MASK
+#  define IOCSIZE_MASK 1073676288
+# endif
+# ifndef IOCSIZE_SHIFT
+#  define IOCSIZE_SHIFT 16
+# endif
+# ifndef IOC_IN
+#  define IOC_IN 1073741824U
+# endif
+# ifndef IOC_INOUT
+#  define IOC_INOUT 3221225472U
+# endif
+# ifndef IOC_OUT
+#  define IOC_OUT 2147483648U
+# endif
 # define NCC 8
 # define N_6PACK 7
 # define N_AX25 5
@@ -86,116 +104,336 @@ extern int stty (int, const struct sgttyb *);
 # define N_SYNC_PPP 14
 # define N_TTY 0
 # define N_X25 6
-# define SIOCADDDLCI 35200
-# define SIOCADDMULTI 35121
-# define SIOCADDRT 35083
-# define SIOCDARP 35155
-# define SIOCDELDLCI 35201
-# define SIOCDELMULTI 35122
-# define SIOCDELRT 35084
-# define SIOCDEVPRIVATE 35312
-# define SIOCDIFADDR 35126
-# define SIOCDRARP 35168
-# define SIOCGARP 35156
-# define SIOCGIFADDR 35093
-# define SIOCGIFBR 35136
-# define SIOCGIFBRDADDR 35097
-# define SIOCGIFCONF 35090
-# define SIOCGIFCOUNT 35128
-# define SIOCGIFDSTADDR 35095
-# define SIOCGIFENCAP 35109
-# define SIOCGIFFLAGS 35091
-# define SIOCGIFHWADDR 35111
-# define SIOCGIFINDEX 35123
-# define SIOCGIFMAP 35184
-# define SIOCGIFMEM 35103
-# define SIOCGIFMETRIC 35101
-# define SIOCGIFMTU 35105
-# define SIOCGIFNAME 35088
-# define SIOCGIFNETMASK 35099
-# define SIOCGIFPFLAGS 35125
-# define SIOCGIFSLAVE 35113
-# define SIOCGIFTXQLEN 35138
-# define SIOCGRARP 35169
-# define SIOCPROTOPRIVATE 35296
-# define SIOCRTMSG 35085
-# define SIOCSARP 35157
-# define SIOCSIFADDR 35094
-# define SIOCSIFBR 35137
-# define SIOCSIFBRDADDR 35098
-# define SIOCSIFDSTADDR 35096
-# define SIOCSIFENCAP 35110
-# define SIOCSIFFLAGS 35092
-# define SIOCSIFHWADDR 35108
-# define SIOCSIFHWBROADCAST 35127
-# define SIOCSIFLINK 35089
-# define SIOCSIFMAP 35185
-# define SIOCSIFMEM 35104
-# define SIOCSIFMETRIC 35102
-# define SIOCSIFMTU 35106
-# define SIOCSIFNAME 35107
-# define SIOCSIFNETMASK 35100
-# define SIOCSIFPFLAGS 35124
-# define SIOCSIFSLAVE 35120
-# define SIOCSIFTXQLEN 35139
-# define SIOCSRARP 35170
-# define SIOGIFINDEX 35123
-# define TCFLSH 21515
-# define TCGETA 21509
-# define TCGETS 21505
-# define TCGETX 21554
-# define TCSBRK 21513
-# define TCSBRKP 21541
-# define TCSETA 21510
-# define TCSETAF 21512
-# define TCSETAW 21511
-# define TCSETS 21506
-# define TCSETSF 21508
-# define TCSETSW 21507
-# define TCSETX 21555
-# define TCSETXF 21556
-# define TCSETXW 21557
-# define TCXONC 21514
-# define TIOCCBRK 21544
-# define TIOCCONS 21533
-# define TIOCEXCL 21516
-# define TIOCGDEV 2147767346UL
-# define TIOCGETD 21540
-# define TIOCGEXCL 2147767360UL
-# define TIOCGICOUNT 21597
-# define TIOCGLCKTRMIOS 21590
-# define TIOCGPGRP 21519
-# define TIOCGPKT 2147767352UL
-# define TIOCGPTLCK 2147767353UL
-# define TIOCGPTN 2147767344UL
-# define TIOCGPTPEER 21569U
-# define TIOCGRS485 21550
-# define TIOCGSERIAL 21534
-# define TIOCGSID 21545
-# define TIOCGSOFTCAR 21529
-# define TIOCGWINSZ 21523
-# define TIOCINQ 21531
-# define TIOCLINUX 21532
-# define TIOCMBIC 21527
-# define TIOCMBIS 21526
-# define TIOCMGET 21525
-# define TIOCMIWAIT 21596
-# define TIOCMSET 21528
-# define TIOCM_CAR 64
-# define TIOCM_CD 64
-# define TIOCM_CTS 32
-# define TIOCM_DSR 256
-# define TIOCM_DTR 2
-# define TIOCM_LE 1
-# define TIOCM_RI 128
-# define TIOCM_RNG 128
-# define TIOCM_RTS 4
-# define TIOCM_SR 16
-# define TIOCM_ST 8
-# define TIOCNOTTY 21538
-# define TIOCNXCL 21517
-# define TIOCOUTQ 21521
-# define TIOCPKT 21536
+# ifndef SIOCADDDLCI
+#  define SIOCADDDLCI 35200
+# endif
+# ifndef SIOCADDMULTI
+#  define SIOCADDMULTI 35121
+# endif
+# ifndef SIOCADDRT
+#  define SIOCADDRT 35083
+# endif
+# ifndef SIOCDARP
+#  define SIOCDARP 35155
+# endif
+# ifndef SIOCDELDLCI
+#  define SIOCDELDLCI 35201
+# endif
+# ifndef SIOCDELMULTI
+#  define SIOCDELMULTI 35122
+# endif
+# ifndef SIOCDELRT
+#  define SIOCDELRT 35084
+# endif
+# ifndef SIOCDEVPRIVATE
+#  define SIOCDEVPRIVATE 35312
+# endif
+# ifndef SIOCDIFADDR
+#  define SIOCDIFADDR 35126
+# endif
+# ifndef SIOCDRARP
+#  define SIOCDRARP 35168
+# endif
+# ifndef SIOCGARP
+#  define SIOCGARP 35156
+# endif
+# ifndef SIOCGIFADDR
+#  define SIOCGIFADDR 35093
+# endif
+# ifndef SIOCGIFBR
+#  define SIOCGIFBR 35136
+# endif
+# ifndef SIOCGIFBRDADDR
+#  define SIOCGIFBRDADDR 35097
+# endif
+# ifndef SIOCGIFCONF
+#  define SIOCGIFCONF 35090
+# endif
+# ifndef SIOCGIFCOUNT
+#  define SIOCGIFCOUNT 35128
+# endif
+# ifndef SIOCGIFDSTADDR
+#  define SIOCGIFDSTADDR 35095
+# endif
+# ifndef SIOCGIFENCAP
+#  define SIOCGIFENCAP 35109
+# endif
+# ifndef SIOCGIFFLAGS
+#  define SIOCGIFFLAGS 35091
+# endif
+# ifndef SIOCGIFHWADDR
+#  define SIOCGIFHWADDR 35111
+# endif
+# ifndef SIOCGIFINDEX
+#  define SIOCGIFINDEX 35123
+# endif
+# ifndef SIOCGIFMAP
+#  define SIOCGIFMAP 35184
+# endif
+# ifndef SIOCGIFMEM
+#  define SIOCGIFMEM 35103
+# endif
+# ifndef SIOCGIFMETRIC
+#  define SIOCGIFMETRIC 35101
+# endif
+# ifndef SIOCGIFMTU
+#  define SIOCGIFMTU 35105
+# endif
+# ifndef SIOCGIFNAME
+#  define SIOCGIFNAME 35088
+# endif
+# ifndef SIOCGIFNETMASK
+#  define SIOCGIFNETMASK 35099
+# endif
+# ifndef SIOCGIFPFLAGS
+#  define SIOCGIFPFLAGS 35125
+# endif
+# ifndef SIOCGIFSLAVE
+#  define SIOCGIFSLAVE 35113
+# endif
+# ifndef SIOCGIFTXQLEN
+#  define SIOCGIFTXQLEN 35138
+# endif
+# ifndef SIOCGRARP
+#  define SIOCGRARP 35169
+# endif
+# ifndef SIOCPROTOPRIVATE
+#  define SIOCPROTOPRIVATE 35296
+# endif
+# ifndef SIOCRTMSG
+#  define SIOCRTMSG 35085
+# endif
+# ifndef SIOCSARP
+#  define SIOCSARP 35157
+# endif
+# ifndef SIOCSIFADDR
+#  define SIOCSIFADDR 35094
+# endif
+# ifndef SIOCSIFBR
+#  define SIOCSIFBR 35137
+# endif
+# ifndef SIOCSIFBRDADDR
+#  define SIOCSIFBRDADDR 35098
+# endif
+# ifndef SIOCSIFDSTADDR
+#  define SIOCSIFDSTADDR 35096
+# endif
+# ifndef SIOCSIFENCAP
+#  define SIOCSIFENCAP 35110
+# endif
+# ifndef SIOCSIFFLAGS
+#  define SIOCSIFFLAGS 35092
+# endif
+# ifndef SIOCSIFHWADDR
+#  define SIOCSIFHWADDR 35108
+# endif
+# ifndef SIOCSIFHWBROADCAST
+#  define SIOCSIFHWBROADCAST 35127
+# endif
+# ifndef SIOCSIFLINK
+#  define SIOCSIFLINK 35089
+# endif
+# ifndef SIOCSIFMAP
+#  define SIOCSIFMAP 35185
+# endif
+# ifndef SIOCSIFMEM
+#  define SIOCSIFMEM 35104
+# endif
+# ifndef SIOCSIFMETRIC
+#  define SIOCSIFMETRIC 35102
+# endif
+# ifndef SIOCSIFMTU
+#  define SIOCSIFMTU 35106
+# endif
+# ifndef SIOCSIFNAME
+#  define SIOCSIFNAME 35107
+# endif
+# ifndef SIOCSIFNETMASK
+#  define SIOCSIFNETMASK 35100
+# endif
+# ifndef SIOCSIFPFLAGS
+#  define SIOCSIFPFLAGS 35124
+# endif
+# ifndef SIOCSIFSLAVE
+#  define SIOCSIFSLAVE 35120
+# endif
+# ifndef SIOCSIFTXQLEN
+#  define SIOCSIFTXQLEN 35139
+# endif
+# ifndef SIOCSRARP
+#  define SIOCSRARP 35170
+# endif
+# ifndef SIOGIFINDEX
+#  define SIOGIFINDEX 35123
+# endif
+# ifndef TCFLSH
+#  define TCFLSH 21515
+# endif
+# ifndef TCGETA
+#  define TCGETA 21509
+# endif
+# ifndef TCGETS
+#  define TCGETS 21505
+# endif
+# ifndef TCGETX
+#  define TCGETX 21554
+# endif
+# ifndef TCSBRK
+#  define TCSBRK 21513
+# endif
+# ifndef TCSBRKP
+#  define TCSBRKP 21541
+# endif
+# ifndef TCSETA
+#  define TCSETA 21510
+# endif
+# ifndef TCSETAF
+#  define TCSETAF 21512
+# endif
+# ifndef TCSETAW
+#  define TCSETAW 21511
+# endif
+# ifndef TCSETS
+#  define TCSETS 21506
+# endif
+# ifndef TCSETSF
+#  define TCSETSF 21508
+# endif
+# ifndef TCSETSW
+#  define TCSETSW 21507
+# endif
+# ifndef TCSETX
+#  define TCSETX 21555
+# endif
+# ifndef TCSETXF
+#  define TCSETXF 21556
+# endif
+# ifndef TCSETXW
+#  define TCSETXW 21557
+# endif
+# ifndef TCXONC
+#  define TCXONC 21514
+# endif
+# ifndef TIOCCBRK
+#  define TIOCCBRK 21544
+# endif
+# ifndef TIOCCONS
+#  define TIOCCONS 21533
+# endif
+# ifndef TIOCEXCL
+#  define TIOCEXCL 21516
+# endif
+# ifndef TIOCGDEV
+#  define TIOCGDEV 2147767346UL
+# endif
+# ifndef TIOCGETD
+#  define TIOCGETD 21540
+# endif
+# ifndef TIOCGEXCL
+#  define TIOCGEXCL 2147767360UL
+# endif
+# ifndef TIOCGICOUNT
+#  define TIOCGICOUNT 21597
+# endif
+# ifndef TIOCGLCKTRMIOS
+#  define TIOCGLCKTRMIOS 21590
+# endif
+# ifndef TIOCGPGRP
+#  define TIOCGPGRP 21519
+# endif
+# ifndef TIOCGPKT
+#  define TIOCGPKT 2147767352UL
+# endif
+# ifndef TIOCGPTLCK
+#  define TIOCGPTLCK 2147767353UL
+# endif
+# ifndef TIOCGPTN
+#  define TIOCGPTN 2147767344UL
+# endif
+# ifndef TIOCGPTPEER
+#  define TIOCGPTPEER 21569U
+# endif
+# ifndef TIOCGRS485
+#  define TIOCGRS485 21550
+# endif
+# ifndef TIOCGSERIAL
+#  define TIOCGSERIAL 21534
+# endif
+# ifndef TIOCGSID
+#  define TIOCGSID 21545
+# endif
+# ifndef TIOCGSOFTCAR
+#  define TIOCGSOFTCAR 21529
+# endif
+# ifndef TIOCGWINSZ
+#  define TIOCGWINSZ 21523
+# endif
+# ifndef TIOCINQ
+#  define TIOCINQ 21531
+# endif
+# ifndef TIOCLINUX
+#  define TIOCLINUX 21532
+# endif
+# ifndef TIOCMBIC
+#  define TIOCMBIC 21527
+# endif
+# ifndef TIOCMBIS
+#  define TIOCMBIS 21526
+# endif
+# ifndef TIOCMGET
+#  define TIOCMGET 21525
+# endif
+# ifndef TIOCMIWAIT
+#  define TIOCMIWAIT 21596
+# endif
+# ifndef TIOCMSET
+#  define TIOCMSET 21528
+# endif
+# ifndef TIOCM_CAR
+#  define TIOCM_CAR 64
+# endif
+# ifndef TIOCM_CD
+#  define TIOCM_CD 64
+# endif
+# ifndef TIOCM_CTS
+#  define TIOCM_CTS 32
+# endif
+# ifndef TIOCM_DSR
+#  define TIOCM_DSR 256
+# endif
+# ifndef TIOCM_DTR
+#  define TIOCM_DTR 2
+# endif
+# ifndef TIOCM_LE
+#  define TIOCM_LE 1
+# endif
+# ifndef TIOCM_RI
+#  define TIOCM_RI 128
+# endif
+# ifndef TIOCM_RNG
+#  define TIOCM_RNG 128
+# endif
+# ifndef TIOCM_RTS
+#  define TIOCM_RTS 4
+# endif
+# ifndef TIOCM_SR
+#  define TIOCM_SR 16
+# endif
+# ifndef TIOCM_ST
+#  define TIOCM_ST 8
+# endif
+# ifndef TIOCNOTTY
+#  define TIOCNOTTY 21538
+# endif
+# ifndef TIOCNXCL
+#  define TIOCNXCL 21517
+# endif
+# ifndef TIOCOUTQ
+#  define TIOCOUTQ 21521
+# endif
+# ifndef TIOCPKT
+#  define TIOCPKT 21536
+# endif
 # define TIOCPKT_DATA 0
 # define TIOCPKT_DOSTOP 32
 # define TIOCPKT_FLUSHREAD 1
@@ -204,31 +442,69 @@ extern int stty (int, const struct sgttyb *);
 # define TIOCPKT_NOSTOP 16
 # define TIOCPKT_START 8
 # define TIOCPKT_STOP 4
-# define TIOCSBRK 21543
-# define TIOCSCTTY 21518
-# define TIOCSERCONFIG 21587
-# define TIOCSERGETLSR 21593
-# define TIOCSERGETMULTI 21594
-# define TIOCSERGSTRUCT 21592
-# define TIOCSERGWILD 21588
-# define TIOCSERSETMULTI 21595
-# define TIOCSERSWILD 21589
+# ifndef TIOCSBRK
+#  define TIOCSBRK 21543
+# endif
+# ifndef TIOCSCTTY
+#  define TIOCSCTTY 21518
+# endif
+# ifndef TIOCSERCONFIG
+#  define TIOCSERCONFIG 21587
+# endif
+# ifndef TIOCSERGETLSR
+#  define TIOCSERGETLSR 21593
+# endif
+# ifndef TIOCSERGETMULTI
+#  define TIOCSERGETMULTI 21594
+# endif
+# ifndef TIOCSERGSTRUCT
+#  define TIOCSERGSTRUCT 21592
+# endif
+# ifndef TIOCSERGWILD
+#  define TIOCSERGWILD 21588
+# endif
+# ifndef TIOCSERSETMULTI
+#  define TIOCSERSETMULTI 21595
+# endif
+# ifndef TIOCSERSWILD
+#  define TIOCSERSWILD 21589
+# endif
 # ifndef TIOCSER_TEMT
 #  define TIOCSER_TEMT 1
 # endif
-# define TIOCSETD 21539
-# define TIOCSIG 1074025526UL
-# define TIOCSLCKTRMIOS 21591
-# define TIOCSPGRP 21520
-# define TIOCSPTLCK 1074025521UL
+# ifndef TIOCSETD
+#  define TIOCSETD 21539
+# endif
+# ifndef TIOCSIG
+#  define TIOCSIG 1074025526UL
+# endif
+# ifndef TIOCSLCKTRMIOS
+#  define TIOCSLCKTRMIOS 21591
+# endif
+# ifndef TIOCSPGRP
+#  define TIOCSPGRP 21520
+# endif
+# ifndef TIOCSPTLCK
+#  define TIOCSPTLCK 1074025521UL
+# endif
 # ifndef TIOCSRS485
 #  define TIOCSRS485 21551
 # endif
-# define TIOCSSERIAL 21535
-# define TIOCSSOFTCAR 21530
-# define TIOCSTI 21522
-# define TIOCSWINSZ 21524
-# define TIOCVHANGUP 21559
+# ifndef TIOCSSERIAL
+#  define TIOCSSERIAL 21535
+# endif
+# ifndef TIOCSSOFTCAR
+#  define TIOCSSOFTCAR 21530
+# endif
+# ifndef TIOCSTI
+#  define TIOCSTI 21522
+# endif
+# ifndef TIOCSWINSZ
+#  define TIOCSWINSZ 21524
+# endif
+# ifndef TIOCVHANGUP
+#  define TIOCVHANGUP 21559
+# endif
 # define TTYDEF_CFLAG 1440
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
@@ -237,13 +513,19 @@ extern int stty (int, const struct sgttyb *);
 # ifndef _IOC_DIRBITS
 #  define _IOC_DIRBITS 2
 # endif
-# define _IOC_DIRMASK 3
-# define _IOC_DIRSHIFT 30
+# ifndef _IOC_DIRMASK
+#  define _IOC_DIRMASK 3
+# endif
+# ifndef _IOC_DIRSHIFT
+#  define _IOC_DIRSHIFT 30
+# endif
 # ifndef _IOC_NONE
 #  define _IOC_NONE 0U
 # endif
 # define _IOC_NRBITS 8
-# define _IOC_NRMASK 255
+# ifndef _IOC_NRMASK
+#  define _IOC_NRMASK 255
+# endif
 # define _IOC_NRSHIFT 0
 # ifndef _IOC_READ
 #  define _IOC_READ 2U
@@ -251,11 +533,19 @@ extern int stty (int, const struct sgttyb *);
 # ifndef _IOC_SIZEBITS
 #  define _IOC_SIZEBITS 14
 # endif
-# define _IOC_SIZEMASK 16383
-# define _IOC_SIZESHIFT 16
+# ifndef _IOC_SIZEMASK
+#  define _IOC_SIZEMASK 16383
+# endif
+# ifndef _IOC_SIZESHIFT
+#  define _IOC_SIZESHIFT 16
+# endif
 # define _IOC_TYPEBITS 8
-# define _IOC_TYPEMASK 255
-# define _IOC_TYPESHIFT 8
+# ifndef _IOC_TYPEMASK
+#  define _IOC_TYPEMASK 255
+# endif
+# ifndef _IOC_TYPESHIFT
+#  define _IOC_TYPESHIFT 8
+# endif
 # ifndef _IOC_WRITE
 #  define _IOC_WRITE 1U
 # endif

@@ -431,38 +431,92 @@ extern int unshare (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if defined __USE_GNU
-# define CLONE_CHILD_CLEARTID 2097152
-# define CLONE_CHILD_SETTID 16777216
-# define CLONE_DETACHED 4194304
-# define CLONE_FILES 1024
-# define CLONE_FS 512
-# define CLONE_IO 2147483648U
-# define CLONE_NEWCGROUP 33554432
-# define CLONE_NEWIPC 134217728
-# define CLONE_NEWNET 1073741824
-# define CLONE_NEWNS 131072
-# define CLONE_NEWPID 536870912
-# define CLONE_NEWTIME 128
-# define CLONE_NEWUSER 268435456
-# define CLONE_NEWUTS 67108864
-# define CLONE_PARENT 32768
-# define CLONE_PARENT_SETTID 1048576
-# define CLONE_PIDFD 4096
-# define CLONE_PTRACE 8192
-# define CLONE_SETTLS 524288
-# define CLONE_SIGHAND 2048
-# define CLONE_SYSVSEM 262144
-# define CLONE_THREAD 65536
-# define CLONE_UNTRACED 8388608
-# define CLONE_VFORK 16384
-# define CLONE_VM 256
+# ifndef CLONE_CHILD_CLEARTID
+#  define CLONE_CHILD_CLEARTID 2097152
+# endif
+# ifndef CLONE_CHILD_SETTID
+#  define CLONE_CHILD_SETTID 16777216
+# endif
+# ifndef CLONE_DETACHED
+#  define CLONE_DETACHED 4194304
+# endif
+# ifndef CLONE_FILES
+#  define CLONE_FILES 1024
+# endif
+# ifndef CLONE_FS
+#  define CLONE_FS 512
+# endif
+# ifndef CLONE_IO
+#  define CLONE_IO 2147483648U
+# endif
+# ifndef CLONE_NEWCGROUP
+#  define CLONE_NEWCGROUP 33554432
+# endif
+# ifndef CLONE_NEWIPC
+#  define CLONE_NEWIPC 134217728
+# endif
+# ifndef CLONE_NEWNET
+#  define CLONE_NEWNET 1073741824
+# endif
+# ifndef CLONE_NEWNS
+#  define CLONE_NEWNS 131072
+# endif
+# ifndef CLONE_NEWPID
+#  define CLONE_NEWPID 536870912
+# endif
+# ifndef CLONE_NEWTIME
+#  define CLONE_NEWTIME 128
+# endif
+# ifndef CLONE_NEWUSER
+#  define CLONE_NEWUSER 268435456
+# endif
+# ifndef CLONE_NEWUTS
+#  define CLONE_NEWUTS 67108864
+# endif
+# ifndef CLONE_PARENT
+#  define CLONE_PARENT 32768
+# endif
+# ifndef CLONE_PARENT_SETTID
+#  define CLONE_PARENT_SETTID 1048576
+# endif
+# ifndef CLONE_PIDFD
+#  define CLONE_PIDFD 4096
+# endif
+# ifndef CLONE_PTRACE
+#  define CLONE_PTRACE 8192
+# endif
+# ifndef CLONE_SETTLS
+#  define CLONE_SETTLS 524288
+# endif
+# ifndef CLONE_SIGHAND
+#  define CLONE_SIGHAND 2048
+# endif
+# ifndef CLONE_SYSVSEM
+#  define CLONE_SYSVSEM 262144
+# endif
+# ifndef CLONE_THREAD
+#  define CLONE_THREAD 65536
+# endif
+# ifndef CLONE_UNTRACED
+#  define CLONE_UNTRACED 8388608
+# endif
+# ifndef CLONE_VFORK
+#  define CLONE_VFORK 16384
+# endif
+# ifndef CLONE_VM
+#  define CLONE_VM 256
+# endif
 # define CPU_SETSIZE 1024
-# define CSIGNAL 255
+# ifndef CSIGNAL
+#  define CSIGNAL 255
+# endif
 # define SCHED_BATCH 3
 # define SCHED_DEADLINE 6
 # define SCHED_IDLE 5
 # define SCHED_ISO 4
-# define SCHED_RESET_ON_FORK 1073741824
+# ifndef SCHED_RESET_ON_FORK
+#  define SCHED_RESET_ON_FORK 1073741824
+# endif
 #endif
 
 #if 1
