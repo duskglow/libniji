@@ -6,3 +6,9 @@ hag-si_syscall-offset | headers/signal.h.in | lit:# define si_syscall _sifields.
 hag-si_call_addr-gone | headers/signal.h.in | perl:s/^\x40\x40when si_call_addr\n.*?#endif\n//ms | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact signal.h
 hag-pidfd-si_arch-gone | headers/sys/pidfd.h.in | perl:s/^\x40\x40when si_arch\n.*?#endif\n//ms | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact sys/pidfd.h
 hag-HEADER-gone | headers/arpa/nameser_compat.h.in | perl:s/^\x40\x40emit$/\x40\x40owns HEADER\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact arpa/nameser(_compat)?.h
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hag-cxx-sockaddr-union: CAUGHT, caught by no test the log names
+# hag-si_syscall-offset: CAUGHT, caught by no test the log names
+# hag-si_call_addr-gone: CAUGHT, caught by no test the log names
+# hag-pidfd-si_arch-gone: CAUGHT, caught by no test the log names
+# hag-HEADER-gone: CAUGHT, caught by no test the log names
