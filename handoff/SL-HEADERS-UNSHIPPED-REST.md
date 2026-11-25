@@ -1,65 +1,59 @@
 # SL-HEADERS-UNSHIPPED-REST: thread_db.h, proc_service.h, aio.h, mqueue.h, math-vector-fortran.h (handoff)
 
-**State.** Branch `task/sl-headers-unshipped-rest` (from origin/next 44304e709, still next's head at leg 2).
-Commits: 1115454a3 (leg 1: templates, tables, generated headers), 2d347eaf8 (typedef from its tag's layout rows),
-4761f0be5 (mq_open fortify, form `mode2`), then a WIP test commit and this note. Build role keke:~/w/n3 (synced at
-4761f0be5 + the WIP files; resync before every job). Scratch on keke: `~/work/sl-headers-unshipped-rest/` (t1.sh,
-t2.sh job scripts; mqprobe.sh = the mq_open fortify probe; tdc.c/tdc-ref = the client built on the reference;
-p4out/ = leg 2's P4 tables). Not a git tree on keke: compare generated headers by `LC_ALL=C sort` hash lists.
+**State.** Branch `task/sl-headers-unshipped-rest` (from origin/next 44304e709). Build role keke:~/w/n3. Final head
+and verdict: `handoff/reports/SL-HEADERS-UNSHIPPED-REST.json`. Scratch on keke: `~/work/sl-headers-unshipped-rest/`
+(t5.sh = the final test job; csps/ and p3/ = the reference probes of leg 3). The Fortran probe is in the same path on shiki.
 
-**Done in leg 2.**
-* Tests run (jobs sl-headers-unshipped-rest-t1, -t2, both on older heads: SUPERSEDED for the hand-back):
-  rows test green after the fix below; P6 `conformance/run.sh --niji-headers s25_mqueue s11_private_descriptors
-  s18_fork_reset x_self_bind`: 4 passed; P4 C++ compiles: 0 FAIL every -std.
-* Rows test found `struct td_thrhandle` opaque: the typedef emitter (typedefs.rs, linkage branch) looked layout rows
-  up only under the typedef's name; now also under the tag. Fixed thread_db.h (6 opaque structures -> 0) and
-  sys/procfs.h (struct user_fpregs_struct now has its members). Committed 2d347eaf8.
-* mq_open fortify (4761f0be5): probe-settled on the reference (compile status and `nm -u` only, levels 1-3):
-  run-time flags, no extra args -> __mq_open_2; constant flags without O_CREAT (O_TMPFILE too) -> mq_open; constant
-  O_CREAT alone, 1 or 3 extra args -> compile error; 2 extra -> mq_open. New fortify.tsv form `mode2` (s18.rs; the
-  `mode` output byte-identical), row `mq_open mode2 $0, $1 ($1 & 0100) != 0 0`, `@@fortify` in mqueue.h.in.
-  Test: 7 mq_open cases in s18.rs `an_open_without_its_mode_calls_the_checked_entry` (green on keke).
-* header_check: 39 FAIL, all P1 aio.h: `_SIGSET_NWORDS`, `_STRUCT_TIMESPEC` (reserved.tsv omit) and
-  `_POSIX_C_SOURCE` (== 200809 false under xopen500/600). Cause: macros.tsv makes aio.h their owner (first header),
-  and aio.h now has p1 1. Fix in WIP commit: `spec/tools/header_checks/s14.py` p1_skip for the three. NOT RERUN.
-* gdb-shaped probe (WIP commit): `crates/core/tests/oracle/thread_db_client.c` + test
-  `a_debugger_shaped_client_builds_on_libniji_headers_and_matches_the_reference` in
-  crates/core/tests/thread_db_products.rs (package `niji`). On the reference by hand: builds with -Wall -Wextra,
-  prints `td_init ok`, `td_ta_new refused, looked up`, sizes 16/384/24/16/8, etc. The libniji side NOT RUN yet.
+**Commits (all this story's).** 1115454a3 ship thread_db.h, proc_service.h, aio.h, mqueue.h; 2d347eaf8 typedef from
+its tag's layout rows; 4761f0be5 mq_open fortify (`mode2`, __mq_open_2); 286350a1a debugger-shaped libthread_db
+client test + slice 14 P1 skips; ade508a1c `conformance/c/s11_aio_listio.c` (TESTS: line); 6daae886d release notes,
+unshipped-row reason, plants file; 9d7c410f4 proc_service.h rows of callsites.tsv/noexcept.tsv (reference probe);
+b5648a307 the C-linkage differences row narrowed to td_*; 118c52ad2 sys/procfs.h prgregset_t, elf_fpregset_t,
+prstatus_t, prpsinfo_t (reference probes; the client did not build without prgregset_t); then this note and report.
 
-**Open: P4 part 2 (tables reproduced) FAILs**, `p4out/` on keke: 1819 differing lines in each of callsites.tsv
-and noexcept.tsv. Most are `__x` names (math.h `__acos`..., argp.h `__argp_*`: `!error` on libniji, names omitted
-by R-H2/R-H3): very likely the same on origin/next (check: run headers_p4.py on next's products, or ask whether P4
-part 2 is gated). Mine: proc_service.h's ps_* rows appear in libniji's probe output and not in spec/abi's
-callsites.tsv/noexcept.tsv (leg 1 extended prototypes.tsv, not those two): add the rows by rerunning the
-reference probe `spec/tools/callsite_probe.py` for proc_service.h (and thread_db.h? check), as leg 1 did for the
-other tables (PROVENANCE line). About 220 other non-`__` lines unclassified: classify (`diff ... | grep -v '	__'`).
+**Results at 118c52ad2 (job sl-headers-unshipped-rest-t5 on keke; its static step was still running at the end of
+leg 3: read `~/logs/sl-headers-unshipped-rest-t5.log`).** headers-gen leaves libc-include unchanged; rows test and
+mq_open fortify test green; header_check 0 failed of 17462; conformance `s11_aio_listio s25_mqueue` 2 passed,
+`--niji-headers s25_mqueue s11_private_descriptors s18_fork_reset x_self_bind` 4 passed; P4 part 1 0 FAIL every -std;
+clippy (workspace, all targets, all features, -D warnings) clean. **RED: thread_db_products
+`a_debugger_shaped_client...` fails** (so plants-1 and plants-2 aborted at its baseline: BASELINE FAILED for
+td-decl-dropped; the other copy's plants lio-write-wrong and mode2-arity: read
+`~/logs/sl-headers-unshipped-rest-plants-2.log`). SUPERSEDED: t3, t4 (stopped, older heads), gen3/probe3 (tools).
 
-**Next steps (leg 3), in order.**
-1. Sync; one job: rows test, `cargo test -p niji --test thread_db_products a_debugger`, header_check (expect 0
-   FAIL), the P4 part-2 classification above. Fix what they find.
-2. aio C program (brief step 4): no conformance program uses an aio.h constant. Write a small self-checking
-   `conformance/c/s11_aio_listio.c` (clause s11_11_c_0; lio_listio LIO_WRITE then LIO_READ with LIO_WAIT, a LIO_NOP
-   entry, aio_cancel on a finished request = AIO_ALLDONE, aio_suspend/aio_error/aio_return); run it in both modes
-   (`sh conformance/run.sh s11_aio_listio`, and `--niji-headers`), and by hand against the reference (system gcc).
-   mqueue.h is covered by s25_mqueue.c (passed under --niji-headers). New file: `TESTS:` line in its commit.
-3. Plants file `handoff/SL-HEADERS-UNSHIPPED-REST-plants.txt` (docs/plants.md format, `lit:` form):
-   (a) drop td_thr_get_info's declaration in libc-include/thread_db.h; cmd `cargo test -p niji --test
-   thread_db_products a_debugger`; msg `thread_db_client.c does not build`. (b) `enum { LIO_WRITE = 1 };` -> `= 0`
-   in libc-include/aio.h; cmd `sh conformance/run.sh --niji-headers s11_aio_listio`; msg `FAIL`. (c) optional: mode2
-   arity check `!= 2` -> `!= 1` in s18.rs; cmd the s18 fortify test. Run under jobrun (brief flow 6), dir
-   `/dev/shm/claude/sl-headers-unshipped-rest/plants-1`.
-4. math-vector-fortran.h: gfortran on shiki/kanon only. Not shipped this story: shipping needs a Fortran output form
-   of the generator (P5 compiles every slice row as C). Hand back as RULING NEEDED / follow-up; keep it in
-   validation/headers_unshipped.tsv with that reason. If budget allows, probe which `_ZGV*` the reference's file
-   vectorizes (Fortran loops -O3 -ffast-math, nm) vs libniji's libmvec (versions.tsv libmvec.so.1).
-5. Release note: docs/release-notes.d/ fragment naming what is left unshipped: complex.h, tgmath.h (their slice),
-   math-vector-fortran.h (generator story).
-6. `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo xtask static` on the role,
-   precheck `--jobs <labels> --head <sha>`, report json (handoff/reports/SL-HEADERS-UNSHIPPED-REST.json),
-   handback-check. `affected` escalates to FULL (generator inputs): gate = precheck + named tests (kind `test`).
+**The open defect (exact next step).** The client defines `ps_lgetregs (..., prgregset_t)` and `ps_lsetregs (...,
+const prgregset_t)`; libniji's proc_service.h declares them with the decayed `elf_greg_t *` (prototypes.tsv spells the
+decayed type), so gcc's `-Werror=array-parameter` rejects the definition (`argument 3 of type 'long long unsigned
+int[27]' with mismatched bound ... previously declared as 'long long unsigned int *'`). On the reference the client
+builds with -Wall -Wextra -Werror, so the reference keeps the array form (form, not only value, rule of 11-24). The
+same applies to td_thr_getgregs/td_thr_setgregs in thread_db.h (prgregset_t) if they are declared decayed: check.
+Fix: (1) black-box probe on the reference: per function, a definition with the array-typedef parameter compiled with
+`-Werror=array-parameter` after including the header (passes = the reference declares the array form); (2) a
+generator input that spells a parameter by its typedef (no mechanism exists: grep found none; e.g. a column or a
+headers/*.tsv table `function, parameter index, typedef`, used by functions.rs `declaration`), rows for the probed
+functions; (3) headers-gen + rows test; (4) rerun t5.sh (`~/work/sl-headers-unshipped-rest/t5.sh`, label -t6) and
+plants (new dir plants-3); (5) precheck `--jobs <t6>,<plants-3> --head <sha>`, report json, handback-check.
+Budget note: leg 3 used ~130 calls; the fix plus reruns is ~20 calls.
 
-**Decisions in force.** D-X.168 (unshipped list), D-10.125, R-H7 (thread_db.h and proc_service.h ship). No new
-D-row (mode2 and the event-set macros are probe-settled local details; reserve one with `ops reserve` if wanted).
+**Probe-settled (reference, black box).** proc_service.h's 15 ps_* functions: plain symbol in every configuration,
+C++ included, no exception specification (libniji identical). sys/procfs.h gives prgregset_t (216 bytes),
+elf_fpregset_t (512), prstatus_t (336), prpsinfo_t (136) in every configuration but time64only, also through
+thread_db.h and proc_service.h. aio program: built on the reference's headers and libc (gcc -Wall -Wextra), passes.
 
-**Plan rows to read.** plan/headers.md §4.1, slices 14/16/18; validation/headers_p4.py docstring (part 2).
+**P4 part 2 (classification).** Differs from spec/abi on next too, in headers this branch does not change (ctype.h
+`*_l` call rows, libintl.h, argp.h `!error`, math.h isinf/isnan, stdbit.h noexcept, sys/pidfd.h, `__x` names: not
+this story's; SL-HEADERS-P4-CALLSITES runs on it). thread_db.h's 120 lines are the documented C-linkage difference
+(differences row "pidfd_* ... td_*"). proc_service.h, aio.h, mqueue.h: 0 lines.
+
+**math-vector-fortran.h (not shipped, RULING NEEDED).** Probe on the reference (gfortran 13.3 on shiki, one loop per
+intrinsic, -O3 -ffast-math at default/-mavx/-mavx2/-mavx512f, `nm -u` only): the pre-included file vectorises sin cos
+tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh exp log log10 erf erfc hypot pow (`**`) in real(4) and
+real(8), ISA classes b/c/d/e: 168 `_ZGV*N*` names, every one among libniji's libmvec exports (all 216 of
+versions.tsv), so nothing would be left out. gamma, log_gamma, bessel_* and sqrt stay scalar. NOT VERIFIED: what
+gfortran does under niji-gcc's include order without the file. Shipping needs a Fortran
+output form of the generator (a `!` banner, one directive per function from a table) and a gfortran test; the build
+role has no gfortran. Recommend a follow-up story on a host with gfortran.
+
+**Decisions in force.** D-X.168 (unshipped list), D-10.125, R-H7. No new D-row (mode2, the event-set macros and the
+table rows are probe-settled local details).
+
+**Exact next step.** None in this story if the hand-back is accepted; follow-up: the Fortran generator form above.
