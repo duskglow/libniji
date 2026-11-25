@@ -2,6 +2,7 @@
 /* syscall.h: another name of <sys/syscall.h> (plan/headers.md section 1). */
 #ifndef __NIJI_H_syscall_h
 #define __NIJI_H_syscall_h 1
+#define _SYSCALL_H 1
 
 #include <sys/syscall.h>
 

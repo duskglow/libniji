@@ -4,6 +4,7 @@
    widths and positions are the table's, and the generator checks them against the allocation of bit-fields. */
 #ifndef __NIJI_H_ieee754_h
 #define __NIJI_H_ieee754_h 1
+#define _IEEE754_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* ifaddrs.h: network interface addresses (getifaddrs(3)) */
 #ifndef __NIJI_H_ifaddrs_h
 #define __NIJI_H_ifaddrs_h 1
+#define _IFADDRS_H 1
 
 #include <features.h>
 #include <sys/socket.h>

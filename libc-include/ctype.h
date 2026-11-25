@@ -4,6 +4,7 @@
    and (*__ctype_toupper_loc ())[c] (int32_t tables, index -128..255). */
 #ifndef __NIJI_H_ctype_h
 #define __NIJI_H_ctype_h 1
+#define _CTYPE_H 1
 
 #include <features.h>
 

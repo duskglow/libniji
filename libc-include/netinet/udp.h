@@ -2,6 +2,7 @@
 /* netinet/udp.h: UDP (udp(7), RFC 768) */
 #ifndef __NIJI_H_netinet_udp_h
 #define __NIJI_H_netinet_udp_h 1
+#define __NETINET_UDP_H 1
 
 #include <features.h>
 #include <sys/types.h>

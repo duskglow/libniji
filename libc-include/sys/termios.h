@@ -2,6 +2,7 @@
 /* sys/termios.h: another name of <termios.h> (plan/headers.md section 1). */
 #ifndef __NIJI_H_sys_termios_h
 #define __NIJI_H_sys_termios_h 1
+#define _SYS_TERMIOS_H
 
 #include <termios.h>
 

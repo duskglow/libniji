@@ -3,6 +3,7 @@
    no spec/abi table holds them (handoff/SL-HEADERS-S05.md), so a package uses its own copy. */
 #ifndef __NIJI_H_gnu_versions_h
 #define __NIJI_H_gnu_versions_h 1
+#define _GNU_VERSIONS_H 1
 
 
 

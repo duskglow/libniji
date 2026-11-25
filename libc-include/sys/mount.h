@@ -2,6 +2,7 @@
 /* sys/mount.h: mount(2), umount(2), the mount flags */
 #ifndef __NIJI_H_sys_mount_h
 #define __NIJI_H_sys_mount_h 1
+#define _SYS_MOUNT_H 1
 
 #include <features.h>
 #include <stdint.h>

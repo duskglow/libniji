@@ -2,6 +2,7 @@
 /* values.h: the SVID machine constants (legacy; shipped, plan/headers.md 5.1). */
 #ifndef __NIJI_H_values_h
 #define __NIJI_H_values_h 1
+#define _VALUES_H 1
 
 #include <features.h>
 #include <limits.h>

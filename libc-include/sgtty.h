@@ -2,6 +2,7 @@
 /* sgtty.h: the BSD terminal interface (tty(4); R-H7: shipped, -dev packages include it). */
 #ifndef __NIJI_H_sgtty_h
 #define __NIJI_H_sgtty_h 1
+#define _SGTTY_H 1
 
 #include <features.h>
 #include <asm/ioctls.h>

@@ -1084,6 +1084,7 @@ function	aligned_alloc	complex.h			void* (unsigned long, unsigned long)
 function	alloca	alloca.h			void* (unsigned long)
 function	alphasort	dirent.h			int (dirent const**, dirent const**)
 function	alphasort64	dirent.h			int (dirent64 const**, dirent64 const**)
+struct	ar_hdr	ar.h	60	1	ar_hdr
 function	arc4random	complex.h			unsigned int ()
 function	arc4random_buf	complex.h			void (void*, unsigned long)
 function	arc4random_uniform	complex.h			unsigned int (unsigned int)
@@ -1167,6 +1168,12 @@ function	atof	complex.h			double (char const*)
 function	atoi	complex.h			int (char const*)
 function	atol	complex.h			long (char const*)
 function	atoll	complex.h			long long (char const*)
+typedef	ax25_address	netax25/ax25.h	7	1	ax25_address
+struct	ax25_ctl_struct	netax25/ax25.h	104	8	ax25_ctl_struct
+struct	ax25_fwd_struct	netax25/ax25.h	14	1	ax25_fwd_struct
+struct	ax25_info_struct	netax25/ax25.h	52	4	ax25_info_struct
+struct	ax25_route_opt_struct	netax25/ax25.h	24	4	ax25_route_opt_struct
+struct	ax25_routes_struct	netax25/ax25.h	71	1	ax25_routes_struct
 function	backtrace	execinfo.h			int (void**, int)
 function	backtrace_symbols	execinfo.h			char** (void* const*, int)
 function	backtrace_symbols_fd	execinfo.h			void (void* const*, int, int)
@@ -1351,6 +1358,7 @@ function	dup3	arpa/nameser.h			int (int, int, int)
 function	duplocale	complex.h			__locale_struct* (__locale_struct*)
 function	dysize	complex.h			int (int)
 function	eaccess	arpa/nameser.h			int (char const*, int)
+struct	ec_addr	neteconet/ec.h	2	1	ec_addr
 function	ecvt	complex.h			char* (double, int, int*, int*)
 function	ecvt_r	complex.h			int (double, int, int*, int*, char*, unsigned long)
 typedef	elf_fpregset_t	proc_service.h	512	8	user_fpregs_struct
@@ -1867,6 +1875,8 @@ function	fts_read	fts.h			_ftsent* (FTS*)
 function	fts_set	fts.h			int (FTS*, _ftsent*, int)
 function	ftw	ftw.h			int (char const*, int (*)(char const*, stat const*, int), int)
 function	ftw64	ftw.h			int (char const*, int (*)(char const*, stat64 const*, int), int)
+struct	full_sockaddr_ax25	netax25/ax25.h	72	4	full_sockaddr_ax25
+struct	full_sockaddr_rose	netrose/rose.h	64	4	full_sockaddr_rose
 function	funlockfile	argp.h			void (_IO_FILE*)
 function	futimens	ftw.h			int (int, timespec const*)
 function	futimes	lastlog.h			int (int, timeval const*)
@@ -2223,6 +2233,10 @@ struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm
 struct	iphdr	netinet/ip.h	20	4	iphdr
 struct	ipv6_mreq	arpa/inet.h	20	4	ipv6_mreq
+struct	ipx_config_data	netipx/ipx.h	2	1	ipx_config_data
+struct	ipx_interface_definition	netipx/ipx.h	32	8	ipx_interface_definition
+struct	ipx_route_def	netipx/ipx.h	40	8	ipx_route_def
+struct	ipx_route_definition	netipx/ipx.h	24	8	ipx_route_definition
 function	iruserok	netdb.h			int (unsigned int, int, char const*, char const*)
 function	iruserok_af	netdb.h			int (void const*, int, char const*, char const*, unsigned short)
 function	isalnum	argp.h			int (int)
@@ -2672,6 +2686,7 @@ typedef	nl_item	langinfo.h	4	4	int
 function	nl_langinfo	langinfo.h			char* (int)
 function	nl_langinfo_l	langinfo.h			char* (int, __locale_struct*)
 typedef	nlink_t	aio.h	8	8	unsigned long
+struct	nr_route_struct	netrom/netrom.h	112	4	nr_route_struct
 function	nrand48	complex.h			long (unsigned short*)
 function	nrand48_r	complex.h			int (unsigned short*, drand48_data*, long*)
 typedef	ns_class	arpa/nameser.h	4	4	__ns_class
@@ -3143,6 +3158,10 @@ typedef	rlim_t	sys/resource.h	8	8	unsigned long
 struct	rlimit	sys/resource.h	16	8	rlimit
 struct	rlimit64	sys/resource.h	16	8	rlimit64
 function	rmdir	arpa/nameser.h			int (char const*)
+typedef	rose_address	netrose/rose.h	5	1	rose_address
+struct	rose_cause_struct	netrose/rose.h	2	1	rose_cause_struct
+struct	rose_facilities_struct	netrose/rose.h	128	4	rose_facilities_struct
+struct	rose_route_struct	netrose/rose.h	88	2	rose_route_struct
 function	round	complex.h			double (double)
 function	roundeven	complex.h			double (double)
 function	roundevenf	complex.h			float (float)
@@ -3415,9 +3434,14 @@ typedef	size_t	aio.h	8	8	unsigned long
 function	sleep	arpa/nameser.h			unsigned int (unsigned int)
 function	snprintf	argp.h			int (char*, unsigned long, char const*, ...)
 struct	sockaddr	arpa/inet.h	16	2	sockaddr
+struct	sockaddr_ash	netash/ash.h	32	4	sockaddr_ash
+struct	sockaddr_ax25	netax25/ax25.h	16	4	sockaddr_ax25
+struct	sockaddr_ec	neteconet/ec.h	16	8	sockaddr_ec
 struct	sockaddr_in	arpa/inet.h	16	4	sockaddr_in
 struct	sockaddr_in6	arpa/inet.h	28	4	sockaddr_in6
+struct	sockaddr_ipx	netipx/ipx.h	16	4	sockaddr_ipx
 struct	sockaddr_ll	netpacket/packet.h	20	4	sockaddr_ll
+struct	sockaddr_rose	netrose/rose.h	28	4	sockaddr_rose
 struct	sockaddr_storage	arpa/inet.h	128	8	sockaddr_storage
 struct	sockaddr_un	sys/un.h	110	2	sockaddr_un
 function	sockatmark	arpa/inet.h			int (int)
@@ -3905,6 +3929,7 @@ struct	user_fpregs_struct	proc_service.h	512	8	user_fpregs_struct
 struct	user_regs_struct	proc_service.h	216	8	user_regs_struct
 typedef	ushort	aio.h	2	2	unsigned short
 function	usleep	arpa/nameser.h			int (unsigned int)
+struct	utimbuf	utime.h	16	8	utimbuf
 function	utime	utime.h			int (char const*, utimbuf const*)
 function	utimensat	ftw.h			int (int, char const*, timespec const*, int)
 function	utimes	lastlog.h			int (char const*, timeval const*)

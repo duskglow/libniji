@@ -2,6 +2,7 @@
 /* net/route.h: routing table interface */
 #ifndef __NIJI_H_net_route_h
 #define __NIJI_H_net_route_h 1
+#define _NET_ROUTE_H 1
 
 #include <features.h>
 #include <stdint.h>

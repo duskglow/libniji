@@ -2,6 +2,7 @@
 /* sys/fsuid.h: file-system identity (setfsuid(2), setfsgid(2)). */
 #ifndef __NIJI_H_sys_fsuid_h
 #define __NIJI_H_sys_fsuid_h 1
+#define _SYS_FSUID_H 1
 
 #include <features.h>
 #include <sys/types.h>

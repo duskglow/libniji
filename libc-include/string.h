@@ -3,6 +3,7 @@
    of their argument ([cstring.syn]): the const overload is the C function, the other one calls it. */
 #ifndef __NIJI_H_string_h
 #define __NIJI_H_string_h 1
+#define _STRING_H 1
 
 #include <features.h>
 

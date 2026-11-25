@@ -2,6 +2,7 @@
 /* sys/ttychars.h: the 4.3BSD terminal characters (tty(4)). */
 #ifndef __NIJI_H_sys_ttychars_h
 #define __NIJI_H_sys_ttychars_h 1
+#define _SYS_TTYCHARS_H 1
 
 #include <features.h>
 

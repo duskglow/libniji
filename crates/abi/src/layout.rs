@@ -3425,6 +3425,25 @@ pub struct struct_mt_tape_info {
     pub t_name: usize,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ar_hdr {
+    pub ar_name: [i8; 16],
+    pub ar_date: [i8; 12],
+    pub ar_uid: [i8; 6],
+    pub ar_gid: [i8; 6],
+    pub ar_mode: [i8; 8],
+    pub ar_size: [i8; 10],
+    pub ar_fmag: [i8; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_utimbuf {
+    pub actime: i64,
+    pub modtime: i64,
+}
+
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct struct_tcp_md5sig {
@@ -4348,5 +4367,229 @@ pub struct prpsinfo_t {
     pub pr_sid: i32,
     pub pr_fname: [i8; 16],
     pub pr_psargs: [i8; 80],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ax25_address {
+    pub ax25_call: [i8; 7],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct rose_address {
+    pub rose_addr: [i8; 5],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_ax25 {
+    pub sax25_family: u16,
+    pub sax25_call: ax25_address,
+    pub sax25_ndigis: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_full_sockaddr_ax25 {
+    pub fsa_ax25: struct_sockaddr_ax25,
+    pub fsa_digipeater: [ax25_address; 8],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_routes_struct {
+    pub port_addr: ax25_address,
+    pub dest_addr: ax25_address,
+    pub digi_count: u8,
+    pub digi_addr: [ax25_address; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_route_opt_struct {
+    pub port_addr: ax25_address,
+    pub dest_addr: ax25_address,
+    pub cmd: i32,
+    pub arg: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_ctl_struct {
+    pub port_addr: ax25_address,
+    pub source_addr: ax25_address,
+    pub dest_addr: ax25_address,
+    pub cmd: u32,
+    pub arg: u64,
+    pub digi_count: u8,
+    pub digi_addr: [ax25_address; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_info_struct {
+    pub n2: u32,
+    pub n2count: u32,
+    pub t1: u32,
+    pub t1timer: u32,
+    pub t2: u32,
+    pub t2timer: u32,
+    pub t3: u32,
+    pub t3timer: u32,
+    pub idle: u32,
+    pub idletimer: u32,
+    pub state: u32,
+    pub rcv_q: u32,
+    pub snd_q: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_fwd_struct {
+    pub port_from: ax25_address,
+    pub port_to: ax25_address,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nr_route_struct {
+    pub r#type: i32,
+    pub callsign: ax25_address,
+    pub device: [i8; 16],
+    pub quality: u32,
+    pub mnemonic: [i8; 7],
+    pub neighbour: ax25_address,
+    pub obs_count: u32,
+    pub ndigis: u32,
+    pub digipeaters: [ax25_address; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_rose {
+    pub srose_family: u16,
+    pub srose_addr: rose_address,
+    pub srose_call: ax25_address,
+    pub srose_ndigis: i32,
+    pub srose_digi: ax25_address,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_full_sockaddr_rose {
+    pub srose_family: u16,
+    pub srose_addr: rose_address,
+    pub srose_call: ax25_address,
+    pub srose_ndigis: u32,
+    pub srose_digis: [ax25_address; 6],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_rose_route_struct {
+    pub address: rose_address,
+    pub mask: u16,
+    pub neighbour: ax25_address,
+    pub device: [i8; 16],
+    pub ndigis: u8,
+    pub digipeaters: [ax25_address; 8],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_rose_cause_struct {
+    pub cause: u8,
+    pub diagnostic: u8,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_rose_facilities_struct {
+    pub source_addr: rose_address,
+    pub dest_addr: rose_address,
+    pub source_call: ax25_address,
+    pub dest_call: ax25_address,
+    pub source_ndigis: u8,
+    pub dest_ndigis: u8,
+    pub source_digis: [ax25_address; 6],
+    pub dest_digis: [ax25_address; 6],
+    pub rand: u32,
+    pub fail_addr: rose_address,
+    pub fail_call: ax25_address,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_ipx {
+    pub sipx_family: u16,
+    pub sipx_port: u16,
+    pub sipx_network: u32,
+    pub sipx_node: [u8; 6],
+    pub sipx_type: u8,
+    pub sipx_zero: u8,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ipx_route_definition {
+    pub ipx_network: u64,
+    pub ipx_router_network: u64,
+    pub ipx_router_node: [u8; 6],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ipx_interface_definition {
+    pub ipx_network: u64,
+    pub ipx_device: [u8; 16],
+    pub ipx_dlink_type: u8,
+    pub ipx_special: u8,
+    pub ipx_node: [u8; 6],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ipx_config_data {
+    pub ipxcfg_auto_select_primary: u8,
+    pub ipxcfg_auto_create_interfaces: u8,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ipx_route_def {
+    pub ipx_network: u64,
+    pub ipx_router_network: u64,
+    pub ipx_router_node: [u8; 6],
+    pub ipx_device: [u8; 16],
+    pub ipx_flags: u16,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_ec {
+    pub sec_family: u16,
+    pub port: u8,
+    pub cb: u8,
+    pub r#type: u8,
+    pub addr: struct_ec_addr,
+    pub cookie: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ec_addr {
+    pub station: u8,
+    pub net: u8,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_ash {
+    pub sash_family: u16,
+    pub sash_ifindex: i32,
+    pub sash_channel: u8,
+    pub sash_plen: u32,
+    pub sash_prefix: [u8; 16],
 }
 

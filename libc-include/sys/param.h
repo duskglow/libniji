@@ -3,6 +3,7 @@
    that own them in every configuration, and the parameters of its own. */
 #ifndef __NIJI_H_sys_param_h
 #define __NIJI_H_sys_param_h 1
+#define _SYS_PARAM_H 1
 
 #include <features.h>
 #include <sys/types.h>

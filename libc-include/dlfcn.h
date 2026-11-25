@@ -2,6 +2,7 @@
 /* dlfcn.h: dynamic linking (POSIX XSH <dlfcn.h>, dlopen(3), dlinfo(3), dladdr(3), dl_find_object(3)). */
 #ifndef __NIJI_H_dlfcn_h
 #define __NIJI_H_dlfcn_h 1
+#define _DLFCN_H 1
 
 #include <features.h>
 

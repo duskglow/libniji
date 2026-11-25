@@ -2,12 +2,20 @@
 /* utime.h: access and modification times structure (XSH <utime.h>). */
 #ifndef __NIJI_H_utime_h
 #define __NIJI_H_utime_h 1
+#define _UTIME_H 1
 
 #include <features.h>
 
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_utimbuf
+#  define __NIJI_D_struct_utimbuf 1
+struct utimbuf {
+  long actime;
+  long modtime;
+};
+# endif
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;

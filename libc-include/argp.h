@@ -2,6 +2,7 @@
 /* argp.h: hierarchical argument parsing (GNU C Library manual, Argp). */
 #ifndef __NIJI_H_argp_h
 #define __NIJI_H_argp_h 1
+#define _ARGP_H
 
 #include <features.h>
 #include <stdio.h>

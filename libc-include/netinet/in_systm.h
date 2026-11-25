@@ -2,6 +2,7 @@
 /* netinet/in_systm.h: IP system types */
 #ifndef __NIJI_H_netinet_in_systm_h
 #define __NIJI_H_netinet_in_systm_h 1
+#define _NETINET_IN_SYSTM_H 1
 
 #include <features.h>
 #include <sys/types.h>

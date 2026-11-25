@@ -2,6 +2,7 @@
 /* argz.h: argz vectors (GNU C Library manual, Argz Functions). */
 #ifndef __NIJI_H_argz_h
 #define __NIJI_H_argz_h 1
+#define _ARGZ_H 1
 
 #include <features.h>
 #include <string.h>

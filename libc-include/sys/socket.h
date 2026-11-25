@@ -3,6 +3,7 @@
    macros follow cmsg(3): the data of a control message follows its header, and lengths round up to size_t. */
 #ifndef __NIJI_H_sys_socket_h
 #define __NIJI_H_sys_socket_h 1
+#define _SYS_SOCKET_H 1
 
 #include <features.h>
 #include <sys/types.h>
