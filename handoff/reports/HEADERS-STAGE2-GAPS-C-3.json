@@ -1,6 +1,6 @@
 {"task": "HEADERS-STAGE2-GAPS-C-3", "model": "sonnet", "tokens": null,
  "result": "Merged origin/next (utmp.h.in conflict: kept next's single member-alias block, regenerated libc-include/utmp.h); clippy and static clean, direct-tier gate green, 5/5 plants caught on the merged head",
- "branch": "task/headers-stage2-gaps-c-3", "head": "HEAD_SHA",
+ "branch": "task/headers-stage2-gaps-c-3", "head": "27a5422c1",
  "gate": {"affected": "225 of 328 test targets selected, all ok, 0 failed (gate rc 0)", "peak": "13G"},
  "accepted_first_attempt": null,
  "rulings": [],
