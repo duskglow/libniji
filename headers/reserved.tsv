@@ -8,6 +8,10 @@ __locale_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __off_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
 __pid_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __sysconf	emit	C.9: PTHREAD_STACK_MIN under _DYNAMIC_STACK_SIZE_SOURCE is sysconf (_SC_THREAD_STACK_MIN)
+__xpg_basename	emit	C.9: basename (libgen.h) expands to __xpg_basename
+__res_init	emit	C.9: res_init (resolv.h) expands to __res_init
+__res_ninit	emit	C.9: res_ninit (resolv.h) expands to __res_ninit
+__res_nclose	emit	C.9: res_nclose (resolv.h) expands to __res_nclose
 __time64_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __wchar_t	emit	R-H3: SL-HEADERS-1 corpus, 3 packages
 __wint_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
@@ -57,3 +61,12 @@ getumask	omit	declared by the reference but defined by no library version; libni
 _argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
 _option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol
 __x86_get_cpuid_feature_leaf	emit	C.9: CPU_FEATURE_ACTIVE and CPU_FEATURE_PRESENT expand to a call of it (spec/abi/x86-features.tsv)
+__fbufsize	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__flbf	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__fpending	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__fpurge	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__freadable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__freading	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__fsetlocking	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__fwritable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__fwriting	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling

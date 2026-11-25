@@ -19,10 +19,11 @@ Facts per (macro, configuration, side): `def` defined; `pp` usable in `#if`; `ex
 code, below) and `sz` its `sizeof`; `val` its value at run time (only with --values: needs a libniji to link).
 
 As a header_check.py module: prints one `FORM-DIFF` line per (macro, configuration) whose form differs, grouped by
-cause, one `FORM-RUNTIME` line per macro the reference defines as a run-time expression, and a summary; a difference
-of type in C++ (an enumeration or `char` against `int`) or of enumeration (`ut` its underlying type, `same-as`
-whether it is one type with the enumeration-typed name before it) is a FAIL (HEADERS-CXX-ENUM-TYPES), the other causes
-are report mode until their follow-ups land. Set
+cause, one `FORM-RUNTIME` line per macro the reference defines as a run-time expression, and a summary. It fails the
+run for a difference of type in C++ (an enumeration or `char` against `int`) or of enumeration (`ut` its underlying
+type, `same-as` whether it is one type with the enumeration-typed name before it) (HEADERS-CXX-ENUM-TYPES), and for
+any difference of an `ENFORCED` (macro, header) pair (HEADERS-FORM-BREAKS: the groups A1, B1, B2, B3); the other
+groups stay report mode until their follow-ups land. Set
 NIJI_FORM_PROBE=0 to skip it, NIJI_FORM_JOBS=<n> for the parallel compilers (default: CPUs, at most 16).
 
 Stand-alone: python3 spec/tools/header_checks/form.py [--include DIR] [--work DIR] [--tsv FILE] [--diff FILE]
@@ -512,12 +513,12 @@ def problems(ctx):
     skip = {x for _, mod in ctx.mods for x in getattr(mod, "must_fail", ())} if hasattr(ctx, "mods") else must_fail_headers()
     inv, out = run(inc, work, jobs, macros_tsv=ctx.macros, skip=skip)
     _, _, diffs = report(inv, out, emit=lambda s: print("NOTE " + s))
-    return fails + failing(diffs)
+    return fails + failing(diffs) + enforced(diffs)
 
 
 # The causes that fail the run (HEADERS-CXX-ENUM-TYPES): a macro's type in C++ (an enumerator's enumeration, a
 # character constant's `char`) and which enumeration it belongs to. The other causes stay report mode until their
-# follow-ups land.
+# follow-ups land, except for the ENFORCED pairs below.
 FAILING = ("type differs", "enumeration differs")
 # D-X.126 (COMPAT-34): the MS_* names of <sys/mount.h> are macros only, not enumerators.
 KEPT = re.compile(r"MS_[A-Z_]+$")
@@ -525,15 +526,30 @@ KEPT = re.compile(r"MS_[A-Z_]+$")
 GAPS = [(re.compile(r"REG_[A-Z]+$"), "regex.h", "libniji's <regex.h> does not declare reg_errcode_t (no typedefs.tsv row), the "
          "enumeration whose enumerators these macros name in the reference: follow-up of HEADERS-CXX-ENUM-TYPES")]
 
+# (macro, defining header) pairs whose form must match the reference (a FAIL, not report mode): the audit's groups A1
+# (PTHREAD_STACK_MIN run-time where the reference's is), B1 (a macro naming a function the header declares), B2
+# (sys/vlimit.h's int INFINITY) and B3 (MS_NOUSER a file-scope array size, C configurations: its C++ type is group C1).
+# Every other group stays report mode. Value: the configurations enforced, None for all.
+C_CONFIGS = frozenset(cid for cid, lang, _ in CONFIGS if lang == "c")
+ENFORCED = {("PTHREAD_STACK_MIN", "pthread.h"): None, ("PTHREAD_STACK_MIN", "dirent.h"): None,
+            ("PTHREAD_STACK_MIN", "limits.h"): None, ("basename", "libgen.h"): None, ("res_init", "resolv.h"): None,
+            ("res_ninit", "resolv.h"): None, ("res_nclose", "resolv.h"): None, ("INFINITY", "sys/vlimit.h"): None,
+            ("MS_NOUSER", "sys/mount.h"): C_CONFIGS}
+
+
+def is_enforced(n, h, cid):
+    """Whether (macro, header) in configuration `cid` is an ENFORCED pair."""
+    return (n, h) in ENFORCED and (ENFORCED[(n, h)] is None or cid in ENFORCED[(n, h)])
+
 
 def failing(diffs):
     """FAIL lines of the FAILING rows, except the names D-X.126 keeps as macros (and a name whose only difference is
-    that the name before it is one of those)."""
+    that the name before it is one of those) and the rows of an ENFORCED pair (`enforced` reports those, once)."""
     out = []
     for c in FAILING:
         for n, h, cid, fa, fb, _, _ in sorted(diffs.get(c, [])):
             prev = re.findall(r"same-as=(\S+):", fa + " " + fb)
-            if KEPT.match(n) or (c == "enumeration differs" and any(KEPT.match(x) for x in prev)):
+            if KEPT.match(n) or (c == "enumeration differs" and any(KEPT.match(x) for x in prev)) or is_enforced(n, h, cid):
                 continue
             gap = next((why for pat, gh, why in GAPS if pat.match(n) and gh == h), None)
             if gap:
@@ -541,6 +557,13 @@ def failing(diffs):
                 continue
             out.append(f"form [{c}] {n} <{h}> {cid}: libniji {fa} | reference {fb}")
     return out
+
+
+def enforced(diffs):
+    """FAIL lines (without the `FAIL ` prefix, which the caller prints) for the FORM-DIFF rows of the ENFORCED pairs,
+    in their enforced configurations."""
+    return [f"form {n} <{h}> {cid}: [{c}] libniji {fa} | reference {fb}"
+            for c, rows in sorted(diffs.items()) for n, h, cid, fa, fb, _, _ in sorted(rows) if is_enforced(n, h, cid)]
 
 
 def main():
@@ -572,7 +595,7 @@ def main():
                    only, macros, must_fail_headers())
     lines = []
     _, _, diffs = report(inv, out, emit=lambda s: (print(s), lines.append(s)))
-    for x in failing(diffs):
+    for x in failing(diffs) + enforced(diffs):
         print(f"FAIL {x}")
         fails.append(x)
     if args.diff:

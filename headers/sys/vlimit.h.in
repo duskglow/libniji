@@ -9,6 +9,13 @@ __NIJI_BEGIN_C
 
 @@emit
 
+/* INFINITY here is vlimit's "no limit": the int INT_MAX, usable in #if (not <math.h>'s float infinity). The header
+   that is included last decides INFINITY. */
+@@if INFINITY
+# undef INFINITY
+# define INFINITY @@value(INT_MAX)
+#endif
+
 __NIJI_END_C
 
 #endif

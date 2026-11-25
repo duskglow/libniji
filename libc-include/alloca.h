@@ -12,8 +12,14 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
+# ifndef __NIJI_D_alloca
+#  define __NIJI_D_alloca 1
+extern void *alloca (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1)));
+# endif
 #endif
 
+/* The function alloca is declared (above) as well as the macro: `(alloca) (n)` and a program that undefines the
+   macro still compile, and GCC expands such a call as its builtin; no library exports the name (providers.tsv). */
 #define alloca(size) __builtin_alloca (size)
 
 __NIJI_END_C

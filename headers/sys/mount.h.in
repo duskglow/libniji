@@ -15,6 +15,13 @@ __NIJI_BEGIN_C
 @@owns NULL max_align_t mount_attr f_owner_ex
 @@emit
 
+/* MS_NOUSER: <linux/mount.h> spells it (1<<31), which overflows int and so is no integer constant expression in C
+   (a file-scope array size rejects it); the same int value, spelled as one. */
+@@if MS_NOUSER
+# undef MS_NOUSER
+# define MS_NOUSER @@value(MS_NOUSER)
+#endif
+
 @@if NULL
 # ifndef NULL
 @@null NULL
