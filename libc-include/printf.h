@@ -126,7 +126,7 @@ extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __at
 #  define PA_FLAG_LONG 512
 # endif
 # ifndef PA_FLAG_LONG_DOUBLE
-#  define PA_FLAG_LONG_DOUBLE 256
+#  define PA_FLAG_LONG_DOUBLE PA_FLAG_LONG_LONG
 # endif
 # ifndef PA_FLAG_LONG_LONG
 #  define PA_FLAG_LONG_LONG 256

@@ -270,7 +270,7 @@ enum {
 #  define IFHWADDRLEN 6
 # endif
 # ifndef IFNAMSIZ
-#  define IFNAMSIZ 16
+#  define IFNAMSIZ IF_NAMESIZE
 # endif
 #endif
 

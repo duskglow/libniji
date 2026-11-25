@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (302 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (314 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3384,6 +3384,115 @@ fn abi_elf64_vernaux() {
     expect_member("Elf64_Vernaux", "vna_other", offset_of!(Elf64_Vernaux, vna_other));
     expect_member("Elf64_Vernaux", "vna_name", offset_of!(Elf64_Vernaux, vna_name));
     expect_member("Elf64_Vernaux", "vna_next", offset_of!(Elf64_Vernaux, vna_next));
+}
+
+#[test]
+fn abi_elf32_chdr() {
+    expect_type("Elf32_Chdr", size_of::<Elf32_Chdr>(), align_of::<Elf32_Chdr>());
+    expect_member("Elf32_Chdr", "ch_type", offset_of!(Elf32_Chdr, ch_type));
+    expect_member("Elf32_Chdr", "ch_size", offset_of!(Elf32_Chdr, ch_size));
+    expect_member("Elf32_Chdr", "ch_addralign", offset_of!(Elf32_Chdr, ch_addralign));
+}
+
+#[test]
+fn abi_elf32_auxv_t() {
+    expect_type("Elf32_auxv_t", size_of::<Elf32_auxv_t>(), align_of::<Elf32_auxv_t>());
+    expect_member("Elf32_auxv_t", "a_type", offset_of!(Elf32_auxv_t, a_type));
+    expect_member("Elf32_auxv_t", "a_un", offset_of!(Elf32_auxv_t, a_un));
+    expect_member("Elf32_auxv_t", "a_un.a_val", offset_of!(Elf32_auxv_t, a_un.a_val));
+}
+
+#[test]
+fn abi_elf32_verdef() {
+    expect_type("Elf32_Verdef", size_of::<Elf32_Verdef>(), align_of::<Elf32_Verdef>());
+    expect_member("Elf32_Verdef", "vd_version", offset_of!(Elf32_Verdef, vd_version));
+    expect_member("Elf32_Verdef", "vd_flags", offset_of!(Elf32_Verdef, vd_flags));
+    expect_member("Elf32_Verdef", "vd_ndx", offset_of!(Elf32_Verdef, vd_ndx));
+    expect_member("Elf32_Verdef", "vd_cnt", offset_of!(Elf32_Verdef, vd_cnt));
+    expect_member("Elf32_Verdef", "vd_hash", offset_of!(Elf32_Verdef, vd_hash));
+    expect_member("Elf32_Verdef", "vd_aux", offset_of!(Elf32_Verdef, vd_aux));
+    expect_member("Elf32_Verdef", "vd_next", offset_of!(Elf32_Verdef, vd_next));
+}
+
+#[test]
+fn abi_elf32_verdaux() {
+    expect_type("Elf32_Verdaux", size_of::<Elf32_Verdaux>(), align_of::<Elf32_Verdaux>());
+    expect_member("Elf32_Verdaux", "vda_name", offset_of!(Elf32_Verdaux, vda_name));
+    expect_member("Elf32_Verdaux", "vda_next", offset_of!(Elf32_Verdaux, vda_next));
+}
+
+#[test]
+fn abi_elf32_verneed() {
+    expect_type("Elf32_Verneed", size_of::<Elf32_Verneed>(), align_of::<Elf32_Verneed>());
+    expect_member("Elf32_Verneed", "vn_version", offset_of!(Elf32_Verneed, vn_version));
+    expect_member("Elf32_Verneed", "vn_cnt", offset_of!(Elf32_Verneed, vn_cnt));
+    expect_member("Elf32_Verneed", "vn_file", offset_of!(Elf32_Verneed, vn_file));
+    expect_member("Elf32_Verneed", "vn_aux", offset_of!(Elf32_Verneed, vn_aux));
+    expect_member("Elf32_Verneed", "vn_next", offset_of!(Elf32_Verneed, vn_next));
+}
+
+#[test]
+fn abi_elf32_vernaux() {
+    expect_type("Elf32_Vernaux", size_of::<Elf32_Vernaux>(), align_of::<Elf32_Vernaux>());
+    expect_member("Elf32_Vernaux", "vna_hash", offset_of!(Elf32_Vernaux, vna_hash));
+    expect_member("Elf32_Vernaux", "vna_flags", offset_of!(Elf32_Vernaux, vna_flags));
+    expect_member("Elf32_Vernaux", "vna_other", offset_of!(Elf32_Vernaux, vna_other));
+    expect_member("Elf32_Vernaux", "vna_name", offset_of!(Elf32_Vernaux, vna_name));
+    expect_member("Elf32_Vernaux", "vna_next", offset_of!(Elf32_Vernaux, vna_next));
+}
+
+#[test]
+fn abi_elf32_syminfo() {
+    expect_type("Elf32_Syminfo", size_of::<Elf32_Syminfo>(), align_of::<Elf32_Syminfo>());
+    expect_member("Elf32_Syminfo", "si_boundto", offset_of!(Elf32_Syminfo, si_boundto));
+    expect_member("Elf32_Syminfo", "si_flags", offset_of!(Elf32_Syminfo, si_flags));
+}
+
+#[test]
+fn abi_elf32_move() {
+    expect_type("Elf32_Move", size_of::<Elf32_Move>(), align_of::<Elf32_Move>());
+    expect_member("Elf32_Move", "m_value", offset_of!(Elf32_Move, m_value));
+    expect_member("Elf32_Move", "m_info", offset_of!(Elf32_Move, m_info));
+    expect_member("Elf32_Move", "m_poffset", offset_of!(Elf32_Move, m_poffset));
+    expect_member("Elf32_Move", "m_repeat", offset_of!(Elf32_Move, m_repeat));
+    expect_member("Elf32_Move", "m_stride", offset_of!(Elf32_Move, m_stride));
+}
+
+#[test]
+fn abi_elf32_lib() {
+    expect_type("Elf32_Lib", size_of::<Elf32_Lib>(), align_of::<Elf32_Lib>());
+    expect_member("Elf32_Lib", "l_name", offset_of!(Elf32_Lib, l_name));
+    expect_member("Elf32_Lib", "l_time_stamp", offset_of!(Elf32_Lib, l_time_stamp));
+    expect_member("Elf32_Lib", "l_checksum", offset_of!(Elf32_Lib, l_checksum));
+    expect_member("Elf32_Lib", "l_version", offset_of!(Elf32_Lib, l_version));
+    expect_member("Elf32_Lib", "l_flags", offset_of!(Elf32_Lib, l_flags));
+}
+
+#[test]
+fn abi_elf64_syminfo() {
+    expect_type("Elf64_Syminfo", size_of::<Elf64_Syminfo>(), align_of::<Elf64_Syminfo>());
+    expect_member("Elf64_Syminfo", "si_boundto", offset_of!(Elf64_Syminfo, si_boundto));
+    expect_member("Elf64_Syminfo", "si_flags", offset_of!(Elf64_Syminfo, si_flags));
+}
+
+#[test]
+fn abi_elf64_move() {
+    expect_type("Elf64_Move", size_of::<Elf64_Move>(), align_of::<Elf64_Move>());
+    expect_member("Elf64_Move", "m_value", offset_of!(Elf64_Move, m_value));
+    expect_member("Elf64_Move", "m_info", offset_of!(Elf64_Move, m_info));
+    expect_member("Elf64_Move", "m_poffset", offset_of!(Elf64_Move, m_poffset));
+    expect_member("Elf64_Move", "m_repeat", offset_of!(Elf64_Move, m_repeat));
+    expect_member("Elf64_Move", "m_stride", offset_of!(Elf64_Move, m_stride));
+}
+
+#[test]
+fn abi_elf64_lib() {
+    expect_type("Elf64_Lib", size_of::<Elf64_Lib>(), align_of::<Elf64_Lib>());
+    expect_member("Elf64_Lib", "l_name", offset_of!(Elf64_Lib, l_name));
+    expect_member("Elf64_Lib", "l_time_stamp", offset_of!(Elf64_Lib, l_time_stamp));
+    expect_member("Elf64_Lib", "l_checksum", offset_of!(Elf64_Lib, l_checksum));
+    expect_member("Elf64_Lib", "l_version", offset_of!(Elf64_Lib, l_version));
+    expect_member("Elf64_Lib", "l_flags", offset_of!(Elf64_Lib, l_flags));
 }
 
 #[test]

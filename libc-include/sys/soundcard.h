@@ -13,7 +13,7 @@ __NIJI_BEGIN_C
 #  define IOCSIZE_MASK 1073676288
 # endif
 # ifndef IOCSIZE_SHIFT
-#  define IOCSIZE_SHIFT 16
+#  define IOCSIZE_SHIFT _IOC_SIZESHIFT
 # endif
 # ifndef IOC_IN
 #  define IOC_IN 1073741824U
@@ -64,7 +64,7 @@ __NIJI_BEGIN_C
 #  define _IOC_TYPEMASK 255
 # endif
 # ifndef _IOC_TYPESHIFT
-#  define _IOC_TYPESHIFT 8
+#  define _IOC_TYPESHIFT _IOC_NRBITS
 # endif
 # ifndef _IOC_WRITE
 #  define _IOC_WRITE 1U

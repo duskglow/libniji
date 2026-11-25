@@ -13,6 +13,18 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_Elf32_Addr 1
 typedef unsigned int Elf32_Addr;
 # endif
+# ifndef __NIJI_D_Elf32_Chdr
+#  define __NIJI_D_Elf32_Chdr 1
+typedef struct {
+  unsigned int ch_type;
+  unsigned int ch_size;
+  unsigned int ch_addralign;
+} Elf32_Chdr;
+# endif
+# ifndef __NIJI_D_Elf32_Conflict
+#  define __NIJI_D_Elf32_Conflict 1
+typedef unsigned int Elf32_Conflict;
+# endif
 # ifndef __NIJI_D_Elf32_Dyn
 #  define __NIJI_D_Elf32_Dyn 1
 typedef struct {
@@ -42,6 +54,27 @@ typedef struct {
 # ifndef __NIJI_D_Elf32_Half
 #  define __NIJI_D_Elf32_Half 1
 typedef unsigned short Elf32_Half;
+# endif
+# ifndef __NIJI_D_Elf32_Lib
+#  define __NIJI_D_Elf32_Lib 1
+typedef struct {
+  unsigned int l_name;
+  unsigned int l_time_stamp;
+  unsigned int l_checksum;
+  unsigned int l_version;
+  unsigned int l_flags;
+} Elf32_Lib;
+# endif
+# ifndef __NIJI_D_Elf32_Move
+#  define __NIJI_D_Elf32_Move 1
+typedef struct {
+  unsigned long m_value;
+  unsigned int m_info;
+  unsigned int m_poffset;
+  unsigned short m_repeat;
+  unsigned short m_stride;
+  int : 32;
+} Elf32_Move;
 # endif
 # ifndef __NIJI_D_Elf32_Nhdr
 #  define __NIJI_D_Elf32_Nhdr 1
@@ -83,6 +116,10 @@ typedef struct {
   int r_addend;
 } Elf32_Rela;
 # endif
+# ifndef __NIJI_D_Elf32_Relr
+#  define __NIJI_D_Elf32_Relr 1
+typedef unsigned int Elf32_Relr;
+# endif
 # ifndef __NIJI_D_Elf32_Section
 #  define __NIJI_D_Elf32_Section 1
 typedef unsigned short Elf32_Section;
@@ -106,6 +143,10 @@ typedef struct {
 #  define __NIJI_D_Elf32_Sword 1
 typedef int Elf32_Sword;
 # endif
+# ifndef __NIJI_D_Elf32_Sxword
+#  define __NIJI_D_Elf32_Sxword 1
+typedef long Elf32_Sxword;
+# endif
 # ifndef __NIJI_D_Elf32_Sym
 #  define __NIJI_D_Elf32_Sym 1
 typedef struct {
@@ -117,9 +158,70 @@ typedef struct {
   unsigned short st_shndx;
 } Elf32_Sym;
 # endif
+# ifndef __NIJI_D_Elf32_Syminfo
+#  define __NIJI_D_Elf32_Syminfo 1
+typedef struct {
+  unsigned short si_boundto;
+  unsigned short si_flags;
+} Elf32_Syminfo;
+# endif
+# ifndef __NIJI_D_Elf32_Verdaux
+#  define __NIJI_D_Elf32_Verdaux 1
+typedef struct {
+  unsigned int vda_name;
+  unsigned int vda_next;
+} Elf32_Verdaux;
+# endif
+# ifndef __NIJI_D_Elf32_Verdef
+#  define __NIJI_D_Elf32_Verdef 1
+typedef struct {
+  unsigned short vd_version;
+  unsigned short vd_flags;
+  unsigned short vd_ndx;
+  unsigned short vd_cnt;
+  unsigned int vd_hash;
+  unsigned int vd_aux;
+  unsigned int vd_next;
+} Elf32_Verdef;
+# endif
+# ifndef __NIJI_D_Elf32_Vernaux
+#  define __NIJI_D_Elf32_Vernaux 1
+typedef struct {
+  unsigned int vna_hash;
+  unsigned short vna_flags;
+  unsigned short vna_other;
+  unsigned int vna_name;
+  unsigned int vna_next;
+} Elf32_Vernaux;
+# endif
+# ifndef __NIJI_D_Elf32_Verneed
+#  define __NIJI_D_Elf32_Verneed 1
+typedef struct {
+  unsigned short vn_version;
+  unsigned short vn_cnt;
+  unsigned int vn_file;
+  unsigned int vn_aux;
+  unsigned int vn_next;
+} Elf32_Verneed;
+# endif
+# ifndef __NIJI_D_Elf32_Versym
+#  define __NIJI_D_Elf32_Versym 1
+typedef unsigned short Elf32_Versym;
+# endif
 # ifndef __NIJI_D_Elf32_Word
 #  define __NIJI_D_Elf32_Word 1
 typedef unsigned int Elf32_Word;
+# endif
+# ifndef __NIJI_D_Elf32_Xword
+#  define __NIJI_D_Elf32_Xword 1
+typedef unsigned long Elf32_Xword;
+# endif
+# ifndef __NIJI_D_Elf32_auxv_t
+#  define __NIJI_D_Elf32_auxv_t 1
+typedef struct {
+  unsigned int a_type;
+  union { unsigned int a_val; } a_un;
+} Elf32_auxv_t;
 # endif
 # ifndef __NIJI_D_Elf64_Addr
 #  define __NIJI_D_Elf64_Addr 1
@@ -164,6 +266,27 @@ typedef struct {
 #  define __NIJI_D_Elf64_Half 1
 typedef unsigned short Elf64_Half;
 # endif
+# ifndef __NIJI_D_Elf64_Lib
+#  define __NIJI_D_Elf64_Lib 1
+typedef struct {
+  unsigned int l_name;
+  unsigned int l_time_stamp;
+  unsigned int l_checksum;
+  unsigned int l_version;
+  unsigned int l_flags;
+} Elf64_Lib;
+# endif
+# ifndef __NIJI_D_Elf64_Move
+#  define __NIJI_D_Elf64_Move 1
+typedef struct {
+  unsigned long m_value;
+  unsigned long m_info;
+  unsigned long m_poffset;
+  unsigned short m_repeat;
+  unsigned short m_stride;
+  int : 32;
+} Elf64_Move;
+# endif
 # ifndef __NIJI_D_Elf64_Nhdr
 #  define __NIJI_D_Elf64_Nhdr 1
 typedef struct {
@@ -204,6 +327,10 @@ typedef struct {
   long r_addend;
 } Elf64_Rela;
 # endif
+# ifndef __NIJI_D_Elf64_Relr
+#  define __NIJI_D_Elf64_Relr 1
+typedef unsigned long Elf64_Relr;
+# endif
 # ifndef __NIJI_D_Elf64_Section
 #  define __NIJI_D_Elf64_Section 1
 typedef unsigned short Elf64_Section;
@@ -223,6 +350,10 @@ typedef struct {
   unsigned long sh_entsize;
 } Elf64_Shdr;
 # endif
+# ifndef __NIJI_D_Elf64_Sword
+#  define __NIJI_D_Elf64_Sword 1
+typedef int Elf64_Sword;
+# endif
 # ifndef __NIJI_D_Elf64_Sxword
 #  define __NIJI_D_Elf64_Sxword 1
 typedef long Elf64_Sxword;
@@ -237,6 +368,13 @@ typedef struct {
   unsigned long st_value;
   unsigned long st_size;
 } Elf64_Sym;
+# endif
+# ifndef __NIJI_D_Elf64_Syminfo
+#  define __NIJI_D_Elf64_Syminfo 1
+typedef struct {
+  unsigned short si_boundto;
+  unsigned short si_flags;
+} Elf64_Syminfo;
 # endif
 # ifndef __NIJI_D_Elf64_Verdaux
 #  define __NIJI_D_Elf64_Verdaux 1
@@ -276,6 +414,10 @@ typedef struct {
   unsigned int vn_aux;
   unsigned int vn_next;
 } Elf64_Verneed;
+# endif
+# ifndef __NIJI_D_Elf64_Versym
+#  define __NIJI_D_Elf64_Versym 1
+typedef unsigned short Elf64_Versym;
 # endif
 # ifndef __NIJI_D_Elf64_Word
 #  define __NIJI_D_Elf64_Word 1
@@ -582,7 +724,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_ALPHA_NUM 1
 # endif
 # ifndef DT_ALPHA_PLTRO
-#  define DT_ALPHA_PLTRO 1879048192
+#  define DT_ALPHA_PLTRO DT_LOPROC
 # endif
 # ifndef DT_AUDIT
 #  define DT_AUDIT 1879047932
@@ -663,7 +805,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_IA_64_NUM 1
 # endif
 # ifndef DT_IA_64_PLT_RESERVE
-#  define DT_IA_64_PLT_RESERVE 1879048192
+#  define DT_IA_64_PLT_RESERVE DT_LOPROC
 # endif
 # ifndef DT_INIT
 #  define DT_INIT 12
@@ -867,7 +1009,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_POSFLAG_1 1879047677
 # endif
 # ifndef DT_PPC64_GLINK
-#  define DT_PPC64_GLINK 1879048192
+#  define DT_PPC64_GLINK DT_LOPROC
 # endif
 # ifndef DT_PPC64_NUM
 #  define DT_PPC64_NUM 4
@@ -882,7 +1024,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_PPC64_OPT 1879048195
 # endif
 # ifndef DT_PPC_GOT
-#  define DT_PPC_GOT 1879048192
+#  define DT_PPC_GOT DT_LOPROC
 # endif
 # ifndef DT_PPC_NUM
 #  define DT_PPC_NUM 2
@@ -897,7 +1039,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_PREINIT_ARRAYSZ 33
 # endif
 # ifndef DT_PROCNUM
-#  define DT_PROCNUM 55
+#  define DT_PROCNUM DT_MIPS_NUM
 # endif
 # ifndef DT_REL
 #  define DT_REL 17
@@ -1017,7 +1159,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define DT_X86_64_NUM 4
 # endif
 # ifndef DT_X86_64_PLT
-#  define DT_X86_64_PLT 1879048192
+#  define DT_X86_64_PLT DT_LOPROC
 # endif
 # ifndef DT_X86_64_PLTENT
 #  define DT_X86_64_PLTENT 1879048195
@@ -1599,7 +1741,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define ELFOSABI_IRIX 8
 # endif
 # ifndef ELFOSABI_LINUX
-#  define ELFOSABI_LINUX 3
+#  define ELFOSABI_LINUX ELFOSABI_GNU
 # endif
 # ifndef ELFOSABI_MODESTO
 #  define ELFOSABI_MODESTO 11
@@ -1626,7 +1768,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define ELFOSABI_TRU64 10
 # endif
 # ifndef ELF_NOTE_ABI
-#  define ELF_NOTE_ABI 1
+#  define ELF_NOTE_ABI NT_GNU_ABI_TAG
 # endif
 # ifndef ELF_NOTE_OS_FREEBSD
 #  define ELF_NOTE_OS_FREEBSD 3
@@ -1704,7 +1846,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define EM_ARCV2 195
 # endif
 # ifndef EM_ARC_A5
-#  define EM_ARC_A5 93
+#  define EM_ARC_A5 EM_ARC_COMPACT
 # endif
 # ifndef EM_ARC_COMPACT
 #  define EM_ARC_COMPACT 93
@@ -2235,28 +2377,28 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define EV_NUM 2
 # endif
 # ifndef E_MIPS_ARCH_1
-#  define E_MIPS_ARCH_1 0
+#  define E_MIPS_ARCH_1 EF_MIPS_ARCH_1
 # endif
 # ifndef E_MIPS_ARCH_2
-#  define E_MIPS_ARCH_2 268435456
+#  define E_MIPS_ARCH_2 EF_MIPS_ARCH_2
 # endif
 # ifndef E_MIPS_ARCH_3
-#  define E_MIPS_ARCH_3 536870912
+#  define E_MIPS_ARCH_3 EF_MIPS_ARCH_3
 # endif
 # ifndef E_MIPS_ARCH_32
-#  define E_MIPS_ARCH_32 1342177280
+#  define E_MIPS_ARCH_32 EF_MIPS_ARCH_32
 # endif
 # ifndef E_MIPS_ARCH_4
-#  define E_MIPS_ARCH_4 805306368
+#  define E_MIPS_ARCH_4 EF_MIPS_ARCH_4
 # endif
 # ifndef E_MIPS_ARCH_5
-#  define E_MIPS_ARCH_5 1073741824
+#  define E_MIPS_ARCH_5 EF_MIPS_ARCH_5
 # endif
 # ifndef E_MIPS_ARCH_64
-#  define E_MIPS_ARCH_64 1610612736
+#  define E_MIPS_ARCH_64 EF_MIPS_ARCH_64
 # endif
 # ifndef GNU_PROPERTY_1_NEEDED
-#  define GNU_PROPERTY_1_NEEDED 2952822784U
+#  define GNU_PROPERTY_1_NEEDED GNU_PROPERTY_UINT32_OR_LO
 # endif
 # ifndef GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS
 #  define GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS 1U
@@ -2805,7 +2947,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define OEX_PAGE0 65536
 # endif
 # ifndef OEX_PRECISEFP
-#  define OEX_PRECISEFP 262144
+#  define OEX_PRECISEFP OEX_FPDBUG
 # endif
 # ifndef OEX_SMM
 #  define OEX_SMM 131072
@@ -2982,10 +3124,10 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define PT_HP_STACK 1610612756
 # endif
 # ifndef PT_HP_TLS
-#  define PT_HP_TLS 1610612736
+#  define PT_HP_TLS PT_LOOS
 # endif
 # ifndef PT_IA_64_ARCHEXT
-#  define PT_IA_64_ARCHEXT 1879048192
+#  define PT_IA_64_ARCHEXT PT_LOPROC
 # endif
 # ifndef PT_IA_64_HP_HSL_ANOT
 #  define PT_IA_64_HP_HSL_ANOT 1610612755
@@ -6771,10 +6913,10 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PARISC_TLS_GDCALL 236
 # endif
 # ifndef R_PARISC_TLS_IE14R
-#  define R_PARISC_TLS_IE14R 166
+#  define R_PARISC_TLS_IE14R R_PARISC_LTOFF_TP14R
 # endif
 # ifndef R_PARISC_TLS_IE21L
-#  define R_PARISC_TLS_IE21L 162
+#  define R_PARISC_TLS_IE21L R_PARISC_LTOFF_TP21L
 # endif
 # ifndef R_PARISC_TLS_LDM14R
 #  define R_PARISC_TLS_LDM14R 238
@@ -6792,16 +6934,16 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PARISC_TLS_LDO21L 240
 # endif
 # ifndef R_PARISC_TLS_LE14R
-#  define R_PARISC_TLS_LE14R 158
+#  define R_PARISC_TLS_LE14R R_PARISC_TPREL14R
 # endif
 # ifndef R_PARISC_TLS_LE21L
-#  define R_PARISC_TLS_LE21L 154
+#  define R_PARISC_TLS_LE21L R_PARISC_TPREL21L
 # endif
 # ifndef R_PARISC_TLS_TPREL32
-#  define R_PARISC_TLS_TPREL32 153
+#  define R_PARISC_TLS_TPREL32 R_PARISC_TPREL32
 # endif
 # ifndef R_PARISC_TLS_TPREL64
-#  define R_PARISC_TLS_TPREL64 216
+#  define R_PARISC_TLS_TPREL64 R_PARISC_TPREL64
 # endif
 # ifndef R_PARISC_TPREL14DR
 #  define R_PARISC_TPREL14DR 220
@@ -6831,25 +6973,25 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PARISC_TPREL64 216
 # endif
 # ifndef R_PPC64_ADDR14
-#  define R_PPC64_ADDR14 7
+#  define R_PPC64_ADDR14 R_PPC_ADDR14
 # endif
 # ifndef R_PPC64_ADDR14_BRNTAKEN
-#  define R_PPC64_ADDR14_BRNTAKEN 9
+#  define R_PPC64_ADDR14_BRNTAKEN R_PPC_ADDR14_BRNTAKEN
 # endif
 # ifndef R_PPC64_ADDR14_BRTAKEN
-#  define R_PPC64_ADDR14_BRTAKEN 8
+#  define R_PPC64_ADDR14_BRTAKEN R_PPC_ADDR14_BRTAKEN
 # endif
 # ifndef R_PPC64_ADDR16
-#  define R_PPC64_ADDR16 3
+#  define R_PPC64_ADDR16 R_PPC_ADDR16
 # endif
 # ifndef R_PPC64_ADDR16_DS
 #  define R_PPC64_ADDR16_DS 56
 # endif
 # ifndef R_PPC64_ADDR16_HA
-#  define R_PPC64_ADDR16_HA 6
+#  define R_PPC64_ADDR16_HA R_PPC_ADDR16_HA
 # endif
 # ifndef R_PPC64_ADDR16_HI
-#  define R_PPC64_ADDR16_HI 5
+#  define R_PPC64_ADDR16_HI R_PPC_ADDR16_HI
 # endif
 # ifndef R_PPC64_ADDR16_HIGH
 #  define R_PPC64_ADDR16_HIGH 110
@@ -6870,25 +7012,25 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_ADDR16_HIGHESTA 42
 # endif
 # ifndef R_PPC64_ADDR16_LO
-#  define R_PPC64_ADDR16_LO 4
+#  define R_PPC64_ADDR16_LO R_PPC_ADDR16_LO
 # endif
 # ifndef R_PPC64_ADDR16_LO_DS
 #  define R_PPC64_ADDR16_LO_DS 57
 # endif
 # ifndef R_PPC64_ADDR24
-#  define R_PPC64_ADDR24 2
+#  define R_PPC64_ADDR24 R_PPC_ADDR24
 # endif
 # ifndef R_PPC64_ADDR30
 #  define R_PPC64_ADDR30 37
 # endif
 # ifndef R_PPC64_ADDR32
-#  define R_PPC64_ADDR32 1
+#  define R_PPC64_ADDR32 R_PPC_ADDR32
 # endif
 # ifndef R_PPC64_ADDR64
 #  define R_PPC64_ADDR64 38
 # endif
 # ifndef R_PPC64_COPY
-#  define R_PPC64_COPY 19
+#  define R_PPC64_COPY R_PPC_COPY
 # endif
 # ifndef R_PPC64_DTPMOD64
 #  define R_PPC64_DTPMOD64 68
@@ -6933,22 +7075,22 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_DTPREL64 78
 # endif
 # ifndef R_PPC64_GLOB_DAT
-#  define R_PPC64_GLOB_DAT 20
+#  define R_PPC64_GLOB_DAT R_PPC_GLOB_DAT
 # endif
 # ifndef R_PPC64_GOT16
-#  define R_PPC64_GOT16 14
+#  define R_PPC64_GOT16 R_PPC_GOT16
 # endif
 # ifndef R_PPC64_GOT16_DS
 #  define R_PPC64_GOT16_DS 58
 # endif
 # ifndef R_PPC64_GOT16_HA
-#  define R_PPC64_GOT16_HA 17
+#  define R_PPC64_GOT16_HA R_PPC_GOT16_HA
 # endif
 # ifndef R_PPC64_GOT16_HI
-#  define R_PPC64_GOT16_HI 16
+#  define R_PPC64_GOT16_HI R_PPC_GOT16_HI
 # endif
 # ifndef R_PPC64_GOT16_LO
-#  define R_PPC64_GOT16_LO 15
+#  define R_PPC64_GOT16_LO R_PPC_GOT16_LO
 # endif
 # ifndef R_PPC64_GOT16_LO_DS
 #  define R_PPC64_GOT16_LO_DS 59
@@ -7008,25 +7150,25 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_JMP_IREL 247
 # endif
 # ifndef R_PPC64_JMP_SLOT
-#  define R_PPC64_JMP_SLOT 21
+#  define R_PPC64_JMP_SLOT R_PPC_JMP_SLOT
 # endif
 # ifndef R_PPC64_NONE
-#  define R_PPC64_NONE 0
+#  define R_PPC64_NONE R_PPC_NONE
 # endif
 # ifndef R_PPC64_PLT16_HA
-#  define R_PPC64_PLT16_HA 31
+#  define R_PPC64_PLT16_HA R_PPC_PLT16_HA
 # endif
 # ifndef R_PPC64_PLT16_HI
-#  define R_PPC64_PLT16_HI 30
+#  define R_PPC64_PLT16_HI R_PPC_PLT16_HI
 # endif
 # ifndef R_PPC64_PLT16_LO
-#  define R_PPC64_PLT16_LO 29
+#  define R_PPC64_PLT16_LO R_PPC_PLT16_LO
 # endif
 # ifndef R_PPC64_PLT16_LO_DS
 #  define R_PPC64_PLT16_LO_DS 60
 # endif
 # ifndef R_PPC64_PLT32
-#  define R_PPC64_PLT32 27
+#  define R_PPC64_PLT32 R_PPC_PLT32
 # endif
 # ifndef R_PPC64_PLT64
 #  define R_PPC64_PLT64 45
@@ -7050,19 +7192,19 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_PLTGOT16_LO_DS 66
 # endif
 # ifndef R_PPC64_PLTREL32
-#  define R_PPC64_PLTREL32 28
+#  define R_PPC64_PLTREL32 R_PPC_PLTREL32
 # endif
 # ifndef R_PPC64_PLTREL64
 #  define R_PPC64_PLTREL64 46
 # endif
 # ifndef R_PPC64_REL14
-#  define R_PPC64_REL14 11
+#  define R_PPC64_REL14 R_PPC_REL14
 # endif
 # ifndef R_PPC64_REL14_BRNTAKEN
-#  define R_PPC64_REL14_BRNTAKEN 13
+#  define R_PPC64_REL14_BRNTAKEN R_PPC_REL14_BRNTAKEN
 # endif
 # ifndef R_PPC64_REL14_BRTAKEN
-#  define R_PPC64_REL14_BRTAKEN 12
+#  define R_PPC64_REL14_BRTAKEN R_PPC_REL14_BRTAKEN
 # endif
 # ifndef R_PPC64_REL16
 #  define R_PPC64_REL16 249
@@ -7077,31 +7219,31 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_REL16_LO 250
 # endif
 # ifndef R_PPC64_REL24
-#  define R_PPC64_REL24 10
+#  define R_PPC64_REL24 R_PPC_REL24
 # endif
 # ifndef R_PPC64_REL32
-#  define R_PPC64_REL32 26
+#  define R_PPC64_REL32 R_PPC_REL32
 # endif
 # ifndef R_PPC64_REL64
 #  define R_PPC64_REL64 44
 # endif
 # ifndef R_PPC64_RELATIVE
-#  define R_PPC64_RELATIVE 22
+#  define R_PPC64_RELATIVE R_PPC_RELATIVE
 # endif
 # ifndef R_PPC64_SECTOFF
-#  define R_PPC64_SECTOFF 33
+#  define R_PPC64_SECTOFF R_PPC_SECTOFF
 # endif
 # ifndef R_PPC64_SECTOFF_DS
 #  define R_PPC64_SECTOFF_DS 61
 # endif
 # ifndef R_PPC64_SECTOFF_HA
-#  define R_PPC64_SECTOFF_HA 36
+#  define R_PPC64_SECTOFF_HA R_PPC_SECTOFF_HA
 # endif
 # ifndef R_PPC64_SECTOFF_HI
-#  define R_PPC64_SECTOFF_HI 35
+#  define R_PPC64_SECTOFF_HI R_PPC_SECTOFF_HI
 # endif
 # ifndef R_PPC64_SECTOFF_LO
-#  define R_PPC64_SECTOFF_LO 34
+#  define R_PPC64_SECTOFF_LO R_PPC_SECTOFF_LO
 # endif
 # ifndef R_PPC64_SECTOFF_LO_DS
 #  define R_PPC64_SECTOFF_LO_DS 62
@@ -7179,10 +7321,10 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define R_PPC64_TPREL64 73
 # endif
 # ifndef R_PPC64_UADDR16
-#  define R_PPC64_UADDR16 25
+#  define R_PPC64_UADDR16 R_PPC_UADDR16
 # endif
 # ifndef R_PPC64_UADDR32
-#  define R_PPC64_UADDR32 24
+#  define R_PPC64_UADDR32 R_PPC_UADDR32
 # endif
 # ifndef R_PPC64_UADDR64
 #  define R_PPC64_UADDR64 43
@@ -9039,7 +9181,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define SHT_HIUSER 2415919103U
 # endif
 # ifndef SHT_IA_64_EXT
-#  define SHT_IA_64_EXT 1879048192
+#  define SHT_IA_64_EXT SHT_LOPROC
 # endif
 # ifndef SHT_IA_64_UNWIND
 #  define SHT_IA_64_UNWIND 1879048193
@@ -9315,10 +9457,10 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 #  define STO_RISCV_VARIANT_CC 128
 # endif
 # ifndef STT_ARM_16BIT
-#  define STT_ARM_16BIT 15
+#  define STT_ARM_16BIT STT_HIPROC
 # endif
 # ifndef STT_ARM_TFUNC
-#  define STT_ARM_TFUNC 13
+#  define STT_ARM_TFUNC STT_LOPROC
 # endif
 # ifndef STT_COMMON
 #  define STT_COMMON 5

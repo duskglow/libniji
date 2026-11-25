@@ -339,7 +339,7 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 #  define UT_NAMESIZE 32
 # endif
 # ifndef UT_UNKNOWN
-#  define UT_UNKNOWN 0
+#  define UT_UNKNOWN EMPTY
 # endif
 # ifndef WTMP_FILE
 #  define WTMP_FILE "/var/log/wtmp"

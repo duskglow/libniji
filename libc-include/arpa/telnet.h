@@ -309,10 +309,10 @@ __NIJI_BEGIN_C
 #  define SYNCH 242
 # endif
 # ifndef TELCMD_FIRST
-#  define TELCMD_FIRST 236
+#  define TELCMD_FIRST xEOF
 # endif
 # ifndef TELCMD_LAST
-#  define TELCMD_LAST 255
+#  define TELCMD_LAST IAC
 # endif
 # ifndef TELOPT_3270REGIME
 #  define TELOPT_3270REGIME 29

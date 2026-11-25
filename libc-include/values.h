@@ -24,10 +24,10 @@ __NIJI_BEGIN_C
 #  define FMINEXP (-125)
 # endif
 # ifndef HIBITL
-#  define HIBITL (-9223372036854775807L-1)
+#  define HIBITL MINLONG
 # endif
 # ifndef HIBITS
-#  define HIBITS (-32768)
+#  define HIBITS MINSHORT
 # endif
 # ifndef MAXDOUBLE
 #  define MAXDOUBLE (1.7976931348623157e+308)
@@ -36,13 +36,13 @@ __NIJI_BEGIN_C
 #  define MAXFLOAT (3.40282347e+38f)
 # endif
 # ifndef MAXINT
-#  define MAXINT 2147483647
+#  define MAXINT INT_MAX
 # endif
 # ifndef MAXLONG
-#  define MAXLONG 9223372036854775807L
+#  define MAXLONG LONG_MAX
 # endif
 # ifndef MAXSHORT
-#  define MAXSHORT 32767
+#  define MAXSHORT SHRT_MAX
 # endif
 # ifndef MINDOUBLE
 #  define MINDOUBLE (2.2250738585072014e-308)
@@ -51,18 +51,18 @@ __NIJI_BEGIN_C
 #  define MINFLOAT (1.17549435e-38f)
 # endif
 # ifndef MININT
-#  define MININT (-2147483647-1)
+#  define MININT INT_MIN
 # endif
 # ifndef MINLONG
-#  define MINLONG (-9223372036854775807L-1)
+#  define MINLONG LONG_MIN
 # endif
 # ifndef MINSHORT
-#  define MINSHORT (-32768)
+#  define MINSHORT SHRT_MIN
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef BITSPERBYTE
-#  define BITSPERBYTE 8
+#  define BITSPERBYTE CHAR_BIT
 # endif
 #endif
 

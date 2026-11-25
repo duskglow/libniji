@@ -239,37 +239,37 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 #  define MAXTC 6
 # endif
 # ifndef MOD_CLKA
-#  define MOD_CLKA 32769
+#  define MOD_CLKA ADJ_OFFSET_SINGLESHOT
 # endif
 # ifndef MOD_CLKB
-#  define MOD_CLKB 16384
+#  define MOD_CLKB ADJ_TICK
 # endif
 # ifndef MOD_ESTERROR
-#  define MOD_ESTERROR 8
+#  define MOD_ESTERROR ADJ_ESTERROR
 # endif
 # ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY 2
+#  define MOD_FREQUENCY ADJ_FREQUENCY
 # endif
 # ifndef MOD_MAXERROR
-#  define MOD_MAXERROR 4
+#  define MOD_MAXERROR ADJ_MAXERROR
 # endif
 # ifndef MOD_MICRO
-#  define MOD_MICRO 4096
+#  define MOD_MICRO ADJ_MICRO
 # endif
 # ifndef MOD_NANO
-#  define MOD_NANO 8192
+#  define MOD_NANO ADJ_NANO
 # endif
 # ifndef MOD_OFFSET
-#  define MOD_OFFSET 1
+#  define MOD_OFFSET ADJ_OFFSET
 # endif
 # ifndef MOD_STATUS
-#  define MOD_STATUS 16
+#  define MOD_STATUS ADJ_STATUS
 # endif
 # ifndef MOD_TAI
-#  define MOD_TAI 128
+#  define MOD_TAI ADJ_TAI
 # endif
 # ifndef MOD_TIMECONST
-#  define MOD_TIMECONST 32
+#  define MOD_TIMECONST ADJ_TIMECONST
 # endif
 # ifndef NTP_API
 #  define NTP_API 4
@@ -326,7 +326,7 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 #  define STA_UNSYNC 64
 # endif
 # ifndef TIME_BAD
-#  define TIME_BAD 5
+#  define TIME_BAD TIME_ERROR
 # endif
 # ifndef TIME_DEL
 #  define TIME_DEL 2

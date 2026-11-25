@@ -467,13 +467,13 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 #  define CEOL '\000'
 # endif
 # ifndef CEOT
-#  define CEOT 4
+#  define CEOT CEOF
 # endif
 # ifndef CERASE
 #  define CERASE 127
 # endif
 # ifndef CFLUSH
-#  define CFLUSH 15
+#  define CFLUSH CDISCARD
 # endif
 # ifndef CIBAUD
 #  define CIBAUD 269418496
@@ -500,7 +500,7 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 #  define CREPRINT 18
 # endif
 # ifndef CRPRNT
-#  define CRPRNT 18
+#  define CRPRNT CREPRINT
 # endif
 # ifndef CRTSCTS
 #  define CRTSCTS 2147483648U
@@ -533,10 +533,10 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 #  define ECHOPRT 1024
 # endif
 # ifndef EXTA
-#  define EXTA 14
+#  define EXTA B19200
 # endif
 # ifndef EXTB
-#  define EXTB 15
+#  define EXTB B38400
 # endif
 # ifndef EXTPROC
 #  define EXTPROC 65536
@@ -563,7 +563,7 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 #  define TTYDEF_OFLAG 6149
 # endif
 # ifndef TTYDEF_SPEED
-#  define TTYDEF_SPEED 13
+#  define TTYDEF_SPEED B9600
 # endif
 # ifndef XTABS
 #  define XTABS 6144

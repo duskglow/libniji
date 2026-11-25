@@ -128,15 +128,15 @@ extern int dup2 (int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_execl
 #  define __NIJI_D_execl 1
-extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execle
 #  define __NIJI_D_execle 1
-extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (1)));
+extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execlp
 #  define __NIJI_D_execlp 1
-extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execv
 #  define __NIJI_D_execv 1
@@ -2875,13 +2875,13 @@ enum {
 #endif
 #if __NIJI_MISC
 # ifndef L_INCR
-#  define L_INCR 1
+#  define L_INCR SEEK_CUR
 # endif
 # ifndef L_SET
-#  define L_SET 0
+#  define L_SET SEEK_SET
 # endif
 # ifndef L_XTND
-#  define L_XTND 2
+#  define L_XTND SEEK_END
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450

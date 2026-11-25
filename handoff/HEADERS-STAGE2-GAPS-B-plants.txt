@@ -1,0 +1,9 @@
+# HEADERS-STAGE2-GAPS-B plants: the generator's format_arg attributes and alias forms, the IN6ADDR initializers and
+# the __RES emission. Each regenerates libc-include, then runs only the header_check units of the item (`--only`), or
+# the aliases module alone for the forms of sys/socket.h. alias-mask-ignored: 87 macro-aliases.tsv rows name an alias
+# narrower than the macro (SO_RCVTIMEO as SO_RCVTIMEO_OLD, not shown in c11); a P1 unit then meets an undefined name.
+format-arg-dropped | xtask/src/headers.rs | lit:a.push(format!("__format_arg__ ({j})")); ==> let _ = j; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "format_arg libintl.h"' | msg:FAIL format_arg libintl.h
+alias-mask-ignored | xtask/src/headers/enums.rs | lit:(mmask & !amask == 0).then_some(a) ==> Some(a) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1 "' | msg:FAIL P1
+alias-after-enum | xtask/src/headers.rs | lit:self.macro_alias(name).or_else(|| self.enum_macro(name)) ==> self.enum_macro(name).or_else(|| self.macro_alias(name)) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/aliases.py' | msg:FAIL ALIAS-DIFF sys/socket.h: MSG_TRYHARD
+in6-loopback-byte | headers/netinet/in.h.in | lit:0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } } } ==> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 } } } | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "initializers netinet/in.h"' | msg:FAIL initializers netinet/in.h cxx
+res-not-emitted | headers/reserved.tsv | lit:__RES	emit ==> __RES	omit | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "initializers resolv.h"' | msg:FAIL initializers resolv.h __RES

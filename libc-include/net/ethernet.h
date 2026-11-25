@@ -40,7 +40,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define ETHERMIN 46
 # endif
 # ifndef ETHERMTU
-#  define ETHERMTU 1500
+#  define ETHERMTU ETH_DATA_LEN
 # endif
 # ifndef ETHERTYPE_AARP
 #  define ETHERTYPE_AARP 33011
@@ -82,13 +82,13 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define ETHERTYPE_VLAN 33024
 # endif
 # ifndef ETHER_ADDR_LEN
-#  define ETHER_ADDR_LEN 6
+#  define ETHER_ADDR_LEN ETH_ALEN
 # endif
 # ifndef ETHER_CRC_LEN
 #  define ETHER_CRC_LEN 4
 # endif
 # ifndef ETHER_HDR_LEN
-#  define ETHER_HDR_LEN 14
+#  define ETHER_HDR_LEN ETH_HLEN
 # endif
 # ifndef ETHER_MAX_LEN
 #  define ETHER_MAX_LEN 1518

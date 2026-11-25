@@ -109,7 +109,7 @@ extern void globfree64 (glob64_t *) __NIJI_NOTHROW;
 #endif
 #if __NIJI_GNU
 # ifndef GLOB_ABEND
-#  define GLOB_ABEND 2
+#  define GLOB_ABEND GLOB_ABORTED
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 2

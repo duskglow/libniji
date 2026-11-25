@@ -602,7 +602,7 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 #  define NI_MAXSERV 32
 # endif
 # ifndef NO_ADDRESS
-#  define NO_ADDRESS 4
+#  define NO_ADDRESS NO_DATA
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 200809
