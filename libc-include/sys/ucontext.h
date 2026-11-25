@@ -270,212 +270,153 @@ typedef struct ucontext_t ucontext_t;
 # endif
 #endif
 #if __NIJI_GNU
-# ifndef __NIJI_D_enum_REG_CR2
-#  define __NIJI_D_enum_REG_CR2 1
-#  ifndef REG_CR2
-enum { REG_CR2 = 22 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_CSGSFS
-#  define __NIJI_D_enum_REG_CSGSFS 1
-#  ifndef REG_CSGSFS
-enum { REG_CSGSFS = 18 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_EFL
-#  define __NIJI_D_enum_REG_EFL 1
-#  ifndef REG_EFL
-enum { REG_EFL = 17 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_ERR
-#  define __NIJI_D_enum_REG_ERR 1
-#  ifndef REG_ERR
-enum { REG_ERR = 19 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_OLDMASK
-#  define __NIJI_D_enum_REG_OLDMASK 1
-#  ifndef REG_OLDMASK
-enum { REG_OLDMASK = 21 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R10
-#  define __NIJI_D_enum_REG_R10 1
-#  ifndef REG_R10
-enum { REG_R10 = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R11
-#  define __NIJI_D_enum_REG_R11 1
-#  ifndef REG_R11
-enum { REG_R11 = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R12
-#  define __NIJI_D_enum_REG_R12 1
-#  ifndef REG_R12
-enum { REG_R12 = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R13
-#  define __NIJI_D_enum_REG_R13 1
-#  ifndef REG_R13
-enum { REG_R13 = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R14
-#  define __NIJI_D_enum_REG_R14 1
-#  ifndef REG_R14
-enum { REG_R14 = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R15
-#  define __NIJI_D_enum_REG_R15 1
-#  ifndef REG_R15
-enum { REG_R15 = 7 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R8
-#  define __NIJI_D_enum_REG_R8 1
+# ifndef __NIJI_D_anon_REG_CR2
+#  define __NIJI_D_anon_REG_CR2 1
+#  if !defined REG_R8 || !defined REG_R9 || !defined REG_R10 || !defined REG_R11 || !defined REG_R12 || !defined REG_R13 \
+    || !defined REG_R14 || !defined REG_R15 || !defined REG_RDI || !defined REG_RSI || !defined REG_RBP || !defined REG_RBX \
+    || !defined REG_RDX || !defined REG_RAX || !defined REG_RCX || !defined REG_RSP || !defined REG_RIP || !defined REG_EFL \
+    || !defined REG_CSGSFS || !defined REG_ERR || !defined REG_TRAPNO || !defined REG_OLDMASK || !defined REG_CR2
+enum {
 #  ifndef REG_R8
-enum { REG_R8 = 0 };
+  REG_R8 = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_R9
-#  define __NIJI_D_enum_REG_R9 1
 #  ifndef REG_R9
-enum { REG_R9 = 1 };
+  REG_R9 = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RAX
-#  define __NIJI_D_enum_REG_RAX 1
-#  ifndef REG_RAX
-enum { REG_RAX = 13 };
+#  ifndef REG_R10
+  REG_R10 = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RBP
-#  define __NIJI_D_enum_REG_RBP 1
-#  ifndef REG_RBP
-enum { REG_RBP = 10 };
+#  ifndef REG_R11
+  REG_R11 = 3,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RBX
-#  define __NIJI_D_enum_REG_RBX 1
-#  ifndef REG_RBX
-enum { REG_RBX = 11 };
+#  ifndef REG_R12
+  REG_R12 = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RCX
-#  define __NIJI_D_enum_REG_RCX 1
-#  ifndef REG_RCX
-enum { REG_RCX = 14 };
+#  ifndef REG_R13
+  REG_R13 = 5,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RDI
-#  define __NIJI_D_enum_REG_RDI 1
+#  ifndef REG_R14
+  REG_R14 = 6,
+#  endif
+#  ifndef REG_R15
+  REG_R15 = 7,
+#  endif
 #  ifndef REG_RDI
-enum { REG_RDI = 8 };
+  REG_RDI = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RDX
-#  define __NIJI_D_enum_REG_RDX 1
-#  ifndef REG_RDX
-enum { REG_RDX = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RIP
-#  define __NIJI_D_enum_REG_RIP 1
-#  ifndef REG_RIP
-enum { REG_RIP = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RSI
-#  define __NIJI_D_enum_REG_RSI 1
 #  ifndef REG_RSI
-enum { REG_RSI = 9 };
+  REG_RSI = 9,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_RSP
-#  define __NIJI_D_enum_REG_RSP 1
+#  ifndef REG_RBP
+  REG_RBP = 10,
+#  endif
+#  ifndef REG_RBX
+  REG_RBX = 11,
+#  endif
+#  ifndef REG_RDX
+  REG_RDX = 12,
+#  endif
+#  ifndef REG_RAX
+  REG_RAX = 13,
+#  endif
+#  ifndef REG_RCX
+  REG_RCX = 14,
+#  endif
 #  ifndef REG_RSP
-enum { REG_RSP = 15 };
+  REG_RSP = 15,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_REG_TRAPNO
-#  define __NIJI_D_enum_REG_TRAPNO 1
+#  ifndef REG_RIP
+  REG_RIP = 16,
+#  endif
+#  ifndef REG_EFL
+  REG_EFL = 17,
+#  endif
+#  ifndef REG_CSGSFS
+  REG_CSGSFS = 18,
+#  endif
+#  ifndef REG_ERR
+  REG_ERR = 19,
+#  endif
 #  ifndef REG_TRAPNO
-enum { REG_TRAPNO = 20 };
+  REG_TRAPNO = 20,
+#  endif
+#  ifndef REG_OLDMASK
+  REG_OLDMASK = 21,
+#  endif
+#  ifndef REG_CR2
+  REG_CR2 = 22,
+#  endif
+};
 #  endif
 # endif
 # ifndef REG_CR2
-#  define REG_CR2 22
+#  define REG_CR2 REG_CR2
 # endif
 # ifndef REG_CSGSFS
-#  define REG_CSGSFS 18
+#  define REG_CSGSFS REG_CSGSFS
 # endif
 # ifndef REG_EFL
-#  define REG_EFL 17
+#  define REG_EFL REG_EFL
 # endif
 # ifndef REG_ERR
-#  define REG_ERR 19
+#  define REG_ERR REG_ERR
 # endif
 # ifndef REG_OLDMASK
-#  define REG_OLDMASK 21
+#  define REG_OLDMASK REG_OLDMASK
 # endif
 # ifndef REG_R10
-#  define REG_R10 2
+#  define REG_R10 REG_R10
 # endif
 # ifndef REG_R11
-#  define REG_R11 3
+#  define REG_R11 REG_R11
 # endif
 # ifndef REG_R12
-#  define REG_R12 4
+#  define REG_R12 REG_R12
 # endif
 # ifndef REG_R13
-#  define REG_R13 5
+#  define REG_R13 REG_R13
 # endif
 # ifndef REG_R14
-#  define REG_R14 6
+#  define REG_R14 REG_R14
 # endif
 # ifndef REG_R15
-#  define REG_R15 7
+#  define REG_R15 REG_R15
 # endif
 # ifndef REG_R8
-#  define REG_R8 0
+#  define REG_R8 REG_R8
 # endif
 # ifndef REG_R9
-#  define REG_R9 1
+#  define REG_R9 REG_R9
 # endif
 # ifndef REG_RAX
-#  define REG_RAX 13
+#  define REG_RAX REG_RAX
 # endif
 # ifndef REG_RBP
-#  define REG_RBP 10
+#  define REG_RBP REG_RBP
 # endif
 # ifndef REG_RBX
-#  define REG_RBX 11
+#  define REG_RBX REG_RBX
 # endif
 # ifndef REG_RCX
-#  define REG_RCX 14
+#  define REG_RCX REG_RCX
 # endif
 # ifndef REG_RDI
-#  define REG_RDI 8
+#  define REG_RDI REG_RDI
 # endif
 # ifndef REG_RDX
-#  define REG_RDX 12
+#  define REG_RDX REG_RDX
 # endif
 # ifndef REG_RIP
-#  define REG_RIP 16
+#  define REG_RIP REG_RIP
 # endif
 # ifndef REG_RSI
-#  define REG_RSI 9
+#  define REG_RSI REG_RSI
 # endif
 # ifndef REG_RSP
-#  define REG_RSP 15
+#  define REG_RSP REG_RSP
 # endif
 # ifndef REG_TRAPNO
-#  define REG_TRAPNO 20
+#  define REG_TRAPNO REG_TRAPNO
 # endif
 #endif
 #if __NIJI_MISC

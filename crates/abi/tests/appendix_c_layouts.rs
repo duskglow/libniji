@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (277 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (285 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -3069,6 +3069,85 @@ fn abi_struct_tftphdr() {
     expect_member("struct tftphdr", "th_u1.th_u2.th_u3.tu_code", offset_of!(struct_tftphdr, th_u1.th_u2.th_u3.tu_code));
     expect_member("struct tftphdr", "th_u1.th_u2.tu_data", offset_of!(struct_tftphdr, th_u1.th_u2.tu_data));
     expect_member("struct tftphdr", "th_u1.tu_stuff", offset_of!(struct_tftphdr, th_u1.tu_stuff));
+}
+
+#[test]
+fn abi_struct_ifconf() {
+    expect_type("struct ifconf", size_of::<struct_ifconf>(), align_of::<struct_ifconf>());
+    expect_member("struct ifconf", "ifc_len", offset_of!(struct_ifconf, ifc_len));
+    expect_member("struct ifconf", "ifc_ifcu", offset_of!(struct_ifconf, ifc_ifcu));
+    expect_member("struct ifconf", "ifc_ifcu.ifcu_buf", offset_of!(struct_ifconf, ifc_ifcu.ifcu_buf));
+    expect_member("struct ifconf", "ifc_ifcu.ifcu_req", offset_of!(struct_ifconf, ifc_ifcu.ifcu_req));
+}
+
+#[test]
+fn abi_struct_ifaddr() {
+    expect_type("struct ifaddr", size_of::<struct_ifaddr>(), align_of::<struct_ifaddr>());
+    expect_member("struct ifaddr", "ifa_addr", offset_of!(struct_ifaddr, ifa_addr));
+    expect_member("struct ifaddr", "ifa_addr.sa_family", offset_of!(struct_ifaddr, ifa_addr.sa_family));
+    expect_member("struct ifaddr", "ifa_addr.sa_data", offset_of!(struct_ifaddr, ifa_addr.sa_data));
+    expect_member("struct ifaddr", "ifa_ifu", offset_of!(struct_ifaddr, ifa_ifu));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_broadaddr", offset_of!(struct_ifaddr, ifa_ifu.ifu_broadaddr));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_broadaddr.sa_family", offset_of!(struct_ifaddr, ifa_ifu.ifu_broadaddr.sa_family));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_broadaddr.sa_data", offset_of!(struct_ifaddr, ifa_ifu.ifu_broadaddr.sa_data));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_dstaddr", offset_of!(struct_ifaddr, ifa_ifu.ifu_dstaddr));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_dstaddr.sa_family", offset_of!(struct_ifaddr, ifa_ifu.ifu_dstaddr.sa_family));
+    expect_member("struct ifaddr", "ifa_ifu.ifu_dstaddr.sa_data", offset_of!(struct_ifaddr, ifa_ifu.ifu_dstaddr.sa_data));
+    expect_member("struct ifaddr", "ifa_ifp", offset_of!(struct_ifaddr, ifa_ifp));
+    expect_member("struct ifaddr", "ifa_next", offset_of!(struct_ifaddr, ifa_next));
+}
+
+#[test]
+fn abi_struct_packet_mreq() {
+    expect_type("struct packet_mreq", size_of::<struct_packet_mreq>(), align_of::<struct_packet_mreq>());
+    expect_member("struct packet_mreq", "mr_ifindex", offset_of!(struct_packet_mreq, mr_ifindex));
+    expect_member("struct packet_mreq", "mr_type", offset_of!(struct_packet_mreq, mr_type));
+    expect_member("struct packet_mreq", "mr_alen", offset_of!(struct_packet_mreq, mr_alen));
+    expect_member("struct packet_mreq", "mr_address", offset_of!(struct_packet_mreq, mr_address));
+}
+
+#[test]
+fn abi_struct_mtop() {
+    expect_type("struct mtop", size_of::<struct_mtop>(), align_of::<struct_mtop>());
+    expect_member("struct mtop", "mt_op", offset_of!(struct_mtop, mt_op));
+    expect_member("struct mtop", "mt_count", offset_of!(struct_mtop, mt_count));
+}
+
+#[test]
+fn abi_struct_mtget() {
+    expect_type("struct mtget", size_of::<struct_mtget>(), align_of::<struct_mtget>());
+    expect_member("struct mtget", "mt_type", offset_of!(struct_mtget, mt_type));
+    expect_member("struct mtget", "mt_resid", offset_of!(struct_mtget, mt_resid));
+    expect_member("struct mtget", "mt_dsreg", offset_of!(struct_mtget, mt_dsreg));
+    expect_member("struct mtget", "mt_gstat", offset_of!(struct_mtget, mt_gstat));
+    expect_member("struct mtget", "mt_erreg", offset_of!(struct_mtget, mt_erreg));
+    expect_member("struct mtget", "mt_fileno", offset_of!(struct_mtget, mt_fileno));
+    expect_member("struct mtget", "mt_blkno", offset_of!(struct_mtget, mt_blkno));
+}
+
+#[test]
+fn abi_struct_mtpos() {
+    expect_type("struct mtpos", size_of::<struct_mtpos>(), align_of::<struct_mtpos>());
+    expect_member("struct mtpos", "mt_blkno", offset_of!(struct_mtpos, mt_blkno));
+}
+
+#[test]
+fn abi_struct_mtconfiginfo() {
+    expect_type("struct mtconfiginfo", size_of::<struct_mtconfiginfo>(), align_of::<struct_mtconfiginfo>());
+    expect_member("struct mtconfiginfo", "mt_type", offset_of!(struct_mtconfiginfo, mt_type));
+    expect_member("struct mtconfiginfo", "ifc_type", offset_of!(struct_mtconfiginfo, ifc_type));
+    expect_member("struct mtconfiginfo", "irqnr", offset_of!(struct_mtconfiginfo, irqnr));
+    expect_member("struct mtconfiginfo", "dmanr", offset_of!(struct_mtconfiginfo, dmanr));
+    expect_member("struct mtconfiginfo", "port", offset_of!(struct_mtconfiginfo, port));
+    expect_member("struct mtconfiginfo", "debug", offset_of!(struct_mtconfiginfo, debug));
+    expect_member("struct mtconfiginfo", "reserved", offset_of!(struct_mtconfiginfo, reserved));
+}
+
+#[test]
+fn abi_struct_mt_tape_info() {
+    expect_type("struct mt_tape_info", size_of::<struct_mt_tape_info>(), align_of::<struct_mt_tape_info>());
+    expect_member("struct mt_tape_info", "t_type", offset_of!(struct_mt_tape_info, t_type));
+    expect_member("struct mt_tape_info", "t_name", offset_of!(struct_mt_tape_info, t_name));
 }
 
 #[test]

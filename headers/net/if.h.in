@@ -8,7 +8,34 @@
 
 __NIJI_BEGIN_C
 
+@@owns ifr_name ifr_hwaddr ifr_addr ifr_dstaddr ifr_broadaddr ifr_netmask ifr_flags ifr_metric ifr_mtu ifr_map ifr_slave ifr_data ifr_ifindex ifr_bandwidth ifr_qlen ifr_newname ifc_buf ifc_req
 @@emit
+
+/* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro
+   for the member of the union the layout table records (the metric, index, bandwidth and queue length share the
+   integer member). */
+@@when ifreq
+# define ifr_name ifr_ifrn.ifrn_name
+# define ifr_hwaddr ifr_ifru.ifru_hwaddr
+# define ifr_addr ifr_ifru.ifru_addr
+# define ifr_dstaddr ifr_ifru.ifru_dstaddr
+# define ifr_broadaddr ifr_ifru.ifru_broadaddr
+# define ifr_netmask ifr_ifru.ifru_netmask
+# define ifr_flags ifr_ifru.ifru_flags
+# define ifr_metric ifr_ifru.ifru_ivalue
+# define ifr_mtu ifr_ifru.ifru_mtu
+# define ifr_map ifr_ifru.ifru_map
+# define ifr_slave ifr_ifru.ifru_slave
+# define ifr_data ifr_ifru.ifru_data
+# define ifr_ifindex ifr_ifru.ifru_ivalue
+# define ifr_bandwidth ifr_ifru.ifru_ivalue
+# define ifr_qlen ifr_ifru.ifru_ivalue
+# define ifr_newname ifr_ifru.ifru_newname
+#endif
+@@when ifconf
+# define ifc_buf ifc_ifcu.ifcu_buf
+# define ifc_req ifc_ifcu.ifcu_req
+#endif
 
 __NIJI_END_C
 

@@ -9,7 +9,7 @@ __NIJI_BEGIN_C
 
 #if 1
 # ifndef CBRK
-#  define CBRK 0
+#  define CBRK '\000'
 # endif
 # ifndef CDISCARD
 #  define CDISCARD 15
@@ -21,7 +21,7 @@ __NIJI_BEGIN_C
 #  define CEOF 4
 # endif
 # ifndef CEOL
-#  define CEOL 0
+#  define CEOL '\000'
 # endif
 # ifndef CEOT
 #  define CEOT 4
@@ -57,7 +57,7 @@ __NIJI_BEGIN_C
 #  define CSTART 17
 # endif
 # ifndef CSTATUS
-#  define CSTATUS 0
+#  define CSTATUS '\000'
 # endif
 # ifndef CSTOP
 #  define CSTOP 19

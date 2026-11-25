@@ -1,0 +1,11 @@
+# Plants of HEADERS-BUSYBOX-GAPS (cargo xtask plants; docs/plants.md): template mutants of <net/if.h> and <sys/mtio.h>,
+# each caught by header_check.py's slice units (header_checks/s12.py member_names, header_checks/s15.py mtio_units).
+bb-drop-ifindex | headers/net/if.h.in | perl:s/# define ifr_ifindex ifr_ifru\.ifru_ivalue\n// | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL member names net/if\.h gnu
+bb-ifindex-mtu | headers/net/if.h.in | perl:s/(# define ifr_ifindex ifr_ifru\.)ifru_ivalue/$1ifru_mtu/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL member names net/if\.h gnu.*niji_mn
+bb-ifr-strict | headers/net/if.h.in | perl:s/\@\@when ifreq\n/#if 1\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL member names net/if\.h \(not shown\)
+bb-gmt-eod-bit | headers/sys/mtio.h.in | perl:s/(GMT_EOD\(x\) \(\(x\) & )0x08000000/${1}0x04000000/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL GMT sys/mtio\.h
+bb-gmt-eof-long | headers/sys/mtio.h.in | perl:s/(GMT_EOF\(x\) \(\(x\) & 0x80000000)\)/$1L)/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL GMT sys/mtio\.h
+bb-tape-info-row | headers/sys/mtio.h.in | perl:s/\t\{ MT_ISSCSI2, "Generic SCSI-2 tape" \}, \\\n// | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL GMT sys/mtio\.h
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT;
+# job headers-busybox-gaps-plants-1 on the Zen 1 host): bb-drop-ifindex, bb-ifindex-mtu, bb-ifr-strict, bb-gmt-eod-bit,
+# bb-gmt-eof-long, bb-tape-info-row: CAUGHT, each by the unit its msg: names.

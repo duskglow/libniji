@@ -32,27 +32,35 @@ def units(ctx):
     sub = copy.copy(ctx)
     sub.slice_rows = [{"header": h, "p1": "1", "uapi": "-"} for h in HEADERS]
     sub.vis = [r for r in ctx.vis if (r["header"], r["name"]) not in DEFERRED]
-    return [(cid, what, body) for cid, us in header_check.p1_units(sub).items() for what, body in us]
+    return [(cid, what, body) for cid, us in header_check.p1_units(sub).items() for what, body in us] + mtio_units(ctx)
 
 
-INCLUDE = re.compile(r"^\s*#\s*include\s*<([^>]+)>")
-UAPI = ("linux/", "asm/", "asm-generic/")
+# st(4) <sys/mtio.h>: the generic status tests, each the bit of mt_gstat it tests (black-box probe, HEADERS-BUSYBOX-GAPS:
+# each evaluated on every single bit of an unsigned long and on -1; the result has the type of the mask constant,
+# unsigned int for GMT_EOF, int for the others).
+GMT = {"GMT_EOF": 31, "GMT_BOT": 30, "GMT_EOT": 29, "GMT_SM": 28, "GMT_EOD": 27, "GMT_WR_PROT": 26, "GMT_ONLINE": 24,
+       "GMT_D_6250": 23, "GMT_D_1600": 22, "GMT_D_800": 21, "GMT_DR_OPEN": 18, "GMT_IM_REP_EN": 16}
+MT_TAPE_INFO_ROWS = 17  # sixteen drive types and the zero row that ends the table (black-box probe)
 
 
-def problems(ctx):
-    gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-    out = []
-    for r in ctx.slice_rows:
-        if not r["where"].startswith("headers/slices/s15.tsv:"):
+def mtio_units(ctx):
+    """No spec clause beyond st(4): per configuration that shows them, each GMT_* macro keeps exactly its bit of a
+    long argument, of an int -1 the same bit with the mask's type, and MT_TAPE_INFO initializes a struct
+    mt_tape_info table of 17 rows."""
+    rows = {r["name"]: r for r in ctx.vis if r["header"] == "sys/mtio.h" and (r["name"] in GMT or r["name"] == "MT_TAPE_INFO")}
+    if set(rows) != set(GMT) | {"MT_TAPE_INFO"}:
+        return [(ctx.ids[0], "GMT sys/mtio.h", "#error visibility.tsv does not show every GMT_* name and MT_TAPE_INFO\n")]
+    res = []
+    for cid in ctx.ids:
+        if not all(cid in header_check.expand(r["configs"], ctx.ids) for r in rows.values()):
             continue
-        tmpl = os.path.join("headers", r["header"] + ".in")
-        with open(os.path.join(ctx.root, tmpl)) as f:
-            for n, line in enumerate(f, 1):
-                m = INCLUDE.match(line)
-                if not m:
-                    continue
-                inc = m.group(1)
-                if inc.startswith(UAPI) or os.path.isfile(os.path.join(ctx.root, "headers", inc + ".in")) or os.path.isfile(os.path.join(gccinc, inc)):
-                    continue
-                out.append(f"{tmpl}:{n}: includes <{inc}>, which is neither libniji's (no headers/{inc}.in), the kernel's nor the compiler's")
-    return out
+        body = ["#include <sys/mtio.h>"]
+        for i, (n, b) in enumerate(GMT.items()):
+            signed = "<" if b < 31 else ">"
+            body += [f"typedef char niji_gmt{i}[({n}(~0UL) == (1UL << {b}) && {n}(~(1UL << {b})) == 0 && {n}(1L << {b}) != 0) ? 1 : -1];",
+                     f"typedef char niji_gmt{i}_t[(sizeof({n}(-1)) == sizeof(int) && ({n}(0) - 1) {signed} 0 && {n}(-1) == (1U << {b})) ? 1 : -1];"]
+        if not cid.startswith("cxx"):  # t_name is `char *`: C++ does not take a string literal there
+            body += ["struct mt_tape_info niji_ti[] = MT_TAPE_INFO;",
+                     f"typedef char niji_ti_n[sizeof niji_ti / sizeof niji_ti[0] == {MT_TAPE_INFO_ROWS} ? 1 : -1];"]
+        res.append((cid, "GMT sys/mtio.h", "\n".join(body) + "\n"))
+    return res

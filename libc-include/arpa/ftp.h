@@ -54,13 +54,13 @@ __NIJI_BEGIN_C
 #  define PRELIM 1
 # endif
 # ifndef REC_EOF
-#  define REC_EOF 2
+#  define REC_EOF '\002'
 # endif
 # ifndef REC_EOR
-#  define REC_EOR 1
+#  define REC_EOR '\001'
 # endif
 # ifndef REC_ESC
-#  define REC_ESC (-1)
+#  define REC_ESC '\377'
 # endif
 # ifndef STRU_F
 #  define STRU_F 1
