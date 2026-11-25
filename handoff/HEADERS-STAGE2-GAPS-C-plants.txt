@@ -14,3 +14,17 @@ hs2c-ar-date | spec/abi/layouts.tsv | perl:s/^(struct ar_hdr\tar_date\t16\t\t)ch
 hs2c-armag | spec/abi/macros.tsv | perl:s/^(ARMAG\tar\.h\t[^\t]*\t)"!<arch>/${1}"!<arcx>/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S16 ar\.h format' | msg:FAIL S16 ar\.h format
 hs2c-devnull | spec/abi/macros.tsv | perl:s/^(_PATH_DEVNULL\t[^\t]*\t[^\t]*\t)"\/dev\/null"/${1}"\/dev\/nulx"/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 _PATH_DEVNULL' | msg:FAIL S07 _PATH_DEVNULL
 hs2c-utimbuf-type | spec/abi/layouts.tsv | perl:s/^(struct utimbuf\tmodtime\t8\t\t)__time_t/${1}int/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 utime\.h' | msg:FAIL S07 utime\.h utimbuf
+# cargo xtask plants results (13 plants: 13 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hs2c-guard-shape: CAUGHT, caught by no test the log names
+# hs2c-guard-empty: CAUGHT, caught by no test the log names
+# hs2c-guard-features: CAUGHT, caught by no test the log names
+# hs2c-static-assert-c2x: CAUGHT, caught by no test the log names
+# hs2c-static-assert-level: CAUGHT, caught by no test the log names
+# hs2c-iftodt-paren: CAUGHT, caught by no test the log names
+# hs2c-dttoif-paren: CAUGHT, caught by no test the log names
+# hs2c-logmakepri-shift: CAUGHT, caught by no test the log names
+# hs2c-logpri-paren: CAUGHT, caught by no test the log names
+# hs2c-ar-date: CAUGHT, caught by no test the log names
+# hs2c-armag: CAUGHT, caught by no test the log names
+# hs2c-devnull: CAUGHT, caught by no test the log names
+# hs2c-utimbuf-type: CAUGHT, caught by no test the log names
