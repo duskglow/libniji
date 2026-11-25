@@ -5,6 +5,8 @@ and P10, the network macros' output against the build host's own headers.
   there, every macros.tsv integer value, every typedef and structure size and alignment, and the offset of every
   structure member that is not a bit-field. Names another slice's header owns are left to that header's P1 (signal.h and
   sys/param.h belong to slices 7 and 8, which are not in this tree yet).
+* Member names (`member_names`): the member-name macros of MEMBER_MACROS (`ifr_mtu`, `icmp_id`, `ip6_nxt`, ...), one
+  table for the headers of slices 12 to 14 that have them, as their form is one pattern.
 * P10 (`python3 spec/tools/header_checks/s12.py [--include DIR] [--work DIR]`): spec/tools/p10_net.c (CMSG_*,
   IN6_IS_ADDR_*, the byte-order conversions) built on the system's headers and on libniji's (`-nostdinc`) must print the
   same bytes. The system's output is a diagnostic comparison, never read as text.
@@ -78,49 +80,119 @@ def units(ctx):
     return res
 
 
-# netdevice(7): the member names of struct ifreq and struct ifconf, each a macro for a member of a union the layout
-# table records (black-box form probe, HEADERS-BUSYBOX-GAPS: with the nested member's name made unusable after the
-# header, the reference rejects a use of the macro). name: (tag, the nested member it names).
+# Member-name macros: a name for a member nested in a structure's union or inner structure, each a macro for exactly
+# that nested member (black-box form probes: HEADERS-BUSYBOX-GAPS for <net/if.h>, poison-after-header; HEADERS-NET-SYS-
+# NAMES for the others, a unit whose `struct niji_f` has only the candidate path compiles a use of the name with the
+# reference's headers exactly for its expansion). header: {name: (tag, the nested member it names; `[k]` an element)}.
+# The names of one table come from the man page or RFC named in the header's template: netdevice(7) (<net/if.h>),
+# RFC 792 (<netinet/ip_icmp.h>), RFC 4443, 2710, 4861 and 2894 (<netinet/icmp6.h>), RFC 8200 (<netinet/ip6.h>),
+# RFC 826 (<netinet/if_ether.h>, also shown by <netinet/ether.h>), route(8) (<net/route.h>), msgctl(2) (<sys/msg.h>).
+_ICMP6 = {"type": "icmp6_type", "code": "icmp6_code", "cksum": "icmp6_cksum"}
+_ICMP6_DATA = "icmp6_dataun.icmp6_un_data"
+_ARP = {f"arp_{m}": ("ether_arp", f"ea_hdr.ar_{m}") for m in ("hrd", "pro", "hln", "pln", "op")}
 MEMBER_MACROS = {
-    "ifr_name": ("ifreq", "ifr_ifrn.ifrn_name"),
-    **{f"ifr_{m}": ("ifreq", f"ifr_ifru.ifru_{m}") for m in
-       ("hwaddr", "addr", "dstaddr", "broadaddr", "netmask", "flags", "mtu", "map", "slave", "data", "newname")},
-    **{f"ifr_{m}": ("ifreq", "ifr_ifru.ifru_ivalue") for m in ("metric", "ifindex", "bandwidth", "qlen")},
-    "ifc_buf": ("ifconf", "ifc_ifcu.ifcu_buf"),
-    "ifc_req": ("ifconf", "ifc_ifcu.ifcu_req"),
+    "net/if.h": {
+        "ifr_name": ("ifreq", "ifr_ifrn.ifrn_name"),
+        **{f"ifr_{m}": ("ifreq", f"ifr_ifru.ifru_{m}") for m in
+           ("hwaddr", "addr", "dstaddr", "broadaddr", "netmask", "flags", "mtu", "map", "slave", "data", "newname")},
+        **{f"ifr_{m}": ("ifreq", "ifr_ifru.ifru_ivalue") for m in ("metric", "ifindex", "bandwidth", "qlen")},
+        "ifc_buf": ("ifconf", "ifc_ifcu.ifcu_buf"),
+        "ifc_req": ("ifconf", "ifc_ifcu.ifcu_req"),
+    },
+    "netinet/ip_icmp.h": {
+        **{f"icmp_{m}": ("icmp", f"icmp_hun.ih_{m}") for m in ("pptr", "gwaddr", "void")},
+        "icmp_id": ("icmp", "icmp_hun.ih_idseq.icd_id"), "icmp_seq": ("icmp", "icmp_hun.ih_idseq.icd_seq"),
+        "icmp_pmvoid": ("icmp", "icmp_hun.ih_pmtu.ipm_void"), "icmp_nextmtu": ("icmp", "icmp_hun.ih_pmtu.ipm_nextmtu"),
+        **{f"icmp_{m}": ("icmp", f"icmp_hun.ih_rtradv.irt_{m}") for m in ("num_addrs", "wpa", "lifetime")},
+        **{f"icmp_{m}": ("icmp", f"icmp_dun.id_ts.its_{m}") for m in ("otime", "rtime", "ttime")},
+        "icmp_ip": ("icmp", "icmp_dun.id_ip.idi_ip"),
+        **{f"icmp_{m}": ("icmp", f"icmp_dun.id_{m}") for m in ("radv", "mask", "data")},
+    },
+    "netinet/icmp6.h": {
+        **{f"icmp6_data{w}": ("icmp6_hdr", f"{_ICMP6_DATA}{w}") for w in (32, 16, 8)},
+        "icmp6_pptr": ("icmp6_hdr", f"{_ICMP6_DATA}32[0]"), "icmp6_mtu": ("icmp6_hdr", f"{_ICMP6_DATA}32[0]"),
+        "icmp6_id": ("icmp6_hdr", f"{_ICMP6_DATA}16[0]"), "icmp6_seq": ("icmp6_hdr", f"{_ICMP6_DATA}16[1]"),
+        "icmp6_maxdelay": ("icmp6_hdr", f"{_ICMP6_DATA}16[0]"),
+        **{f"mld_{m}": ("mld_hdr", f"mld_icmp6_hdr.{p}") for m, p in _ICMP6.items()},
+        "mld_maxdelay": ("mld_hdr", f"mld_icmp6_hdr.{_ICMP6_DATA}16[0]"),
+        "mld_reserved": ("mld_hdr", f"mld_icmp6_hdr.{_ICMP6_DATA}16[1]"),
+        **{f"nd_{s}_{m}": (tag, f"nd_{s}_hdr.{p}") for s, tag in (("rs", "nd_router_solicit"), ("ra", "nd_router_advert"),
+           ("ns", "nd_neighbor_solicit"), ("na", "nd_neighbor_advert"), ("rd", "nd_redirect")) for m, p in _ICMP6.items()},
+        "nd_rs_reserved": ("nd_router_solicit", f"nd_rs_hdr.{_ICMP6_DATA}32[0]"),
+        "nd_ra_curhoplimit": ("nd_router_advert", f"nd_ra_hdr.{_ICMP6_DATA}8[0]"),
+        "nd_ra_flags_reserved": ("nd_router_advert", f"nd_ra_hdr.{_ICMP6_DATA}8[1]"),
+        "nd_ra_router_lifetime": ("nd_router_advert", f"nd_ra_hdr.{_ICMP6_DATA}16[1]"),
+        "nd_ns_reserved": ("nd_neighbor_solicit", f"nd_ns_hdr.{_ICMP6_DATA}32[0]"),
+        "nd_na_flags_reserved": ("nd_neighbor_advert", f"nd_na_hdr.{_ICMP6_DATA}32[0]"),
+        "nd_rd_reserved": ("nd_redirect", f"nd_rd_hdr.{_ICMP6_DATA}32[0]"),
+        **{f"rr_{m}": ("icmp6_router_renum", f"rr_hdr.{p}") for m, p in _ICMP6.items()},
+        "rr_seqnum": ("icmp6_router_renum", f"rr_hdr.{_ICMP6_DATA}32[0]"),
+    },
+    "netinet/ip6.h": {
+        "ip6_vfc": ("ip6_hdr", "ip6_ctlun.ip6_un2_vfc"),
+        **{f"ip6_{m}": ("ip6_hdr", f"ip6_ctlun.ip6_un1.ip6_un1_{m}") for m in ("flow", "plen", "nxt", "hlim")},
+        "ip6_hops": ("ip6_hdr", "ip6_ctlun.ip6_un1.ip6_un1_hlim"),
+    },
+    "netinet/if_ether.h": _ARP,
+    "netinet/ether.h": _ARP,
+    "net/route.h": {"rt_mss": ("rtentry", "rt_mtu")},
+    "sys/msg.h": {"msg_cbytes": ("msqid_ds", "__msg_cbytes")},
 }
 
 
+def _fake(i, path, n):
+    """`struct niji_mn<i>` with only `path`, whose leaf is `char[n]`, or for `p[k]` an array of k + 2 `char[n]`
+    structures (so the element and the array differ in size)."""
+    comps = path.split(".")
+    leaf, k = comps[-1], None
+    if leaf.endswith("]"):
+        leaf, k = leaf[:-1].split("[")
+        s = f"struct {{ char c[{n}]; }} {leaf}[{int(k) + 2}];"
+    else:
+        s = f"char {leaf}[{n}];"
+    for c in reversed(comps[:-1]):
+        s = f"struct {{ {s} }} {c};"
+    return f"struct niji_mn{i} {{ {s} }};", k
+
+
 def member_names(ctx):
-    """netdevice(7) member names of <net/if.h> (no spec clause beyond netdevice(7); HEADERS-BUSYBOX-GAPS): where
-    visibility.tsv shows NAME, it is a macro for exactly the nested member MEMBER_MACROS records, so a use resolves in
-    a structure that has only that path (the same offset alone would accept `ifr_ifindex` as `ifru_mtu`), and its
-    offset in the real tag is the nested member's; where it does not, the header does not define it."""
+    """Member-name macros (no spec clause beyond the man pages and RFCs MEMBER_MACROS names; HEADERS-BUSYBOX-GAPS,
+    HEADERS-NET-SYS-NAMES): in each header and configuration where visibility.tsv shows NAME, it is a macro for exactly
+    the nested member MEMBER_MACROS records, so a use resolves in a structure that has only that path (the same offset
+    alone would accept `ifr_ifindex` as `ifru_mtu`, or `icmp6_seq` as element 0), and its offset in the real tag is the
+    nested member's (for an element `[k]`, the array's offset plus k elements); where the header is usable but does not
+    show NAME, it does not define it."""
     offs = {(r["type"], r["member"]): r["offset_or_size"] for r in ctx.rows("spec/abi/layouts.tsv") if r["member"]}
-    shown, rows = {}, [r for r in ctx.vis if r["header"] == "net/if.h" and r["name"] in MEMBER_MACROS]
-    if {r["name"] for r in rows} != set(MEMBER_MACROS):
-        return [(ctx.ids[0], "member names net/if.h", "#error visibility.tsv and MEMBER_MACROS name different sets\n")]
-    for r in rows:
-        for cid in expand(r["configs"], ctx.ids):
-            shown.setdefault(cid, []).append(r["name"])
-    hdr = next(r for r in ctx.vis if r["header"] == "net/if.h" and r["name"] == "ifreq")
     res = []
-    for cid in ctx.ids:
-        names = sorted(shown.get(cid, []))
-        if not names:
-            if cid in expand(hdr["configs"], ctx.ids) or not any(cid in expand(r["configs"], ctx.ids) for r in ctx.vis if r["header"] == "net/if.h"):
-                continue
-            body = "#include <net/if.h>\n" + "".join(f"#ifdef {n}\n#error {n} is defined where struct {MEMBER_MACROS[n][0]} is not shown\n#endif\n" for n in MEMBER_MACROS)
-            res.append((cid, "member names net/if.h (not shown)", body))
+    for hdr, table in MEMBER_MACROS.items():
+        rows = [r for r in ctx.vis if r["header"] == hdr and r["name"] in table]
+        if {r["name"] for r in rows} != set(table):
+            res.append((ctx.ids[0], f"member names {hdr}", "#error visibility.tsv and MEMBER_MACROS name different sets\n"))
             continue
-        body = ["#include <net/if.h>"]
-        for i, n in enumerate(names):
-            tag, path = MEMBER_MACROS[n]
-            outer, leaf = path.split(".")
-            body += [f"struct niji_mn{i} {{ struct {{ char {leaf}[{i + 2}]; }} {outer}; }};",
-                     f"typedef char niji_mn{i}_form[sizeof(((struct niji_mn{i} *)0)->{n}) == {i + 2} ? 1 : -1];",
-                     f"typedef char niji_mn{i}_off[__builtin_offsetof(struct {tag}, {n}) == {offs[('struct ' + tag, path)]} ? 1 : -1];"]
-        res.append((cid, "member names net/if.h", "\n".join(body) + "\n"))
+        shown = {}
+        for r in rows:
+            for cid in expand(r["configs"], ctx.ids):
+                shown.setdefault(cid, []).append(r["name"])
+        usable = {cid for r in ctx.vis if r["header"] == hdr and r["kind"] != "include-error"
+                  for cid in expand(r["configs"], ctx.ids)}
+        for cid in ctx.ids:
+            names = sorted(shown.get(cid, []))
+            absent = sorted(set(table) - set(names))
+            if absent and cid in usable:
+                body = f"#include <{hdr}>\n" + "".join(f"#ifdef {n}\n#error {n} is defined where visibility.tsv does not show it\n#endif\n" for n in absent)
+                res.append((cid, f"member names {hdr} (not shown)", body))
+            if not names:
+                continue
+            body = [f"#include <{hdr}>"]
+            for i, n in enumerate(names):
+                tag, path = table[n]
+                fake, k = _fake(i, path, i + 2)
+                base = path.split("[")[0]
+                real = offs[("struct " + tag, base)] + (f" + {k} * sizeof(((struct {tag} *)0)->{base}[0])" if k else "")
+                body += [fake, f"typedef char niji_mn{i}_form[sizeof(((struct niji_mn{i} *)0)->{n}) == {i + 2} ? 1 : -1];",
+                         f"typedef char niji_mn{i}_foff[__builtin_offsetof(struct niji_mn{i}, {n}) == {int(k or 0) * (i + 2)} ? 1 : -1];",
+                         f"typedef char niji_mn{i}_off[__builtin_offsetof(struct {tag}, {n}) == {real} ? 1 : -1];"]
+            res.append((cid, f"member names {hdr}", "\n".join(body) + "\n"))
     return res
 
 
