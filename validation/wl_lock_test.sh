@@ -31,6 +31,7 @@ printf '%s\n' '#!/bin/sh' \
     'p=fast; case ${NIJI_FULL_PROFILE:-} in ""|0) ;; *) p=release ;; esac; [ -n "${STUB_PROFILE:-}" ] && p=$STUB_PROFILE' \
     'mkdir -p target/niji && for f in libc.a libm.a niji-crt1.o; do echo "$p" > target/niji/$f; done' \
     '[ -n "${STUB_SO:-}" ] && cp "$STUB_SO"/* target/niji/' \
+    '[ -n "${STUB_NOHDR:-}" ] || { mkdir -p target/niji/include target/niji/uapi && echo "$p" > target/niji/include/features.h; }' \
     'echo "$p" > target/niji/.profile' > "$stub/cargo"
 chmod +x "$stub/cargo"
 . "$here/wl_lock.sh"
@@ -76,6 +77,28 @@ check "fast reuse ran no cargo" 1 "$(builds)"
 WL_PROFILE=fast wl_build_products $U > /dev/null 2>&1; check "fast build of a new sha (rc)" 0 "$?"
 check "fast products marker" fast "$(cat "$HOME/wl/products/$U/.profile" 2>/dev/null)"
 check "release key untouched by a fast build" no "$([ -e "$HOME/wl/products/$U-release" ] && echo yes || echo no)"
+
+# 5b. HEADERS (WL-PREP-HEADERS; no spec clause: lab tooling): the static set carries the C headers its build staged
+# (scripts/niji-cc refuses to link without include/ and uapi/); a marked set cached without them is rebuilt.
+R=$HOME/wl/products/$S-release
+check "release set marks its headers staged" staged "$(cat "$R/.headers" 2>/dev/null)"
+check "release set holds the build's include/" release "$(cat "$R/include/features.h" 2>/dev/null)"
+check "release set holds uapi/" yes "$([ -d "$R/uapi" ] && echo yes || echo no)"
+rm -rf "$R/uapi"
+wl_products_ok "$R" 2> /dev/null; check "staged set without uapi/ is incomplete (rc)" 1 "$?"
+rm -f "$R/.headers"
+wl_products_ok "$R" 2> /dev/null; check "marked set cached before headers is incomplete (rc)" 1 "$?"
+n=$(builds)
+wl_build_products $S > /dev/null 2>&1; check "set without headers rebuilt (rc)" 0 "$?"
+check "the rebuild ran cargo" $((n + 1)) "$(builds)"
+check "rebuilt set holds uapi/" yes "$([ -d "$R/uapi" ] && echo yes || echo no)"
+X=0011223344556677889900112233445566778899
+mkdir -p "$HOME/wl/src/$X"
+STUB_NOHDR=1 wl_build_products $X > /dev/null 2>&1; check "build that staged no headers (rc)" 0 "$?"
+check "headerless build marked none" none "$(cat "$HOME/wl/products/$X-release/.headers" 2>/dev/null)"
+n=$(builds)
+wl_build_products $X > /dev/null 2>&1; check "headerless set reused (rc)" 0 "$?"
+check "headerless set reuse ran no cargo" "$n" "$(builds)"
 
 # 2b. a build that leaves products of the other profile (STUB_PROFILE: the stand-in ignores the switch) is refused
 V=00112233445566778899aabbccddeeff00112233
