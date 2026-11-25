@@ -4,9 +4,9 @@
  "tokens": null,
  "result": "busybox 1.37.0 defconfig static builds and links against libniji (headers + libc.a); 0 libniji-only compile errors outside arpa/nameser.h (HEADERS-APT-GAPS'); applets match stock",
  "branch": "task/headers-net-sys-names",
- "head": "b17c834e8",
+ "head": "9ab89ce93",
  "gate": {
-  "affected": "FULL (escalated: crates/abi, generated header inputs): the train's; header_check 0 failed of 18261, P10 1410 lines identical, clippy + static clean",
+  "affected": "FULL (escalated: crates/abi, generated header inputs): the train's; final-2 at 9ab89ce93: static, headers-gen --check, header_check 0 failed of 18261, P10 1410 lines identical; clippy-1: clippy -D warnings + static",
   "peak": null
  },
  "accepted_first_attempt": null,
@@ -44,6 +44,14 @@
    "measured": true
   },
   {
+   "kind": "tooling",
+   "what": "header_check.py --only REGEX: a plant or check on one header runs that header's units (117 for scsi/sg) instead of all 18261 (a full run ~540 s on keke, past the 600 s plant timeout)",
+   "before": 18261,
+   "after": 117,
+   "unit": "header_check units per single-header run (scsi/sg)",
+   "measured": true
+  },
+  {
    "kind": "unblock",
    "what": "Yohane stage 2 programs using TCP_*, SYSLOG_NAMES, icmp/icmp6/ip6/ether_arp/rtentry member names, IN_CLASS*, ICMP6_FILTER_*",
    "before": null,
@@ -56,10 +64,10 @@
  "next_step": "land; arpa/nameser.h names via HEADERS-APT-GAPS; attr_probe access-attribute gap as a story",
  "report_file": "handoff/HEADERS-NET-SYS-NAMES.md",
  "jobs": [
-  "headers-net-sys-names-hgcheck-4",
-  "headers-net-sys-names-final-1",
+  "headers-net-sys-names-final-2",
+  "headers-net-sys-names-clippy-1",
   "headers-net-sys-names-bbsweep-1",
   "headers-net-sys-names-bbstatic-4",
-  "headers-net-sys-names-plants-2"
+  "headers-net-sys-names-plants-3"
  ]
 }
