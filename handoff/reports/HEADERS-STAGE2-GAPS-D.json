@@ -22,7 +22,7 @@
   "<stdlib.h> then <sys/types.h> in GNU C with -Wsystem-headers redefines FD_SET/FD_CLR/FD_ISSET with different replacement lists",
   "regexec's bound is a variable-length array parameter on the reference; not matched (arrayparams.tsv has no VLA form)",
   "arrayparams.tsv bounds are read by both the generator and its unit, so a wrong table bound is not caught by the unit",
-  "the header generator declares members in table order without checking the offset column; niji-abi's layout tests catch the disagreement, header_check does not",
+  "the header generator declares members in table order without checking the offset column; neither header_check nor niji-abi catches the disagreement (plants2)",
   "perl rebuild after the IN6ADDR fix not repeated: the two IO-Socket-IP v6 test failures are fixed by probe and unit, NOT VERIFIED end to end",
   "plants2: s2d-mreq-order SURVIVED (niji-abi appendix_c_layouts passes on the mutant); 7 CAUGHT by 15:50Z, run unfinished"
  ],

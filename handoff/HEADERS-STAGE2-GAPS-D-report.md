@@ -40,8 +40,8 @@ d324c9b79 IN6ADDR_ANY_INIT / IN6ADDR_LOOPBACK_INIT; 02478be5c regen.
 * `<stdlib.h>` then `<sys/types.h>` in GNU C with -Wsystem-headers redefines FD_SET/FD_CLR/FD_ISSET differently.
 * `regexec`'s bound is a variable-length array parameter on the reference; not matched (no VLA form in arrayparams).
 * arrayparams.tsv bounds are read by both the generator and the unit, so a wrong table bound is not caught by it.
-* The header generator declares members in table order and does not check them against the offset column; niji-abi's
-  layout tests catch an offset/order disagreement, header_check does not.
+* The header generator declares members in table order and does not check them against the offset column; neither
+  header_check nor niji-abi catches an offset/order disagreement (s2d-mreq-order survived both in plants2).
 
 ## Process
 * Leg 2 used `sed -i` once on s07.py against the Edit-only rule (not refused). Leg 3 started a job with `test -s && `
