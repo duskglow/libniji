@@ -1,7 +1,7 @@
 {"task": "HEADERS-ENUM-FOLLOWUPS-2", "model": "sonnet", "tokens": null,
  "result": "merged origin/next into the HEADERS-ENUM-FOLLOWUPS work (conflicts in header_check.py and s10.py resolved: next's --only and langinfo unit kept, story's reg_errcode_t unit kept, --modules dropped); plants use --only; plants 4/4 CAUGHT, gate and so+transcripts green",
  "branch": "task/headers-enum-followups-2", "head": "66428b6d1",
- "gate": {"affected": "direct tier: 680 passed / 1 failed (gencat transcripts, products not built); after cargo xtask so the transcripts test passes (headers-enum-followups-2-test)", "peak": "2.4G"},
+ "gate": {"affected": "direct tier gate2 green (first gate: 1 failed, gencat transcripts needed the products; superseded)", "peak": "2.4G"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": ["xtask --test transcripts (gencat) fails with exec ENOENT on a role without cargo xtask so although its is_file skip check passes; it could skip instead (second run seeing it)",
@@ -12,4 +12,4 @@
  "improvement": "gencat transcripts test should skip, not fail, when the products are not built",
  "next_step": "CI train",
  "report_file": "handoff/HEADERS-ENUM-FOLLOWUPS.md",
- "jobs": ["keke:headers-enum-followups-2-gate", "keke:headers-enum-followups-2-plants", "keke:headers-enum-followups-2-test"]}
+ "jobs": ["keke:headers-enum-followups-2-gate2", "keke:headers-enum-followups-2-plants", "keke:headers-enum-followups-2-test"]}
