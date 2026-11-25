@@ -2,6 +2,7 @@
 /* netinet/if_fddi.h: FDDI */
 #ifndef __NIJI_H_netinet_if_fddi_h
 #define __NIJI_H_netinet_if_fddi_h 1
+#define _NETINET_IF_FDDI_H 1
 
 #include <features.h>
 #include <sys/types.h>

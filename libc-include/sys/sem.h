@@ -2,6 +2,7 @@
 /* sys/sem.h: System V semaphores (XSH <sys/sem.h>). */
 #ifndef __NIJI_H_sys_sem_h
 #define __NIJI_H_sys_sem_h 1
+#define _SYS_SEM_H 1
 
 #include <features.h>
 #include <sys/ipc.h>

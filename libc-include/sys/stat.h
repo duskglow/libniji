@@ -2,6 +2,7 @@
 /* sys/stat.h: data returned by the stat() function (XSH <sys/stat.h>). */
 #ifndef __NIJI_H_sys_stat_h
 #define __NIJI_H_sys_stat_h 1
+#define _SYS_STAT_H 1
 
 #include <features.h>
 

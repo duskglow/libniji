@@ -2,6 +2,7 @@
 /* sys/vlimit.h: vlimit(3), the 4.3BSD resource limits */
 #ifndef __NIJI_H_sys_vlimit_h
 #define __NIJI_H_sys_vlimit_h 1
+#define _SYS_VLIMIT_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* envz.h: envz vectors (GNU C Library manual, Envz Functions). */
 #ifndef __NIJI_H_envz_h
 #define __NIJI_H_envz_h 1
+#define _ENVZ_H 1
 
 #include <features.h>
 #include <argz.h>

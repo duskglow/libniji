@@ -2,6 +2,7 @@
 /* sys/klog.h: klogctl(3), syslog(2) */
 #ifndef __NIJI_H_sys_klog_h
 #define __NIJI_H_sys_klog_h 1
+#define _SYS_KLOG_H 1
 
 #include <features.h>
 

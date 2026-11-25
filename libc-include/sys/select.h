@@ -2,6 +2,7 @@
 /* sys/select.h: synchronous I/O multiplexing (XSH <sys/select.h>). */
 #ifndef __NIJI_H_sys_select_h
 #define __NIJI_H_sys_select_h 1
+#define _SYS_SELECT_H 1
 
 #include <features.h>
 

@@ -27,8 +27,42 @@ def units(ctx):
     # Spec clause: utmp(5), utmpx(5), paths.h's _PATH_* names (HEADERS-SNAPSHOT-GAPS): the utmp and wtmp path macros
     # in each header of the family, exactly where the reference shows them, with its values (tree's build used
     # _PATH_WTMP; a header that shows another family member is caught by the "not defined" side).
+    # HEADERS-STAGE2-GAPS-C (bsd-mailx: _PATH_DEVNULL): paths.h's other path names, the BSD paths(3) set, the same way.
     for h in UTMP_HEADERS:
-        out += ctx.exact(h, UTMP_PATHS)
+        out += ctx.exact(h, UTMP_PATHS + (BSD_PATHS(ctx) if h == "paths.h" else ()))
+    # Spec clause: paths(3) / FHS 3.0: the null device's path, from the documents rather than the tables.
+    out += [(cid, "S07 _PATH_DEVNULL", "#include <paths.h>\ntypedef char niji_s07_null[__builtin_strcmp (_PATH_DEVNULL, "
+             "\"/dev/null\") == 0 ? 1 : -1];\nint niji_s07_pn;\n") for cid in ("c89", "gnu17", "cxx17")]
+    # Spec clause: no spec clause (BSD <dirent.h>, man-pages readdir(3) d_type; HEADERS-STAGE2-GAPS-C, capnproto): DTTOIF
+    # and IFTODT exactly where the reference shows them, and where shown: a d_type is the file-type bits of a mode
+    # shifted down by 12 (DT_DIR 4 <-> S_IFDIR 0040000), the argument is parenthesised (`|` binds looser than `&` and
+    # `<<`), the result has the promoted argument's type, and both work in `#if`.
+    for h in ("dirent.h", "sys/dir.h"):
+        out += ctx.exact(h, ("DTTOIF", "IFTODT"))
+        shown = ctx.expand(next((r["configs"] for r in ctx.vis if r["header"] == h and r["name"] == "IFTODT"), "-"))
+        body = (f"#include <{h}>\n"
+                "#if IFTODT (0200000 | 0040000) != 4 || DTTOIF (4 | 0) != 0040000 || IFTODT (DTTOIF (10)) != 10\n"
+                "#error \"IFTODT/DTTOIF in #if\"\n#endif\n"
+                "typedef char niji_s07_dt[IFTODT (0200000 | 0100000) == 8 && DTTOIF (2 | 0) == 0020000"
+                " && sizeof (IFTODT (0040000L)) == sizeof (long) && sizeof (DTTOIF ((char) 4)) == sizeof (int) ? 1 : -1];\n"
+                "int niji_s07_dttu;\n")
+        for lang in ("c", "c++"):
+            cid = next((c["id"] for c in ctx.cfgs if c["language"] == lang and c["id"] in shown), None)
+            if cid:
+                out.append((cid, f"S07 {h} DTTOIF/IFTODT", body))
+    # Spec clause: XBD <utime.h> (HEADERS-STAGE2-GAPS-C, bzip2, cmake): `struct utimbuf` is complete, with the members
+    # `actime` and `modtime` of type time_t, and utime() takes a pointer to it.
+    # (<utime.h> shows time_t only from POSIX 2008 on: the unit takes it from <time.h>.)
+    ut = ("#include <utime.h>\n#include <time.h>\n"
+          "typedef char niji_s07_ut[sizeof (struct utimbuf) == 2 * sizeof (time_t)"
+          " && __builtin_offsetof (struct utimbuf, actime) == 0"
+          " && __builtin_offsetof (struct utimbuf, modtime) == sizeof (time_t)"
+          " && sizeof (((struct utimbuf *) 0)->modtime) == sizeof (time_t) ? 1 : -1];\n"
+          "int (*niji_s07_utime) (const char *, const struct utimbuf *) = utime;\n")
+    c_type = "typedef char niji_s07_utt[__builtin_types_compatible_p (__typeof__ (((struct utimbuf *) 0)->actime), time_t) ? 1 : -1];\n"
+    cxx_type = "static_assert (__is_same (decltype (((utimbuf *) 0)->actime), time_t), \"actime\");\n"
+    out += [(cid, "S07 utime.h utimbuf", ut + extra) for cid, extra in
+            (("c89", c_type), ("gnu17", c_type), ("time64", c_type), ("cxx98", ""), ("cxx17", cxx_type))]
     return out + stage2_units(ctx) + array_param_units(ctx)
 
 
@@ -131,6 +165,11 @@ def expand(configs, ids):
     if configs.startswith("!"):
         return set(ids) - set(configs[1:].split(","))
     return set(configs.split(","))
+
+
+
+def BSD_PATHS(ctx):  # noqa: N802  (a constant spelled as a call: the list lives in header_probe)
+    return tuple(n for n in ctx.hp.stage2_names()[0] if n.startswith("_PATH_") and n not in UTMP_PATHS)
 
 
 UTMP_HEADERS = ("paths.h", "utmp.h", "utmpx.h", "lastlog.h")

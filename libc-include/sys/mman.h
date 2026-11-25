@@ -2,6 +2,7 @@
 /* sys/mman.h: memory management declarations (XSH <sys/mman.h>). */
 #ifndef __NIJI_H_sys_mman_h
 #define __NIJI_H_sys_mman_h 1
+#define _SYS_MMAN_H 1
 
 #include <features.h>
 

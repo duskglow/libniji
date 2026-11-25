@@ -2,6 +2,7 @@
 /* sys/dir.h: the old name of <dirent.h> (R-H7: shipped, 12 -dev packages include it). */
 #ifndef __NIJI_H_sys_dir_h
 #define __NIJI_H_sys_dir_h 1
+#define _SYS_DIR_H 1
 
 #include <dirent.h>
 

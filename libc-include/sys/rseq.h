@@ -2,6 +2,7 @@
 /* sys/rseq.h: restartable sequences, the library registration (the kernel interface is <linux/rseq.h>). */
 #ifndef __NIJI_H_sys_rseq_h
 #define __NIJI_H_sys_rseq_h 1
+#define _SYS_RSEQ_H 1
 
 #include <features.h>
 #include <stdint.h>

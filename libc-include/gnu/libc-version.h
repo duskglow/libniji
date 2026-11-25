@@ -2,6 +2,7 @@
 /* gnu/libc-version.h: library version queries (gnu_get_libc_version(3)) */
 #ifndef __NIJI_H_gnu_libc_version_h
 #define __NIJI_H_gnu_libc_version_h 1
+#define _GNU_LIBC_VERSION_H 1
 
 #include <features.h>
 

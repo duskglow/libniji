@@ -2,6 +2,7 @@
 /* libgen.h: pathname manipulation (XSH <libgen.h>, basename(3)). */
 #ifndef __NIJI_H_libgen_h
 #define __NIJI_H_libgen_h 1
+#define _LIBGEN_H 1
 
 #include <features.h>
 

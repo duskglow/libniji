@@ -7,6 +7,7 @@
    handler. */
 #ifndef __NIJI_H_pthread_h
 #define __NIJI_H_pthread_h 1
+#define _PTHREAD_H 1
 
 #include <features.h>
 #include <sched.h>

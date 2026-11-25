@@ -2,6 +2,7 @@
 /* sys/resource.h: definitions for resource operations (XSH <sys/resource.h>). */
 #ifndef __NIJI_H_sys_resource_h
 #define __NIJI_H_sys_resource_h 1
+#define _SYS_RESOURCE_H 1
 
 #include <features.h>
 

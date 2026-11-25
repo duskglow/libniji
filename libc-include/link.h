@@ -2,6 +2,7 @@
 /* link.h: the run-time linker's interfaces (dl_iterate_phdr(3), the r_debug protocol, rtld-audit(7)). */
 #ifndef __NIJI_H_link_h
 #define __NIJI_H_link_h 1
+#define _LINK_H 1
 
 #include <features.h>
 #include <elf.h>

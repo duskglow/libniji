@@ -2,6 +2,7 @@
 /* scsi/scsi.h: SCSI command codes */
 #ifndef __NIJI_H_scsi_scsi_h
 #define __NIJI_H_scsi_scsi_h 1
+#define _SCSI_SCSI_H 1
 
 #include <features.h>
 

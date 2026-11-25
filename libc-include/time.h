@@ -2,6 +2,7 @@
 /* time.h: date and time (C 7.27, XSH <time.h>). */
 #ifndef __NIJI_H_time_h
 #define __NIJI_H_time_h 1
+#define _TIME_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* sys/raw.h: raw(8) block device binding */
 #ifndef __NIJI_H_sys_raw_h
 #define __NIJI_H_sys_raw_h 1
+#define _SYS_RAW_H 1
 
 #include <features.h>
 #include <stdint.h>

@@ -2,6 +2,7 @@
 /* sys/kd.h: console keyboard and display ioctls (console_ioctl(4)): the kernel's definitions */
 #ifndef __NIJI_H_sys_kd_h
 #define __NIJI_H_sys_kd_h 1
+#define _SYS_KD_H 1
 
 #include <linux/kd.h>
 

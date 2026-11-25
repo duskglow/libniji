@@ -2,6 +2,7 @@
 /* net/if_ppp.h: PPP interface */
 #ifndef __NIJI_H_net_if_ppp_h
 #define __NIJI_H_net_if_ppp_h 1
+#define __NET_IF_PPP_H 1
 
 #include <features.h>
 #include <sys/types.h>

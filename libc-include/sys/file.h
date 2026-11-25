@@ -2,6 +2,7 @@
 /* sys/file.h: the BSD flock() operations, with the names of <fcntl.h>. */
 #ifndef __NIJI_H_sys_file_h
 #define __NIJI_H_sys_file_h 1
+#define _SYS_FILE_H 1
 
 #include <features.h>
 

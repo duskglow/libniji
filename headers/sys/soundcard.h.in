@@ -1,15 +1,9 @@
 @@generated
-/* sys/soundcard.h: OSS sound ioctls */
+/* sys/soundcard.h: OSS sound ioctls: the kernel's definitions (probed: the reference shows the kernel UAPI
+   <linux/soundcard.h> names, SNDCTL_DSP_RESET and the rest, through this header; HEADERS-STAGE2-GAPS-C) */
 #ifndef __NIJI_H_sys_soundcard_h
 #define __NIJI_H_sys_soundcard_h 1
 
-#include <features.h>
-#include <endian.h>
-
-__NIJI_BEGIN_C
-
-@@emit
-
-__NIJI_END_C
+#include <linux/soundcard.h>
 
 #endif

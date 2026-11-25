@@ -2,6 +2,7 @@
 /* malloc.h: heap tuning and statistics (malloc(3), mallopt(3), mallinfo(3)). */
 #ifndef __NIJI_H_malloc_h
 #define __NIJI_H_malloc_h 1
+#define _MALLOC_H 1
 
 #include <features.h>
 #include <stdio.h>

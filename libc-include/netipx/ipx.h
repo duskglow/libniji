@@ -2,6 +2,7 @@
 /* netipx/ipx.h: IPX */
 #ifndef __NIJI_H_netipx_ipx_h
 #define __NIJI_H_netipx_ipx_h 1
+#define __NETIPX_IPX_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -10,6 +11,52 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_ipx_config_data
+#  define __NIJI_D_struct_ipx_config_data 1
+struct ipx_config_data {
+  unsigned char ipxcfg_auto_select_primary;
+  unsigned char ipxcfg_auto_create_interfaces;
+};
+# endif
+# ifndef __NIJI_D_struct_ipx_interface_definition
+#  define __NIJI_D_struct_ipx_interface_definition 1
+struct ipx_interface_definition {
+  unsigned long ipx_network;
+  unsigned char ipx_device[16];
+  unsigned char ipx_dlink_type;
+  unsigned char ipx_special;
+  unsigned char ipx_node[6];
+};
+# endif
+# ifndef __NIJI_D_struct_ipx_route_def
+#  define __NIJI_D_struct_ipx_route_def 1
+struct ipx_route_def {
+  unsigned long ipx_network;
+  unsigned long ipx_router_network;
+  unsigned char ipx_router_node[6];
+  unsigned char ipx_device[16];
+  unsigned short ipx_flags;
+};
+# endif
+# ifndef __NIJI_D_struct_ipx_route_definition
+#  define __NIJI_D_struct_ipx_route_definition 1
+struct ipx_route_definition {
+  unsigned long ipx_network;
+  unsigned long ipx_router_network;
+  unsigned char ipx_router_node[6];
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr_ipx
+#  define __NIJI_D_struct_sockaddr_ipx 1
+struct sockaddr_ipx {
+  unsigned short sipx_family;
+  unsigned short sipx_port;
+  unsigned int sipx_network;
+  unsigned char sipx_node[6];
+  unsigned char sipx_type;
+  unsigned char sipx_zero;
+};
+# endif
 # ifndef __NIJI_D_sa_family_t
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
@@ -26,6 +73,66 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# ifndef IPX_CRTITF
+#  define IPX_CRTITF 1
+# endif
+# ifndef IPX_DLTITF
+#  define IPX_DLTITF 0
+# endif
+# ifndef IPX_FRAME_8022
+#  define IPX_FRAME_8022 2
+# endif
+# ifndef IPX_FRAME_8023
+#  define IPX_FRAME_8023 4
+# endif
+# ifndef IPX_FRAME_ETHERII
+#  define IPX_FRAME_ETHERII 3
+# endif
+# ifndef IPX_FRAME_NONE
+#  define IPX_FRAME_NONE 0
+# endif
+# ifndef IPX_FRAME_SNAP
+#  define IPX_FRAME_SNAP 1
+# endif
+# ifndef IPX_FRAME_TR_8022
+#  define IPX_FRAME_TR_8022 5
+# endif
+# ifndef IPX_INTERNAL
+#  define IPX_INTERNAL 2
+# endif
+# ifndef IPX_MTU
+#  define IPX_MTU 576
+# endif
+# ifndef IPX_NODE_LEN
+#  define IPX_NODE_LEN 6
+# endif
+# ifndef IPX_PRIMARY
+#  define IPX_PRIMARY 1
+# endif
+# ifndef IPX_ROUTE_NO_ROUTER
+#  define IPX_ROUTE_NO_ROUTER 0
+# endif
+# ifndef IPX_RT_8022
+#  define IPX_RT_8022 4
+# endif
+# ifndef IPX_RT_BLUEBOOK
+#  define IPX_RT_BLUEBOOK 2
+# endif
+# ifndef IPX_RT_ROUTED
+#  define IPX_RT_ROUTED 1
+# endif
+# ifndef IPX_RT_SNAP
+#  define IPX_RT_SNAP 8
+# endif
+# ifndef IPX_SPECIAL_NONE
+#  define IPX_SPECIAL_NONE 0
+# endif
+# ifndef IPX_TYPE
+#  define IPX_TYPE 1
+# endif
+# ifndef SOL_IPX
+#  define SOL_IPX 256
+# endif
 # ifndef _SS_SIZE
 #  define _SS_SIZE 128
 # endif

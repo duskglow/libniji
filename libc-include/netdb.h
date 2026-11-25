@@ -2,6 +2,7 @@
 /* netdb.h: network database (XSH <netdb.h>) */
 #ifndef __NIJI_H_netdb_h
 #define __NIJI_H_netdb_h 1
+#define _NETDB_H 1
 
 #include <features.h>
 #include <netinet/in.h>
@@ -528,6 +529,18 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 # endif
 #endif
 #if 1
+# ifndef _PATH_HEQUIV
+#  define _PATH_HEQUIV "/etc/hosts.equiv"
+# endif
+# ifndef _PATH_HOSTS
+#  define _PATH_HOSTS "/etc/hosts"
+# endif
+# ifndef _PATH_NETWORKS
+#  define _PATH_NETWORKS "/etc/networks"
+# endif
+# ifndef _PATH_PROTOCOLS
+#  define _PATH_PROTOCOLS "/etc/protocols"
+# endif
 # ifndef _PATH_SERVICES
 #  define _PATH_SERVICES "/etc/services"
 # endif
