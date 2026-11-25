@@ -1,0 +1,9 @@
+# WL-PREP-HEADERS plants (cargo xtask plants): the static product set without the build's headers, a wrong .headers
+# marker, a cached set without headers taken as complete (either check), legacy unmarked sets forced to rebuild, and a
+# headerless build's set never reused.
+no-header-copy | validation/wl_lock.sh | lit:cp -R "$t/include" "$t/uapi" "$prod.tmp/" && echo staged ==> true && echo staged | bash validation/wl_lock_test.sh | msg:FAIL release set holds the build's include/
+marker-always-none | validation/wl_lock.sh | lit:echo staged > "$prod.tmp/.headers" ==> echo none > "$prod.tmp/.headers" | bash validation/wl_lock_test.sh | msg:FAIL release set marks its headers staged
+missing-marker-ok | validation/wl_lock.sh | lit:            *) return 1 ;; ==>             *) ;; | bash validation/wl_lock_test.sh | msg:FAIL marked set cached before headers is incomplete
+staged-unchecked | validation/wl_lock.sh | lit:staged) [ -f "$d/include/features.h" ] && [ -d "$d/uapi" ] || return 1 ;; ==> staged) ;; | bash validation/wl_lock_test.sh | msg:FAIL staged set without uapi/ is incomplete
+legacy-needs-headers | validation/wl_lock.sh | lit:if [ "$(wl_link)" = static ] && [ -f "$d/.profile" ]; then ==> if [ "$(wl_link)" = static ]; then | bash validation/wl_lock_test.sh | msg:FAIL fast (build reuses the legacy cache|reuse ran no cargo)
+none-rejected | validation/wl_lock.sh | lit:            none) ;; ==>             none) return 1 ;; | bash validation/wl_lock_test.sh | msg:FAIL headerless set reuse ran no cargo
