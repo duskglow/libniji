@@ -354,14 +354,14 @@ extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_
 struct timeval;
 # ifndef __NIJI_D_utimes
 #  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern int utimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_GNU
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
-extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int futimesat (int, const char *, const struct timeval [2]) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_MISC
@@ -374,12 +374,12 @@ extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_futimes
 #  define __NIJI_D_futimes 1
-extern int futimes (int, const struct timeval *) __NIJI_NOTHROW;
+extern int futimes (int, const struct timeval [2]) __NIJI_NOTHROW;
 # endif
 struct timeval;
 # ifndef __NIJI_D_lutimes
 #  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern int lutimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timeval;
 struct timezone;

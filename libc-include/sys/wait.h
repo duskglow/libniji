@@ -165,6 +165,15 @@ extern int waitid (idtype_t, unsigned int, siginfo_t *, int);
 # ifndef WUNTRACED
 #  define WUNTRACED 2
 # endif
+# ifndef __WALL
+#  define __WALL 1073741824
+# endif
+# ifndef __WCLONE
+#  define __WCLONE 2147483648U
+# endif
+# ifndef __WNOTHREAD
+#  define __WNOTHREAD 536870912
+# endif
 #endif
 #if __NIJI_MISC
 # ifndef WAIT_ANY

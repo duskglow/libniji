@@ -373,7 +373,7 @@ extern int fstatat (int, const char *, struct stat *, int) __NIJI_NOTHROW __asm_
 struct timespec;
 # ifndef __NIJI_D_futimens
 #  define __NIJI_D_futimens 1
-extern int futimens (int, const struct timespec *) __NIJI_NOTHROW;
+extern int futimens (int, const struct timespec [2]) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_mkdirat
 #  define __NIJI_D_mkdirat 1
@@ -386,7 +386,7 @@ extern int mkfifoat (int, const char *, unsigned int) __NIJI_NOTHROW __attribute
 struct timespec;
 # ifndef __NIJI_D_utimensat
 #  define __NIJI_D_utimensat 1
-extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if 1

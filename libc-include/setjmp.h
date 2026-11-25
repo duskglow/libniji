@@ -79,36 +79,36 @@ typedef struct __jmp_buf_tag sigjmp_buf[1];
 struct __jmp_buf_tag;
 # ifndef __NIJI_D___sigsetjmp
 #  define __NIJI_D___sigsetjmp 1
-extern int __sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
+extern int __sigsetjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW;
 # endif
 struct __jmp_buf_tag;
 # ifndef __NIJI_D__setjmp
 #  define __NIJI_D__setjmp 1
-extern int _setjmp (struct __jmp_buf_tag *) __NIJI_NOTHROW;
+extern int _setjmp (struct __jmp_buf_tag [1]) __NIJI_NOTHROW;
 # endif
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_longjmp
 #  define __NIJI_D_longjmp 1
-extern void longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
+extern void longjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_setjmp
 #  define __NIJI_D_setjmp 1
-extern int setjmp (struct __jmp_buf_tag *) __NIJI_NOTHROW;
+extern int setjmp (struct __jmp_buf_tag [1]) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400
 struct __jmp_buf_tag;
 # ifndef __NIJI_D__longjmp
 #  define __NIJI_D__longjmp 1
-extern void _longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
+extern void _longjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_siglongjmp
 #  define __NIJI_D_siglongjmp 1
-extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
+extern void siglongjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 #endif
 #if __NIJI_FORTIFY > 0
@@ -130,21 +130,21 @@ struct __jmp_buf_tag;
 #if (__NIJI_MISC || __NIJI_XSI >= 400) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F__longjmp
 #  define __NIJI_F__longjmp 1
-extern void _longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+extern void _longjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
 # endif
 #endif
 struct __jmp_buf_tag;
 #if (1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_longjmp
 #  define __NIJI_F_longjmp 1
-extern void longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+extern void longjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
 # endif
 #endif
 struct __jmp_buf_tag;
 #if (__NIJI_POSIX >= 1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_siglongjmp
 #  define __NIJI_F_siglongjmp 1
-extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+extern void siglongjmp (struct __jmp_buf_tag [1], int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
 # endif
 #endif
 

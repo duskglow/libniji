@@ -1201,7 +1201,7 @@ extern int pause (void);
 # endif
 # ifndef __NIJI_D_pipe
 #  define __NIJI_D_pipe 1
-extern int pipe (int *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe (int [2]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread
 #  define __NIJI_D_pread 1
@@ -1459,7 +1459,7 @@ extern long lseek64 (int, long, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pipe2
 #  define __NIJI_D_pipe2 1
-extern int pipe2 (int *, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe2 (int [2], int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread64
 #  define __NIJI_D_pread64 1

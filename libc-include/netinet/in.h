@@ -206,6 +206,32 @@ struct in_addr {
   unsigned int s_addr;
 };
 # endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_ip_mreq_source
+#  define __NIJI_D_struct_ip_mreq_source 1
+struct ip_mreq_source {
+  struct in_addr imr_multiaddr;
+  struct in_addr imr_interface;
+  struct in_addr imr_sourceaddr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
 # ifndef __NIJI_D_struct_ip_mreqn
 #  define __NIJI_D_struct_ip_mreqn 1
 struct ip_mreqn {
@@ -1098,6 +1124,19 @@ enum {
 # ifndef MCAST_UNBLOCK_SOURCE
 #  define MCAST_UNBLOCK_SOURCE 44
 # endif
+#endif
+
+/* The class of an IPv4 address `a` in host byte order, from its high bits (RFC 791 section 3.2, RFC 1112 section 4):
+   A 0, B 10, C 110, D 1110 (multicast), experimental 111, bad class 1111. `a` is converted to 32 bits and evaluated
+   once; each test is a comparison (int in C, bool in C++) and a constant expression for a constant `a`. */
+#if 1
+# define IN_CLASSA(a) ((((unsigned int) (a)) & 0x80000000u) == 0)
+# define IN_CLASSB(a) ((((unsigned int) (a)) & 0xc0000000u) == 0x80000000u)
+# define IN_CLASSC(a) ((((unsigned int) (a)) & 0xe0000000u) == 0xc0000000u)
+# define IN_CLASSD(a) ((((unsigned int) (a)) & 0xf0000000u) == 0xe0000000u)
+# define IN_MULTICAST(a) IN_CLASSD (a)
+# define IN_EXPERIMENTAL(a) ((((unsigned int) (a)) & 0xe0000000u) == 0xe0000000u)
+# define IN_BADCLASS(a) ((((unsigned int) (a)) & 0xf0000000u) == 0xf0000000u)
 #endif
 
 /* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list

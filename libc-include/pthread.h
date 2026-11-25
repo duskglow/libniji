@@ -237,7 +237,7 @@ typedef union {
 struct __cancel_jmp_buf_tag;
 # ifndef __NIJI_D___sigsetjmp_cancel
 #  define __NIJI_D___sigsetjmp_cancel 1
-extern int __sigsetjmp_cancel (struct __cancel_jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__sigsetjmp");
+extern int __sigsetjmp_cancel (struct __cancel_jmp_buf_tag [1], int) __NIJI_NOTHROW __asm__ ("__sigsetjmp");
 # endif
 # ifndef __NIJI_D_pthread_atfork
 #  define __NIJI_D_pthread_atfork 1

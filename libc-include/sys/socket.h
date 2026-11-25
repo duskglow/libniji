@@ -139,11 +139,19 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -157,11 +165,19 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -175,11 +191,19 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -193,11 +217,19 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -211,11 +243,19 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -241,11 +281,19 @@ extern long recv (int, void *, unsigned long, int);
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -273,11 +321,19 @@ extern long sendmsg (int, const struct msghdr *, int);
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -301,7 +357,7 @@ extern int socket (int, int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_socketpair
 #  define __NIJI_D_socketpair 1
-extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
+extern int socketpair (int, int, int, int [2]) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_GNU
@@ -309,11 +365,19 @@ extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -1302,11 +1366,19 @@ __NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -1316,11 +1388,19 @@ typedef union __attribute__ ((__transparent_union__)) {
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
