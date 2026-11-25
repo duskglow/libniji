@@ -350,31 +350,31 @@ extern int inet6_opt_set_val (void *, int, void *, unsigned int) __NIJI_NOTHROW;
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_alloc
 #  define __NIJI_D_inet6_option_alloc 1
-extern unsigned char *inet6_option_alloc (struct cmsghdr *, int, int, int) __NIJI_NOTHROW;
+extern unsigned char *inet6_option_alloc (struct cmsghdr *, int, int, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_append
 #  define __NIJI_D_inet6_option_append 1
-extern int inet6_option_append (struct cmsghdr *, const unsigned char *, int, int) __NIJI_NOTHROW;
+extern int inet6_option_append (struct cmsghdr *, const unsigned char *, int, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_find
 #  define __NIJI_D_inet6_option_find 1
-extern int inet6_option_find (const struct cmsghdr *, unsigned char **, int) __NIJI_NOTHROW;
+extern int inet6_option_find (const struct cmsghdr *, unsigned char **, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_init
 #  define __NIJI_D_inet6_option_init 1
-extern int inet6_option_init (void *, struct cmsghdr **, int) __NIJI_NOTHROW;
+extern int inet6_option_init (void *, struct cmsghdr **, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_next
 #  define __NIJI_D_inet6_option_next 1
-extern int inet6_option_next (const struct cmsghdr *, unsigned char **) __NIJI_NOTHROW;
+extern int inet6_option_next (const struct cmsghdr *, unsigned char **) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_inet6_option_space
 #  define __NIJI_D_inet6_option_space 1
-extern int inet6_option_space (int) __NIJI_NOTHROW;
+extern int inet6_option_space (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct in6_addr;
 # ifndef __NIJI_D_inet6_rth_add
@@ -1178,6 +1178,18 @@ enum {
 # define htonl(x) __builtin_bswap32 (x)
 # define htons(x) __builtin_bswap16 (x)
 #endif
+
+/* The classes of an IPv4 address `a` in host byte order (RFC 791 section 3.2 classes A to C, RFC 1112 section 4
+   class D, the multicast range, and E, the experimental range), from its leading bits, each 1 or 0 as an int:
+   EXPERIMENTAL is any address with the three leading bits set (classes D and E), BADCLASS the four (class E). The
+   argument is converted to in_addr_t and evaluated once (black-box probe, HEADERS-NET-SYS-NAMES). */
+# define IN_CLASSA(a) ((((in_addr_t) (a)) & 0x80000000U) == 0)
+# define IN_CLASSB(a) ((((in_addr_t) (a)) & 0xc0000000U) == 0x80000000U)
+# define IN_CLASSC(a) ((((in_addr_t) (a)) & 0xe0000000U) == 0xc0000000U)
+# define IN_CLASSD(a) ((((in_addr_t) (a)) & 0xf0000000U) == 0xe0000000U)
+# define IN_MULTICAST(a) IN_CLASSD (a)
+# define IN_EXPERIMENTAL(a) ((((in_addr_t) (a)) & 0xe0000000U) == 0xe0000000U)
+# define IN_BADCLASS(a) ((((in_addr_t) (a)) & 0xf0000000U) == 0xf0000000U)
 
 /* RFC 3493 section 6.7: tests on an IPv6 address `a` (a pointer to struct in6_addr), by its 32-bit words. */
 # define IN6_IS_ADDR_UNSPECIFIED(a) (((const uint32_t *) (a))[0] == 0 && ((const uint32_t *) (a))[1] == 0 && ((const uint32_t *) (a))[2] == 0 && ((const uint32_t *) (a))[3] == 0)

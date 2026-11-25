@@ -2,14 +2,98 @@
    `header_check.py --p10` builds this program twice, once on the build host's own headers (the reference) and once on
    libniji's headers, runs both and compares the output byte for byte.
    Covers: IN6_IS_ADDR_* over crafted and generated addresses, IN6_ARE_ADDR_EQUAL, CMSG_ALIGN/SPACE/LEN for 0..80 and
-   the FIRSTHDR/NXTHDR/DATA walk over control buffers (offsets, never addresses), htons/ntohs/htonl/ntohl.
-   No spec clause beyond plan/headers.md section 3, P10 and cmsg(3), RFC 3493 section 6.1. */
+   the FIRSTHDR/NXTHDR/DATA walk over control buffers (offsets, never addresses), htons/ntohs/htonl/ntohl; the IPv4
+   class tests IN_CLASSA..IN_BADCLASS over every leading nibble, and the ICMP6_FILTER_* bit operations (HEADERS-NET-
+   SYS-NAMES), with their result types and how often they evaluate each argument, and the forms: SETPASS and SETBLOCK in
+   a comma expression, SETPASSALL and SETBLOCKALL as a compound statement before `else` (each compiles only in its form).
+   No spec clause beyond plan/headers.md section 3, P10 and cmsg(3), RFC 3493 section 6.1, RFC 3542 section 3.2,
+   RFC 1112 section 4. */
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/icmp6.h>
 #include <arpa/inet.h>
+
+static int n_arg, n_type, n_filter;
+static struct icmp6_filter filt;
+static uint32_t arg(uint32_t v) { n_arg++; return v; }
+static int type_of(int t) { n_type++; return t; }
+static struct icmp6_filter *filter(void) { n_filter++; return &filt; }
+
+static void filter_row(const char *what) {
+    const unsigned char *b = (const unsigned char *) &filt;
+    printf("filter %s:", what);
+    for (unsigned i = 0; i < sizeof filt; i++)
+        printf("%02x", b[i]);
+    printf("\n");
+}
+
+static void filters(int block_first) {
+    if (block_first) ICMP6_FILTER_SETBLOCKALL(&filt) else ICMP6_FILTER_SETPASSALL(&filt)
+    filter_row(block_first ? "blockall" : "passall");
+    static const int types[] = {0, 1, 7, 8, 31, 32, 33, 63, 64, 128, 129, 200, 254, 255};
+    for (unsigned i = 0; i < sizeof types / sizeof types[0]; i++) {
+        int t = types[i], r = (block_first ? ICMP6_FILTER_SETPASS(t, &filt) : ICMP6_FILTER_SETBLOCK(t, &filt), 1);
+        char w[24];
+        snprintf(w, sizeof w, "%s %d", block_first ? "pass" : "block", t);
+        filter_row(w);
+        printf("filter will %d %d %d %d %d\n", r, ICMP6_FILTER_WILLPASS(t, &filt), ICMP6_FILTER_WILLBLOCK(t, &filt),
+               ICMP6_FILTER_WILLPASS(t ^ 1, &filt), ICMP6_FILTER_WILLBLOCK(1 ? t ^ 2 : 0, &filt) * 2);
+    }
+}
+
+static void classes(void) {
+    for (uint32_t n = 0; n < 16; n++)
+        for (int lo = 0; lo < 3; lo++) {
+            uint32_t a = (n << 28) | (lo == 1 ? 0x0fffffffu : lo == 2 ? 0x01000001u : 0);
+            printf("class %08x: %d %d %d %d %d %d %d\n", (unsigned) a, IN_CLASSA(a), IN_CLASSB(a), IN_CLASSC(a), IN_CLASSD(a),
+                   IN_MULTICAST(a), IN_EXPERIMENTAL(a), IN_BADCLASS(a));
+        }
+    printf("class signed %d %d %d %d wide %d %d\n", IN_CLASSA(-1), IN_BADCLASS(-1), IN_MULTICAST(-268435456),
+           2 * IN_CLASSD(1 ? 0xe0000000u : 0), IN_CLASSA(0x100000000LL), IN_MULTICAST(0x1e0000000LL));
+    /* The argument is converted to in_addr_t: a floating value in its range classifies as that integer. */
+    printf("class double %d %d %d\n", IN_CLASSA(1.5), IN_CLASSB(3.0e9), IN_MULTICAST(3758096385.0));
+    n_arg = 0;
+    int s = IN_CLASSA(arg(1)) + IN_CLASSB(arg(1)) + IN_CLASSC(arg(1)) + IN_CLASSD(arg(1)) + IN_MULTICAST(arg(1)) +
+            IN_EXPERIMENTAL(arg(1)) + IN_BADCLASS(arg(1));
+    printf("class evaluations %d sum %d int %d%d%d%d%d%d%d\n", n_arg, s,
+           __builtin_types_compatible_p(__typeof__(IN_CLASSA(1)), int), __builtin_types_compatible_p(__typeof__(IN_CLASSB(1)), int),
+           __builtin_types_compatible_p(__typeof__(IN_CLASSC(1)), int), __builtin_types_compatible_p(__typeof__(IN_CLASSD(1)), int),
+           __builtin_types_compatible_p(__typeof__(IN_MULTICAST(1)), int),
+           __builtin_types_compatible_p(__typeof__(IN_EXPERIMENTAL(1)), int),
+           __builtin_types_compatible_p(__typeof__(IN_BADCLASS(1)), int));
+}
+
+static void filter_forms(void) {
+    filters(1);
+    filters(0);
+    n_filter = 0;
+    ICMP6_FILTER_SETBLOCKALL(filter());
+    printf("filter evaluations blockall %d", n_filter);
+    n_filter = 0;
+    ICMP6_FILTER_SETPASSALL(filter());
+    printf(" passall %d", n_filter);
+    n_filter = n_type = 0;
+    ICMP6_FILTER_SETBLOCK(type_of(40), filter());
+    printf(" setblock %d %d", n_type, n_filter);
+    n_filter = n_type = 0;
+    ICMP6_FILTER_SETPASS(type_of(41), filter());
+    printf(" setpass %d %d", n_type, n_filter);
+    n_filter = n_type = 0;
+    int r = ICMP6_FILTER_WILLPASS(type_of(40), filter());
+    printf(" willpass %d %d", n_type, n_filter);
+    n_filter = n_type = 0;
+    r += ICMP6_FILTER_WILLBLOCK(type_of(40), filter());
+    printf(" willblock %d %d (%d)\n", n_type, n_filter, r);
+    const struct icmp6_filter *c = &filt;
+    printf("filter types %d %d %d %d const %d\n", __builtin_types_compatible_p(__typeof__(ICMP6_FILTER_WILLPASS(1, c)), int),
+           __builtin_types_compatible_p(__typeof__(ICMP6_FILTER_WILLBLOCK(1, c)), int),
+           __builtin_types_compatible_p(__typeof__(ICMP6_FILTER_SETPASS(1, &filt)), unsigned int),
+           __builtin_types_compatible_p(__typeof__(ICMP6_FILTER_SETBLOCK(1, &filt)), unsigned int),
+           ICMP6_FILTER_WILLBLOCK(40, c));
+}
 
 static void addr_row(const struct in6_addr *a) {
     printf("in6");
@@ -98,5 +182,7 @@ int main(void) {
         printf("swap32 %08x %08x %08x\n", (unsigned) v32[i], (unsigned) htonl(v32[i]), (unsigned) ntohl(v32[i]));
     for (unsigned v = 0; v < 65536; v += 257)
         printf("swap16 %04x %04x %04x\n", v, (unsigned) htons((uint16_t) v), (unsigned) ntohs((uint16_t) v));
+    classes();
+    filter_forms();
     return 0;
 }

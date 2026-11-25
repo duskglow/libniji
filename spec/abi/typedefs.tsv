@@ -54,6 +54,9 @@ typedef	La_x86_64_xmm	link.h	16	16	float __vector(4)
 typedef	La_x86_64_ymm	link.h	32	16	float __vector(8)
 typedef	La_x86_64_zmm	link.h	64	16	double __vector(8)
 typedef	Lmid_t	dlfcn.h	8	8	long
+typedef	Sg_io_hdr	scsi/sg.h	88	8	sg_io_hdr
+typedef	Sg_req_info	scsi/sg.h	24	8	sg_req_info
+typedef	Sg_scsi_id	scsi/sg.h	32	4	sg_scsi_id
 typedef	VISIT	search.h	4	4	VISIT
 function	_Exit	complex.h			void (int)
 function	_Fork	arpa/nameser.h			int ()
@@ -1188,6 +1191,7 @@ function	cbrtf64	complex.h			_Float64 (_Float64)
 function	cbrtf64x	complex.h			_Float64x (_Float64x)
 function	cbrtl	complex.h			long double (long double)
 typedef	cc_t	pty.h	1	1	unsigned char
+struct	ccs_modesel_head	scsi/scsi.h	12	1	ccs_modesel_head
 function	ceil	complex.h			double (double)
 function	ceilf	complex.h			float (float)
 function	ceilf128	complex.h			_Float128 (_Float128)
@@ -2039,6 +2043,7 @@ function	gnu_dev_minor	sys/sysmacros.h			unsigned int (unsigned long)
 function	gnu_get_libc_release	gnu/libc-version.h			char const* ()
 function	gnu_get_libc_version	gnu/libc-version.h			char const* ()
 function	grantpt	complex.h			int (int)
+typedef	greg_t	arpa/nameser.h	8	8	long long
 typedef	gregset_t	arpa/nameser.h	184	8	long long [23]
 struct	group	grp.h	32	8	group
 function	group_member	arpa/nameser.h			int (unsigned int)
@@ -2178,9 +2183,20 @@ function	ioperm	sys/io.h			int (unsigned long, unsigned long, int)
 function	iopl	sys/io.h			int (int)
 struct	iovec	arpa/inet.h	16	8	iovec
 struct	ip	netinet/ip.h	20	4	ip
+struct	ip6_dest	netinet/ip6.h	2	1	ip6_dest
+struct	ip6_ext	netinet/ip6.h	2	1	ip6_ext
+struct	ip6_frag	netinet/ip6.h	8	4	ip6_frag
+struct	ip6_hbh	netinet/ip6.h	2	1	ip6_hbh
 struct	ip6_hdr	netinet/ip6.h	40	4	ip6_hdr
 struct	ip6_hdrctl	netinet/ip6.h	8	4	
 struct	ip6_mtuinfo	arpa/inet.h	32	4	ip6_mtuinfo
+struct	ip6_opt	netinet/ip6.h	2	1	ip6_opt
+struct	ip6_opt_jumbo	netinet/ip6.h	6	1	ip6_opt_jumbo
+struct	ip6_opt_nsap	netinet/ip6.h	4	1	ip6_opt_nsap
+struct	ip6_opt_router	netinet/ip6.h	4	1	ip6_opt_router
+struct	ip6_opt_tunnel	netinet/ip6.h	3	1	ip6_opt_tunnel
+struct	ip6_rthdr	netinet/ip6.h	4	1	ip6_rthdr
+struct	ip6_rthdr0	netinet/ip6.h	8	4	ip6_rthdr0
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
 struct	ip_mreq_source	arpa/inet.h	12	4	ip_mreq_source
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
@@ -2545,6 +2561,7 @@ function	mremap	sys/mman.h			void* (void*, unsigned long, unsigned long, int, ..
 function	msgctl	sys/msg.h			int (int, int, msqid_ds*)
 function	msgget	sys/msg.h			int (int, int)
 struct	msghdr	arpa/inet.h	56	8	msghdr
+struct	msginfo	sys/msg.h	32	4	msginfo
 typedef	msglen_t	sys/msg.h	8	8	unsigned long
 typedef	msgqnum_t	sys/msg.h	8	8	unsigned long
 function	msgrcv	sys/msg.h			long (int, void*, unsigned long, long, int)
@@ -3194,6 +3211,7 @@ struct	sembuf	sys/sem.h	6	2	sembuf
 function	semctl	sys/sem.h			int (int, int, int, ...)
 function	semget	sys/sem.h			int (int, int, int)
 struct	semid_ds	sys/sem.h	104	8	semid_ds
+struct	seminfo	sys/sem.h	40	4	seminfo
 function	semop	sys/sem.h			int (int, sembuf*, unsigned long)
 function	semtimedop	sys/sem.h			int (int, sembuf*, unsigned long, timespec const*)
 function	send	arpa/inet.h			long (int, void const*, unsigned long, int)
@@ -3275,11 +3293,20 @@ function	setutent	lastlog.h			void ()
 function	setutxent	utmpx.h			void ()
 function	setvbuf	argp.h			int (_IO_FILE*, char*, int, unsigned long)
 function	setxattr	sys/xattr.h			int (char const*, char const*, void const*, unsigned long, int)
+struct	sg_header	scsi/sg.h	36	4	sg_header
+struct	sg_io_hdr	scsi/sg.h	88	8	sg_io_hdr
+typedef	sg_io_hdr_t	scsi/sg.h	88	8	sg_io_hdr
+struct	sg_iovec	scsi/sg.h	16	8	sg_iovec
+typedef	sg_iovec_t	scsi/sg.h	16	8	sg_iovec
+struct	sg_req_info	scsi/sg.h	24	8	sg_req_info
+typedef	sg_req_info_t	scsi/sg.h	24	8	sg_req_info
+struct	sg_scsi_id	scsi/sg.h	32	4	sg_scsi_id
 function	sgetsgent	gshadow.h			sgrp* (char const*)
 function	sgetsgent_r	gshadow.h			int (char const*, sgrp*, char*, unsigned long, sgrp**)
 function	sgetspent	shadow.h			spwd* (char const*)
 function	sgetspent_r	shadow.h			int (char const*, spwd*, char*, unsigned long, spwd**)
 struct	sgrp	gshadow.h	32	8	sgrp
+struct	shm_info	sys/shm.h	48	8	shm_info
 function	shm_open	sys/mman.h			int (char const*, int, unsigned int)
 function	shm_unlink	sys/mman.h			int (char const*)
 function	shmat	sys/shm.h			void* (int, void const*, int)
@@ -3288,6 +3315,7 @@ function	shmctl	sys/shm.h			int (int, int, shmid_ds*)
 function	shmdt	sys/shm.h			int (void const*)
 function	shmget	sys/shm.h			int (int, unsigned long, int)
 struct	shmid_ds	sys/shm.h	112	8	shmid_ds
+struct	shminfo	sys/shm.h	72	8	shminfo
 function	shutdown	arpa/inet.h			int (int, int)
 typedef	sig_atomic_t	arpa/nameser.h	4	4	int
 typedef	sig_t	arpa/nameser.h	8	8	void (*)(int)
@@ -3607,8 +3635,13 @@ function	tcflush	pty.h			int (int, int)
 function	tcgetattr	pty.h			int (int, termios*)
 function	tcgetpgrp	arpa/nameser.h			int (int)
 function	tcgetsid	pty.h			int (int)
+struct	tcp_cookie_transactions	netinet/tcp.h	544	2	tcp_cookie_transactions
 struct	tcp_info	netinet/tcp.h	104	4	tcp_info
+struct	tcp_md5sig	netinet/tcp.h	216	8	tcp_md5sig
+struct	tcp_repair_opt	netinet/tcp.h	8	4	tcp_repair_opt
+struct	tcp_repair_window	netinet/tcp.h	20	4	tcp_repair_window
 typedef	tcp_seq	netinet/tcp.h	4	4	unsigned int
+struct	tcp_zerocopy_receive	netinet/tcp.h	16	8	tcp_zerocopy_receive
 struct	tcphdr	netinet/tcp.h	20	4	tcphdr
 function	tcsendbreak	pty.h			int (int, int)
 function	tcsetattr	pty.h			int (int, int, termios const*)

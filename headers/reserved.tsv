@@ -77,3 +77,4 @@ __WNOTHREAD	emit	wait(2): waitpid's Linux options, with __WALL
 __timezone	emit	the exported object (versions.tsv), the same object as timezone; icu's putilimp.h reads it (Yohane stage 2)
 __daylight	emit	the exported object (versions.tsv), the same object as daylight
 __tzname	emit	the exported object (versions.tsv), the same object as tzname
+__GNU_GETTEXT_SUPPORTED_REVISION	emit	gettext.m4 AM_GNU_GETTEXT: its "GNU gettext in libc" test compiles __GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1 (tar and every package using the macro; Yohane stage 2)

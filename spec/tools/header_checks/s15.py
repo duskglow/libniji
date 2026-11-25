@@ -37,7 +37,20 @@ def units(ctx):
     sub.slice_rows = [{"header": h, "p1": "1", "uapi": "-"} for h in HEADERS]
     sub.vis = [r for r in ctx.vis if (r["header"], r["name"]) not in DEFERRED]
     p1 = [(cid, what, body) for cid, us in header_check.p1_units(sub).items() for what, body in us]
-    return p1 + mtio_units(ctx) + enum_units(ctx)
+    return p1 + mtio_units(ctx) + sg_timeout_units(ctx) + enum_units(ctx)
+
+
+def sg_timeout_units(ctx):
+    """No spec clause beyond sg(4): SG_DEFAULT_TIMEOUT is `(60*HZ)` with the program's HZ (black-box probe,
+    HEADERS-NET-SYS-NAMES: the header leaves HZ undefined; with `HZ` defined as `1 + 1` the value is 61, so HZ is not
+    parenthesised, and `7 % SG_DEFAULT_TIMEOUT` is 7, so the whole is)."""
+    cids = {cid for r in ctx.vis if r["header"] == "scsi/sg.h" and r["name"] == "SG_DEFAULT_TIMEOUT"
+            for cid in header_check.expand(r["configs"], ctx.ids)}
+    if not cids:
+        return [(ctx.ids[0], "SG_DEFAULT_TIMEOUT scsi/sg.h", "#error visibility.tsv does not show SG_DEFAULT_TIMEOUT\n")]
+    body = ("#include <scsi/sg.h>\n#ifdef HZ\n#error scsi/sg.h defines HZ\n#endif\n#define HZ 1 + 1\n"
+            "typedef char niji_sg_t[(SG_DEFAULT_TIMEOUT == 61 && 7 % SG_DEFAULT_TIMEOUT == 7) ? 1 : -1];\n")
+    return [(cid, "SG_DEFAULT_TIMEOUT scsi/sg.h", body) for cid in sorted(cids)]
 
 
 def enum_units(ctx):

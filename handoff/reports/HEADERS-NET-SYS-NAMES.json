@@ -1,0 +1,73 @@
+{
+ "task": "HEADERS-NET-SYS-NAMES",
+ "model": "opus",
+ "tokens": null,
+ "result": "busybox 1.37.0 defconfig static builds and links against libniji (headers + libc.a); 0 libniji-only compile errors outside arpa/nameser.h (HEADERS-APT-GAPS'); applets match stock",
+ "branch": "task/headers-net-sys-names",
+ "head": "9ab89ce93",
+ "gate": {
+  "affected": "FULL (escalated: crates/abi, generated header inputs): the train's; final-2 at 9ab89ce93: static, headers-gen --check, header_check 0 failed of 18261, P10 1410 lines identical; clippy-1: clippy -D warnings + static",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "regex.h regerror: libniji declares nonnull(3) (spec/abi/diagattrs.tsv from attr_probe.py); black-box probe: the reference warns -Wnonnull for regerror(e, r, NULL, 1) but not for (e, r, NULL, 0), which POSIX allows; libniji warns on both (busybox libbb/xregcomp.c). attr_probe's single null-argument test reads a size-bound access attribute as nonnull; recommend a probe with size 0 per pointer+size pair, as a separate story",
+  "networking/nslookup.c is the only libniji-only compile failure left in the busybox sweep: HEADER, ns_t_*, ns_s_an of arpa/nameser.h (HEADERS-APT-GAPS)",
+  "the error-only make -k sweep cannot see a missing function-like macro (implicit declaration is a warning); only the static link found IN_MULTICAST and ICMP6_FILTER_*: a sweep should also count implicit-declaration warnings",
+  "reservation D-2.15 was taken by mistake in leg 1 and is unused (the decision is D-26.3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "static busybox defconfig links against libniji; before: 79 libniji-only compile errors in 16 files and 4 undefined macros at link",
+   "before": 79,
+   "after": 15,
+   "unit": "libniji-only compile errors (remaining 15 all arpa/nameser.h, another story)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check units after (18261, measured); before 17657 is HEADERS-BUSYBOX-GAPS hand-back figure. P10 rows: 1410 lines after (measured), 1299 before per D-X.124",
+   "before": 17657,
+   "after": 18261,
+   "unit": "header_check units",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants",
+   "before": 0,
+   "after": 15,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "header_check.py --only REGEX: a plant or check on one header runs that header's units (117 for scsi/sg) instead of all 18261 (a full run ~540 s on keke, past the 600 s plant timeout)",
+   "before": 18261,
+   "after": 117,
+   "unit": "header_check units per single-header run (scsi/sg)",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2 programs using TCP_*, SYSLOG_NAMES, icmp/icmp6/ip6/ether_arp/rtentry member names, IN_CLASS*, ICMP6_FILTER_*",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "a busybox sweep that greps only errors misses missing function-like macros; count implicit-declaration warnings too (or build with -Werror=implicit-function-declaration)",
+ "next_step": "land; arpa/nameser.h names via HEADERS-APT-GAPS; attr_probe access-attribute gap as a story",
+ "report_file": "handoff/HEADERS-NET-SYS-NAMES.md",
+ "jobs": [
+  "headers-net-sys-names-final-2",
+  "headers-net-sys-names-clippy-1",
+  "headers-net-sys-names-bbsweep-1",
+  "headers-net-sys-names-bbstatic-4",
+  "headers-net-sys-names-plants-3"
+ ]
+}

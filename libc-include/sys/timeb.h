@@ -36,7 +36,7 @@ typedef long time_t;
 struct timeb;
 # ifndef __NIJI_D_ftime
 #  define __NIJI_D_ftime 1
-extern int ftime (struct timeb *);
+extern int ftime (struct timeb *) __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 #endif
 

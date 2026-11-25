@@ -45,4 +45,40 @@ mod tests {
         let text = String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
         assert!(out.status.success(), "attr_probe check failed:\n{text}");
     }
+
+    // plan/headers.md slice 19 (no spec clause; HEADERS-NONNULL-MATCH). The nonnull column of diagattrs.tsv is what
+    // the probe derives from the reference now: `attr_probe table --columns nonnull` (the nonnull tests alone, with
+    // _FORTIFY_SOURCE on and off; it fails when the two disagree) rewrites a copy of the table, which must come out
+    // byte for byte the same. `check` above compares
+    // the two sides through the same probe, so a probe defect that misreads both alike (a null callback on every
+    // line, a size that wakes an `access` attribute, a builtin's own nonnull) passes it; this test sees it.
+    // Skipped, and says why, where the compiler or the reference's headers are absent.
+    #[test]
+    fn nonnull_columns_are_the_probes() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        if !Path::new("/usr/include/stdio.h").exists() || std::process::Command::new("gcc").arg("--version").output().is_err() {
+            eprintln!("skipped: needs gcc and the system's public headers (the reference of the probe)");
+            return;
+        }
+        let table = root.join("spec/abi/diagattrs.tsv");
+        let want = fs::read_to_string(&table).expect("diagattrs.tsv");
+        let dir = std::env::temp_dir().join(format!("niji-nonnull-test.{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let copy = dir.join("diagattrs.tsv");
+        fs::write(&copy, &want).unwrap();
+        let out = std::process::Command::new("python3")
+            .arg(root.join("spec/tools/attr_probe.py"))
+            .args(["table", "--columns", "nonnull", "--out"])
+            .arg(&copy)
+            .arg("--keep")
+            .arg(dir.join("probe-work"))
+            .output()
+            .expect("python3");
+        let got = fs::read_to_string(&copy).unwrap_or_default();
+        let _ = fs::remove_dir_all(&dir);
+        let text = String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success(), "attr_probe table failed:\n{text}");
+        let differ: Vec<_> = want.lines().zip(got.lines()).filter(|(a, b)| a != b).take(20).collect();
+        assert!(want == got, "the nonnull columns differ from the probe's ({} vs {} lines); first rows (table, probe):\n{differ:#?}", want.lines().count(), got.lines().count());
+    }
 }

@@ -72,7 +72,7 @@ extern int inet_net_pton (int, const char *, void *, unsigned long) __NIJI_NOTHR
 # endif
 # ifndef __NIJI_D_inet_neta
 #  define __NIJI_D_inet_neta 1
-extern char *inet_neta (unsigned int, char *, unsigned long) __NIJI_NOTHROW;
+extern char *inet_neta (unsigned int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_inet_nsap_addr
 #  define __NIJI_D_inet_nsap_addr 1
