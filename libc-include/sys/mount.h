@@ -12,6 +12,42 @@
 
 __NIJI_BEGIN_C
 
+/* The MS_* names: <linux/mount.h> (included above) defines each as a macro of its value; here each becomes an
+   enumerator of one enumeration and a macro naming it (D-X.173), MS_NOUSER included (the kernel's (1<<31) overflows
+   int; the enumerator's value is the same int). */
+#if 1
+# undef MNT_DETACH
+# undef MNT_EXPIRE
+# undef MNT_FORCE
+# undef MS_ACTIVE
+# undef MS_BIND
+# undef MS_DIRSYNC
+# undef MS_I_VERSION
+# undef MS_KERNMOUNT
+# undef MS_LAZYTIME
+# undef MS_MANDLOCK
+# undef MS_MOVE
+# undef MS_NOATIME
+# undef MS_NODEV
+# undef MS_NODIRATIME
+# undef MS_NOEXEC
+# undef MS_NOSUID
+# undef MS_NOSYMFOLLOW
+# undef MS_NOUSER
+# undef MS_POSIXACL
+# undef MS_PRIVATE
+# undef MS_RDONLY
+# undef MS_REC
+# undef MS_RELATIME
+# undef MS_REMOUNT
+# undef MS_SHARED
+# undef MS_SILENT
+# undef MS_SLAVE
+# undef MS_STRICTATIME
+# undef MS_SYNCHRONOUS
+# undef MS_UNBINDABLE
+# undef UMOUNT_NOFOLLOW
+#endif
 #if 1
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
@@ -68,162 +104,6 @@ extern int umount (const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_umount2 1
 extern int umount2 (const char *, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_MS_ACTIVE
-#  define __NIJI_D_enum_MS_ACTIVE 1
-#  ifndef MS_ACTIVE
-enum { MS_ACTIVE = 1073741824 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_BIND
-#  define __NIJI_D_enum_MS_BIND 1
-#  ifndef MS_BIND
-enum { MS_BIND = 4096 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_DIRSYNC
-#  define __NIJI_D_enum_MS_DIRSYNC 1
-#  ifndef MS_DIRSYNC
-enum { MS_DIRSYNC = 128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_I_VERSION
-#  define __NIJI_D_enum_MS_I_VERSION 1
-#  ifndef MS_I_VERSION
-enum { MS_I_VERSION = 8388608 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_KERNMOUNT
-#  define __NIJI_D_enum_MS_KERNMOUNT 1
-#  ifndef MS_KERNMOUNT
-enum { MS_KERNMOUNT = 4194304 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_LAZYTIME
-#  define __NIJI_D_enum_MS_LAZYTIME 1
-#  ifndef MS_LAZYTIME
-enum { MS_LAZYTIME = 33554432 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_MANDLOCK
-#  define __NIJI_D_enum_MS_MANDLOCK 1
-#  ifndef MS_MANDLOCK
-enum { MS_MANDLOCK = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_MOVE
-#  define __NIJI_D_enum_MS_MOVE 1
-#  ifndef MS_MOVE
-enum { MS_MOVE = 8192 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NOATIME
-#  define __NIJI_D_enum_MS_NOATIME 1
-#  ifndef MS_NOATIME
-enum { MS_NOATIME = 1024 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NODEV
-#  define __NIJI_D_enum_MS_NODEV 1
-#  ifndef MS_NODEV
-enum { MS_NODEV = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NODIRATIME
-#  define __NIJI_D_enum_MS_NODIRATIME 1
-#  ifndef MS_NODIRATIME
-enum { MS_NODIRATIME = 2048 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NOEXEC
-#  define __NIJI_D_enum_MS_NOEXEC 1
-#  ifndef MS_NOEXEC
-enum { MS_NOEXEC = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NOSUID
-#  define __NIJI_D_enum_MS_NOSUID 1
-#  ifndef MS_NOSUID
-enum { MS_NOSUID = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_NOSYMFOLLOW
-#  define __NIJI_D_enum_MS_NOSYMFOLLOW 1
-#  ifndef MS_NOSYMFOLLOW
-enum { MS_NOSYMFOLLOW = 256 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_POSIXACL
-#  define __NIJI_D_enum_MS_POSIXACL 1
-#  ifndef MS_POSIXACL
-enum { MS_POSIXACL = 65536 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_PRIVATE
-#  define __NIJI_D_enum_MS_PRIVATE 1
-#  ifndef MS_PRIVATE
-enum { MS_PRIVATE = 262144 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_RDONLY
-#  define __NIJI_D_enum_MS_RDONLY 1
-#  ifndef MS_RDONLY
-enum { MS_RDONLY = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_REC
-#  define __NIJI_D_enum_MS_REC 1
-#  ifndef MS_REC
-enum { MS_REC = 16384 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_RELATIME
-#  define __NIJI_D_enum_MS_RELATIME 1
-#  ifndef MS_RELATIME
-enum { MS_RELATIME = 2097152 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_REMOUNT
-#  define __NIJI_D_enum_MS_REMOUNT 1
-#  ifndef MS_REMOUNT
-enum { MS_REMOUNT = 32 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_SHARED
-#  define __NIJI_D_enum_MS_SHARED 1
-#  ifndef MS_SHARED
-enum { MS_SHARED = 1048576 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_SILENT
-#  define __NIJI_D_enum_MS_SILENT 1
-#  ifndef MS_SILENT
-enum { MS_SILENT = 32768 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_SLAVE
-#  define __NIJI_D_enum_MS_SLAVE 1
-#  ifndef MS_SLAVE
-enum { MS_SLAVE = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_STRICTATIME
-#  define __NIJI_D_enum_MS_STRICTATIME 1
-#  ifndef MS_STRICTATIME
-enum { MS_STRICTATIME = 16777216 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_SYNCHRONOUS
-#  define __NIJI_D_enum_MS_SYNCHRONOUS 1
-#  ifndef MS_SYNCHRONOUS
-enum { MS_SYNCHRONOUS = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MS_UNBINDABLE
-#  define __NIJI_D_enum_MS_UNBINDABLE 1
-#  ifndef MS_UNBINDABLE
-enum { MS_UNBINDABLE = 131072 };
-#  endif
-# endif
 # ifndef __NIJI_D_anon_MNT_DETACH
 #  define __NIJI_D_anon_MNT_DETACH 1
 #  if !defined MNT_FORCE || !defined MNT_DETACH || !defined MNT_EXPIRE || !defined UMOUNT_NOFOLLOW
@@ -239,6 +119,98 @@ enum {
 #  endif
 #  ifndef UMOUNT_NOFOLLOW
   UMOUNT_NOFOLLOW = 8,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_MS_ACTIVE
+#  define __NIJI_D_anon_MS_ACTIVE 1
+#  if !defined MS_NOUSER || !defined MS_RDONLY || !defined MS_NOSUID || !defined MS_NODEV || !defined MS_NOEXEC || !defined MS_SYNCHRONOUS \
+    || !defined MS_REMOUNT || !defined MS_MANDLOCK || !defined MS_DIRSYNC || !defined MS_NOSYMFOLLOW || !defined MS_NOATIME || !defined MS_NODIRATIME \
+    || !defined MS_BIND || !defined MS_MOVE || !defined MS_REC || !defined MS_SILENT || !defined MS_POSIXACL || !defined MS_UNBINDABLE \
+    || !defined MS_PRIVATE || !defined MS_SLAVE || !defined MS_SHARED || !defined MS_RELATIME || !defined MS_KERNMOUNT || !defined MS_I_VERSION \
+    || !defined MS_STRICTATIME || !defined MS_LAZYTIME || !defined MS_ACTIVE
+enum {
+#  ifndef MS_NOUSER
+  MS_NOUSER = -2147483648,
+#  endif
+#  ifndef MS_RDONLY
+  MS_RDONLY = 1,
+#  endif
+#  ifndef MS_NOSUID
+  MS_NOSUID = 2,
+#  endif
+#  ifndef MS_NODEV
+  MS_NODEV = 4,
+#  endif
+#  ifndef MS_NOEXEC
+  MS_NOEXEC = 8,
+#  endif
+#  ifndef MS_SYNCHRONOUS
+  MS_SYNCHRONOUS = 16,
+#  endif
+#  ifndef MS_REMOUNT
+  MS_REMOUNT = 32,
+#  endif
+#  ifndef MS_MANDLOCK
+  MS_MANDLOCK = 64,
+#  endif
+#  ifndef MS_DIRSYNC
+  MS_DIRSYNC = 128,
+#  endif
+#  ifndef MS_NOSYMFOLLOW
+  MS_NOSYMFOLLOW = 256,
+#  endif
+#  ifndef MS_NOATIME
+  MS_NOATIME = 1024,
+#  endif
+#  ifndef MS_NODIRATIME
+  MS_NODIRATIME = 2048,
+#  endif
+#  ifndef MS_BIND
+  MS_BIND = 4096,
+#  endif
+#  ifndef MS_MOVE
+  MS_MOVE = 8192,
+#  endif
+#  ifndef MS_REC
+  MS_REC = 16384,
+#  endif
+#  ifndef MS_SILENT
+  MS_SILENT = 32768,
+#  endif
+#  ifndef MS_POSIXACL
+  MS_POSIXACL = 65536,
+#  endif
+#  ifndef MS_UNBINDABLE
+  MS_UNBINDABLE = 131072,
+#  endif
+#  ifndef MS_PRIVATE
+  MS_PRIVATE = 262144,
+#  endif
+#  ifndef MS_SLAVE
+  MS_SLAVE = 524288,
+#  endif
+#  ifndef MS_SHARED
+  MS_SHARED = 1048576,
+#  endif
+#  ifndef MS_RELATIME
+  MS_RELATIME = 2097152,
+#  endif
+#  ifndef MS_KERNMOUNT
+  MS_KERNMOUNT = 4194304,
+#  endif
+#  ifndef MS_I_VERSION
+  MS_I_VERSION = 8388608,
+#  endif
+#  ifndef MS_STRICTATIME
+  MS_STRICTATIME = 16777216,
+#  endif
+#  ifndef MS_LAZYTIME
+  MS_LAZYTIME = 33554432,
+#  endif
+#  ifndef MS_ACTIVE
+  MS_ACTIVE = 1073741824,
 #  endif
 };
 #  endif
@@ -391,28 +363,28 @@ enum {
 #  define MOVE_MOUNT__MASK 887
 # endif
 # ifndef MS_ACTIVE
-#  define MS_ACTIVE 1073741824
+#  define MS_ACTIVE MS_ACTIVE
 # endif
 # ifndef MS_BIND
-#  define MS_BIND 4096
+#  define MS_BIND MS_BIND
 # endif
 # ifndef MS_BORN
 #  define MS_BORN 536870912
 # endif
 # ifndef MS_DIRSYNC
-#  define MS_DIRSYNC 128
+#  define MS_DIRSYNC MS_DIRSYNC
 # endif
 # ifndef MS_I_VERSION
-#  define MS_I_VERSION 8388608
+#  define MS_I_VERSION MS_I_VERSION
 # endif
 # ifndef MS_KERNMOUNT
-#  define MS_KERNMOUNT 4194304
+#  define MS_KERNMOUNT MS_KERNMOUNT
 # endif
 # ifndef MS_LAZYTIME
-#  define MS_LAZYTIME 33554432
+#  define MS_LAZYTIME MS_LAZYTIME
 # endif
 # ifndef MS_MANDLOCK
-#  define MS_MANDLOCK 64
+#  define MS_MANDLOCK MS_MANDLOCK
 # endif
 # ifndef MS_MGC_MSK
 #  define MS_MGC_MSK 4294901760U
@@ -421,19 +393,19 @@ enum {
 #  define MS_MGC_VAL 3236757504U
 # endif
 # ifndef MS_MOVE
-#  define MS_MOVE 8192
+#  define MS_MOVE MS_MOVE
 # endif
 # ifndef MS_NOATIME
-#  define MS_NOATIME 1024
+#  define MS_NOATIME MS_NOATIME
 # endif
 # ifndef MS_NODEV
-#  define MS_NODEV 4
+#  define MS_NODEV MS_NODEV
 # endif
 # ifndef MS_NODIRATIME
-#  define MS_NODIRATIME 2048
+#  define MS_NODIRATIME MS_NODIRATIME
 # endif
 # ifndef MS_NOEXEC
-#  define MS_NOEXEC 8
+#  define MS_NOEXEC MS_NOEXEC
 # endif
 # ifndef MS_NOREMOTELOCK
 #  define MS_NOREMOTELOCK 134217728
@@ -442,52 +414,55 @@ enum {
 #  define MS_NOSEC 268435456
 # endif
 # ifndef MS_NOSUID
-#  define MS_NOSUID 2
+#  define MS_NOSUID MS_NOSUID
 # endif
 # ifndef MS_NOSYMFOLLOW
-#  define MS_NOSYMFOLLOW 256
+#  define MS_NOSYMFOLLOW MS_NOSYMFOLLOW
+# endif
+# ifndef MS_NOUSER
+#  define MS_NOUSER MS_NOUSER
 # endif
 # ifndef MS_POSIXACL
-#  define MS_POSIXACL 65536
+#  define MS_POSIXACL MS_POSIXACL
 # endif
 # ifndef MS_PRIVATE
-#  define MS_PRIVATE 262144
+#  define MS_PRIVATE MS_PRIVATE
 # endif
 # ifndef MS_RDONLY
-#  define MS_RDONLY 1
+#  define MS_RDONLY MS_RDONLY
 # endif
 # ifndef MS_REC
-#  define MS_REC 16384
+#  define MS_REC MS_REC
 # endif
 # ifndef MS_RELATIME
-#  define MS_RELATIME 2097152
+#  define MS_RELATIME MS_RELATIME
 # endif
 # ifndef MS_REMOUNT
-#  define MS_REMOUNT 32
+#  define MS_REMOUNT MS_REMOUNT
 # endif
 # ifndef MS_RMT_MASK
 #  define MS_RMT_MASK 41943121
 # endif
 # ifndef MS_SHARED
-#  define MS_SHARED 1048576
+#  define MS_SHARED MS_SHARED
 # endif
 # ifndef MS_SILENT
-#  define MS_SILENT 32768
+#  define MS_SILENT MS_SILENT
 # endif
 # ifndef MS_SLAVE
-#  define MS_SLAVE 524288
+#  define MS_SLAVE MS_SLAVE
 # endif
 # ifndef MS_STRICTATIME
-#  define MS_STRICTATIME 16777216
+#  define MS_STRICTATIME MS_STRICTATIME
 # endif
 # ifndef MS_SUBMOUNT
 #  define MS_SUBMOUNT 67108864
 # endif
 # ifndef MS_SYNCHRONOUS
-#  define MS_SYNCHRONOUS 16
+#  define MS_SYNCHRONOUS MS_SYNCHRONOUS
 # endif
 # ifndef MS_UNBINDABLE
-#  define MS_UNBINDABLE 131072
+#  define MS_UNBINDABLE MS_UNBINDABLE
 # endif
 # ifndef MS_VERBOSE
 #  define MS_VERBOSE 32768
@@ -519,13 +494,6 @@ enum {
 # ifndef UMOUNT_NOFOLLOW
 #  define UMOUNT_NOFOLLOW UMOUNT_NOFOLLOW
 # endif
-#endif
-
-/* MS_NOUSER: <linux/mount.h> spells it (1<<31), which overflows int and so is no integer constant expression in C
-   (a file-scope array size rejects it); the same int value, spelled as one. */
-#if 1
-# undef MS_NOUSER
-# define MS_NOUSER (-2147483647-1)
 #endif
 
 #if 1

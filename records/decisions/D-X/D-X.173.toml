@@ -1,0 +1,12 @@
+id = "D-X.173"
+section = "x"
+status = "active"
+supersedes = ["D-X.126"]
+story = "HEADERS-ENUM-FOLLOWUPS"
+date = "2026-11-25"
+tests = ["spec/tools/header_checks/s15.py", "spec/tools/header_checks/s10.py", "spec/tools/header_checks/s12.py"]
+body = '''
+**The `MS_*` names of `<sys/mount.h>` are enumerators of one unnamed enumeration, each also a macro naming itself, and `<sys/mount.h>` and `<linux/mount.h>` compile in either include order, C and C++, with no warnings** (supersedes D-X.126, whose premise—an enumerator and a macro of one name cannot both come from two headers included in either order—does not hold). `<sys/mount.h>` includes `<linux/mount.h>` first, so a later `#include <linux/mount.h>` adds nothing; it then removes the kernel's macros of the names it declares as enumerators (`@@replace-macros`, slice 15) and declares the enumeration, then `#define MS_RDONLY MS_RDONLY` and the rest. `MS_NOUSER` is an `int` enumerator of the value -2147483648 (the kernel's `(1<<31)` is gone with its macro). The names the reference shows as macros only (`MS_BORN`, `MS_NOREMOTELOCK`, `MS_NOSEC`, `MS_SUBMOUNT`, `MS_VERBOSE`, `MS_RMT_MASK`, `MS_MGC_VAL`, `MS_MGC_MSK`) stay macros. Which names are enumerators and their values come from black-box probes of the reference's headers (enum_probe.py, header_probe.py; HEADERS-CXX-ENUM-TYPES job headers-cxx-enum-types-ms for both include orders). COMPAT-34 is withdrawn and its differences row removed: there is no difference left to restore.
+
+The same story: a typedef whose C++ spelling is an enumeration tag of enumerators.tsv (`ns_type` is `enum __ns_type`) is emitted as that enumeration and `typedef enum TAG name;`, not as a structure of its size; an enumerator whose tag row is a reserved name the header omits (`__ns_rcode`) declares its enumeration itself, so `ns_r_servfail` and the other members are not dropped with the tag row; `<regex.h>` declares `reg_errcode_t` with the `_REG_*` enumerators, each `REG_*` error code a macro naming its enumerator, in every configuration the probe shows. Tests: the header_check rows of slices 15 (both include orders, the macro's spelling, value and C++ enumeration type), 10 (`reg_errcode_t e = REG_NOMATCH;` and a switch, C and C++) and 12 (each `enum __ns_*` member's value and type, a switch over `ns_class`).
+'''

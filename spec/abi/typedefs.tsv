@@ -3018,6 +3018,7 @@ function	recv	arpa/inet.h			long (int, void*, unsigned long, int)
 function	recvfrom	arpa/inet.h			long (int, void*, unsigned long, int, sockaddr*, unsigned int*)
 function	recvmmsg	arpa/inet.h			int (int, mmsghdr*, unsigned int, int, timespec*)
 function	recvmsg	arpa/inet.h			long (int, msghdr*, int)
+typedef	reg_errcode_t	re_comp.h	4	4	reg_errcode_t
 typedef	reg_syntax_t	re_comp.h	8	8	unsigned long
 function	regcomp	re_comp.h			int (re_pattern_buffer*, char const*, int)
 function	regerror	re_comp.h			unsigned long (int, re_pattern_buffer const*, char*, unsigned long)

@@ -295,7 +295,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
     ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
+    # A plant's or a developer's quick run: only the units and problems of the named header_checks modules (`s10,s12`),
+    # no levels, P5, P1 or P8 units (HEADERS-ENUM-FOLLOWUPS: the whole check is about 7 minutes serial).
+    ap.add_argument("--modules", default="")
     args = ap.parse_args()
+    sel = set(filter(None, args.modules.split(",")))
     inc = os.path.abspath(args.include)
     if not os.path.isfile(os.path.join(inc, "features.h")):
         sys.exit(f"header_check: no features.h under {inc}")
@@ -322,9 +326,14 @@ def main():
     # shipped to fail in every configuration: no P5 TU, and the module's own unit asserts the failure).
     ctx.p1_skip = {x for _, mod in mods for x in getattr(mod, "p1_skip", ())}
     must_fail = {x for _, mod in mods for x in getattr(mod, "must_fail", ())}
-    p1s = p1_units(ctx)
+    unknown = sel - {name for name, _ in mods}
+    if unknown:
+        sys.exit(f"header_check: --modules names no header_checks module: {','.join(sorted(unknown))}")
+    p1s = {} if sel else p1_units(ctx)
     for name, mod in mods:
-        problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
+        if sel and name not in sel:
+            continue
+        problems +=getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
             p1s.setdefault(cid, []).append((what, body))
     fails, total = len(problems), len(problems)
@@ -347,9 +356,11 @@ def main():
                 "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
-        units = [("levels", "#include <features.h>\n" + "".join(
+        units = [] if sel else [("levels", "#include <features.h>\n" + "".join(
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
-        if not rejected:
+        if not rejected and sel:
+            units += p1s.get(c["id"], [])
+        elif not rejected:
             units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
         for i, (what, text) in enumerate(units):
@@ -366,7 +377,7 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
-    f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
+    f8, t8 = (0, 0) if sel else p8(inc, gccinc, work, p8_pairs(srows))
     fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0

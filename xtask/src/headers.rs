@@ -533,9 +533,11 @@ impl Gen<'_> {
             if kind == "include-error" || generic || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
                 continue;
             }
-            // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
+            // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one
+            // that is emitted: a reserved tag such as `__ns_rcode` is omitted as a row of its own, and its public
+            // enumerators then declare it; HEADERS-ENUM-FOLLOWUPS).
             if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
-                let tag_row = self.t.vis_row(&self.header, &tag, "enum").is_some();
+                let tag_row = self.t.vis_row(&self.header, &tag, "enum").is_some() && !omitted(&self.t.reserved, &tag);
                 if !tag_row && self.emitted.insert(format!("enum {tag}")) {
                     let c = self.cond(&name, Some(&kind));
                     items.push((2, c, tag, "enum".into()));
