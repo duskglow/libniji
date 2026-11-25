@@ -1,0 +1,5 @@
+---
+order: 90
+---
+Slice 16 (SL-HEADERS-S16): layouts.tsv rerun with abi_extract.py --layouts-only after adding struct prof (sprofil, sys/profil.h): 1 type added (5 rows), earlier rows unchanged. GCC 13.3, glibc 2.39.
+Slice 16 (SL-HEADERS-S16): La_x86_64_regs, La_x86_64_retval, La_x86_64_xmm, La_x86_64_ymm, La_x86_64_zmm, La_x86_64_vector added to layouts.tsv (abi_extract.py --layouts-only).

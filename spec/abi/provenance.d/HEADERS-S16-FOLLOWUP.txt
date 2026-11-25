@@ -1,0 +1,4 @@
+---
+order: 150
+---
+HEADERS-S16-FOLLOWUP (ruling #7520): typedefs.tsv rows La_x86_64_ymm and La_x86_64_zmm get their vector spelling, `float __vector(8)` and `double __vector(8)`, from a probe of the reference system (the demangled C++ linkage name of a function of the probe's own taking each type, read with nm -C; sizeof, _Alignof and __builtin_types_compatible_p against vector_size types in C). Size 32 and 64 with alignment 16 stay: the generator spells a vector row whose alignment is below its size with __aligned__.

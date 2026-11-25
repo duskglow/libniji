@@ -7,6 +7,17 @@
 
 __NIJI_BEGIN_C
 
+/* The item number of index I in locale category C (the nl_langinfo items are numbered so: spec/abi/langinfo.tsv),
+   and its category and index. Black-box probes of the reference settle the form: _NL_ITEM is usable in #if and its
+   type follows its arguments; the other two convert their argument to int first, so they are not usable in #if,
+   their type is int, a category above 32767 reads back negative and an index is the low 16 bits. */
+@@owns-macro _NL_ITEM _NL_ITEM_CATEGORY _NL_ITEM_INDEX
+@@if _NL_ITEM
+# define _NL_ITEM(category, index) (((category) << 16) | (index))
+# define _NL_ITEM_CATEGORY(item) ((int) (item) >> 16)
+# define _NL_ITEM_INDEX(item) ((int) (item) & 0xffff)
+#endif
+
 @@emit
 
 __NIJI_END_C

@@ -16,8 +16,8 @@ train's.
   the header omits now declares its enumeration (ns_r_servfail, ns_o_query, ns_f_qr, ns_uop_*, cert_t_* were dropped).
   Cosmetic: some guarded `enum __ns_*` bodies appear twice in nameser.h (the `__NIJI_D_enum_*` guard keeps one).
 * Tests (header_check modules): s15 `enum_units` (both include orders, spelling, value, C++ enum type), s10
-  `errcode_units`, s12 `nameser_enum_units`. `header_check.py --modules s10,s12,s15` runs only named modules (the
-  full check is ~7 min serial; plants need < 600 s).
+  `errcode_units`, s12 `nameser_enum_units`. `header_check.py --only ^enum` and `--only ^reg_errcode_t` run only units with
+  those titles (next's option; my own `--modules` was dropped when merging next, HEADERS-ENUM-FOLLOWUPS-2).
 * Results: job headers-enum-followups-test2 (cargo xtask so, cargo test -p xtask all green, header_check 0 failed
   of 17897); plants 4/4 CAUGHT (headers-enum-followups-plants1); clippy and static clean (precheck). Superseded:
   test1 (gencat transcripts need the products: red without `cargo xtask so`, green in test2), lint1 (static red on a
