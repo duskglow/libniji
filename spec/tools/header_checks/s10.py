@@ -49,7 +49,14 @@ def units(ctx):
         body += "".join(f"typedef char niji_nl_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(forms))
         out.append((cid, "P1 langinfo.h _NL_ITEM forms", body))
+    # Spec clause: ftw(3) (FTW_F and friends report a stat structure) and the header's includes by black-box probe
+    # (HEADERS-STAGE2-GAPS-E: libcap-ng's filecap.c tests S_ISREG after <ftw.h> alone): the S_IS* tests exactly where
+    # the reference shows them through <ftw.h>.
+    out += ctx.exact("ftw.h", FTW_STAT_TESTS)
     return out + errcode_units(ctx)
+
+
+FTW_STAT_TESTS = ("S_ISBLK", "S_ISCHR", "S_ISDIR", "S_ISFIFO", "S_ISREG", "S_ISLNK", "S_ISSOCK")
 
 
 def errcode_units(ctx):

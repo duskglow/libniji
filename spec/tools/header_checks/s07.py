@@ -29,7 +29,20 @@ def units(ctx):
     # _PATH_WTMP; a header that shows another family member is caught by the "not defined" side).
     for h in UTMP_HEADERS:
         out += ctx.exact(h, UTMP_PATHS)
+    # Spec clause: select(2), the BSD fd_set word names (HEADERS-STAGE2-GAPS-E: libev's ev_select.c sizes its sets in
+    # fd_mask words of NFDBITS bits): each exactly where the reference shows it, fd_mask with its C++ spelling (long);
+    # the values and sizes are sys/select.h's table P1.
+    out += ctx.exact("sys/select.h", FD_WORD_NAMES)
+    # The reserved `__u_char` family through <sys/wait.h>'s includes (HEADERS-STAGE2-GAPS-E): the reference shows it in
+    # the strict modes too, where <sys/wait.h> does not bring in <signal.h> (a generator that counted <signal.h>'s names
+    # as supplied in every configuration left them out there).
+    for h in ("sys/wait.h", "wait.h"):
+        out += ctx.exact(h, WAIT_U_CHAR_FAMILY)
     return out
+
+
+FD_WORD_NAMES = ("fd_mask", "__fd_mask", "NFDBITS", "__NFDBITS", "FD_SETSIZE", "__FD_SETSIZE")
+WAIT_U_CHAR_FAMILY = ("__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t", "__FD_SETSIZE")
 
 
 UTMP_HEADERS = ("paths.h", "utmp.h", "utmpx.h", "lastlog.h")

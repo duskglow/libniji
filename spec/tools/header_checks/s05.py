@@ -34,8 +34,12 @@ def units(ctx):
     # Spec clause: XBD <sys/types.h> and the BSD/System V names beside them (HEADERS-SNAPSHOT-GAPS): each shown exactly
     # where the reference shows it (tree's build used u_long in the default mode), with its size, alignment and C++
     # spelling, and free for the program elsewhere. sys/types.h has no table P1 (`p1` 0 in s05.tsv), so these are its
-    # rows.
-    return out + ctx.exact("sys/types.h", SYS_TYPES_NAMES)
+    # rows. The reserved `__u_char` family (HEADERS-STAGE2-GAPS-E: libnsl and rpc/types.h name them) is shown in every
+    # configuration that accepts the header, strict ISO included.
+    return out + ctx.exact("sys/types.h", SYS_TYPES_NAMES + U_CHAR_FAMILY)
+
+
+U_CHAR_FAMILY = ("__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t")
 
 
 SYS_TYPES_NAMES = ("u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t", "fsid_t",

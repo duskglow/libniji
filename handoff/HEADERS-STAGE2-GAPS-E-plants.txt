@@ -1,0 +1,13 @@
+# HEADERS-STAGE2-GAPS-E plants: the stage 2 header names (tftphdr member names, the nameser accessors, IPPROTO_MAX,
+# fd_mask and the __u_char family, ftw.h's S_IS* through <sys/stat.h>) and the @@needs-if coverage fix of the
+# generator. Each regenerates libc-include, then runs only the header_check units of its header (`--only`).
+tftp-drop-th-data | headers/arpa/tftp.h.in | lit:# define th_data th_u1.th_u2.tu_data ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "member names arpa/tftp.h"' | msg:FAIL member names arpa/tftp.h
+tftp-code-as-block | headers/arpa/tftp.h.in | lit:# define th_code th_u1.th_u2.th_u3.tu_code ==> # define th_code th_u1.th_u2.th_u3.tu_block | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "member names arpa/tftp.h"' | msg:FAIL member names arpa/tftp.h
+ns-get16-advance | headers/arpa/nameser.h.in | lit:__niji_cp[1]); (cp) += 2; ==> __niji_cp[1]); (cp) += 1; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "nameser accessors"' | msg:FAIL nameser accessors arpa/nameser.h
+ns-put16-block | headers/arpa/nameser.h.in | lit:# define NS_PUT16(s, cp) do { ==> # define NS_PUT16(s, cp) if (1) { | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "nameser accessors"' | msg:FAIL nameser accessors arpa/nameser.h
+ns-msg-id-lvalue | headers/arpa/nameser.h.in | lit:# define ns_msg_id(handle) ((handle)._id + 0) ==> # define ns_msg_id(handle) ((handle)._id) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "nameser accessors"' | msg:FAIL nameser accessors arpa/nameser.h
+ipproto-max-macro | headers/netinet/in.h.in | lit:__NIJI_END_C ==> #define IPPROTO_MAX 263 __NIJI_END_C | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "IPPROTO_MAX netinet/in.h"' | msg:FAIL IPPROTO_MAX netinet/in.h
+ftw-no-sys-stat | headers/ftw.h.in | lit:#include <sys/stat.h> ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact ftw.h"' | msg:FAIL exact ftw.h
+fd-mask-omitted | headers/reserved.tsv | perl:s/^__fd_mask\temit/__fd_mask\tomit/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/select.h"' | msg:FAIL exact sys/select.h
+u-char-omitted | headers/reserved.tsv | perl:s/^__u_char\temit/__u_char\tomit/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/types.h"' | msg:FAIL exact sys/types.h
+needs-if-all-configs | xtask/src/headers/slices/s12.rs | lit:supply(g, h, within); ==> supply(g, h, u64::MAX); | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/wait.h"' | msg:FAIL exact sys/wait.h
