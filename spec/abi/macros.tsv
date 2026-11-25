@@ -3352,6 +3352,7 @@ NS_OPT_NSID	arpa/nameser.h	int	3
 NS_PACKETSZ	arpa/nameser.h	int	512
 NS_QFIXEDSZ	arpa/nameser.h	int	4
 NS_RRFIXEDSZ	arpa/nameser.h	int	10
+NS_TSIG_ALG_HMAC_MD5	arpa/nameser.h	char[25]	"HMAC-MD5.SIG-ALG.REG.INT"
 NS_TSIG_ERROR_FORMERR	arpa/nameser.h	int	-12
 NS_TSIG_ERROR_NO_SPACE	arpa/nameser.h	int	-11
 NS_TSIG_ERROR_NO_TSIG	arpa/nameser.h	int	-10
