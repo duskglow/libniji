@@ -4239,8 +4239,6 @@ arpa/nameser_compat.h	C_IN	macro	!time64only
 arpa/nameser_compat.h	C_NONE	macro	!time64only
 arpa/nameser_compat.h	DELETE	macro	!time64only
 arpa/nameser_compat.h	FORMERR	macro	!time64only
-arpa/nameser_compat.h	GETLONG	macro	!time64only
-arpa/nameser_compat.h	GETSHORT	macro	!time64only
 arpa/nameser_compat.h	HEADER	typedef	!time64only
 arpa/nameser_compat.h	HFIXEDSZ	macro	!time64only
 arpa/nameser_compat.h	IN6ADDRSZ	macro	!time64only
@@ -4265,8 +4263,6 @@ arpa/nameser_compat.h	NXDOMAIN	macro	!time64only
 arpa/nameser_compat.h	NXRRSET	macro	!time64only
 arpa/nameser_compat.h	PACKETSZ	macro	!time64only
 arpa/nameser_compat.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-arpa/nameser_compat.h	PUTLONG	macro	!time64only
-arpa/nameser_compat.h	PUTSHORT	macro	!time64only
 arpa/nameser_compat.h	QFIXEDSZ	macro	!time64only
 arpa/nameser_compat.h	QUERY	macro	!time64only
 arpa/nameser_compat.h	REFUSED	macro	!time64only
