@@ -5,6 +5,7 @@ name	policy	reason
 __errno_location	emit	C.9: errno expands to (*__errno_location ())
 __ino64_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
 __locale_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
+__locale_struct	emit	R-H3: complete as layouts.tsv has it; gnulib localename reads __names (Yohane stage 2: findutils, gettext, gnutls28, grep, libunistring, m4, sed)
 __off_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
 __pid_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __sysconf	emit	C.9: PTHREAD_STACK_MIN under _DYNAMIC_STACK_SIZE_SOURCE is sysconf (_SC_THREAD_STACK_MIN)
