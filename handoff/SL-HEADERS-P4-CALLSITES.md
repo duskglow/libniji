@@ -1,49 +1,54 @@
-# SL-HEADERS-P4-CALLSITES (handoff, leg 1 of run 1)
+# SL-HEADERS-P4-CALLSITES (handoff and report, run 1, leg 2)
 
-**State.** Branch `task/sl-headers-p4-callsites` (from origin/next 44304e709), WIP commit 86d4904ef pushed. Role keke:~/w/n4
-(synced at 86d4904ef). Scratch: `~/w/.scratch/SL-HEADERS-P4-CALLSITES/` (triage.py, base/ = baseline tables,
-triage-base.txt). Job running: `sl-headers-p4-callsites-p4run1` (keke; `~/work/sl-headers-p4-callsites/job1.sh`:
-`cargo xtask headers-gen`, `git status -- libc-include`, `cargo xtask so`, P4 full into
-/dev/shm/claude/sl-headers-p4-callsites/p4run1). Baseline job `sl-headers-p4-callsites-p4base` (head 44304e709; P4
-part 1 clean, 0 FAIL every -std; part 2 FAIL: full P4 takes ~13 min).
+**State.** Branch `task/sl-headers-p4-callsites` (from origin/next 44304e709). Code head fdf52784e (5dff4e3e8 generator
++ regenerated headers, fdf52784e accept list + plants); this note and the report json on top. Role keke:~/w/n4.
+Jobs: `sl-headers-p4-callsites-gate` (direct tier: `cargo xtask affected --run --base origin/next`),
+`sl-headers-p4-callsites-xtask-headers` (`cargo test -p xtask --bin xtask headers`: the rows test and the generator's
+tests, which `affected` does not list), `sl-headers-p4-callsites-plants` (handoff/SL-HEADERS-P4-CALLSITES-plants.txt),
+`sl-headers-p4-callsites-p4run2` (headers-gen + so + full P4 on the code). Results: see "Results" below.
 
-**Ruling in force.** Challenge #8468 ACCEPTED by the coordinator (22:50Z): P4 part 2 follows D-X.107 (R-H2/R-H3) and
-the same headers/reserved.tsv exclusion as P2/P3 (`spec/tools/probe_compare.py reserved_omitted`); emit stdio_ext.h's
-documented `__` names; fix the real non-`__` differences; list the rest with reasons. No ruling against D-X.107; a
-Yohane package that needs an excluded `__` name gets it later by the usual rule.
+**Ruling in force.** #8468 (challenge accepted): P4 part 2 follows D-X.107 (R-H2/R-H3) and the headers/reserved.tsv
+exclusion P2/P3 use; the math.h `__` names stay omitted; emit stdio_ext.h's documented `__f*` names. D-X.158 (-O2
+inline design), D-X.131 (slice 17 accepts), the pidfd C-linkage differences row.
 
-**Baseline triage (rows: noexcept / callsites spec-only / mine-only).** Policy-omitted (`__x` default or reserved.tsv
-omit row), now excluded: math.h 716 names (716/716/716), resolv.h 33, argp.h 9+2 omit-row, argz.h 5, error.h 4,
-string.h 5, ctype.h 2, libintl.h 2, stdio.h 1, signal.h 1 + bsd_signal (omit row), sys/shm.h, unistd.h, sys/gmon.h,
-nss.h, libgen.h 1 each, netinet/in.h bindresvport6 and sys/stat.h getumask (omit rows; differences rows D-X.117,
-D-X.124). Real, fixed in 86d4904ef (unverified until p4run1): stdio_ext.h 9 `__f*` (reserved.tsv emit rows, spec
-12.4); stdbit.h 70 exception specs (`__NIJI_NOTHROW` on every definition in stdbit.h.in); math.h 34 C99 functions
-cxx98 `throw()` (headers.rs nothrow set = cxx17 noexcept OR cxx98 throw()); math.h isinf/isnan C function decls
-(`@@when` + `@@owns-macro` instead of `@@if`); alloca function decl (alloca.h.in `@@owns-macro`, providers.tsv `none`).
-Real, NOT fixed yet (callsites, ABI form): ctype.h 12 `is*_l` (reference inline `-`, libniji calls the export);
-libintl.h gettext/dgettext/ngettext/dngettext (reference calls dcgettext/dcngettext at -O2, libniji the named
-function); netrose/rose.h `__cmsg_nxthdr` (reference inline `-`, libniji call); sys/pidfd.h 4 functions (reference C++
-has no C linkage: `_Z11pidfd_getfdiij`...; libniji declares `extern "C"`, the generator already filters this, see
-functions.rs comment "a C++-mangled name that no library exports"); stdlib.h div cxx17 (reference `error`, libniji
-`noexcept`: libniji's stdlib.h + the C++ library give one `div`, the reference an overload set). argp_usage,
-argz_next, _option_is_end: accepted by validation/headers_s17.accept (D-X.131), read by the new harness.
+**Triage (P4 part 2, baseline 44304e709 -> code head; lines are probe_compare lines).**
 
-**Harness (validation/headers_p4.py, 86d4904ef).** Part 2 compares row sets minus policy-omitted names; prints each
-other difference as `P4 FAIL <table>: <line>` (probe_compare form; noexcept lines `differs noexcept <h> <name> table
-[a b c] libniji [...]`); accepted lines come from validation/headers_p4.accept and validation/headers_s*.accept; a
-headers_p4.accept line not seen is a stale FAIL. `--no-cxx` skips part 1 (for plants).
+| Header | Cause | Before | After |
+|---|---|---|---|
+| math.h | `__` names, policy-omitted (#8468, D-X.107) | 716 names x 3 tables | excluded (reported as "left out by policy") |
+| resolv.h 33, argp.h 9+2, argz.h 5, error.h 4, string.h 5, ctype.h 2, libintl.h 2, stdio.h 1, signal.h 1+bsd_signal, sys/shm.h, unistd.h, sys/gmon.h, nss.h, libgen.h 1 each, bindresvport6, getumask | `__` names or reserved.tsv omit rows (D-X.117, D-X.124) | as listed | excluded |
+| stdio_ext.h | 9 documented `__f*` names missing (spec 12.4) | 9 | 0 (reserved.tsv emit rows) |
+| stdbit.h | 70 exception specs missing | 70 | 0 (`__NIJI_NOTHROW` in stdbit.h.in) |
+| math.h | 34 C99 functions without C++98 `throw()` | 34 | 0 (headers.rs nothrow: cxx17 noexcept OR cxx98 throw()) |
+| math.h | isinf/isnan functions not declared (C) | 2 | 0 (`@@when` + `@@owns-macro`) |
+| math.h (P4 part 1) | isinf/isnan functions declared in C++11+ (conflicts with `<cmath>`) | 0 -> 5 stds FAIL in run 1 | 0 (cond.rs NOT_CXX11, probe below) |
+| alloca.h | alloca function declaration missing | 1 | 0 (`@@owns-macro`, providers.tsv) |
+| ctype.h | 12 `is*_l`: reference inline at -O2, libniji calls the export | 24 lines | accepted, follow-up |
+| libintl.h | gettext/dgettext/ngettext/dngettext: reference calls dcgettext/dcngettext at -O2 | 8 lines | accepted, follow-up |
+| netrose/rose.h | `__cmsg_nxthdr` inline at -O2 on the reference | 2 lines | accepted, follow-up |
+| sys/pidfd.h | C++ linkage: mangled names no library exports | 8 lines | accepted: existing differences row |
+| stdlib.h | div cxx17 `error` vs `noexcept` | 1 line | accepted: probe artefact (probes below) |
 
-**Next step.** (1) `~/bin/jobwait sl-headers-p4-callsites-p4run1` on keke; read `grep -E '^P4|^ M|error' ~/logs/...log`.
-If headers-gen errored, fix the template/table. (2) Bring the regenerated libc-include files into the worktree (the
-job's `git status` lists them; copy each with `ssh cat` into the worktree, never open them) and commit them. (3) For
-each remaining FAIL line: fix if cheap, else add it to validation/headers_p4.accept under a reason comment (pidfd:
-needs a differences row via `ops reserve` or RULING NEEDED; ctype `_l`, gettext, cmsg in rose.h, div: follow-up story
-with reason). (4) Plants in docs/plants.md format in handoff/SL-HEADERS-P4-CALLSITES-plants.txt: drop one math.h `__`
-... NOTE the brief's math.h `__` plant cannot apply (none emitted, ruling #8468): plant `__fpending` emit row removed
-(reserved.tsv) and one other (e.g. the stdbit `__NIJI_NOTHROW`, or the isinf `@@when`), cmd
-`cargo xtask headers-gen && cargo xtask so && python3 validation/headers_p4.py --no-cxx --jobs 24`, msg `P4 FAIL`.
-(5) clippy, static, `cargo xtask affected --list --base origin/next` (FULL expected: headers/*.in; then gate =
-precheck + the rows test `headers::tests::every_table_row_is_emitted_and_matches_the_tables` + niji_cc_headers), report
-json, precheck, handback-check.
+After: P4 part 1 0 FAIL in c++98..c++23 (c++26 unsupported by GCC 13); part 2 43 lines, all in
+validation/headers_p4.accept under their reasons, 0 other differences (p4run2 on 5dff4e3e8's code).
 
-**Not to redo.** The baseline triage; the reserved-name policy question (ruled).
+**Probe-settled (black box, Zen 1 host, reference Ubuntu 24.04 glibc 2.39).** (1) The reference's own math.h under
+-nostdinc declares `int isinf (double)` and `int isnan (double)` in C++98/C++03, not in C++11..C++23 (with and
+without _GNU_SOURCE, _DEFAULT_SOURCE, _XOPEN_SOURCE=700); C gnu17 yes, c99 no. (2) stdlib.h div in C++ (C++ library
+dirs, both header sets): `&div` an overload set on both, `div(int,int)` div_t, `div(10L,3L)` ldiv_t, the noexcept of
+div(int), div(long), div(long long), ldiv, lldiv, abs(int), abs(long), labs all equal: the noexcept.tsv row is a
+probe artefact. Probe scripts: scratch only (`~/work/sl-headers-p4-callsites/*_probe*.sh` on the role host).
+
+**Plants (brief step 6).** The brief's "one math.h `__` declaration dropped" has no site: ruling #8468 keeps them
+omitted. Five plants instead: `__fpending` emit row -> omit; math.h `@@when isinf` -> `@@if` (the function is
+dropped); the cxx98 `throw()` arm of headers.rs's nothrow set removed; one stdbit.h `__NIJI_NOTHROW` removed; the
+C++11 exclusion of isinf removed (part 1).
+
+**RULING NEEDED / follow-up.** Recommend story HEADERS-O2-INLINES-2: give the 17 remaining -O2 inline forms (ctype.h
+`is*_l`, the gettext family via dcgettext/dcngettext and LC_MESSAGES, `__cmsg_nxthdr`) under D-X.158's design and
+drop their 34 accept lines; the ctype ones read libniji's locale table inline, a layout dependence that needs the
+locale owner's look.
+
+**Not to redo.** The baseline triage; the reserved-name policy (ruled); the div and isinf probes.
+
+**Next step.** If a job above is red: fix and rerun only it. Otherwise nothing: hand back.

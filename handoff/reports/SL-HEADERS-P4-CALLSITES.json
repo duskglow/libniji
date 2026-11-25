@@ -1,0 +1,16 @@
+{"task": "SL-HEADERS-P4-CALLSITES", "model": "opus", "tokens": null,
+ "result": "P4 part 2 runs as a failing check: 116 real differences fixed (stdio_ext.h __f* names, stdbit.h 70 and math.h 34 exception specs, isinf/isnan and alloca functions), math.h's isinf/isnan kept out of C++11+, 43 remaining lines listed with reasons; __ names excluded per ruling #8468",
+ "branch": "task/sl-headers-p4-callsites", "head": null,
+ "gate": {"affected": "695 passed / 0 failed (6 suites, direct tier) + xtask headers 26 passed / 0 failed", "peak": "1.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "17 -O2 inline forms (ctype.h is*_l, gettext/dgettext/ngettext/dngettext, __cmsg_nxthdr) accepted in validation/headers_p4.accept", "recommendation": "follow-up story HEADERS-O2-INLINES-2 under D-X.158; the ctype ones need the locale owner's look (inline table layout)"}],
+ "informational": ["stdlib.h div noexcept.tsv row is a probe artefact: black-box probes show identical overload sets, result types and exception specs on both header sets", "brief's math.h __ plant has no site (ruling #8468 keeps those names omitted); five other plants used"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "math.h compiles in C++11..C++23 with the isinf/isnan functions now declared in C (P4 part 1 FAIL in 5 stds otherwise)", "before": 5, "after": 0, "unit": "P4 part 1 FAIL lines", "measured": true},
+   {"kind": "correctness", "what": "P4 part 2 differences other than policy-omitted names (stdio_ext.h 9, stdbit.h 70, math.h 34+2, alloca.h 1, and the 43 now listed)", "before": 159, "after": 0, "unit": "unlisted P4 part 2 lines", "measured": false},
+   {"kind": "coverage", "what": "P4 part 2 becomes a failing check (validation/headers_p4.py + headers_p4.accept ratchet); plants", "before": 0, "after": 5, "unit": "plants", "measured": true}],
+ "improvement": "the role dir is no git tree, so finding regenerated libc-include files took a hash compare; headers-gen could print the files it changed",
+ "next_step": "story HEADERS-O2-INLINES-2: the 17 -O2 inline forms, removing 34 accept lines",
+ "report_file": "handoff/SL-HEADERS-P4-CALLSITES.md",
+ "jobs": ["sl-headers-p4-callsites-gate", "sl-headers-p4-callsites-xtask-headers", "sl-headers-p4-callsites-plants"]}
