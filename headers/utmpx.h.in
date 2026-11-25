@@ -9,7 +9,14 @@
 __NIJI_BEGIN_C
 
 @@owns FD_CLR FD_ISSET FD_ZERO
+@@owns-macro TIMESPEC_TO_TIMEVAL TIMEVAL_TO_TIMESPEC
 @@emit
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+@@when TIMESPEC_TO_TIMEVAL
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */
 @@if FD_SET
