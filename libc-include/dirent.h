@@ -53,6 +53,12 @@ typedef long __off_t;
 typedef int __pid_t;
 # endif
 #endif
+#if __NIJI_GNU
+# ifndef __NIJI_D_ino64_t
+#  define __NIJI_D_ino64_t 1
+typedef unsigned long ino64_t;
+# endif
+#endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
@@ -376,9 +382,6 @@ enum { DT_WHT = 14 };
 # ifndef PTHREAD_KEYS_MAX
 #  define PTHREAD_KEYS_MAX 1024
 # endif
-# ifndef PTHREAD_STACK_MIN
-#  define PTHREAD_STACK_MIN 16384
-# endif
 # ifndef RTSIG_MAX
 #  define RTSIG_MAX 32
 # endif
@@ -501,6 +504,15 @@ enum { DT_WHT = 14 };
 # endif
 #endif
 
+/* PTHREAD_STACK_MIN in <limits.h>'s form: the run-time sysconf(3) value under _DYNAMIC_STACK_SIZE_SOURCE (implied by
+   _GNU_SOURCE and C++), the constant otherwise. */
+#if __NIJI_MISC
+# if __NIJI_DYNSTACK
+#  define PTHREAD_STACK_MIN __sysconf (75)
+# else
+#  define PTHREAD_STACK_MIN 16384
+# endif
+#endif
 
 __NIJI_END_C
 

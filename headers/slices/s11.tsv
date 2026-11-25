@@ -7,3 +7,5 @@ fenv.h	0	-
 fpu_control.h	0	-
 ieee754.h	0	-
 values.h	0	-
+complex.h	0	-
+tgmath.h	0	-

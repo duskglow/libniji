@@ -1,0 +1,11 @@
+# Plants for slice 11's complex.h and tgmath.h (SL-HEADERS-COMPLEX-TGMATH, D-10.135). No spec clause: header generation
+# (plan/headers.md section 3). The check is spec/tools/header_check.py, whose module header_checks/s11.py compares the
+# tree's type-generic resolution with spec/abi/typegeneric.tsv (P6).
+# A tgmath.h macro that calls the double function for a float argument (sin(float) must call sinf).
+tg-sin-float-to-double | headers/tgmath.h.in | lit:# define sin(x) __builtin_tgmath (__NIJI_TGRC (sin) x) ==> # define sin(x) sin (x) | cargo xtask headers-gen && python3 -I spec/tools/header_check.py | msg:P6 type-generic .*tgmath.h (c99|gnu) sin\(float\): reference sinf
+# complex.h's declarations missing in one configuration (C89, the first of ftm-configs.tsv): cargf and the other
+# complex functions C89 programs call through tgmath.h's complex-only macros.
+cx-decl-missing-c89 | xtask/src/headers/slices/s11.rs | lit:    let c = m & !cxx; ==>    let c = m & !cxx & !1; | cargo xtask headers-gen && python3 -I spec/tools/header_check.py | msg:P6 type-generic .*tgmath.h c89 c(arg|imag|real|proj|onj)
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# tg-sin-float-to-double: CAUGHT, caught by no test the log names
+# cx-decl-missing-c89: CAUGHT, caught by no test the log names

@@ -7,9 +7,11 @@
 
 __NIJI_BEGIN_C
 
-@@owns alloca
+@@owns-macro alloca
 @@emit
 
+/* The function alloca is declared (above) as well as the macro: `(alloca) (n)` and a program that undefines the
+   macro still compile, and GCC expands such a call as its builtin; no library exports the name (providers.tsv). */
 #define alloca(size) __builtin_alloca (size)
 
 __NIJI_END_C

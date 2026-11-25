@@ -6,7 +6,8 @@
 #
 # SHA: full commit ids whose source tree is already unpacked in ~/wl/src/SHA (wl_gate.sh does
 # that with git archive). For each SHA: build the products (`cargo xtask so` with NIJI_FULL_PROFILE=1, the shipped
-# release profile; WL_PROFILE=fast for the fast one; libc.a, libm.a and niji-crt1.o) into ~/wl/products/KEY, then
+# release profile; WL_PROFILE=fast for the fast one; libc.a, libm.a, niji-crt1.o and the C headers
+# include/ and uapi/ that scripts/niji-cc compiles against) into ~/wl/products/KEY, then
 # relink every workload program against them into the kit ~/wl/kit/KEY/bin. KEY = $(wl_key SHA) (validation/wl_lock.sh):
 # SHA-release, or SHA for the fast profile. The program objects come from the validation builds
 # (~/validation/build/niji-m, make: niji-noload), compiled with the system's headers, so

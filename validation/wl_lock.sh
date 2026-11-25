@@ -54,9 +54,22 @@ wl_products_ok() {   # wl_products_ok <dir>: 0 = a complete set of this run's pr
         [ -f "$d/libc.a" ] && [ -f "$d/libm.a" ] || return 1
     fi
     m=$(cat "$d/.profile" 2>/dev/null) || m=fast
-    [ "$m" = "$p" ] && return 0
-    echo "wl: $d holds products of profile '$m', this run wants $p (keys: wl_key in validation/wl_lock.sh)" >&2
-    return 2
+    if [ "$m" != "$p" ]; then
+        echo "wl: $d holds products of profile '$m', this run wants $p (keys: wl_key in validation/wl_lock.sh)" >&2
+        return 2
+    fi
+    # HEADERS (WL-PREP-HEADERS): a marked static set (one with .profile) names in .headers whether its build staged
+    # libniji's C headers (include/, uapi/; scripts/niji-cc compiles against them since plan/headers.md slice 20 and
+    # refuses to run without them). A marked set without .headers was cached before sets carried the headers: it is
+    # incomplete and rebuilt. An unmarked (legacy fast) set predates the headers and needs none.
+    if [ "$(wl_link)" = static ] && [ -f "$d/.profile" ]; then
+        case $(cat "$d/.headers" 2>/dev/null) in
+            staged) [ -f "$d/include/features.h" ] && [ -d "$d/uapi" ] || return 1 ;;
+            none) ;;
+            *) return 1 ;;
+        esac
+    fi
+    return 0
 }
 wl_build_products() {   # wl_build_products <sha>: products of <sha> in ~/wl/products/$(wl_key <sha>) (call with the lock held)
     local sha=$1 p key prod full m rc t=$HOME/wl/src/$1/target/niji
@@ -90,6 +103,13 @@ wl_link_set() {
         wl_dyn_layout "$t" "$prod.tmp" "$prod" || { rm -rf "$prod.tmp"; return 1; }
     else
         cp "$t/libc.a" "$t/libm.a" "$t/niji-crt1.o" "$t/.profile" "$prod.tmp/" || { rm -rf "$prod.tmp"; return 1; }
+        # The headers the same build staged, as shipped (wl_products_ok HEADERS); a build of a commit from before
+        # the headers existed stages none and its scripts/niji-cc needs none.
+        if [ -f "$t/include/features.h" ] && [ -d "$t/uapi" ]; then
+            cp -R "$t/include" "$t/uapi" "$prod.tmp/" && echo staged > "$prod.tmp/.headers" || { rm -rf "$prod.tmp"; return 1; }
+        else
+            echo none > "$prod.tmp/.headers" || { rm -rf "$prod.tmp"; return 1; }
+        fi
     fi
     rm -rf "$prod" && mv -T "$prod.tmp" "$prod"
 }

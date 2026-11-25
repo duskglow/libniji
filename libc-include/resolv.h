@@ -75,6 +75,10 @@ typedef struct __res_state * res_state;
 # endif
 #endif
 #if __NIJI_LFS64 || __NIJI_FOB64
+# ifndef __NIJI_D_blkcnt64_t
+#  define __NIJI_D_blkcnt64_t 1
+typedef long blkcnt64_t;
+# endif
 # ifndef __NIJI_D_struct__G_fpos64_t
 #  define __NIJI_D_struct__G_fpos64_t 1
 struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
@@ -82,6 +86,18 @@ struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); }
 # ifndef __NIJI_D_fpos64_t
 #  define __NIJI_D_fpos64_t 1
 typedef struct _G_fpos64_t fpos64_t;
+# endif
+# ifndef __NIJI_D_fsblkcnt64_t
+#  define __NIJI_D_fsblkcnt64_t 1
+typedef unsigned long fsblkcnt64_t;
+# endif
+# ifndef __NIJI_D_fsfilcnt64_t
+#  define __NIJI_D_fsfilcnt64_t 1
+typedef unsigned long fsfilcnt64_t;
+# endif
+# ifndef __NIJI_D_ino64_t
+#  define __NIJI_D_ino64_t 1
+typedef unsigned long ino64_t;
 # endif
 # ifndef __NIJI_D_off64_t
 #  define __NIJI_D_off64_t 1
@@ -99,6 +115,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___res_init
+#  define __NIJI_D___res_init 1
+extern int __res_init (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___res_nclose
+#  define __NIJI_D___res_nclose 1
+extern void __res_nclose (res_state) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___res_ninit
+#  define __NIJI_D___res_ninit 1
+extern int __res_ninit (res_state) __NIJI_NOTHROW;
+# endif
 struct __res_state;
 # ifndef __NIJI_D___res_state
 #  define __NIJI_D___res_state 1
@@ -356,10 +384,11 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # endif
 #endif
 
+/* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */
 #if 1
-# define res_init res_init
-# define res_ninit res_ninit
-# define res_nclose res_nclose
+# define res_init __res_init
+# define res_ninit __res_ninit
+# define res_nclose __res_nclose
 # define _res (*__res_state ())
 #endif
 

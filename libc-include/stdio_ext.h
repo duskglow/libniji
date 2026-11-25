@@ -9,6 +9,42 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D___fbufsize
+#  define __NIJI_D___fbufsize 1
+extern unsigned long __fbufsize (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___flbf
+#  define __NIJI_D___flbf 1
+extern int __flbf (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___fpending
+#  define __NIJI_D___fpending 1
+extern unsigned long __fpending (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___fpurge
+#  define __NIJI_D___fpurge 1
+extern void __fpurge (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___freadable
+#  define __NIJI_D___freadable 1
+extern int __freadable (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___freading
+#  define __NIJI_D___freading 1
+extern int __freading (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___fsetlocking
+#  define __NIJI_D___fsetlocking 1
+extern int __fsetlocking (FILE *, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___fwritable
+#  define __NIJI_D___fwritable 1
+extern int __fwritable (FILE *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___fwriting
+#  define __NIJI_D___fwriting 1
+extern int __fwriting (FILE *) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D__flushlbf
 #  define __NIJI_D__flushlbf 1
 extern void _flushlbf (void);

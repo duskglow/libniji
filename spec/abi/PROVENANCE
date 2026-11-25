@@ -79,3 +79,8 @@ SL-HEADERS-UNSHIPPED-REST-2 (aio.h, mqueue.h): diagattrs.tsv by attr_probe.py ta
 through the branch's headers, mq_open added to NO_SENTINEL (its checking wrapper makes a 3-argument call an error inside
 a header, so the whole reference corpus did not build): 2369 functions probed, two runs byte-identical, 23 rows added
 (aio_*, lio_listio*, mq_*: nonnull only), every earlier row unchanged; thread_db.h and proc_service.h gave no row.
+typegeneric.tsv (SL-HEADERS-COMPLEX-TGMATH): spec/tools/tgmath_probe.py on the reference system (ldd (Ubuntu GLIBC
+2.39-0ubuntu8.9) 2.39, GCC 13.3), eight configurations (C89, C99, C11, C2X strict, gnu17, _GNU_SOURCE, C++98 and
+gnu++17 through the C++ library's wrappers), 23474 rows: per tgmath.h macro and argument types the functions the call
+references, the result type and the form; per complex.h macro its type and whether it is a constant expression.
+Read back are only exit statuses and the symbols and object sizes of the probe's own objects.

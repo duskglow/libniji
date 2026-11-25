@@ -26,6 +26,15 @@ extern int __sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
 # define PTHREAD_CANCELED ((void *) @@value(PTHREAD_CANCELED))
 #endif
 
+/* PTHREAD_STACK_MIN in <limits.h>'s form (see the header comment). */
+@@if PTHREAD_STACK_MIN
+# if __NIJI_DYNSTACK
+#  define PTHREAD_STACK_MIN __sysconf (@@value(_SC_THREAD_STACK_MIN))
+# else
+#  define PTHREAD_STACK_MIN @@value(PTHREAD_STACK_MIN)
+# endif
+#endif
+
 /* Static initializers: the bytes of initializers.tsv, as the members of the object they initialise. */
 @@if PTHREAD_MUTEX_INITIALIZER
 # define PTHREAD_MUTEX_INITIALIZER @@init(PTHREAD_MUTEX_INITIALIZER)

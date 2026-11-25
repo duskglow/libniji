@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """P4 of plan/headers.md (slice 20): the C++ check of libniji's headers.
 
-  python3 validation/headers_p4.py [--include DIR] [--uapi DIR] [--jobs N] [--out DIR] [--no-noexcept]
+  python3 validation/headers_p4.py [--include DIR] [--uapi DIR] [--jobs N] [--out DIR] [--no-noexcept] [--no-cxx]
 
 1. Every C++ standard library header (the header list of the C++ standard, [headers], C++98 to the C++26
    working draft, with the C library's `<name.h>` forms and the deprecated ones), in every `-std` from
@@ -14,7 +14,11 @@
    does not is a FAIL, printed with up to three of the compiler's errors on libniji's side.
 2. noexcept.tsv and callsites.tsv are reproduced: spec/tools/callsite_probe.py --include DIR writes them
    into OUT (default a temporary directory) and they must equal spec/abi's (typedefs.tsv's sizes and
-   alignments are P1, spec/tools/header_check.py). --no-noexcept skips this part.
+   alignments are P1, spec/tools/header_check.py). --no-noexcept skips this part; --no-cxx skips part 1.
+   As P2 and P3 do (spec/tools/probe_compare.py), the rows of the reserved names the generator leaves out by
+   policy (headers/reserved.tsv; D-X.107, rulings R-H2 and R-H3) are not compared. Each other difference is a
+   line in probe_compare.py's form and a FAIL unless validation/headers_p4.accept (or a slice's
+   validation/headers_s*.accept) lists it; a headers_p4.accept line the probe no longer shows is a FAIL (stale).
 3. The headers libniji does not ship yet are validation/headers_unshipped.tsv: that list must equal the
    headers the spec tables name with no file under DIR (a FAIL either way). A C++ header whose only errors
    are "<one of them>: No such file or directory" is "known", not a FAIL; the probe skips those headers
@@ -23,7 +27,10 @@
 Prints one line per -std ("P4 c++17: 141 compiled, 3 n/a, 0 known, 0 FAIL") and a summary; exit 1 on any FAIL.
 No spec clause: header tooling (plan/headers.md P4).
 """
-import argparse, concurrent.futures as cf, filecmp, os, re, subprocess, sys, tempfile
+import argparse, concurrent.futures as cf, glob, os, re, subprocess, sys, tempfile
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "spec", "tools"))
+from probe_compare import reserved_omitted  # noqa: E402  (the rule P2 and P3 compare by)
 
 STDS = ["c++98", "c++03", "c++11", "c++14", "c++17", "c++20", "c++23", "c++26"]
 # The C++ standard's library headers ([headers], tables "C++ library headers" and "C++ headers for C
@@ -51,6 +58,7 @@ def search_list(cxx):
 
 
 UNSHIPPED = "validation/headers_unshipped.tsv"
+ACCEPT = "validation/headers_p4.accept"
 TABLES = ("visibility.tsv", "typedefs.tsv", "callsites.tsv", "noexcept.tsv")
 NOT_FOUND = re.compile(r": fatal error: (\S+): No such file or directory$")
 
@@ -75,6 +83,36 @@ def unshipped_check(inc, listed):
     return out
 
 
+def table_lines(t, ref_rows, mine_rows, head, omitted):
+    """Part 2's difference lines of table t, one per row: callsites.tsv in probe_compare.py's form (`missing|extra
+    <header> <name> <mode> <symbol> [<configs>]`, `differs ... table [<configs>] libniji [<configs>]`), noexcept.tsv
+    keyed by header and name (`differs noexcept <header> <name> table [<cxx17> <variadic> <cxx98>] libniji [...]`).
+    Rows of the names the generator leaves out by policy are not compared; returns (lines, rows left out)."""
+    ix = {c: i for i, c in enumerate(head)}
+    if t == "callsites.tsv":
+        key, val, tag = ("header", "name", "mode", "symbol"), ("configs",), ""
+    else:
+        key, val, tag = ("header", "name"), ("cxx17", "variadic", "cxx98"), "noexcept "
+    def index(rows):
+        return {tuple(r[ix[k]] for k in key): " ".join(r[ix[v]] for v in val) for r in rows if not omitted(r[ix["name"]])}
+    want, got = index(ref_rows), index(mine_rows)
+    left_out = sum(1 for r in ref_rows if omitted(r[ix["name"]]))
+    lines = []
+    for k in sorted(want.keys() | got.keys()):
+        if k not in got:
+            lines.append(f"missing {tag}{' '.join(k)} [{want[k]}]")
+        elif k not in want:
+            lines.append(f"extra {tag}{' '.join(k)} [{got[k]}]")
+        elif want[k] != got[k]:
+            lines.append(f"differs {tag}{' '.join(k)} table [{want[k]}] libniji [{got[k]}]")
+    return lines, left_out
+
+
+def accept_lines(path):
+    with open(path) as f:
+        return {l.rstrip("\n") for l in f if l.strip() and not l.startswith("#")}
+
+
 def compile_one(cmd, text):
     p = subprocess.run(cmd + ["-x", "c++", "-fsyntax-only", "-"], input=text, capture_output=True, text=True)
     return p.returncode, p.stderr
@@ -87,7 +125,9 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--out", default="")
     ap.add_argument("--no-noexcept", action="store_true")
+    ap.add_argument("--no-cxx", action="store_true")
     a = ap.parse_args()
+    stds = [] if a.no_cxx else STDS
     inc, uapi = os.path.abspath(a.include), os.path.abspath(a.uapi)
     if not os.path.isfile(os.path.join(inc, "features.h")) or not os.path.isdir(uapi):
         print(f"P4: FAIL {inc} or {uapi} is missing (cargo xtask so)")
@@ -114,12 +154,12 @@ def main():
         print(line)
     fails = len(lines)
     with cf.ThreadPoolExecutor(a.jobs) as ex:
-        for std in STDS:
+        for std in stds:
             for h in CXX:
                 text = f"#include <{h}>\nint main() {{ return 0; }}\n"
                 jobs[(std, h, "ref")] = ex.submit(compile_one, [cxx, f"-std={std}"], text)
                 jobs[(std, h, "niji")] = ex.submit(compile_one, [cxx, f"-std={std}"] + niji, text)
-        for std in STDS:
+        for std in stds:
             ok = na = known = bad = 0
             for h in CXX:
                 ref, _ = jobs[(std, h, "ref")].result()
@@ -150,6 +190,12 @@ def main():
         if p.returncode != 0:
             print("P4 FAIL callsite_probe.py --include: " + (p.stderr.strip().splitlines() or ["?"])[-1])
             fails += 1
+        omitted = reserved_omitted()
+        mine_accept = accept_lines(ACCEPT)
+        accepted = set(mine_accept)
+        for p in sorted(glob.glob("validation/headers_s*.accept")):
+            accepted |= accept_lines(p)
+        seen = set()
         for t in ("noexcept.tsv", "callsites.tsv"):
             # The reference's rows of the headers libniji ships: the probe skips the unshipped ones.
             head, rows = tsv_rows(os.path.join("spec/abi", t))
@@ -157,11 +203,23 @@ def main():
             with open(ref, "w", newline="\n") as f:
                 f.writelines("\t".join(r) + "\n" for r in [head] + [r for r in rows if r[1] not in listed])
             mine = os.path.join(out, t)
-            if os.path.isfile(mine) and filecmp.cmp(mine, ref, shallow=False):
-                print(f"P4 {t}: reproduced on libniji's headers ({len(rows)} rows, {len(listed)} headers not shipped)")
-            else:
+            if not os.path.isfile(mine):
                 fails += 1
-                print(f"P4 FAIL {t}: differs from spec/abi/{t} without the unshipped headers' rows (diff {ref} {mine})")
+                print(f"P4 FAIL {t}: the probe wrote no {mine}")
+                continue
+            lines, left_out = table_lines(t, [r for r in rows if r[1] not in listed], tsv_rows(mine)[1], head, omitted)
+            seen |= set(lines)
+            bad = [l for l in lines if l not in accepted]
+            for l in bad:
+                print(f"P4 FAIL {t}: {l}")
+            fails += len(bad)
+            print(f"P4 {t}: {len(lines) - len(bad)} accepted and {len(bad)} other differences from spec/abi/{t} "
+                  f"({len(rows)} rows; {len(listed)} headers not shipped; {left_out} rows of reserved names the headers "
+                  f"leave out by policy, headers/reserved.tsv)")
+        # The ratchet: a difference this list accepts that the probe no longer shows is a stale line.
+        for l in sorted(mine_accept - seen):
+            fails += 1
+            print(f"P4 FAIL {ACCEPT}: stale line (no longer a difference): {l}")
     print(f"P4: {'FAIL ' + str(fails) if fails else 'OK'}")
     return 1 if fails else 0
 

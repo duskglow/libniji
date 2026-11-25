@@ -1,0 +1,20 @@
+# HEADERS-SNAPSHOT-GAPS plants (cargo xtask plants; docs/plants.md). Header plants regenerate, then run the checks
+# (the form probe off: these names are checked by the slice modules' `exact` units and the S_IS* unit). The plants
+# mutate templates, not tables: the checks read their expectations from the tables, so a table mutant moves both.
+hsg-stat-sis-ifmt | headers/sys/stat.h.in | lit:# define S_ISDIR(m) (((m) & @@value(S_IFMT)) == @@value(S_IFDIR)) ==> # define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR) | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL S_IS\* tests of sys/stat.h posix
+hsg-types-u_long-gone | headers/sys/types.h.in | perl:s/^\x40\x40emit$/\x40\x40owns u_long\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact sys/types.h default
+hsg-utmp-wtmp-file-gone | headers/utmp.h.in | perl:s/^\x40\x40emit$/\x40\x40owns WTMP_FILE\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact utmp.h default
+hsg-utmpx-file-everywhere | headers/utmpx.h.in | perl:s/^\x40\x40emit$/\x40\x40owns UTMPX_FILE\n#define UTMPX_FILE \x40\x40value(UTMPX_FILE)\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact utmpx.h (c89|c99|c11|posix)
+hsg-path-wtmp-value | headers/paths.h.in | perl:s/^\x40\x40emit$/\x40\x40emit\n\x40\x40if _PATH_WTMP\n# define _PATH_WTMP "\/var\/log\/wtmx" \/* \x40\x40 *\/\n#endif/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact paths.h cxx(11|14|17|20|23)
+hsg-re-translate-type | headers/regex.h.in | lit:# define RE_TRANSLATE_TYPE unsigned char * ==> # define RE_TRANSLATE_TYPE char * | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact regex.h gnu
+hsg-re-translate-everywhere | headers/regex.h.in | lit:@@if RE_TRANSLATE_TYPE ==> #if 1 | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact regex.h (c89|c99|default|posix)
+hsg-sig_t-gone | headers/signal.h.in | perl:s/^\x40\x40emit$/\x40\x40owns sig_t\n\x40\x40emit/m | sh -c 'cargo xtask headers-gen && NIJI_FORM_PROBE=0 python3 spec/tools/header_check.py' | msg:FAIL exact signal.h default
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hsg-stat-sis-ifmt: CAUGHT, caught by no test the log names
+# hsg-types-u_long-gone: CAUGHT, caught by no test the log names
+# hsg-utmp-wtmp-file-gone: CAUGHT, caught by no test the log names
+# hsg-utmpx-file-everywhere: CAUGHT, caught by no test the log names
+# hsg-path-wtmp-value: CAUGHT, caught by no test the log names
+# hsg-re-translate-type: CAUGHT, caught by no test the log names
+# hsg-re-translate-everywhere: CAUGHT, caught by no test the log names
+# hsg-sig_t-gone: CAUGHT, caught by no test the log names

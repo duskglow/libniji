@@ -1,0 +1,53 @@
+# RELEASE-SNAPSHOT-1124D step 4d: header coverage of the system flavour's libc6-dev (44304e709, 2.39+niji20261124.2-1)
+# against Debian trixie's libc6-dev 2.41 (job release-snapshot-1124d-yh-1, logs-yh/out/{stock,niji}-headers.txt).
+# Names are include names (the x86_64-linux-gnu/ prefix removed). Debian ships 478 *.h names, libniji 236 (all 236
+# are also Debian names). Missing: 242 = 11 outside bits/ + 231 under bits/. "stock-includable" = the name compiles,
+# links and runs as `#include <h>` + empty main with Debian's headers (C; C++ the same), i.e. a program can include it
+# directly; the others refuse direct inclusion with Debian's headers too.
+
+## Missing outside bits/ (11)
+# stock-includable (9); the six marked * are listed in validation/headers_unshipped.tsv and docs/install-packages.md
+a.out.h  aio.h*  complex.h*  gnu/stubs-64.h  mqueue.h*  proc_service.h*  stab.h  tgmath.h*  thread_db.h*
+# not stock-includable (2)
+finclude/x86_64-linux-gnu/math-vector-fortran.h (a Fortran include)  gnu/lib-names-64.h
+# note: docs/install-packages.md (libc6-dev row) names a.out.h among the headers shipped in /usr/include/x86_64-linux-gnu.
+
+## Missing under bits/, stock-includable (66)
+bits/atomic_wide_counter.h bits/cloexec.h bits/endian.h bits/floatn-common.h bits/floatn.h bits/initspin.h
+bits/local_lim.h bits/long-double.h bits/mathcalls-macros.h bits/posix1_lim.h bits/posix2_lim.h bits/posix_opt.h
+bits/pthread_stack_min-dynamic.h bits/pthread_stack_min.h bits/pthreadtypes-arch.h bits/pthreadtypes.h
+bits/siginfo-arch.h bits/siginfo-consts-arch.h bits/sockaddr.h bits/stdint-intn.h bits/stdint-least.h
+bits/stdint-uintn.h bits/struct_rwlock.h bits/thread-shared-types.h bits/time.h bits/timesize.h bits/timex.h
+bits/types.h bits/types/FILE.h bits/types/__FILE.h bits/types/__fpos64_t.h bits/types/__fpos_t.h
+bits/types/__locale_t.h bits/types/__mbstate_t.h bits/types/__sigset_t.h bits/types/__sigval_t.h
+bits/types/clock_t.h bits/types/clockid_t.h bits/types/error_t.h bits/types/idtype_t.h bits/types/locale_t.h
+bits/types/mbstate_t.h bits/types/res_state.h bits/types/sig_atomic_t.h bits/types/sigevent_t.h
+bits/types/siginfo_t.h bits/types/sigset_t.h bits/types/stack_t.h bits/types/struct_FILE.h
+bits/types/struct_iovec.h bits/types/struct_itimerspec.h bits/types/struct_osockaddr.h bits/types/struct_rusage.h
+bits/types/struct_sched_param.h bits/types/struct_sigstack.h bits/types/struct_timeb.h
+bits/types/struct_timespec.h bits/types/struct_timeval.h bits/types/struct_tm.h bits/types/time_t.h
+bits/types/timer_t.h bits/types/wint_t.h bits/uio_lim.h bits/wchar.h bits/wordsize.h bits/xopen_lim.h
+
+## Missing under bits/, not stock-includable (165; names below are relative to bits/)
+a.out.h argp-ldbl.h byteswap.h cmathcalls.h confname.h cpu-set.h dirent.h dirent_ext.h dl_find_object.h dlfcn.h
+elfclass.h endianness.h environments.h epoll.h err-ldbl.h errno.h error-ldbl.h error.h eventfd.h fcntl-linux.h
+fcntl.h fcntl2.h fenv.h flt-eval-method.h fp-fast.h fp-logb.h getopt_core.h getopt_ext.h getopt_posix.h hwcap.h
+in.h indirect-return.h inotify.h ioctl-types.h ioctls.h ipc-perm.h ipc.h ipctypes.h iscanonical.h
+libc-header-start.h libm-simd-decl-stubs.h link.h link_lavcurrent.h locale.h math-vector.h
+mathcalls-helper-functions.h mathcalls-narrow.h mathcalls.h mathdef.h mman-linux.h mman-map-flags-generic.h
+mman-shared.h mman.h mman_ext.h monetary-ldbl.h mqueue.h mqueue2.h msq.h netdb.h param.h platform/features.h
+platform/x86.h poll.h poll2.h printf-ldbl.h procfs-extra.h procfs-id.h procfs-prregset.h procfs.h
+ptrace-shared.h resource.h rseq.h sched.h select-decl.h select.h select2.h sem.h semaphore.h setjmp.h setjmp2.h
+shm.h shmlba.h sigaction.h sigcontext.h sigevent-consts.h siginfo-consts.h signal_ext.h signalfd.h
+signum-arch.h signum-generic.h sigstack.h sigstksz.h sigthread.h socket-constants.h socket.h socket2.h
+socket_type.h spawn_ext.h ss_flags.h stat.h statfs.h statvfs.h statx-generic.h statx.h stdio-ldbl.h stdio.h
+stdio2-decl.h stdio2.h stdio_lim.h stdlib-bsearch.h stdlib-float.h stdlib-ldbl.h stdlib.h string_fortified.h
+strings_fortified.h struct_mutex.h struct_stat.h struct_stat_time64_helper.h syscall.h syslog-decl.h
+syslog-ldbl.h syslog-path.h syslog.h sysmacros.h termios-baud.h termios-c_cc.h termios-c_cflag.h
+termios-c_iflag.h termios-c_lflag.h termios-c_oflag.h termios-misc.h termios-struct.h termios-tcflow.h
+termios.h time64.h timerfd.h types/cookie_io_functions_t.h types/sigval_t.h types/struct___jmp_buf_tag.h
+types/struct_msqid64_ds.h types/struct_msqid64_ds_helper.h types/struct_msqid_ds.h types/struct_semid64_ds.h
+types/struct_semid64_ds_helper.h types/struct_semid_ds.h types/struct_shmid64_ds.h
+types/struct_shmid64_ds_helper.h types/struct_shmid_ds.h types/struct_statx.h types/struct_statx_timestamp.h
+typesizes.h uintn-identity.h uio-ext.h unistd-decl.h unistd.h unistd_ext.h utmp.h utmpx.h utsname.h waitflags.h
+waitstatus.h wchar-ldbl.h wchar2-decl.h wchar2.h wctype-wchar.h
