@@ -38,3 +38,6 @@ netinet/ip6.h work (member macros, ext-header structs), so the "Not done: ip6.h"
 Jobs on 621e2c0c7: clippy and static clean; headers-stage2-gaps-e-2-xtask (cargo test -p xtask): 665 + others pass,
 only xtask/tests/transcripts.rs the_committed_gencat_transcripts_hold fails (no built target/niji-test/gencat on the
 role: an unbuilt product, no header involvement); headers-stage2-gaps-e-2-plants: see hand-back.
+
+## Leg 6 (HEADERS-STAGE2-GAPS-E-3)
+No code change. On 04e96f476: clippy, static clean; plants job headers-stage2-gaps-e-3-plants green; xtask2 and gate2 green after `cargo xtask so` (the gencat transcript test needs the built product). SUPERSEDED: headers-stage2-gaps-e-3-xtask, headers-stage2-gaps-e-3-gate (red on that test, product unbuilt).
