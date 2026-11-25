@@ -291,6 +291,19 @@ fn sym_nl_langinfo_l() {
         assert_eq!(text(s::nl_langinfo_l(cat << 16 | 0xFFFF, m)), want, "_NL_LOCALE_NAME({cat}) of a mixed object");
         assert_eq!(text(s::nl_langinfo_l(cat << 16 | 0xFFFF, d)), want, "_NL_LOCALE_NAME({cat}) of its duplicate");
     }
+    // The objects' `__names` member (struct __locale_struct, offset 128, 13 pointers; <locale.h> shows the structure
+    // complete, NL-LOCALE-NAME-ABI-3): gnulib's localename module reads `__names[category]` directly, so each real
+    // category's slot holds the name _NL_LOCALE_NAME gives (black-box probes: the reference's slots match these for C,
+    // POSIX, en_US.UTF-8, a mixed object, its duplicate and duplocale(LC_GLOBAL_LOCALE)). LC_ALL's slot is not asserted.
+    for (obj, what) in [(m, "a mixed object"), (d, "its duplicate")] {
+        let mut names = [0usize; 13];
+        st::memcpy(names.as_mut_ptr().cast(), obj.cast::<u8>().wrapping_add(128).cast(), 13 * 8);
+        for cat in (0..=12).filter(|&c| c != LC_ALL) {
+            assert!(names[cat as usize] != 0, "__names[{cat}] of {what} is set");
+            assert_eq!(text(names[cat as usize] as *const c_char), text(s::nl_langinfo_l(cat << 16 | 0xFFFF, obj)),
+                       "__names[{cat}] of {what} is the category's name");
+        }
+    }
     s::freelocale(d);
     s::freelocale(m);
 }
