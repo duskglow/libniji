@@ -37,3 +37,11 @@ story) and #8493 (above). No new D-row.
 **Do not redo.** The reference-side table probes (PROVENANCE lists them); the Fortran probe.
 
 **Exact next step.** None in this story once the gate and plants are green; follow-up is #266 (Fortran header).
+
+**Run 3 (SL-HEADERS-UNSHIPPED-REST-3), merge of next.** Branch , stacked on run 2. The
+CI conflict (release note, PROVENANCE, headers_unshipped.tsv) came from next shipping complex.h and tgmath.h
+(SL-HEADERS-COMPLEX-TGMATH). Resolved by keeping both sides: PROVENANCE has both entries (no counts in it to
+recompute); headers_unshipped.tsv now lists only math-vector-fortran.h; the known-limitations note names only that
+header. Regenerating headers on the merged tree changed one file, signal.h (union sigval has sival_int/sival_ptr again;
+the merge had taken an opaque form), committed. Clippy and static clean on the merged head. Gate and plants (run 2's
+plants file, unchanged) are the jobs in the report json. Nothing else changed; no design change.
