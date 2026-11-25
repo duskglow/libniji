@@ -3,6 +3,6 @@
 # it, not defined where it does not. Each plant regenerates libc-include and runs only the P1G units. P1G takes its
 # guard list from reserved.tsv, so deleting the emit row (a policy change) also removes the check: plants-1's
 # `stdio-guard-omitted` (the row set to omit) SURVIVED for that reason and was replaced by a template slip.
-stdio-guard-owned | headers/stdio.h.in | lit:@@owns NULL va_list stdin stdout stderr gets ==> @@owns NULL va_list stdin stdout stderr gets _STDIO_H |sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G stdio\.h _STDIO_H
+stdio-guard-owned | headers/stdio.h.in | lit:@@owns NULL va_list stdin stdout stderr gets ==> @@owns NULL va_list stdin stdout stderr gets _STDIO_H | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G stdio\.h _STDIO_H
 reserved-emit-ignored | xtask/src/headers.rs | lit:        Some("emit") => false, ==>         Some("emit") => true, | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G
 igmp-guard-unconditional | headers/netinet/igmp.h.in | lit:@@needs-if in_addr netinet/in.h ==> #include <netinet/in.h> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G netinet/igmp\.h _NETINET_IN_H
