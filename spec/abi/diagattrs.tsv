@@ -125,7 +125,7 @@ creat	1
 creat64	1									
 crypt	1,2									
 daemon		1								
-dcgettext	2									2
+dcgettext										2
 dcngettext										2,3
 dgettext										2
 difftime									const	

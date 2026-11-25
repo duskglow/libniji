@@ -1,9 +1,19 @@
 # HEADERS-STAGE2-GAPS-B / -B-2 (Yohane stage 2: openssh, apt, binutils, krb5, systemd, apparmor, babeltrace, avahi; gnu-efi)
 
-**State:** branch `task/headers-stage2-gaps-b-2` (continues `task/headers-stage2-gaps-b`), merged origin/next at e64b49f2a
-(HEADERS-NET-SYS-NAMES landed). Role keke:~/w/n3. Scratch `~/w/.scratch/HEADERS-STAGE2-GAPS-B-2/`; on keke
-`~/work/headers-stage2-gaps-b-2/`. No new decision rows (local, table-driven; forms settled by black-box probes recorded
-in the check modules).
+**State:** branch `task/headers-stage2-gaps-b-3` (continues `-b-2`), merged origin/next at 4acd0def6 (leg 6). Role
+keke:~/w/n3. Scratch `~/w/.scratch/HEADERS-STAGE2-GAPS-B-3/`; on keke `~/work/headers-stage2-gaps-b-3/`. No new decision
+rows (local, table-driven; forms settled by black-box probes recorded in the check modules).
+
+## Leg 6 (HEADERS-STAGE2-GAPS-B-3)
+* CI conflict from the -b-2 hand-back resolved by merging origin/next: `spec/tools/attr_probe.py` keeps next's
+  configurations and nonnull unit (`-nn`) and this branch's sentinel/format_arg unit (`-s`, `-fno-builtin`: tests `s` and
+  `fa`), plus the `format_arg` column (TABLE_COLUMNS); `spec/abi/diagattrs.tsv` is next's rows plus the `format_arg`
+  column (gettext family) and the exec* rows without a sentinel (this branch's -fno-builtin result), merged by a row-wise
+  three-way (not regenerated: ruling #8623 says a full run drifts on pure/const); `libc-include/libintl.h` regenerated.
+* b64_ntop/b64_pton (the -b-2 follow-up): `b64_ntop`, `b64_pton` in header_probe's stage2_names; the two probed rows
+  (`macro`, `!time64only`) spliced into visibility.tsv; `__b64_ntop`/`__b64_pton` `emit` rows in headers/reserved.tsv;
+  `#define b64_ntop __b64_ntop` (and pton) in headers/resolv.h.in; unit `initializers resolv.h b64` (s12.py: both function
+  pointer types exact, a call); the two macros in form.py ENFORCED. Plants: handoff/HEADERS-STAGE2-GAPS-B-3-plants.txt.
 
 ## Done
 * Leg 1-4 (HEADERS-STAGE2-GAPS-B): openssh premise corrected (the reference's `<signal.h>` declares the exec family too; the
@@ -26,6 +36,7 @@ gate (affected direct tier: 18 suites ok, 11811 passed / 0 failed, conformance 1
 plants), proof6 (openssh above). Earlier legs' jobs are superseded by these (see the report).
 
 ## Not done / next step
+* Nothing open from this chain after leg 6 (the item below is DONE in leg 6; kept for the record).
 * b64_ntop/b64_pton (coordinator 13:45Z): libniji's libresolv exports `__b64_ntop`/`__b64_pton`, visibility.tsv and
   prototypes.tsv list both as resolv.h functions, but libniji's resolv.h declares neither. The reference's resolv.h has
   `#define b64_ntop __b64_ntop` / `#define b64_pton __b64_pton` plus the declarations of `__b64_ntop`
