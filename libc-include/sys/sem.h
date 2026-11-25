@@ -47,6 +47,23 @@ struct semid_ds {
 };
 # endif
 #endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_seminfo
+#  define __NIJI_D_struct_seminfo 1
+struct seminfo {
+  int semmap;
+  int semmni;
+  int semmns;
+  int semmnu;
+  int semmsl;
+  int semopm;
+  int semume;
+  int semusz;
+  int semvmx;
+  int semaem;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1

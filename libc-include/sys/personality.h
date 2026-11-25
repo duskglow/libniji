@@ -12,10 +12,208 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_personality 1
 extern int personality (long unsigned int) __NIJI_NOTHROW;
 # endif
+# ifndef __NIJI_D_enum_ADDR_COMPAT_LAYOUT
+#  define __NIJI_D_enum_ADDR_COMPAT_LAYOUT 1
+#  ifndef ADDR_COMPAT_LAYOUT
+enum { ADDR_COMPAT_LAYOUT = 2097152 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_ADDR_LIMIT_32BIT
+#  define __NIJI_D_enum_ADDR_LIMIT_32BIT 1
+#  ifndef ADDR_LIMIT_32BIT
+enum { ADDR_LIMIT_32BIT = 8388608 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_ADDR_LIMIT_3GB
+#  define __NIJI_D_enum_ADDR_LIMIT_3GB 1
+#  ifndef ADDR_LIMIT_3GB
+enum { ADDR_LIMIT_3GB = 134217728 };
+#  endif
+# endif
 # ifndef __NIJI_D_enum_ADDR_NO_RANDOMIZE
 #  define __NIJI_D_enum_ADDR_NO_RANDOMIZE 1
 #  ifndef ADDR_NO_RANDOMIZE
 enum { ADDR_NO_RANDOMIZE = 262144 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_FDPIC_FUNCPTRS
+#  define __NIJI_D_enum_FDPIC_FUNCPTRS 1
+#  ifndef FDPIC_FUNCPTRS
+enum { FDPIC_FUNCPTRS = 524288 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_MMAP_PAGE_ZERO
+#  define __NIJI_D_enum_MMAP_PAGE_ZERO 1
+#  ifndef MMAP_PAGE_ZERO
+enum { MMAP_PAGE_ZERO = 1048576 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_BSD
+#  define __NIJI_D_enum_PER_BSD 1
+#  ifndef PER_BSD
+enum { PER_BSD = 6 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_HPUX
+#  define __NIJI_D_enum_PER_HPUX 1
+#  ifndef PER_HPUX
+enum { PER_HPUX = 16 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_IRIX32
+#  define __NIJI_D_enum_PER_IRIX32 1
+#  ifndef PER_IRIX32
+enum { PER_IRIX32 = 67108873 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_IRIX64
+#  define __NIJI_D_enum_PER_IRIX64 1
+#  ifndef PER_IRIX64
+enum { PER_IRIX64 = 67108875 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_IRIXN32
+#  define __NIJI_D_enum_PER_IRIXN32 1
+#  ifndef PER_IRIXN32
+enum { PER_IRIXN32 = 67108874 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_ISCR4
+#  define __NIJI_D_enum_PER_ISCR4 1
+#  ifndef PER_ISCR4
+enum { PER_ISCR4 = 67108869 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_LINUX
+#  define __NIJI_D_enum_PER_LINUX 1
+#  ifndef PER_LINUX
+enum { PER_LINUX = 0 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_LINUX32
+#  define __NIJI_D_enum_PER_LINUX32 1
+#  ifndef PER_LINUX32
+enum { PER_LINUX32 = 8 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_LINUX32_3GB
+#  define __NIJI_D_enum_PER_LINUX32_3GB 1
+#  ifndef PER_LINUX32_3GB
+enum { PER_LINUX32_3GB = 134217736 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_LINUX_32BIT
+#  define __NIJI_D_enum_PER_LINUX_32BIT 1
+#  ifndef PER_LINUX_32BIT
+enum { PER_LINUX_32BIT = 8388608 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_LINUX_FDPIC
+#  define __NIJI_D_enum_PER_LINUX_FDPIC 1
+#  ifndef PER_LINUX_FDPIC
+enum { PER_LINUX_FDPIC = 524288 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_MASK
+#  define __NIJI_D_enum_PER_MASK 1
+#  ifndef PER_MASK
+enum { PER_MASK = 255 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_OSF4
+#  define __NIJI_D_enum_PER_OSF4 1
+#  ifndef PER_OSF4
+enum { PER_OSF4 = 15 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_OSR5
+#  define __NIJI_D_enum_PER_OSR5 1
+#  ifndef PER_OSR5
+enum { PER_OSR5 = 100663299 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_RISCOS
+#  define __NIJI_D_enum_PER_RISCOS 1
+#  ifndef PER_RISCOS
+enum { PER_RISCOS = 12 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_SCOSVR3
+#  define __NIJI_D_enum_PER_SCOSVR3 1
+#  ifndef PER_SCOSVR3
+enum { PER_SCOSVR3 = 117440515 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_SOLARIS
+#  define __NIJI_D_enum_PER_SOLARIS 1
+#  ifndef PER_SOLARIS
+enum { PER_SOLARIS = 67108877 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_SUNOS
+#  define __NIJI_D_enum_PER_SUNOS 1
+#  ifndef PER_SUNOS
+enum { PER_SUNOS = 67108870 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_SVR3
+#  define __NIJI_D_enum_PER_SVR3 1
+#  ifndef PER_SVR3
+enum { PER_SVR3 = 83886082 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_SVR4
+#  define __NIJI_D_enum_PER_SVR4 1
+#  ifndef PER_SVR4
+enum { PER_SVR4 = 68157441 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_UW7
+#  define __NIJI_D_enum_PER_UW7 1
+#  ifndef PER_UW7
+enum { PER_UW7 = 68157454 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_WYSEV386
+#  define __NIJI_D_enum_PER_WYSEV386 1
+#  ifndef PER_WYSEV386
+enum { PER_WYSEV386 = 83886084 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_PER_XENIX
+#  define __NIJI_D_enum_PER_XENIX 1
+#  ifndef PER_XENIX
+enum { PER_XENIX = 83886087 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_READ_IMPLIES_EXEC
+#  define __NIJI_D_enum_READ_IMPLIES_EXEC 1
+#  ifndef READ_IMPLIES_EXEC
+enum { READ_IMPLIES_EXEC = 4194304 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_SHORT_INODE
+#  define __NIJI_D_enum_SHORT_INODE 1
+#  ifndef SHORT_INODE
+enum { SHORT_INODE = 16777216 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_STICKY_TIMEOUTS
+#  define __NIJI_D_enum_STICKY_TIMEOUTS 1
+#  ifndef STICKY_TIMEOUTS
+enum { STICKY_TIMEOUTS = 67108864 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_UNAME26
+#  define __NIJI_D_enum_UNAME26 1
+#  ifndef UNAME26
+enum { UNAME26 = 131072 };
+#  endif
+# endif
+# ifndef __NIJI_D_enum_WHOLE_SECONDS
+#  define __NIJI_D_enum_WHOLE_SECONDS 1
+#  ifndef WHOLE_SECONDS
+enum { WHOLE_SECONDS = 33554432 };
 #  endif
 # endif
 #endif
