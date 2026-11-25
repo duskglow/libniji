@@ -1,0 +1,9 @@
+# NL-LOCALE-NAME-ABI plants: _NL_LOCALE_NAME in langinfo.h (P1 visibility and the s10 form rows), static_assert in
+# assert.h (P1 visibility per configuration), and nl_langinfo's name item (sym_nl_langinfo, sym_nl_langinfo_l). Header
+# plants regenerate libc-include, then run only the header_check units of their header (`--only`).
+nl-locale-name-missing | headers/langinfo.h.in | lit:# define _NL_LOCALE_NAME(category) _NL_ITEM ((category), _NL_ITEM_INDEX (-1)) ==> /* none */ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "P1 langinfo.h"' | msg:FAIL P1 langinfo.h
+nl-locale-name-long | headers/langinfo.h.in | lit:_NL_ITEM_INDEX (-1)) ==> 0xffffL) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "_NL_ITEM forms"' | msg:FAIL P1 langinfo.h _NL_ITEM forms
+static-assert-in-c23 | headers/assert.h.in | lit: && !(defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L) ==>  | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "P1 assert.h"' | msg:FAIL P1 assert.h
+static-assert-in-cxx | headers/assert.h.in | lit: && !defined __cplusplus ==>  | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "P1 assert.h"' | msg:FAIL P1 assert.h
+static-assert-c99 | headers/assert.h.in | lit:__NIJI_ISOC >= 2011 ==> __NIJI_ISOC >= 1999 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "P1 assert.h"' | msg:FAIL P1 assert.h
+langinfo-name-index | crates/boundary/src/locale.rs | lit:    if index == 0xffff { ==>     if index == 0xfffe { | cargo test -p niji-boundary --test s07_locale_symbols | msg:sym_nl_langinfo.*(FAILED|panicked)
