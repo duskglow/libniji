@@ -118,10 +118,6 @@ def tsv(path):
         return [dict(zip(head, line.rstrip("\n").split("\t"))) for line in f]
 
 
-# D-X.126 (COMPAT-34): the MS_* names of <sys/mount.h> stay macros only; a group with an MS_ member is not derived.
-KEPT_MACROS = ("MS_",)
-
-
 def derive(probe_tsv):
     """The table rows of a probe run: enumerators.tsv rows `anon FIRST` for each enumeration without a name or typedef
     (FIRST: its first enumerator by name; values as probed, ordered by value), and enum-macros.tsv (each macro that is
@@ -158,9 +154,6 @@ def derive(probe_tsv):
     tag_of = {n: t for t, ms in etsv.items() for n, _ in ms}
     anon, macros, notes = [], [], []
     for g in sorted(groups.values(), key=min):
-        if any(n.startswith(KEPT_MACROS) for n in g):
-            notes.append(f"kept as macros (D-X.126): {min(g)} and {len(g) - 1} more")
-            continue
         val = {n: facts[n][0]["value"] for n in g}
         ename = facts[min(g)][0]["enum"]
         tags = {tag_of[n] for n in g if n in tag_of} | {t for t in etsv if ename != "<unnamed enum>" and t.split(" ", 1)[1] == ename}

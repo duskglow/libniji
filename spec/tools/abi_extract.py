@@ -101,7 +101,7 @@ TYPES = [
  ("struct sgrp", "struct sgrp"), ("struct hostent", "struct hostent"), ("struct netent", "struct netent"),
  ("struct servent", "struct servent"), ("struct protoent", "struct protoent"), ("struct rpcent", "struct rpcent"),
  ("struct addrinfo", "struct addrinfo"), ("struct gaicb", "struct gaicb"), ("struct aliasent", "struct aliasent"),
- ("struct __res_state", "struct __res_state"), ("ns_msg", "ns_msg"), ("ns_rr", "ns_rr"),
+ ("struct __res_state", "struct __res_state"), ("ns_msg", "ns_msg"), ("ns_rr", "ns_rr"), ("HEADER", "HEADER"),
  ("struct in_addr", "struct in_addr"), ("struct in6_addr", "struct in6_addr"),
  ("struct sockaddr", "struct sockaddr"), ("struct sockaddr_storage", "struct sockaddr_storage"),
  ("__SOCKADDR_ARG", "__SOCKADDR_ARG"), ("__CONST_SOCKADDR_ARG", "__CONST_SOCKADDR_ARG"),

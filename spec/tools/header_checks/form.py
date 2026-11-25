@@ -520,11 +520,6 @@ def problems(ctx):
 # character constant's `char`) and which enumeration it belongs to. The other causes stay report mode until their
 # follow-ups land, except for the ENFORCED pairs below.
 FAILING = ("type differs", "enumeration differs")
-# D-X.126 (COMPAT-34): the MS_* names of <sys/mount.h> are macros only, not enumerators.
-KEPT = re.compile(r"MS_[A-Z_]+$")
-# Known gaps outside this check's fix, each printed as a NOTE: (name pattern, header, why).
-GAPS = [(re.compile(r"REG_[A-Z]+$"), "regex.h", "libniji's <regex.h> does not declare reg_errcode_t (no typedefs.tsv row), the "
-         "enumeration whose enumerators these macros name in the reference: follow-up of HEADERS-CXX-ENUM-TYPES")]
 
 # (macro, defining header) pairs whose form must match the reference (a FAIL, not report mode): the audit's groups A1
 # (PTHREAD_STACK_MIN run-time where the reference's is), B1 (a macro naming a function the header declares), B2
@@ -543,17 +538,11 @@ def is_enforced(n, h, cid):
 
 
 def failing(diffs):
-    """FAIL lines of the FAILING rows, except the names D-X.126 keeps as macros (and a name whose only difference is
-    that the name before it is one of those) and the rows of an ENFORCED pair (`enforced` reports those, once)."""
+    """FAIL lines of the FAILING rows, except the rows of an ENFORCED pair (`enforced` reports those, once)."""
     out = []
     for c in FAILING:
         for n, h, cid, fa, fb, _, _ in sorted(diffs.get(c, [])):
-            prev = re.findall(r"same-as=(\S+):", fa + " " + fb)
-            if KEPT.match(n) or (c == "enumeration differs" and any(KEPT.match(x) for x in prev)) or is_enforced(n, h, cid):
-                continue
-            gap = next((why for pat, gh, why in GAPS if pat.match(n) and gh == h), None)
-            if gap:
-                print(f"NOTE form known gap: {n} <{h}> {cid}: {gap}")
+            if is_enforced(n, h, cid):
                 continue
             out.append(f"form [{c}] {n} <{h}> {cid}: libniji {fa} | reference {fb}")
     return out

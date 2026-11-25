@@ -4751,6 +4751,26 @@ enum {
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
 # define si_status _sifields._sigchld.si_status
 #endif
+/* sigaction(2): the bounds and protection key of a SEGV_BNDERR or SEGV_PKUERR fault, and the system call a seccomp
+   filter trapped (SIGSYS): its address, number and audit architecture. */
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_lower _sifields._sigfault._bounds._addr_bnd._lower
+#endif
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_upper _sifields._sigfault._bounds._addr_bnd._upper
+#endif
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_pkey _sifields._sigfault._bounds._pkey
+#endif
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_call_addr _sifields._sigsys._call_addr
+#endif
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_syscall _sifields._sigsys._syscall
+#endif
+#if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
+# define si_arch _sifields._sigsys._arch
+#endif
 /* sigevent(3type): the thread-notification members are named at the top level of struct sigevent. */
 #if __NIJI_POSIX >= 199309
 # define sigev_notify_function _sigev_un._sigev_thread._function

@@ -329,10 +329,14 @@ def package_names():
     `u_long`; busybox's `caddr_t`, `loff_t`, `ulong`), the regex translate-table type (busybox's grep), and the
     login-accounting and other default path macros (busybox's sources, utmp(5), utmpx(5) and the installed
     documentation), and the BSD signal-handler type name `sig_t` (apt's configure checks for it or `sighandler_t`).
+    HEADERS-APT-GAPS (apt 3.0.4's build): the DNS message header type `HEADER` (apt's SRV lookup; RFC 1035 4.1.1),
+    and the siginfo_t member names of the seccomp and memory-protection-key reports (apt's methods read
+    `si_syscall`; sigaction(2) lists `si_call_addr`, `si_syscall`, `si_arch`, `si_lower`, `si_upper`, `si_pkey`).
     A candidate is only a name to test: which header shows it, and its type or value, are probed."""
     out = ["u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t",
            "u_int8_t", "u_int16_t", "u_int32_t", "u_int64_t", "caddr_t", "daddr_t", "loff_t", "register_t",
-           "RE_TRANSLATE_TYPE", "UTMP_FILE", "UTMPX_FILE", "WTMP_FILE", "WTMPX_FILE", "sig_t"]
+           "RE_TRANSLATE_TYPE", "UTMP_FILE", "UTMPX_FILE", "WTMP_FILE", "WTMPX_FILE", "sig_t",
+           "HEADER", "si_call_addr", "si_syscall", "si_arch", "si_lower", "si_upper", "si_pkey"]
     out += [f"_PATH_{p}" for p in ("BSHELL", "BTMP", "DEFPATH", "DEV", "FSTAB", "GROUP", "GSHADOW", "KLOG", "LOG",
                                    "LOGIN", "MNTTAB", "MOUNTED", "MTAB", "PASSWD", "SERVICES", "SHADOW", "TMP",
                                    "TTY", "TTYS", "UTMP", "UTMPX", "WTMP", "WTMPX")]
@@ -532,6 +536,15 @@ def candidates():
     names.update(ns)
     tags.update(ns_tags)
     tags.update(["exception", "ieee754_float", "ieee754_double", "ieee754_long_double", "ieee854_long_double"])
+    # The enumerators and enumeration tags of enumerators.tsv (HEADERS-ENUM-FOLLOWUPS): `_REG_NOMATCH`, the
+    # enumerator the macro REG_NOMATCH names, its typedef `reg_errcode_t`, and `ns_t_a` of `enum __ns_type` are
+    # spelled in no other table.
+    for r in tsv("enumerators.tsv"):
+        if r["tag"].startswith("enum "):
+            tags.add(r["tag"][len("enum "):])
+        elif r["tag"].startswith("typedef "):
+            names.add(r["tag"][len("typedef "):])
+        names.add(r["name"])
     # The reserved names headers-gen emits by policy (headers/reserved.tsv `emit`, rulings R-H2, R-H3): the generator
     # declares them only where this table shows them, so they are probed whether or not another table spells them
     # (slice 20: `__locale_t`, which the C++ library's locale support names, appears in no prototype).

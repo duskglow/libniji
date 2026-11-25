@@ -995,6 +995,36 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define si_value _sifields._rt.si_sigval
 # endif
 #endif
+#if 1
+# ifndef si_lower
+#  define si_lower _sifields._sigfault._bounds._addr_bnd._lower
+# endif
+#endif
+#if 1
+# ifndef si_upper
+#  define si_upper _sifields._sigfault._bounds._addr_bnd._upper
+# endif
+#endif
+#if 1
+# ifndef si_pkey
+#  define si_pkey _sifields._sigfault._bounds._pkey
+# endif
+#endif
+#if 1
+# ifndef si_call_addr
+#  define si_call_addr _sifields._sigsys._call_addr
+# endif
+#endif
+#if 1
+# ifndef si_syscall
+#  define si_syscall _sifields._sigsys._syscall
+# endif
+#endif
+#if 1
+# ifndef si_arch
+#  define si_arch _sifields._sigsys._arch
+# endif
+#endif
 
 __NIJI_END_C
 

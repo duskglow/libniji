@@ -84,6 +84,12 @@ impl Gen<'_> {
             // Named for linkage by another typedef (C++ mangles through it): that one comes first.
             self.typedef(&cxx);
             vec![format!("typedef {cxx} {name};")]
+        } else if self.t.enums.contains_key(&format!("enum {cxx}")) {
+            // An enumeration named for linkage by its tag (`ns_type` is `enum __ns_type`, whose members are
+            // enumerators.tsv rows): the whole enumeration under its tag's guard, then the typedef
+            // (HEADERS-ENUM-FOLLOWUPS; before, a structure of the enumeration's size).
+            self.tag(&cxx, "enum");
+            vec![format!("typedef enum {cxx} {name};")]
         } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
             // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
             vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]

@@ -46,6 +46,7 @@ typedef	FTS64	fts.h	72	8	FTS64
 typedef	FTSENT	fts.h	120	8	_ftsent
 typedef	FTSENT64	fts.h	120	8	_ftsent64
 struct	FTW	ftw.h	8	4	FTW
+typedef	HEADER	arpa/nameser.h	12	4	HEADER
 typedef	La_x86_64_regs	link.h	768	16	
 typedef	La_x86_64_retval	link.h	240	16	
 typedef	La_x86_64_vector	link.h	64	16	
@@ -709,6 +710,14 @@ function	__nextupl	complex.h			long double (long double)
 typedef	__nftw64_func_t	ftw.h	8	8	int (*)(char const*, stat64 const*, int, FTW*)
 typedef	__nftw_func_t	ftw.h	8	8	int (*)(char const*, stat const*, int, FTW*)
 typedef	__nlink_t	aio.h	8	8	unsigned long
+enum	__ns_cert_types	arpa/nameser.h	4	4	__ns_cert_types
+enum	__ns_class	arpa/nameser.h	4	4	__ns_class
+enum	__ns_flag	arpa/nameser.h	4	4	__ns_flag
+enum	__ns_opcode	arpa/nameser.h	4	4	__ns_opcode
+enum	__ns_rcode	arpa/nameser.h	4	4	__ns_rcode
+enum	__ns_sect	arpa/nameser.h	4	4	__ns_sect
+enum	__ns_type	arpa/nameser.h	4	4	__ns_type
+enum	__ns_update_operation	arpa/nameser.h	4	4	__ns_update_operation
 function	__nss_configure_lookup	nss.h			int (char const*, char const*)
 typedef	__off64_t	aio.h	8	8	long
 typedef	__off_t	aio.h	8	8	long
@@ -3042,6 +3051,7 @@ function	recv	arpa/inet.h			long (int, void*, unsigned long, int)
 function	recvfrom	arpa/inet.h			long (int, void*, unsigned long, int, sockaddr*, unsigned int*)
 function	recvmmsg	arpa/inet.h			int (int, mmsghdr*, unsigned int, int, timespec*)
 function	recvmsg	arpa/inet.h			long (int, msghdr*, int)
+typedef	reg_errcode_t	re_comp.h	4	4	reg_errcode_t
 typedef	reg_syntax_t	re_comp.h	8	8	unsigned long
 function	regcomp	re_comp.h			int (re_pattern_buffer*, char const*, int)
 function	regerror	re_comp.h			unsigned long (int, re_pattern_buffer const*, char*, unsigned long)
