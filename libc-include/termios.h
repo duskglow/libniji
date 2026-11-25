@@ -263,7 +263,9 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define EXTPROC 65536
 # define FLUSHO 4096
 # define PENDIN 16384
-# define TIOCSER_TEMT 1
+# ifndef TIOCSER_TEMT
+#  define TIOCSER_TEMT 1
+# endif
 # define TTYDEF_CFLAG 1440
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355

@@ -54,7 +54,9 @@ extern int stty (int, const struct sgttyb *);
 # define CSUSP 26
 # define CTIME 0
 # define CWERASE 23
-# define FIOASYNC 21586
+# ifndef FIOASYNC
+#  define FIOASYNC 21586
+# endif
 # define FIOCLEX 21585
 # define FIONBIO 21537
 # define FIONCLEX 21584
@@ -211,7 +213,9 @@ extern int stty (int, const struct sgttyb *);
 # define TIOCSERGWILD 21588
 # define TIOCSERSETMULTI 21595
 # define TIOCSERSWILD 21589
-# define TIOCSER_TEMT 1
+# ifndef TIOCSER_TEMT
+#  define TIOCSER_TEMT 1
+# endif
 # define TIOCSETD 21539
 # define TIOCSIG 1074025526UL
 # define TIOCSLCKTRMIOS 21591
