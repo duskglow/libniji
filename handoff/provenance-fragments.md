@@ -30,6 +30,14 @@ State: branch task/provenance-fragments, base origin/next 855efa170. Role keke:~
   `cargo test -p xtask --test transcripts`: 10 of 10 passed. INFORMATIONAL: the skip test checks only that the
   binary exists, not its loader.
 
+## Merge of next 88d22c9a2 (leg 2)
+* HEADERS-CXX-ENUM-TYPES had landed on next with a paragraph added to the old hand-kept PROVENANCE, and git merged it
+  into the view without a conflict. It is now provenance.d/HEADERS-CXX-ENUM-TYPES.txt (order 195, the same place in
+  the history), and its new table enum-macros.tsv is counted. After regeneration (job provenance-fragments-regen,
+  rc 0, check rc 0, 25 provenance/records unit tests pass), the view's only change is the count lines.
+* A header story cut before this lands and still edits PROVENANCE by hand will merge the same way. Whoever merges it
+  moves the paragraph into a fragment. Once this lands, nothing edits PROVENANCE by hand.
+
 ## Informational
 * glibc-functional-spec.md appendix C is stale against the tables (running appendix_c.py rewrites about 180 lines
   that drifted before this story). Discarded here.
