@@ -5,3 +5,11 @@ gregs-decayed | libc-include/proc_service.h | lit:ps_lgetregs (struct ps_prochan
 arrayparams-unused | xtask/src/headers/functions.rs | lit:Some(self.array_params(name, out)) ==> Some(out) | cargo xtask headers-gen --check | msg:stale under
 mq-open-sentinel | spec/tools/attr_probe.py | lit:"creat64", "mq_open"} ==> "creat64"} | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:does not build outside its test lines
 mq-timedsend-nonnull | spec/abi/diagattrs.tsv | perl:s/^mq_timedsend\t2,5\t/mq_timedsend\t2\t/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ mq_timedsend
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# td-decl-dropped: CAUGHT, caught by thread_db_products a_debugger_shaped_client_builds_on_libniji_headers_and_matches_the_reference
+# lio-write-wrong: CAUGHT, caught by no test the log names
+# mode2-arity: CAUGHT, caught by xtask headers::slices::s18::tests::an_open_without_its_mode_calls_the_checked_entry
+# gregs-decayed: CAUGHT, caught by thread_db_products a_debugger_shaped_client_builds_on_libniji_headers_and_matches_the_reference
+# arrayparams-unused: CAUGHT, caught by no test the log names
+# mq-open-sentinel: CAUGHT, caught by xtask headers::slices::s19::tests::diagnostic_attributes_match_the_reference
+# mq-timedsend-nonnull: CAUGHT, caught by xtask headers::slices::s19::tests::diagnostic_attributes_match_the_reference
