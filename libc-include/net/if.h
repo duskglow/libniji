@@ -2,6 +2,7 @@
 /* net/if.h: network interfaces (XSH <net/if.h>) */
 #ifndef __NIJI_H_net_if_h
 #define __NIJI_H_net_if_h 1
+#define _NET_IF_H 1
 
 #include <features.h>
 #if __NIJI_MISC
@@ -213,9 +214,6 @@ enum {
 # ifndef IF_NAMESIZE
 #  define IF_NAMESIZE 16
 # endif
-# ifndef _NET_IF_H
-#  define _NET_IF_H 1
-# endif
 #endif
 #if __NIJI_MISC
 # ifndef IFF_ALLMULTI
@@ -298,6 +296,12 @@ enum {
 #if __NIJI_MISC
 # define ifc_buf ifc_ifcu.ifcu_buf
 # define ifc_req ifc_ifcu.ifcu_req
+#endif
+/* The BSD interface address record's two names for its union's address (the same spelling as <ifaddrs.h>'s for
+   struct ifaddrs, so the two headers together define each macro once). */
+#if __NIJI_MISC
+# define ifa_broadaddr ifa_ifu.ifu_broadaddr
+# define ifa_dstaddr ifa_ifu.ifu_dstaddr
 #endif
 
 __NIJI_END_C

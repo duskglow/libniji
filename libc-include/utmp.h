@@ -2,6 +2,7 @@
 /* utmp.h: login accounting records (utmp(5), getutent(3)). */
 #ifndef __NIJI_H_utmp_h
 #define __NIJI_H_utmp_h 1
+#define _UTMP_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -329,6 +330,9 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef UTMP_FILE
 #  define UTMP_FILE "/var/run/utmp"
 # endif
+# ifndef UTMP_FILENAME
+#  define UTMP_FILENAME "/var/run/utmp"
+# endif
 # ifndef UT_HOSTSIZE
 #  define UT_HOSTSIZE 256
 # endif
@@ -343,6 +347,9 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 # ifndef WTMP_FILE
 #  define WTMP_FILE "/var/log/wtmp"
+# endif
+# ifndef WTMP_FILENAME
+#  define WTMP_FILENAME "/var/log/wtmp"
 # endif
 # ifndef _HAVE_UT_HOST
 #  define _HAVE_UT_HOST 1
@@ -362,11 +369,26 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef _PATH_BSHELL
 #  define _PATH_BSHELL "/bin/sh"
 # endif
+# ifndef _PATH_CONSOLE
+#  define _PATH_CONSOLE "/dev/console"
+# endif
+# ifndef _PATH_CSHELL
+#  define _PATH_CSHELL "/bin/csh"
+# endif
 # ifndef _PATH_DEFPATH
 #  define _PATH_DEFPATH "/usr/bin:/bin"
 # endif
 # ifndef _PATH_DEV
 #  define _PATH_DEV "/dev/"
+# endif
+# ifndef _PATH_DEVDB
+#  define _PATH_DEVDB "/var/run/dev.db"
+# endif
+# ifndef _PATH_DEVNULL
+#  define _PATH_DEVNULL "/dev/null"
+# endif
+# ifndef _PATH_DRUM
+#  define _PATH_DRUM "/dev/drum"
 # endif
 # ifndef _PATH_GSHADOW
 #  define _PATH_GSHADOW "/etc/gshadow"
@@ -374,14 +396,47 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef _PATH_KLOG
 #  define _PATH_KLOG "/proc/kmsg"
 # endif
+# ifndef _PATH_KMEM
+#  define _PATH_KMEM "/dev/kmem"
+# endif
+# ifndef _PATH_LASTLOG
+#  define _PATH_LASTLOG "/var/log/lastlog"
+# endif
+# ifndef _PATH_MAILDIR
+#  define _PATH_MAILDIR "/var/mail"
+# endif
+# ifndef _PATH_MAN
+#  define _PATH_MAN "/usr/share/man"
+# endif
+# ifndef _PATH_MEM
+#  define _PATH_MEM "/dev/mem"
+# endif
 # ifndef _PATH_MNTTAB
 #  define _PATH_MNTTAB "/etc/fstab"
 # endif
 # ifndef _PATH_MOUNTED
 #  define _PATH_MOUNTED "/etc/mtab"
 # endif
+# ifndef _PATH_NOLOGIN
+#  define _PATH_NOLOGIN "/etc/nologin"
+# endif
+# ifndef _PATH_PRESERVE
+#  define _PATH_PRESERVE "/var/lib"
+# endif
+# ifndef _PATH_RWHODIR
+#  define _PATH_RWHODIR "/var/spool/rwho"
+# endif
+# ifndef _PATH_SENDMAIL
+#  define _PATH_SENDMAIL "/usr/sbin/sendmail"
+# endif
 # ifndef _PATH_SHADOW
 #  define _PATH_SHADOW "/etc/shadow"
+# endif
+# ifndef _PATH_SHELLS
+#  define _PATH_SHELLS "/etc/shells"
+# endif
+# ifndef _PATH_STDPATH
+#  define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
 # endif
 # ifndef _PATH_TMP
 #  define _PATH_TMP "/tmp/"
@@ -389,12 +444,36 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef _PATH_TTY
 #  define _PATH_TTY "/dev/tty"
 # endif
+# ifndef _PATH_UNIX
+#  define _PATH_UNIX "/boot/vmlinux"
+# endif
 # ifndef _PATH_UTMP
 #  define _PATH_UTMP "/var/run/utmp"
+# endif
+# ifndef _PATH_VARDB
+#  define _PATH_VARDB "/var/lib/misc/"
+# endif
+# ifndef _PATH_VARRUN
+#  define _PATH_VARRUN "/var/run/"
+# endif
+# ifndef _PATH_VARTMP
+#  define _PATH_VARTMP "/var/tmp/"
+# endif
+# ifndef _PATH_VI
+#  define _PATH_VI "/usr/bin/vi"
 # endif
 # ifndef _PATH_WTMP
 #  define _PATH_WTMP "/var/log/wtmp"
 # endif
+#endif
+
+/* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the
+   entry time's seconds, the first word of the remote host's address). */
+#if 1
+# define ut_name ut_user
+# define ut_time ut_tv.tv_sec
+# define ut_xtime ut_tv.tv_sec
+# define ut_addr ut_addr_v6[0]
 #endif
 
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */

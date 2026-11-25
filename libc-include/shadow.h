@@ -2,6 +2,7 @@
 /* shadow.h: shadow password database (shadow(5), getspnam(3)). */
 #ifndef __NIJI_H_shadow_h
 #define __NIJI_H_shadow_h 1
+#define _SHADOW_H 1
 
 #include <features.h>
 
@@ -78,30 +79,36 @@ struct spwd;
 struct spwd;
 # ifndef __NIJI_D_fgetspent_r
 #  define __NIJI_D_fgetspent_r 1
-extern int fgetspent_r (FILE *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int fgetspent_r (FILE *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_getspent_r
 #  define __NIJI_D_getspent_r 1
-extern int getspent_r (struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (2)));
+extern int getspent_r (struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_getspnam_r
 #  define __NIJI_D_getspnam_r 1
-extern int getspnam_r (const char *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int getspnam_r (const char *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 struct spwd;
 struct spwd;
 # ifndef __NIJI_D_sgetspent_r
 #  define __NIJI_D_sgetspent_r 1
-extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, struct spwd **) __attribute__ ((__nonnull__ (3)));
+extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, struct spwd **);
 # endif
 #endif
 #if 1
 # ifndef _PATH_BSHELL
 #  define _PATH_BSHELL "/bin/sh"
+# endif
+# ifndef _PATH_CONSOLE
+#  define _PATH_CONSOLE "/dev/console"
+# endif
+# ifndef _PATH_CSHELL
+#  define _PATH_CSHELL "/bin/csh"
 # endif
 # ifndef _PATH_DEFPATH
 #  define _PATH_DEFPATH "/usr/bin:/bin"
@@ -109,11 +116,35 @@ extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, stru
 # ifndef _PATH_DEV
 #  define _PATH_DEV "/dev/"
 # endif
+# ifndef _PATH_DEVDB
+#  define _PATH_DEVDB "/var/run/dev.db"
+# endif
+# ifndef _PATH_DEVNULL
+#  define _PATH_DEVNULL "/dev/null"
+# endif
+# ifndef _PATH_DRUM
+#  define _PATH_DRUM "/dev/drum"
+# endif
 # ifndef _PATH_GSHADOW
 #  define _PATH_GSHADOW "/etc/gshadow"
 # endif
 # ifndef _PATH_KLOG
 #  define _PATH_KLOG "/proc/kmsg"
+# endif
+# ifndef _PATH_KMEM
+#  define _PATH_KMEM "/dev/kmem"
+# endif
+# ifndef _PATH_LASTLOG
+#  define _PATH_LASTLOG "/var/log/lastlog"
+# endif
+# ifndef _PATH_MAILDIR
+#  define _PATH_MAILDIR "/var/mail"
+# endif
+# ifndef _PATH_MAN
+#  define _PATH_MAN "/usr/share/man"
+# endif
+# ifndef _PATH_MEM
+#  define _PATH_MEM "/dev/mem"
 # endif
 # ifndef _PATH_MNTTAB
 #  define _PATH_MNTTAB "/etc/fstab"
@@ -121,8 +152,26 @@ extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, stru
 # ifndef _PATH_MOUNTED
 #  define _PATH_MOUNTED "/etc/mtab"
 # endif
+# ifndef _PATH_NOLOGIN
+#  define _PATH_NOLOGIN "/etc/nologin"
+# endif
+# ifndef _PATH_PRESERVE
+#  define _PATH_PRESERVE "/var/lib"
+# endif
+# ifndef _PATH_RWHODIR
+#  define _PATH_RWHODIR "/var/spool/rwho"
+# endif
+# ifndef _PATH_SENDMAIL
+#  define _PATH_SENDMAIL "/usr/sbin/sendmail"
+# endif
 # ifndef _PATH_SHADOW
 #  define _PATH_SHADOW "/etc/shadow"
+# endif
+# ifndef _PATH_SHELLS
+#  define _PATH_SHELLS "/etc/shells"
+# endif
+# ifndef _PATH_STDPATH
+#  define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
 # endif
 # ifndef _PATH_TMP
 #  define _PATH_TMP "/tmp/"
@@ -130,8 +179,23 @@ extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, stru
 # ifndef _PATH_TTY
 #  define _PATH_TTY "/dev/tty"
 # endif
+# ifndef _PATH_UNIX
+#  define _PATH_UNIX "/boot/vmlinux"
+# endif
 # ifndef _PATH_UTMP
 #  define _PATH_UTMP "/var/run/utmp"
+# endif
+# ifndef _PATH_VARDB
+#  define _PATH_VARDB "/var/lib/misc/"
+# endif
+# ifndef _PATH_VARRUN
+#  define _PATH_VARRUN "/var/run/"
+# endif
+# ifndef _PATH_VARTMP
+#  define _PATH_VARTMP "/var/tmp/"
+# endif
+# ifndef _PATH_VI
+#  define _PATH_VI "/usr/bin/vi"
 # endif
 # ifndef _PATH_WTMP
 #  define _PATH_WTMP "/var/log/wtmp"

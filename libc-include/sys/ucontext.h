@@ -2,6 +2,7 @@
 /* sys/ucontext.h: machine context, user context and the register names (XSH <ucontext.h>, x86-64 psABI). */
 #ifndef __NIJI_H_sys_ucontext_h
 #define __NIJI_H_sys_ucontext_h 1
+#define _SYS_UCONTEXT_H 1
 
 #include <features.h>
 
@@ -143,6 +144,10 @@ typedef int __pid_t;
 # ifndef __NIJI_D_fpregset_t
 #  define __NIJI_D_fpregset_t 1
 typedef struct _libc_fpstate * fpregset_t;
+# endif
+# ifndef __NIJI_D_greg_t
+#  define __NIJI_D_greg_t 1
+typedef long long greg_t;
 # endif
 # ifndef __NIJI_D_gregset_t
 #  define __NIJI_D_gregset_t 1

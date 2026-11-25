@@ -3,6 +3,7 @@
    macros read and write the control word with FNSTCW and FLDCW. */
 #ifndef __NIJI_H_fpu_control_h
 #define __NIJI_H_fpu_control_h 1
+#define _FPU_CONTROL_H 1
 
 #include <features.h>
 

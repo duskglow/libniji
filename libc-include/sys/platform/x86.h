@@ -2,6 +2,7 @@
 /* sys/platform/x86.h: the processor features of the running x86 CPU (CPUID leaves of the Intel SDM). */
 #ifndef __NIJI_H_sys_platform_x86_h
 #define __NIJI_H_sys_platform_x86_h 1
+#define _SYS_PLATFORM_X86_H
 
 #include <features.h>
 #include <stdbool.h>
@@ -19,7 +20,7 @@ struct cpuid_feature {
 struct cpuid_feature;
 # ifndef __NIJI_D___x86_get_cpuid_feature_leaf
 #  define __NIJI_D___x86_get_cpuid_feature_leaf 1
-extern const struct cpuid_feature *__x86_get_cpuid_feature_leaf (unsigned int);
+extern const struct cpuid_feature *__x86_get_cpuid_feature_leaf (unsigned int) __attribute__ ((__pure__));
 # endif
 #endif
 

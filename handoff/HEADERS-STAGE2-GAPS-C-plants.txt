@@ -1,0 +1,30 @@
+# Plants for HEADERS-STAGE2-GAPS-C (cargo xtask plants; docs/plants.md). Each breaks one thing the story added and names
+# the header_check unit that must catch it. Spec clauses are in the units' comments (spec/tools/header_checks/s05.py,
+# s07.py, s14.py, s16.py).
+hs2c-guard-shape | xtask/src/headers.rs | lit:vec![format!("_{p}_H"), ==> vec![ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^guards (stdio|sys/types)\.h' | msg:FAIL guards stdio\.h .*_STDIO_H not defined
+hs2c-guard-empty | xtask/src/headers.rs | lit:{ format!(" {}", self.value(&n)) } else { String::new() } ==> { format!(" {}", self.value(&n)) } else { " 1".to_string() } | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^guards (paths|sys/queue)\.h' | msg:FAIL guards paths\.h
+hs2c-guard-features | xtask/src/headers.rs | lit:format!("#include <features.h>\n#if {c}\n# define {n}{v}\n#endif") ==> format!("#if {c}\n# define {n}{v}\n#endif") | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^guards (complex|tgmath)\.h' | msg:FAIL guards complex\.h cxx11.*_COMPLEX_H defined
+hs2c-static-assert-c2x | headers/assert.h.in | lit:__STDC_VERSION__ > 201710L) ==> __STDC_VERSION__ > 202311L) | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^exact assert\.h' | msg:FAIL exact assert\.h c2x.*static_assert defined
+hs2c-static-assert-level | headers/assert.h.in | lit:#if !defined __cplusplus && __NIJI_ISOC >= 2011 && ==> #if !defined __cplusplus && __NIJI_ISOC >= 2023 && | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^(exact assert\.h|static_assert use)' | msg:FAIL (exact assert\.h|static_assert use) (c11|c17|isoc11|gnu17)
+hs2c-iftodt-paren | headers/dirent.h.in | lit:(((mode) & 0170000) >> 12) ==> ((mode & 0170000) >> 12) | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 dirent\.h' | msg:FAIL S07 dirent\.h DTTOIF/IFTODT
+hs2c-dttoif-paren | headers/dirent.h.in | lit:((dirtype) << 12) ==> (dirtype << 12) | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 (dirent|sys/dir)\.h' | msg:FAIL S07 (dirent|sys/dir)\.h DTTOIF/IFTODT
+hs2c-logmakepri-shift | headers/syslog.h.in | perl:s/\(\(fac\) \| \(pri\)\)/(((fac) << 3) \x7c (pri))/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S14 syslog' | msg:FAIL S14 syslog\.h priority macros
+hs2c-logpri-paren | headers/syslog.h.in | lit:((p) & LOG_PRIMASK) ==> (p & LOG_PRIMASK) | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S14 syslog' | msg:FAIL S14 syslog\.h priority macros
+hs2c-ar-date | spec/abi/layouts.tsv | perl:s/^(struct ar_hdr\tar_date\t16\t\t)char\[12\]/${1}char[10]/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S16 ar\.h format' | msg:FAIL S16 ar\.h format
+hs2c-armag | spec/abi/macros.tsv | perl:s/^(ARMAG\tar\.h\t[^\t]*\t)"!<arch>/${1}"!<arcx>/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S16 ar\.h format' | msg:FAIL S16 ar\.h format
+hs2c-devnull | spec/abi/macros.tsv | perl:s/^(_PATH_DEVNULL\t[^\t]*\t[^\t]*\t)"\/dev\/null"/${1}"\/dev\/nulx"/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 _PATH_DEVNULL' | msg:FAIL S07 _PATH_DEVNULL
+hs2c-utimbuf-type | spec/abi/layouts.tsv | perl:s/^(struct utimbuf\tmodtime\t8\t\t)__time_t/${1}int/m | cargo xtask headers-gen && python3 spec/tools/header_check.py --only '^S07 utime\.h' | msg:FAIL S07 utime\.h utimbuf
+# cargo xtask plants results (13 plants: 13 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hs2c-guard-shape: CAUGHT, caught by no test the log names
+# hs2c-guard-empty: CAUGHT, caught by no test the log names
+# hs2c-guard-features: CAUGHT, caught by no test the log names
+# hs2c-static-assert-c2x: CAUGHT, caught by no test the log names
+# hs2c-static-assert-level: CAUGHT, caught by no test the log names
+# hs2c-iftodt-paren: CAUGHT, caught by no test the log names
+# hs2c-dttoif-paren: CAUGHT, caught by no test the log names
+# hs2c-logmakepri-shift: CAUGHT, caught by no test the log names
+# hs2c-logpri-paren: CAUGHT, caught by no test the log names
+# hs2c-ar-date: CAUGHT, caught by no test the log names
+# hs2c-armag: CAUGHT, caught by no test the log names
+# hs2c-devnull: CAUGHT, caught by no test the log names
+# hs2c-utimbuf-type: CAUGHT, caught by no test the log names

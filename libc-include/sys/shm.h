@@ -2,6 +2,7 @@
 /* sys/shm.h: System V shared memory (XSH <sys/shm.h>). */
 #ifndef __NIJI_H_sys_shm_h
 #define __NIJI_H_sys_shm_h 1
+#define _SYS_SHM_H 1
 
 #include <features.h>
 #include <sys/ipc.h>
@@ -39,6 +40,35 @@ struct shmid_ds {
   unsigned long __glibc_reserved6;
 };
 # endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_shm_info
+#  define __NIJI_D_struct_shm_info 1
+struct shm_info {
+  int used_ids;
+  unsigned long shm_tot;
+  unsigned long shm_rss;
+  unsigned long shm_swp;
+  unsigned long swap_attempts;
+  unsigned long swap_successes;
+};
+# endif
+# ifndef __NIJI_D_struct_shminfo
+#  define __NIJI_D_struct_shminfo 1
+struct shminfo {
+  unsigned long shmmax;
+  unsigned long shmmin;
+  unsigned long shmmni;
+  unsigned long shmseg;
+  unsigned long shmall;
+  unsigned long __glibc_reserved1;
+  unsigned long __glibc_reserved2;
+  unsigned long __glibc_reserved3;
+  unsigned long __glibc_reserved4;
+};
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_shmatt_t
 #  define __NIJI_D_shmatt_t 1
 typedef unsigned long shmatt_t;

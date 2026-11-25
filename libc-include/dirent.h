@@ -2,6 +2,7 @@
 /* dirent.h: format of directory entries (XSH <dirent.h>). */
 #ifndef __NIJI_H_dirent_h
 #define __NIJI_H_dirent_h 1
+#define _DIRENT_H 1
 
 #include <features.h>
 
@@ -483,6 +484,16 @@ enum {
 # ifndef _POSIX_TZNAME_MAX
 #  define _POSIX_TZNAME_MAX 6
 # endif
+#endif
+
+/* d_type <-> st_mode file type (HEADERS-STAGE2-GAPS-C, probed): the DT_* value is the S_IFMT field shifted down by 12
+   bits. The argument is parenthesised and the result has the type of the promoted argument (unsigned int for a mode_t,
+   int for an int or unsigned char), so both are usable in `#if`. */
+#if __NIJI_MISC
+# define IFTODT(mode) (((mode) & 0170000) >> 12)
+#endif
+#if __NIJI_MISC
+# define DTTOIF(dirtype) ((dirtype) << 12)
 #endif
 
 /* PTHREAD_STACK_MIN in <limits.h>'s form: the run-time sysconf(3) value under _DYNAMIC_STACK_SIZE_SOURCE (implied by

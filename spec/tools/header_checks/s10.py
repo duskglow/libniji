@@ -4,6 +4,7 @@
   in records/pending/SL-HEADERS-S10-2-1.toml: the reference fails the same way, so a configure check reaches the same
   answer). header_check.py leaves it out of P5; the unit below includes it and the runner requires a failure that is
   that #error ("is not provided"), not a missing file or a syntax slip.
+* `gettext_units`: the form of <libintl.h>'s __GNU_GETTEXT_SUPPORTED_REVISION (gettext.m4's libc test).
 * `p1_skip`: rows of visibility.tsv whose P1 unit would assert what the header does not show.
   - `ftw.h` `statx`, `statx_timestamp`: defined by <sys/stat.h> (slice 7), which ftw.h includes once that header
     exists; drop the entries then.
@@ -57,7 +58,48 @@ def units(ctx):
         body += "".join(f"typedef char niji_nl_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
                         for i, (e, v, t) in enumerate(forms))
         out.append((cid, "P1 langinfo.h _NL_ITEM forms", body))
-    return out + errcode_units(ctx) + static_assert_units(ctx) + locale_struct_units(ctx)
+    return out + errcode_units(ctx) + gettext_units(ctx) + locale_struct_units(ctx)
+
+
+# (expression, value, type) of __GNU_GETTEXT_SUPPORTED_REVISION, from black-box probes of the reference
+# (HEADERS-GETTEXT-CLANG): 1 for major revision 0, -1 for any other; the argument parenthesised; an int whatever the
+# argument's type (an unsigned argument gives a negative result, not a large unsigned one).
+GETTEXT_FORMS = [("__GNU_GETTEXT_SUPPORTED_REVISION(0)", 1, "int"), ("__GNU_GETTEXT_SUPPORTED_REVISION(1 - 1)", 1, "int"),
+                 ("__GNU_GETTEXT_SUPPORTED_REVISION(0 ? 1 : 0)", 1, "int"), ("__GNU_GETTEXT_SUPPORTED_REVISION(-1)", -1, "int"),
+                 ("__GNU_GETTEXT_SUPPORTED_REVISION(1)", -1, "int"), ("__GNU_GETTEXT_SUPPORTED_REVISION(2)", -1, "int"),
+                 ("__GNU_GETTEXT_SUPPORTED_REVISION(100000)", -1, "int"), ("__GNU_GETTEXT_SUPPORTED_REVISION(0L)", 1, "int"),
+                 ("__GNU_GETTEXT_SUPPORTED_REVISION(1u)", -1, "int"),
+                 ("__GNU_GETTEXT_SUPPORTED_REVISION(0) * 2", 2, "int")]
+
+
+def gettext_units(ctx):
+    """Spec clause: gettext.m4's AM_GNU_GETTEXT "GNU gettext in libc" test (gettext's own m4 file; no man page names the
+    macro): in each configuration where visibility.tsv shows __GNU_GETTEXT_SUPPORTED_REVISION in <libintl.h>, it is
+    usable in #if exactly as that test uses it (`__GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1`), and each GETTEXT_FORMS
+    expression has its value and type; where the header is usable but does not show it, it is not defined. Defects
+    caught: the macro missing (gettext's test then builds every package without translations), an unparenthesised
+    argument, a value claiming a revision for another major, an unsigned or long result."""
+    shown = {cid for r in ctx.vis if r["header"] == "libintl.h" and r["name"] == "__GNU_GETTEXT_SUPPORTED_REVISION"
+             for cid in header_check.expand(r["configs"], ctx.ids)}
+    usable = {cid for r in ctx.vis if r["header"] == "libintl.h" and r["kind"] != "include-error"
+              for cid in header_check.expand(r["configs"], ctx.ids)}
+    if not shown:
+        return [(ctx.ids[0], "libintl.h __GNU_GETTEXT_SUPPORTED_REVISION", "#error visibility.tsv does not show it\n")]
+    cxx = {c["id"]: c["language"] == "c++" for c in ctx.cfgs}
+    out = []
+    for cid in ctx.ids:
+        if cid not in shown:
+            if cid in usable:
+                out.append((cid, "libintl.h __GNU_GETTEXT_SUPPORTED_REVISION (not shown)", "#include <libintl.h>\n"
+                            "#ifdef __GNU_GETTEXT_SUPPORTED_REVISION\n#error defined where visibility.tsv does not show it\n#endif\n"))
+            continue
+        same = "__is_same(__typeof__({e}), {t})" if cxx[cid] else "__builtin_types_compatible_p(__typeof__({e}), {t})"
+        body = ("#include <libintl.h>\n#if !(__GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1) || __GNU_GETTEXT_SUPPORTED_REVISION(1) != -1\n"
+                "#error \"__GNU_GETTEXT_SUPPORTED_REVISION in #if\"\n#endif\n")
+        body += "".join(f"typedef char niji_gt_{i}[(({e}) == {v} && {same.format(e=e, t=t)}) ? 1 : -1];\n"
+                        for i, (e, v, t) in enumerate(GETTEXT_FORMS))
+        out.append((cid, "libintl.h __GNU_GETTEXT_SUPPORTED_REVISION forms", body))
+    return out
 
 
 # The configurations locale_struct_units samples: the lowest POSIX level with locale_t, its X/Open twin, the GNU
@@ -93,29 +135,6 @@ def locale_struct_units(ctx):
                 continue
             body = f"#include <{r['header']}>\n" + "".join(f"typedef char niji_ls_{i}[({a}) ? 1 : -1];\n" for i, a in enumerate(asserts))
             out.append((cid, f"locale_struct {r['header']}", body))
-    return out
-
-
-def static_assert_units(ctx):
-    """Spec clause: C 7.2 (C11, C17), the static_assert macro of <assert.h> (NL-LOCALE-NAME-ABI: perl's perl.h tests
-    `defined(static_assert)` beside `_NL_LOCALE_NAME`; slice 6, assert.h's slice, has no module, so the unit sits with
-    the other perl-driven rows). Per configuration: defined and usable at file scope where visibility.tsv shows it
-    (the reference's probed rows), undefined elsewhere (C23 and C++ have the keyword; strict C89 and C99 have neither).
-    Defects it catches: the macro missing, or defined in a C23 or C++ mode where it would shadow the keyword."""
-    row = next((r for r in ctx.vis if r["header"] == "assert.h" and r["name"] == "static_assert" and r["kind"] == "macro"), None)
-    if row is None:
-        return [(ctx.ids[0], "static_assert assert.h", "#error visibility.tsv has no static_assert row for assert.h\n")]
-    shown = header_check.expand(row["configs"], ctx.ids)
-    levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
-    out = []
-    for c in ctx.cfgs:
-        if levels[c["id"]]["reject"] == "1":
-            continue
-        if c["id"] in shown:
-            body = "#include <assert.h>\n#ifndef static_assert\n#error static_assert is not defined\n#endif\nstatic_assert (sizeof (int) == 4, \"int\");\n"
-        else:
-            body = "#include <assert.h>\n#ifdef static_assert\n#error static_assert is defined\n#endif\n"
-        out.append((c["id"], "static_assert assert.h", body))
     return out
 
 

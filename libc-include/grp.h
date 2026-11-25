@@ -2,6 +2,7 @@
 /* grp.h: group database (XSH <grp.h>). */
 #ifndef __NIJI_H_grp_h
 #define __NIJI_H_grp_h 1
+#define _GRP_H 1
 
 #include <features.h>
 
@@ -64,7 +65,7 @@ struct group;
 struct group;
 # ifndef __NIJI_D_getgrent_r
 #  define __NIJI_D_getgrent_r 1
-extern int getgrent_r (struct group *, char *, unsigned long, struct group **) __attribute__ ((__nonnull__ (2)));
+extern int getgrent_r (struct group *, char *, unsigned long, struct group **);
 # endif
 struct group;
 # ifndef __NIJI_D_putgrent
@@ -82,7 +83,7 @@ struct group;
 struct group;
 # ifndef __NIJI_D_fgetgrent_r
 #  define __NIJI_D_fgetgrent_r 1
-extern int fgetgrent_r (FILE *, struct group *, char *, unsigned long, struct group **) __attribute__ ((__nonnull__ (3)));
+extern int fgetgrent_r (FILE *, struct group *, char *, unsigned long, struct group **);
 # endif
 # ifndef __NIJI_D_getgrouplist
 #  define __NIJI_D_getgrouplist 1
@@ -117,13 +118,13 @@ struct group;
 struct group;
 # ifndef __NIJI_D_getgrgid_r
 #  define __NIJI_D_getgrgid_r 1
-extern int getgrgid_r (unsigned int, struct group *, char *, unsigned long, struct group **) __attribute__ ((__nonnull__ (3)));
+extern int getgrgid_r (unsigned int, struct group *, char *, unsigned long, struct group **);
 # endif
 struct group;
 struct group;
 # ifndef __NIJI_D_getgrnam_r
 #  define __NIJI_D_getgrnam_r 1
-extern int getgrnam_r (const char *, struct group *, char *, unsigned long, struct group **) __attribute__ ((__nonnull__ (3)));
+extern int getgrnam_r (const char *, struct group *, char *, unsigned long, struct group **);
 # endif
 #endif
 #if __NIJI_MISC

@@ -2,6 +2,7 @@
 /* sys/timeb.h: ftime(3), the 4.2BSD time of day */
 #ifndef __NIJI_H_sys_timeb_h
 #define __NIJI_H_sys_timeb_h 1
+#define _SYS_TIMEB_H 1
 
 #include <features.h>
 
@@ -36,7 +37,7 @@ typedef long time_t;
 struct timeb;
 # ifndef __NIJI_D_ftime
 #  define __NIJI_D_ftime 1
-extern int ftime (struct timeb *);
+extern int ftime (struct timeb *) __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 #endif
 

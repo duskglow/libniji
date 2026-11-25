@@ -2,6 +2,7 @@
 /* sys/statfs.h: file system statistics, the Linux statfs(2) form. */
 #ifndef __NIJI_H_sys_statfs_h
 #define __NIJI_H_sys_statfs_h 1
+#define _SYS_STATFS_H 1
 
 #include <features.h>
 
@@ -74,18 +75,18 @@ struct statfs;
 # ifndef __NIJI_D_fstatfs
 #  define __NIJI_D_fstatfs 1
 #  if !__NIJI_FOB64
-extern int fstatfs (int, struct statfs *) __NIJI_NOTHROW;
+extern int fstatfs (int, struct statfs *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int fstatfs (int, struct statfs *) __NIJI_NOTHROW __asm__ ("fstatfs64");
+extern int fstatfs (int, struct statfs *) __NIJI_NOTHROW __asm__ ("fstatfs64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 struct statfs;
 # ifndef __NIJI_D_statfs
 #  define __NIJI_D_statfs 1
 #  if !__NIJI_FOB64
-extern int statfs (const char *, struct statfs *) __NIJI_NOTHROW;
+extern int statfs (const char *, struct statfs *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 #  elif __NIJI_FOB64
-extern int statfs (const char *, struct statfs *) __NIJI_NOTHROW __asm__ ("statfs64");
+extern int statfs (const char *, struct statfs *) __NIJI_NOTHROW __asm__ ("statfs64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 #endif
@@ -93,12 +94,12 @@ extern int statfs (const char *, struct statfs *) __NIJI_NOTHROW __asm__ ("statf
 struct statfs64;
 # ifndef __NIJI_D_fstatfs64
 #  define __NIJI_D_fstatfs64 1
-extern int fstatfs64 (int, struct statfs64 *) __NIJI_NOTHROW;
+extern int fstatfs64 (int, struct statfs64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct statfs64;
 # ifndef __NIJI_D_statfs64
 #  define __NIJI_D_statfs64 1
-extern int statfs64 (const char *, struct statfs64 *) __NIJI_NOTHROW;
+extern int statfs64 (const char *, struct statfs64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 

@@ -2,6 +2,7 @@
 /* arpa/nameser.h: domain name system messages (RFC 1035) */
 #ifndef __NIJI_H_arpa_nameser_h
 #define __NIJI_H_arpa_nameser_h 1
+#define _ARPA_NAMESER_H_
 
 #include <features.h>
 #include <sys/types.h>
@@ -388,11 +389,11 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_ns_datetosecs
 #  define __NIJI_D_ns_datetosecs 1
-extern unsigned int ns_datetosecs (const char *, int *) __NIJI_NOTHROW;
+extern unsigned int ns_datetosecs (const char *, int *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_format_ttl
 #  define __NIJI_D_ns_format_ttl 1
-extern int ns_format_ttl (long unsigned int, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_format_ttl (long unsigned int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_get16
 #  define __NIJI_D_ns_get16 1
@@ -408,7 +409,7 @@ extern int ns_initparse (const unsigned char *, int, ns_msg *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ns_makecanon
 #  define __NIJI_D_ns_makecanon 1
-extern int ns_makecanon (const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_makecanon (const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_msg_getflag
 #  define __NIJI_D_ns_msg_getflag 1
@@ -452,7 +453,7 @@ extern int ns_name_unpack (const unsigned char *, const unsigned char *, const u
 # endif
 # ifndef __NIJI_D_ns_parse_ttl
 #  define __NIJI_D_ns_parse_ttl 1
-extern int ns_parse_ttl (const char *, long unsigned int *) __NIJI_NOTHROW;
+extern int ns_parse_ttl (const char *, long unsigned int *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_parserr
 #  define __NIJI_D_ns_parserr 1
@@ -468,11 +469,11 @@ extern void ns_put32 (long unsigned int, unsigned char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ns_samedomain
 #  define __NIJI_D_ns_samedomain 1
-extern int ns_samedomain (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_samedomain (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_samename
 #  define __NIJI_D_ns_samename 1
-extern int ns_samename (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_samename (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_skiprr
 #  define __NIJI_D_ns_skiprr 1
@@ -480,15 +481,15 @@ extern int ns_skiprr (const unsigned char *, const unsigned char *, ns_sect, int
 # endif
 # ifndef __NIJI_D_ns_sprintrr
 #  define __NIJI_D_ns_sprintrr 1
-extern int ns_sprintrr (const ns_msg *, const ns_rr *, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_sprintrr (const ns_msg *, const ns_rr *, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_sprintrrf
 #  define __NIJI_D_ns_sprintrrf 1
-extern int ns_sprintrrf (const unsigned char *, unsigned long, const char *, ns_class, ns_type, long unsigned int, const unsigned char *, unsigned long, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern int ns_sprintrrf (const unsigned char *, unsigned long, const char *, ns_class, ns_type, long unsigned int, const unsigned char *, unsigned long, const char *, const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ns_subdomain
 #  define __NIJI_D_ns_subdomain 1
-extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW;
+extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef NS_CMPRSFLGS
 #  define NS_CMPRSFLGS 192
@@ -541,6 +542,9 @@ extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW;
 # ifndef NS_RRFIXEDSZ
 #  define NS_RRFIXEDSZ 10
 # endif
+# ifndef NS_TSIG_ALG_HMAC_MD5
+#  define NS_TSIG_ALG_HMAC_MD5 "HMAC-MD5.SIG-ALG.REG.INT"
+# endif
 # ifndef NS_TSIG_ERROR_FORMERR
 #  define NS_TSIG_ERROR_FORMERR (-12)
 # endif
@@ -556,6 +560,68 @@ extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW;
 # ifndef NS_TSIG_TCP_COUNT
 #  define NS_TSIG_TCP_COUNT 100
 # endif
+#endif
+
+/* Reading and writing the network-order (big-endian) fields of a DNS message, and the accessors of a parsed message
+   and record (black-box probed on the reference: GET* assign the value and advance the pointer by the field size,
+   PUT* write it and advance; the accessors yield the member, promoted as the arithmetic of the member's type, a
+   record name that is empty reads as "."; HEADERS-STAGE2-GAPS-C-2). */
+#if 1
+# define GETSHORT(s, cp) NS_GET16 (s, cp)
+#endif
+#if 1
+# define GETLONG(l, cp) NS_GET32 (l, cp)
+#endif
+#if 1
+# define PUTSHORT(s, cp) NS_PUT16 (s, cp)
+#endif
+#if 1
+# define PUTLONG(l, cp) NS_PUT32 (l, cp)
+#endif
+#if 1
+# define NS_GET16(s, cp) do { const unsigned char *__niji_p = (cp); (s) = (unsigned int) (__niji_p[0] << 8) | __niji_p[1]; (cp) += 2; } while (0)
+#endif
+#if 1
+# define NS_GET32(l, cp) do { const unsigned char *__niji_p = (cp); (l) = ((unsigned long) __niji_p[0] << 24) | ((unsigned long) __niji_p[1] << 16) | ((unsigned long) __niji_p[2] << 8) | __niji_p[3]; (cp) += 4; } while (0)
+#endif
+#if 1
+# define NS_PUT16(s, cp) do { unsigned int __niji_v = (s); unsigned char *__niji_p = (cp); __niji_p[0] = (unsigned char) (__niji_v >> 8); __niji_p[1] = (unsigned char) __niji_v; (cp) = __niji_p + 2; } while (0)
+#endif
+#if 1
+# define NS_PUT32(l, cp) do { unsigned long __niji_v = (l); unsigned char *__niji_p = (cp); __niji_p[0] = (unsigned char) (__niji_v >> 24); __niji_p[1] = (unsigned char) (__niji_v >> 16); __niji_p[2] = (unsigned char) (__niji_v >> 8); __niji_p[3] = (unsigned char) __niji_v; (cp) = __niji_p + 4; } while (0)
+#endif
+#if 1
+# define ns_msg_id(handle) ((handle)._id + 0)
+#endif
+#if 1
+# define ns_msg_base(handle) ((handle)._msg + 0)
+#endif
+#if 1
+# define ns_msg_end(handle) ((handle)._eom + 0)
+#endif
+#if 1
+# define ns_msg_size(handle) ((handle)._eom - (handle)._msg)
+#endif
+#if 1
+# define ns_msg_count(handle, section) ((handle)._counts[section] + 0)
+#endif
+#if 1
+# define ns_rr_name(rr) (((rr).name[0] != 0) ? (rr).name : ".")
+#endif
+#if 1
+# define ns_rr_type(rr) ((ns_type) ((rr).type + 0))
+#endif
+#if 1
+# define ns_rr_class(rr) ((ns_class) ((rr).rr_class + 0))
+#endif
+#if 1
+# define ns_rr_ttl(rr) ((rr).ttl + 0)
+#endif
+#if 1
+# define ns_rr_rdlen(rr) ((rr).rdlength + 0)
+#endif
+#if 1
+# define ns_rr_rdata(rr) ((rr).rdata + 0)
 #endif
 
 __NIJI_END_C

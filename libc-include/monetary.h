@@ -2,6 +2,7 @@
 /* monetary.h: monetary formatting (XSH <monetary.h>). */
 #ifndef __NIJI_H_monetary_h
 #define __NIJI_H_monetary_h 1
+#define _MONETARY_H 1
 
 #include <features.h>
 
@@ -54,13 +55,13 @@ typedef struct __locale_struct * locale_t;
 #if 1
 # ifndef __NIJI_D_strfmon
 #  define __NIJI_D_strfmon 1
-extern long strfmon (char *, unsigned long, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__strfmon__, 3, 4), __nonnull__ (1, 3)));
+extern long strfmon (char *, unsigned long, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__strfmon__, 3, 4)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_strfmon_l
 #  define __NIJI_D_strfmon_l 1
-extern long strfmon_l (char *, unsigned long, locale_t, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__strfmon__, 4, 5), __nonnull__ (1)));
+extern long strfmon_l (char *, unsigned long, locale_t, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__strfmon__, 4, 5)));
 # endif
 #endif
 

@@ -2287,6 +2287,208 @@ struct mtconfiginfo	reserved	34		char[10]
 struct mt_tape_info		16	8		
 struct mt_tape_info	t_type	0		long int	
 struct mt_tape_info	t_name	8		char *	
+struct ar_hdr		60	1		
+struct ar_hdr	ar_name	0		char[16]	
+struct ar_hdr	ar_date	16		char[12]	
+struct ar_hdr	ar_uid	28		char[6]	
+struct ar_hdr	ar_gid	34		char[6]	
+struct ar_hdr	ar_mode	40		char[8]	
+struct ar_hdr	ar_size	48		char[10]	
+struct ar_hdr	ar_fmag	58		char[2]	
+struct utimbuf		16	8		
+struct utimbuf	actime	0		__time_t	
+struct utimbuf	modtime	8		__time_t	
+struct tcp_md5sig		216	8		
+struct tcp_md5sig	tcpm_addr	0		struct sockaddr_storage	
+struct tcp_md5sig	tcpm_addr.ss_family	0		sa_family_t	
+struct tcp_md5sig	tcpm_addr.__ss_padding	2		char[118]	
+struct tcp_md5sig	tcpm_addr.__ss_align	120		long unsigned int	
+struct tcp_md5sig	tcpm_flags	128		uint8_t	
+struct tcp_md5sig	tcpm_prefixlen	129		uint8_t	
+struct tcp_md5sig	tcpm_keylen	130		uint16_t	
+struct tcp_md5sig	tcpm_ifindex	132		int	
+struct tcp_md5sig	tcpm_key	136		uint8_t[80]	
+struct tcp_repair_opt		8	4		
+struct tcp_repair_opt	opt_code	0		uint32_t	
+struct tcp_repair_opt	opt_val	4		uint32_t	
+struct tcp_repair_window		20	4		
+struct tcp_repair_window	snd_wl1	0		uint32_t	
+struct tcp_repair_window	snd_wnd	4		uint32_t	
+struct tcp_repair_window	max_window	8		uint32_t	
+struct tcp_repair_window	rcv_wnd	12		uint32_t	
+struct tcp_repair_window	rcv_wup	16		uint32_t	
+struct tcp_cookie_transactions		544	2		
+struct tcp_cookie_transactions	tcpct_flags	0		uint16_t	
+struct tcp_cookie_transactions	__tcpct_pad1	2		uint8_t	
+struct tcp_cookie_transactions	tcpct_cookie_desired	3		uint8_t	
+struct tcp_cookie_transactions	tcpct_s_data_desired	4		uint16_t	
+struct tcp_cookie_transactions	tcpct_used	6		uint16_t	
+struct tcp_cookie_transactions	tcpct_value	8		uint8_t[536]	
+struct tcp_zerocopy_receive		16	8		
+struct tcp_zerocopy_receive	address	0		uint64_t	
+struct tcp_zerocopy_receive	length	8		uint32_t	
+struct tcp_zerocopy_receive	recv_skip_hint	12		uint32_t	
+struct ip6_hdrctl		8	4		
+struct ip6_hdrctl	ip6_un1_flow	0		uint32_t	
+struct ip6_hdrctl	ip6_un1_plen	4		uint16_t	
+struct ip6_hdrctl	ip6_un1_nxt	6		uint8_t	
+struct ip6_hdrctl	ip6_un1_hlim	7		uint8_t	
+struct ip6_ext		2	1		
+struct ip6_ext	ip6e_nxt	0		uint8_t	
+struct ip6_ext	ip6e_len	1		uint8_t	
+struct ip6_hbh		2	1		
+struct ip6_hbh	ip6h_nxt	0		uint8_t	
+struct ip6_hbh	ip6h_len	1		uint8_t	
+struct ip6_dest		2	1		
+struct ip6_dest	ip6d_nxt	0		uint8_t	
+struct ip6_dest	ip6d_len	1		uint8_t	
+struct ip6_rthdr		4	1		
+struct ip6_rthdr	ip6r_nxt	0		uint8_t	
+struct ip6_rthdr	ip6r_len	1		uint8_t	
+struct ip6_rthdr	ip6r_type	2		uint8_t	
+struct ip6_rthdr	ip6r_segleft	3		uint8_t	
+struct ip6_rthdr0		8	4		
+struct ip6_rthdr0	ip6r0_nxt	0		uint8_t	
+struct ip6_rthdr0	ip6r0_len	1		uint8_t	
+struct ip6_rthdr0	ip6r0_type	2		uint8_t	
+struct ip6_rthdr0	ip6r0_segleft	3		uint8_t	
+struct ip6_rthdr0	ip6r0_reserved	4		uint8_t	
+struct ip6_rthdr0	ip6r0_slmap	5		uint8_t[3]	
+struct ip6_rthdr0	ip6r0_addr	8		struct in6_addr[0]	
+struct ip6_rthdr0	ip6r0_addr.__in6_u	8		union <anon>	
+struct ip6_rthdr0	ip6r0_addr.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct ip6_rthdr0	ip6r0_addr.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct ip6_rthdr0	ip6r0_addr.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct ip6_frag		8	4		
+struct ip6_frag	ip6f_nxt	0		uint8_t	
+struct ip6_frag	ip6f_reserved	1		uint8_t	
+struct ip6_frag	ip6f_offlg	2		uint16_t	
+struct ip6_frag	ip6f_ident	4		uint32_t	
+struct ip6_opt		2	1		
+struct ip6_opt	ip6o_type	0		uint8_t	
+struct ip6_opt	ip6o_len	1		uint8_t	
+struct ip6_opt_jumbo		6	1		
+struct ip6_opt_jumbo	ip6oj_type	0		uint8_t	
+struct ip6_opt_jumbo	ip6oj_len	1		uint8_t	
+struct ip6_opt_jumbo	ip6oj_jumbo_len	2		uint8_t[4]	
+struct ip6_opt_nsap		4	1		
+struct ip6_opt_nsap	ip6on_type	0		uint8_t	
+struct ip6_opt_nsap	ip6on_len	1		uint8_t	
+struct ip6_opt_nsap	ip6on_src_nsap_len	2		uint8_t	
+struct ip6_opt_nsap	ip6on_dst_nsap_len	3		uint8_t	
+struct ip6_opt_tunnel		3	1		
+struct ip6_opt_tunnel	ip6ot_type	0		uint8_t	
+struct ip6_opt_tunnel	ip6ot_len	1		uint8_t	
+struct ip6_opt_tunnel	ip6ot_encap_limit	2		uint8_t	
+struct ip6_opt_router		4	1		
+struct ip6_opt_router	ip6or_type	0		uint8_t	
+struct ip6_opt_router	ip6or_len	1		uint8_t	
+struct ip6_opt_router	ip6or_value	2		uint8_t[2]	
+struct sg_io_hdr		88	8		
+struct sg_io_hdr	interface_id	0		int	
+struct sg_io_hdr	dxfer_direction	4		int	
+struct sg_io_hdr	cmd_len	8		unsigned char	
+struct sg_io_hdr	mx_sb_len	9		unsigned char	
+struct sg_io_hdr	iovec_count	10		short unsigned int	
+struct sg_io_hdr	dxfer_len	12		unsigned int	
+struct sg_io_hdr	dxferp	16		void *	
+struct sg_io_hdr	cmdp	24		unsigned char *	
+struct sg_io_hdr	sbp	32		unsigned char *	
+struct sg_io_hdr	timeout	40		unsigned int	
+struct sg_io_hdr	flags	44		unsigned int	
+struct sg_io_hdr	pack_id	48		int	
+struct sg_io_hdr	usr_ptr	56		void *	
+struct sg_io_hdr	status	64		unsigned char	
+struct sg_io_hdr	masked_status	65		unsigned char	
+struct sg_io_hdr	msg_status	66		unsigned char	
+struct sg_io_hdr	sb_len_wr	67		unsigned char	
+struct sg_io_hdr	host_status	68		short unsigned int	
+struct sg_io_hdr	driver_status	70		short unsigned int	
+struct sg_io_hdr	resid	72		int	
+struct sg_io_hdr	duration	76		unsigned int	
+struct sg_io_hdr	info	80		unsigned int	
+struct sg_scsi_id		32	4		
+struct sg_scsi_id	host_no	0		int	
+struct sg_scsi_id	channel	4		int	
+struct sg_scsi_id	scsi_id	8		int	
+struct sg_scsi_id	lun	12		int	
+struct sg_scsi_id	scsi_type	16		int	
+struct sg_scsi_id	h_cmd_per_lun	20		short int	
+struct sg_scsi_id	d_queue_depth	22		short int	
+struct sg_scsi_id	unused	24		int[2]	
+struct sg_req_info		24	8		
+struct sg_req_info	req_state	0		char	
+struct sg_req_info	orphan	1		char	
+struct sg_req_info	sg_io_owned	2		char	
+struct sg_req_info	problem	3		char	
+struct sg_req_info	pack_id	4		int	
+struct sg_req_info	usr_ptr	8		void *	
+struct sg_req_info	duration	16		unsigned int	
+struct sg_req_info	unused	20		int	
+struct sg_iovec		16	8		
+struct sg_iovec	iov_base	0		void *	
+struct sg_iovec	iov_len	8		size_t	
+struct sg_header		36	4		
+struct sg_header	pack_len	0		int	
+struct sg_header	reply_len	4		int	
+struct sg_header	pack_id	8		int	
+struct sg_header	result	12		int	
+struct sg_header	twelve_byte	16		unsigned int	bits 1@0
+struct sg_header	target_status	16		unsigned int	bits 5@1
+struct sg_header	host_status	16		unsigned int	bits 8@6
+struct sg_header	driver_status	16		unsigned int	bits 8@14
+struct sg_header	other_flags	16		unsigned int	bits 10@22
+struct sg_header	sense_buffer	20		unsigned char[16]	
+struct ccs_modesel_head		12	1		
+struct ccs_modesel_head	_r1	0		unsigned char	
+struct ccs_modesel_head	medium	1		unsigned char	
+struct ccs_modesel_head	_r2	2		unsigned char	
+struct ccs_modesel_head	block_desc_length	3		unsigned char	
+struct ccs_modesel_head	density	4		unsigned char	
+struct ccs_modesel_head	number_blocks_hi	5		unsigned char	
+struct ccs_modesel_head	number_blocks_med	6		unsigned char	
+struct ccs_modesel_head	number_blocks_lo	7		unsigned char	
+struct ccs_modesel_head	_r3	8		unsigned char	
+struct ccs_modesel_head	block_length_hi	9		unsigned char	
+struct ccs_modesel_head	block_length_med	10		unsigned char	
+struct ccs_modesel_head	block_length_lo	11		unsigned char	
+struct msginfo		32	4		
+struct msginfo	msgpool	0		int	
+struct msginfo	msgmap	4		int	
+struct msginfo	msgmax	8		int	
+struct msginfo	msgmnb	12		int	
+struct msginfo	msgmni	16		int	
+struct msginfo	msgssz	20		int	
+struct msginfo	msgtql	24		int	
+struct msginfo	msgseg	28		short unsigned int	
+struct shminfo		72	8		
+struct shminfo	shmmax	0		__syscall_ulong_t	
+struct shminfo	shmmin	8		__syscall_ulong_t	
+struct shminfo	shmmni	16		__syscall_ulong_t	
+struct shminfo	shmseg	24		__syscall_ulong_t	
+struct shminfo	shmall	32		__syscall_ulong_t	
+struct shminfo	__glibc_reserved1	40		__syscall_ulong_t	
+struct shminfo	__glibc_reserved2	48		__syscall_ulong_t	
+struct shminfo	__glibc_reserved3	56		__syscall_ulong_t	
+struct shminfo	__glibc_reserved4	64		__syscall_ulong_t	
+struct shm_info		48	8		
+struct shm_info	used_ids	0		int	
+struct shm_info	shm_tot	8		__syscall_ulong_t	
+struct shm_info	shm_rss	16		__syscall_ulong_t	
+struct shm_info	shm_swp	24		__syscall_ulong_t	
+struct shm_info	swap_attempts	32		__syscall_ulong_t	
+struct shm_info	swap_successes	40		__syscall_ulong_t	
+struct seminfo		40	4		
+struct seminfo	semmap	0		int	
+struct seminfo	semmni	4		int	
+struct seminfo	semmns	8		int	
+struct seminfo	semmnu	12		int	
+struct seminfo	semmsl	16		int	
+struct seminfo	semopm	20		int	
+struct seminfo	semume	24		int	
+struct seminfo	semusz	28		int	
+struct seminfo	semvmx	32		int	
+struct seminfo	semaem	36		int	
 Elf32_Ehdr		52	4		
 Elf32_Ehdr	e_ident	0		unsigned char[16]	
 Elf32_Ehdr	e_type	16		Elf32_Half	
@@ -2658,3 +2860,174 @@ prpsinfo_t	pr_pgrp	32		int
 prpsinfo_t	pr_sid	36		int	
 prpsinfo_t	pr_fname	40		char[16]	
 prpsinfo_t	pr_psargs	56		char[80]	
+ax25_address		7	1		
+ax25_address	ax25_call	0		char[7]	
+rose_address		5	1		
+rose_address	rose_addr	0		char[5]	
+struct sockaddr_ax25		16	4		
+struct sockaddr_ax25	sax25_family	0		sa_family_t	
+struct sockaddr_ax25	sax25_call	2		ax25_address	
+struct sockaddr_ax25	sax25_call.ax25_call	2		char[7]	
+struct sockaddr_ax25	sax25_ndigis	12		int	
+struct full_sockaddr_ax25		72	4		
+struct full_sockaddr_ax25	fsa_ax25	0		struct sockaddr_ax25	
+struct full_sockaddr_ax25	fsa_ax25.sax25_family	0		sa_family_t	
+struct full_sockaddr_ax25	fsa_ax25.sax25_call	2		ax25_address	
+struct full_sockaddr_ax25	fsa_ax25.sax25_call.ax25_call	2		char[7]	
+struct full_sockaddr_ax25	fsa_ax25.sax25_ndigis	12		int	
+struct full_sockaddr_ax25	fsa_digipeater	16		ax25_address[8]	
+struct full_sockaddr_ax25	fsa_digipeater.ax25_call	16		char[7]	
+struct ax25_routes_struct		71	1		
+struct ax25_routes_struct	port_addr	0		ax25_address	
+struct ax25_routes_struct	port_addr.ax25_call	0		char[7]	
+struct ax25_routes_struct	dest_addr	7		ax25_address	
+struct ax25_routes_struct	dest_addr.ax25_call	7		char[7]	
+struct ax25_routes_struct	digi_count	14		unsigned char	
+struct ax25_routes_struct	digi_addr	15		ax25_address[8]	
+struct ax25_routes_struct	digi_addr.ax25_call	15		char[7]	
+struct ax25_route_opt_struct		24	4		
+struct ax25_route_opt_struct	port_addr	0		ax25_address	
+struct ax25_route_opt_struct	port_addr.ax25_call	0		char[7]	
+struct ax25_route_opt_struct	dest_addr	7		ax25_address	
+struct ax25_route_opt_struct	dest_addr.ax25_call	7		char[7]	
+struct ax25_route_opt_struct	cmd	16		int	
+struct ax25_route_opt_struct	arg	20		int	
+struct ax25_ctl_struct		104	8		
+struct ax25_ctl_struct	port_addr	0		ax25_address	
+struct ax25_ctl_struct	port_addr.ax25_call	0		char[7]	
+struct ax25_ctl_struct	source_addr	7		ax25_address	
+struct ax25_ctl_struct	source_addr.ax25_call	7		char[7]	
+struct ax25_ctl_struct	dest_addr	14		ax25_address	
+struct ax25_ctl_struct	dest_addr.ax25_call	14		char[7]	
+struct ax25_ctl_struct	cmd	24		unsigned int	
+struct ax25_ctl_struct	arg	32		long unsigned int	
+struct ax25_ctl_struct	digi_count	40		unsigned char	
+struct ax25_ctl_struct	digi_addr	41		ax25_address[8]	
+struct ax25_ctl_struct	digi_addr.ax25_call	41		char[7]	
+struct ax25_info_struct		52	4		
+struct ax25_info_struct	n2	0		unsigned int	
+struct ax25_info_struct	n2count	4		unsigned int	
+struct ax25_info_struct	t1	8		unsigned int	
+struct ax25_info_struct	t1timer	12		unsigned int	
+struct ax25_info_struct	t2	16		unsigned int	
+struct ax25_info_struct	t2timer	20		unsigned int	
+struct ax25_info_struct	t3	24		unsigned int	
+struct ax25_info_struct	t3timer	28		unsigned int	
+struct ax25_info_struct	idle	32		unsigned int	
+struct ax25_info_struct	idletimer	36		unsigned int	
+struct ax25_info_struct	state	40		unsigned int	
+struct ax25_info_struct	rcv_q	44		unsigned int	
+struct ax25_info_struct	snd_q	48		unsigned int	
+struct ax25_fwd_struct		14	1		
+struct ax25_fwd_struct	port_from	0		ax25_address	
+struct ax25_fwd_struct	port_from.ax25_call	0		char[7]	
+struct ax25_fwd_struct	port_to	7		ax25_address	
+struct ax25_fwd_struct	port_to.ax25_call	7		char[7]	
+struct nr_route_struct		112	4		
+struct nr_route_struct	type	0		int	
+struct nr_route_struct	callsign	4		ax25_address	
+struct nr_route_struct	callsign.ax25_call	4		char[7]	
+struct nr_route_struct	device	11		char[16]	
+struct nr_route_struct	quality	28		unsigned int	
+struct nr_route_struct	mnemonic	32		char[7]	
+struct nr_route_struct	neighbour	39		ax25_address	
+struct nr_route_struct	neighbour.ax25_call	39		char[7]	
+struct nr_route_struct	obs_count	48		unsigned int	
+struct nr_route_struct	ndigis	52		unsigned int	
+struct nr_route_struct	digipeaters	56		ax25_address[8]	
+struct nr_route_struct	digipeaters.ax25_call	56		char[7]	
+struct sockaddr_rose		28	4		
+struct sockaddr_rose	srose_family	0		sa_family_t	
+struct sockaddr_rose	srose_addr	2		rose_address	
+struct sockaddr_rose	srose_addr.rose_addr	2		char[5]	
+struct sockaddr_rose	srose_call	7		ax25_address	
+struct sockaddr_rose	srose_call.ax25_call	7		char[7]	
+struct sockaddr_rose	srose_ndigis	16		int	
+struct sockaddr_rose	srose_digi	20		ax25_address	
+struct sockaddr_rose	srose_digi.ax25_call	20		char[7]	
+struct full_sockaddr_rose		64	4		
+struct full_sockaddr_rose	srose_family	0		sa_family_t	
+struct full_sockaddr_rose	srose_addr	2		rose_address	
+struct full_sockaddr_rose	srose_addr.rose_addr	2		char[5]	
+struct full_sockaddr_rose	srose_call	7		ax25_address	
+struct full_sockaddr_rose	srose_call.ax25_call	7		char[7]	
+struct full_sockaddr_rose	srose_ndigis	16		unsigned int	
+struct full_sockaddr_rose	srose_digis	20		ax25_address[6]	
+struct full_sockaddr_rose	srose_digis.ax25_call	20		char[7]	
+struct rose_route_struct		88	2		
+struct rose_route_struct	address	0		rose_address	
+struct rose_route_struct	address.rose_addr	0		char[5]	
+struct rose_route_struct	mask	6		short unsigned int	
+struct rose_route_struct	neighbour	8		ax25_address	
+struct rose_route_struct	neighbour.ax25_call	8		char[7]	
+struct rose_route_struct	device	15		char[16]	
+struct rose_route_struct	ndigis	31		unsigned char	
+struct rose_route_struct	digipeaters	32		ax25_address[8]	
+struct rose_route_struct	digipeaters.ax25_call	32		char[7]	
+struct rose_cause_struct		2	1		
+struct rose_cause_struct	cause	0		unsigned char	
+struct rose_cause_struct	diagnostic	1		unsigned char	
+struct rose_facilities_struct		128	4		
+struct rose_facilities_struct	source_addr	0		rose_address	
+struct rose_facilities_struct	source_addr.rose_addr	0		char[5]	
+struct rose_facilities_struct	dest_addr	5		rose_address	
+struct rose_facilities_struct	dest_addr.rose_addr	5		char[5]	
+struct rose_facilities_struct	source_call	10		ax25_address	
+struct rose_facilities_struct	source_call.ax25_call	10		char[7]	
+struct rose_facilities_struct	dest_call	17		ax25_address	
+struct rose_facilities_struct	dest_call.ax25_call	17		char[7]	
+struct rose_facilities_struct	source_ndigis	24		unsigned char	
+struct rose_facilities_struct	dest_ndigis	25		unsigned char	
+struct rose_facilities_struct	source_digis	26		ax25_address[6]	
+struct rose_facilities_struct	source_digis.ax25_call	26		char[7]	
+struct rose_facilities_struct	dest_digis	68		ax25_address[6]	
+struct rose_facilities_struct	dest_digis.ax25_call	68		char[7]	
+struct rose_facilities_struct	rand	112		unsigned int	
+struct rose_facilities_struct	fail_addr	116		rose_address	
+struct rose_facilities_struct	fail_addr.rose_addr	116		char[5]	
+struct rose_facilities_struct	fail_call	121		ax25_address	
+struct rose_facilities_struct	fail_call.ax25_call	121		char[7]	
+struct sockaddr_ipx		16	4		
+struct sockaddr_ipx	sipx_family	0		sa_family_t	
+struct sockaddr_ipx	sipx_port	2		uint16_t	
+struct sockaddr_ipx	sipx_network	4		uint32_t	
+struct sockaddr_ipx	sipx_node	8		unsigned char[6]	
+struct sockaddr_ipx	sipx_type	14		uint8_t	
+struct sockaddr_ipx	sipx_zero	15		unsigned char	
+struct ipx_route_definition		24	8		
+struct ipx_route_definition	ipx_network	0		long unsigned int	
+struct ipx_route_definition	ipx_router_network	8		long unsigned int	
+struct ipx_route_definition	ipx_router_node	16		unsigned char[6]	
+struct ipx_interface_definition		32	8		
+struct ipx_interface_definition	ipx_network	0		long unsigned int	
+struct ipx_interface_definition	ipx_device	8		unsigned char[16]	
+struct ipx_interface_definition	ipx_dlink_type	24		unsigned char	
+struct ipx_interface_definition	ipx_special	25		unsigned char	
+struct ipx_interface_definition	ipx_node	26		unsigned char[6]	
+struct ipx_config_data		2	1		
+struct ipx_config_data	ipxcfg_auto_select_primary	0		unsigned char	
+struct ipx_config_data	ipxcfg_auto_create_interfaces	1		unsigned char	
+struct ipx_route_def		40	8		
+struct ipx_route_def	ipx_network	0		long unsigned int	
+struct ipx_route_def	ipx_router_network	8		long unsigned int	
+struct ipx_route_def	ipx_router_node	16		unsigned char[6]	
+struct ipx_route_def	ipx_device	22		unsigned char[16]	
+struct ipx_route_def	ipx_flags	38		short unsigned int	
+struct sockaddr_ec		16	8		
+struct sockaddr_ec	sec_family	0		sa_family_t	
+struct sockaddr_ec	port	2		unsigned char	
+struct sockaddr_ec	cb	3		unsigned char	
+struct sockaddr_ec	type	4		unsigned char	
+struct sockaddr_ec	addr	5		struct ec_addr	
+struct sockaddr_ec	addr.station	5		unsigned char	
+struct sockaddr_ec	addr.net	6		unsigned char	
+struct sockaddr_ec	cookie	8		long unsigned int	
+struct ec_addr		2	1		
+struct ec_addr	station	0		unsigned char	
+struct ec_addr	net	1		unsigned char	
+struct sockaddr_ash		32	4		
+struct sockaddr_ash	sash_family	0		sa_family_t	
+struct sockaddr_ash	sash_ifindex	4		int	
+struct sockaddr_ash	sash_channel	8		unsigned char	
+struct sockaddr_ash	sash_plen	12		unsigned int	
+struct sockaddr_ash	sash_prefix	16		unsigned char[16]	

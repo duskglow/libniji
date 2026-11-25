@@ -2,6 +2,7 @@
 /* nl_types.h: message catalogs (XSH <nl_types.h>). */
 #ifndef __NIJI_H_nl_types_h
 #define __NIJI_H_nl_types_h 1
+#define _NL_TYPES_H 1
 
 #include <features.h>
 
@@ -18,11 +19,11 @@ typedef int nl_item;
 # endif
 # ifndef __NIJI_D_catclose
 #  define __NIJI_D_catclose 1
-extern int catclose (void *) __NIJI_NOTHROW;
+extern int catclose (void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_catgets
 #  define __NIJI_D_catgets 1
-extern char *catgets (void *, int, int, const char *) __NIJI_NOTHROW;
+extern char *catgets (void *, int, int, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_catopen
 #  define __NIJI_D_catopen 1

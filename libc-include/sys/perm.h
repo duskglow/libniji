@@ -2,6 +2,7 @@
 /* sys/perm.h: ioperm(2), iopl(2) on x86 */
 #ifndef __NIJI_H_sys_perm_h
 #define __NIJI_H_sys_perm_h 1
+#define _SYS_PERM_H 1
 
 #include <features.h>
 

@@ -2,6 +2,7 @@
 /* netatalk/at.h: AppleTalk */
 #ifndef __NIJI_H_netatalk_at_h
 #define __NIJI_H_netatalk_at_h 1
+#define _NETATALK_AT_H 1
 
 #include <features.h>
 #include <sys/socket.h>

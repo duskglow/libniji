@@ -2,6 +2,7 @@
 /* sys/sem.h: System V semaphores (XSH <sys/sem.h>). */
 #ifndef __NIJI_H_sys_sem_h
 #define __NIJI_H_sys_sem_h 1
+#define _SYS_SEM_H 1
 
 #include <features.h>
 #include <sys/ipc.h>
@@ -44,6 +45,23 @@ struct semid_ds {
   unsigned long sem_nsems;
   unsigned long __glibc_reserved3;
   unsigned long __glibc_reserved4;
+};
+# endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_seminfo
+#  define __NIJI_D_struct_seminfo 1
+struct seminfo {
+  int semmap;
+  int semmni;
+  int semmns;
+  int semmnu;
+  int semmsl;
+  int semopm;
+  int semume;
+  int semusz;
+  int semvmx;
+  int semaem;
 };
 # endif
 #endif

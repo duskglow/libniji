@@ -2,6 +2,7 @@
 /* spawn.h: spawning processes (XSH <spawn.h>, posix_spawn(3)), with the GNU file actions and the pidfd forms. */
 #ifndef __NIJI_H_spawn_h
 #define __NIJI_H_spawn_h 1
+#define _SPAWN_H 1
 
 #include <features.h>
 #include <sched.h>

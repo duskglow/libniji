@@ -7,6 +7,7 @@
    handler. */
 #ifndef __NIJI_H_pthread_h
 #define __NIJI_H_pthread_h 1
+#define _PTHREAD_H 1
 
 #include <features.h>
 #include <sched.h>
@@ -364,7 +365,7 @@ extern int pthread_condattr_setpshared (pthread_condattr_t *, int) __NIJI_NOTHRO
 # endif
 # ifndef __NIJI_D_pthread_create
 #  define __NIJI_D_pthread_create 1
-extern int pthread_create (unsigned long *, const pthread_attr_t *, void *(*) (void *), void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3, 4)));
+extern int pthread_create (unsigned long *, const pthread_attr_t *, void *(*) (void *), void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_pthread_detach
 #  define __NIJI_D_pthread_detach 1

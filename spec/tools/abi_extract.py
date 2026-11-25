@@ -33,7 +33,7 @@ fts.h ftw.h glob.h regex.h wordexp.h fnmatch.h search.h termios.h sys/ioctl.h pt
 utmpx.h pwd.h grp.h shadow.h gshadow.h netdb.h resolv.h arpa/inet.h arpa/nameser.h
 netinet/in.h netinet/ether.h net/if.h ifaddrs.h sys/socket.h sys/un.h poll.h sys/epoll.h
 sys/select.h sys/uio.h aio.h mqueue.h sys/ipc.h sys/msg.h sys/sem.h sys/shm.h spawn.h
-sys/wait.h dlfcn.h link.h mntent.h fstab.h getopt.h argp.h obstack.h printf.h malloc.h err.h
+sys/wait.h dlfcn.h link.h mntent.h ar.h utime.h fstab.h getopt.h argp.h obstack.h printf.h malloc.h err.h
 error.h syslog.h fmtmsg.h sys/mman.h fcntl.h unistd.h sched.h sys/sysmacros.h sys/inotify.h
 sys/signalfd.h sys/timerfd.h sys/eventfd.h sys/xattr.h sys/random.h sys/auxv.h execinfo.h
 inttypes.h stdint.h stddef.h stdarg.h envz.h argz.h libgen.h nl_types.h libintl.h
@@ -44,7 +44,8 @@ sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfil
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
 net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
-net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h""".split()
+net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h scsi/scsi.h scsi/sg.h
+netax25/ax25.h netrom/netrom.h netrose/rose.h netipx/ipx.h netash/ash.h neteconet/ec.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -158,6 +159,24 @@ TYPES = [
  *[(f"struct {t}", f"struct {t}") for t in (
      "ifconf", "ifaddr", "packet_mreq", "sockaddr_pkt", "tpacket_req", "tpacket_stats", "tpacket_auxdata", "tpacket_hdr",
      "mtop", "mtget", "mtpos", "mtconfiginfo", "mt_tape_info")],
+ # HEADERS-STAGE2-GAPS-C: the archive member header of ar(5) (elfutils) and XSH <utime.h>'s struct utimbuf (bzip2, cmake).
+ ("struct ar_hdr", "struct ar_hdr"), ("struct utimbuf", "struct utimbuf"),
+ # The address, route and control structures of the amateur-radio and legacy protocol headers (header_probe.py
+ # radio_names() names the sources; net-tools names struct sockaddr_ax25).
+ ("ax25_address", "ax25_address"), ("rose_address", "rose_address"),
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "sockaddr_ax25", "full_sockaddr_ax25", "ax25_routes_struct", "ax25_route_opt_struct", "ax25_ctl_struct",
+     "ax25_info_struct_deprecated", "ax25_info_struct", "ax25_fwd_struct", "nr_route_struct", "sockaddr_rose",
+     "full_sockaddr_rose", "rose_route_struct", "rose_cause_struct", "rose_facilities_struct", "sockaddr_ipx",
+     "ipx_route_definition", "ipx_interface_definition", "ipx_config_data", "ipx_route_def", "sockaddr_ec",
+     "ec_addr", "sockaddr_ash")],
+ # HEADERS-NET-SYS-NAMES: the TCP option, IPv6 extension header, syslog name table, SCSI generic and System V IPC_INFO
+ # structures (header_probe.py net_sys_names() names the sources).
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "_code", "tcp_md5sig", "tcp_repair_opt", "tcp_repair_window", "tcp_cookie_transactions", "tcp_zerocopy_receive",
+     "tcp_diag_md5sig", "ip6_hdrctl", "ip6_ext", "ip6_hbh", "ip6_dest", "ip6_rthdr", "ip6_rthdr0", "ip6_frag",
+     "ip6_opt", "ip6_opt_jumbo", "ip6_opt_nsap", "ip6_opt_tunnel", "ip6_opt_router", "sg_io_hdr", "sg_scsi_id",
+     "sg_req_info", "sg_iovec", "sg_header", "ccs_modesel_head", "msginfo", "shminfo", "shm_info", "seminfo")],
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),

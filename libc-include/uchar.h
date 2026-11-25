@@ -2,6 +2,7 @@
 /* uchar.h: Unicode utilities (C 7.28, XSH <uchar.h>). */
 #ifndef __NIJI_H_uchar_h
 #define __NIJI_H_uchar_h 1
+#define _UCHAR_H 1
 
 #include <features.h>
 

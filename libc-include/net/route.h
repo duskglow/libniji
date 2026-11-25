@@ -2,6 +2,7 @@
 /* net/route.h: routing table interface */
 #ifndef __NIJI_H_net_route_h
 #define __NIJI_H_net_route_h 1
+#define _NET_ROUTE_H 1
 
 #include <features.h>
 #include <stdint.h>
@@ -211,6 +212,11 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTMSG_NEWROUTE
 #  define RTMSG_NEWROUTE 33
 # endif
+#endif
+
+/* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */
+#if 1
+# define rt_mss rt_mtu
 #endif
 
 __NIJI_END_C

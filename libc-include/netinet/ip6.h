@@ -2,6 +2,7 @@
 /* netinet/ip6.h: IPv6 (ipv6(7), RFC 8200) */
 #ifndef __NIJI_H_netinet_ip6_h
 #define __NIJI_H_netinet_ip6_h 1
+#define _NETINET_IP6_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -11,6 +12,36 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_ip6_dest
+#  define __NIJI_D_struct_ip6_dest 1
+struct ip6_dest {
+  unsigned char ip6d_nxt;
+  unsigned char ip6d_len;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_ext
+#  define __NIJI_D_struct_ip6_ext 1
+struct ip6_ext {
+  unsigned char ip6e_nxt;
+  unsigned char ip6e_len;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_frag
+#  define __NIJI_D_struct_ip6_frag 1
+struct ip6_frag {
+  unsigned char ip6f_nxt;
+  unsigned char ip6f_reserved;
+  unsigned short ip6f_offlg;
+  unsigned int ip6f_ident;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_hbh
+#  define __NIJI_D_struct_ip6_hbh 1
+struct ip6_hbh {
+  unsigned char ip6h_nxt;
+  unsigned char ip6h_len;
+};
+# endif
 # ifndef __NIJI_D_struct_ip6_hdrctl
 #  define __NIJI_D_struct_ip6_hdrctl 1
 struct ip6_hdrctl {
@@ -38,6 +69,73 @@ struct ip6_hdr {
   union { struct ip6_hdrctl ip6_un1; unsigned char ip6_un2_vfc; } ip6_ctlun;
   struct in6_addr ip6_src;
   struct in6_addr ip6_dst;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_opt
+#  define __NIJI_D_struct_ip6_opt 1
+struct ip6_opt {
+  unsigned char ip6o_type;
+  unsigned char ip6o_len;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_opt_jumbo
+#  define __NIJI_D_struct_ip6_opt_jumbo 1
+struct ip6_opt_jumbo {
+  unsigned char ip6oj_type;
+  unsigned char ip6oj_len;
+  unsigned char ip6oj_jumbo_len[4];
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_opt_nsap
+#  define __NIJI_D_struct_ip6_opt_nsap 1
+struct ip6_opt_nsap {
+  unsigned char ip6on_type;
+  unsigned char ip6on_len;
+  unsigned char ip6on_src_nsap_len;
+  unsigned char ip6on_dst_nsap_len;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_opt_router
+#  define __NIJI_D_struct_ip6_opt_router 1
+struct ip6_opt_router {
+  unsigned char ip6or_type;
+  unsigned char ip6or_len;
+  unsigned char ip6or_value[2];
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_opt_tunnel
+#  define __NIJI_D_struct_ip6_opt_tunnel 1
+struct ip6_opt_tunnel {
+  unsigned char ip6ot_type;
+  unsigned char ip6ot_len;
+  unsigned char ip6ot_encap_limit;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_rthdr
+#  define __NIJI_D_struct_ip6_rthdr 1
+struct ip6_rthdr {
+  unsigned char ip6r_nxt;
+  unsigned char ip6r_len;
+  unsigned char ip6r_type;
+  unsigned char ip6r_segleft;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_ip6_rthdr0
+#  define __NIJI_D_struct_ip6_rthdr0 1
+struct ip6_rthdr0 {
+  unsigned char ip6r0_nxt;
+  unsigned char ip6r0_len;
+  unsigned char ip6r0_type;
+  unsigned char ip6r0_segleft;
+  unsigned char ip6r0_reserved;
+  unsigned char ip6r0_slmap[3];
+  struct in6_addr ip6r0_addr[0];
 };
 # endif
 #endif
@@ -111,6 +209,57 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 #  elif __NIJI_ISOC < 2023
 extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW;
 #  endif
+# endif
+# ifndef IP6F_MORE_FRAG
+#  define IP6F_MORE_FRAG 256
+# endif
+# ifndef IP6F_OFF_MASK
+#  define IP6F_OFF_MASK 63743
+# endif
+# ifndef IP6F_RESERVED_MASK
+#  define IP6F_RESERVED_MASK 1536
+# endif
+# ifndef IP6OPT_JUMBO
+#  define IP6OPT_JUMBO 194
+# endif
+# ifndef IP6OPT_JUMBO_LEN
+#  define IP6OPT_JUMBO_LEN 6
+# endif
+# ifndef IP6OPT_NSAP_ADDR
+#  define IP6OPT_NSAP_ADDR 195
+# endif
+# ifndef IP6OPT_PAD1
+#  define IP6OPT_PAD1 0
+# endif
+# ifndef IP6OPT_PADN
+#  define IP6OPT_PADN 1
+# endif
+# ifndef IP6OPT_ROUTER_ALERT
+#  define IP6OPT_ROUTER_ALERT 5
+# endif
+# ifndef IP6OPT_TUNNEL_LIMIT
+#  define IP6OPT_TUNNEL_LIMIT 4
+# endif
+# ifndef IP6OPT_TYPE_DISCARD
+#  define IP6OPT_TYPE_DISCARD 64
+# endif
+# ifndef IP6OPT_TYPE_FORCEICMP
+#  define IP6OPT_TYPE_FORCEICMP 128
+# endif
+# ifndef IP6OPT_TYPE_ICMP
+#  define IP6OPT_TYPE_ICMP 192
+# endif
+# ifndef IP6OPT_TYPE_SKIP
+#  define IP6OPT_TYPE_SKIP 0
+# endif
+# ifndef IP6_ALERT_AN
+#  define IP6_ALERT_AN 512
+# endif
+# ifndef IP6_ALERT_MLD
+#  define IP6_ALERT_MLD 0
+# endif
+# ifndef IP6_ALERT_RSVP
+#  define IP6_ALERT_RSVP 256
 # endif
 # ifndef PRIX16
 #  define PRIX16 "X"
@@ -574,6 +723,18 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 # ifndef SCNxPTR
 #  define SCNxPTR "lx"
 # endif
+#endif
+
+/* The fields of the IPv6 header (RFC 8200 section 3) by name: the first eight bytes are struct ip6_hdr's union of the
+   control structure and the version byte; each name is a macro for the member the layout table records (the hop
+   limit has two names). */
+#if 1
+# define ip6_vfc ip6_ctlun.ip6_un2_vfc
+# define ip6_flow ip6_ctlun.ip6_un1.ip6_un1_flow
+# define ip6_plen ip6_ctlun.ip6_un1.ip6_un1_plen
+# define ip6_nxt ip6_ctlun.ip6_un1.ip6_un1_nxt
+# define ip6_hlim ip6_ctlun.ip6_un1.ip6_un1_hlim
+# define ip6_hops ip6_ctlun.ip6_un1.ip6_un1_hlim
 #endif
 
 __NIJI_END_C

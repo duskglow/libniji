@@ -7,7 +7,14 @@
 
 __NIJI_BEGIN_C
 
+@@owns SG_DEFAULT_TIMEOUT
 @@emit
+
+/* The default command timeout, sixty seconds in the kernel's clock ticks: HZ is the program's to define (the header
+   does not), so the macro is usable only where it is. */
+@@when SG_DEFAULT_TIMEOUT
+# define SG_DEFAULT_TIMEOUT (60*HZ)
+#endif
 
 __NIJI_END_C
 

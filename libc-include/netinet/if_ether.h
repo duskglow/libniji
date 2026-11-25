@@ -2,6 +2,7 @@
 /* netinet/if_ether.h: Ethernet and ARP (ethernet(7)) */
 #ifndef __NIJI_H_netinet_if_ether_h
 #define __NIJI_H_netinet_if_ether_h 1
+#define __NETINET_IF_ETHER_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -41,6 +42,16 @@ union pthread_attr_t {
 };
 typedef union pthread_attr_t pthread_attr_t;
 # endif
+#endif
+
+/* The fixed fields of an ARP packet (RFC 826) by name: struct ether_arp begins with a struct arphdr, and each name is a
+   macro for its member. */
+#if __NIJI_MISC
+# define arp_hrd ea_hdr.ar_hrd
+# define arp_pro ea_hdr.ar_pro
+# define arp_hln ea_hdr.ar_hln
+# define arp_pln ea_hdr.ar_pln
+# define arp_op ea_hdr.ar_op
 #endif
 
 __NIJI_END_C

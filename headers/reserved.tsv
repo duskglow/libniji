@@ -72,3 +72,4 @@ __freading	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documente
 __fsetlocking	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwritable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwriting	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__GNU_GETTEXT_SUPPORTED_REVISION	emit	gettext.m4 AM_GNU_GETTEXT: its "GNU gettext in libc" test compiles __GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1 (tar and every package using the macro; Yohane stage 2)

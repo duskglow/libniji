@@ -2,6 +2,7 @@
 /* arpa/inet.h: Internet address conversion (XSH <arpa/inet.h>) */
 #ifndef __NIJI_H_arpa_inet_h
 #define __NIJI_H_arpa_inet_h 1
+#define _ARPA_INET_H 1
 
 #include <features.h>
 #include <netinet/in.h>
@@ -72,7 +73,7 @@ extern int inet_net_pton (int, const char *, void *, unsigned long) __NIJI_NOTHR
 # endif
 # ifndef __NIJI_D_inet_neta
 #  define __NIJI_D_inet_neta 1
-extern char *inet_neta (unsigned int, char *, unsigned long) __NIJI_NOTHROW;
+extern char *inet_neta (unsigned int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_inet_nsap_addr
 #  define __NIJI_D_inet_nsap_addr 1

@@ -2,6 +2,7 @@
 /* unistd.h: standard symbolic constants and types (XSH <unistd.h>). The _SC_, _CS_ and _PC_ names are enumerators and macros of the same value. */
 #ifndef __NIJI_H_unistd_h
 #define __NIJI_H_unistd_h 1
+#define _UNISTD_H 1
 
 #include <features.h>
 
@@ -284,7 +285,7 @@ extern int unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))
 # endif
 # ifndef __NIJI_D_write
 #  define __NIJI_D_write 1
-extern long write (int, const void *, unsigned long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long write (int, const void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 #endif
 #if __NIJI_GNU
@@ -376,7 +377,7 @@ extern long pread64 (int, void *, unsigned long, long) __attribute__ ((__warn_un
 # endif
 # ifndef __NIJI_D_pwrite64
 #  define __NIJI_D_pwrite64 1
-extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_truncate64
 #  define __NIJI_D_truncate64 1
@@ -410,7 +411,7 @@ extern int getdomainname (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((
 # endif
 # ifndef __NIJI_D_getentropy
 #  define __NIJI_D_getentropy 1
-extern int getentropy (void *, unsigned long) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int getentropy (void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_getusershell
 #  define __NIJI_D_getusershell 1
@@ -696,12 +697,12 @@ extern long pread (int, void *, unsigned long, long) __asm__ ("pread64") __attri
 #  define __NIJI_D_pwrite 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 500
 #   if __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__warn_unused_result__));
 #   else
-extern long pwrite (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 #endif
