@@ -42,6 +42,14 @@ def units(ctx):
              ("_NL_ITEM_INDEX(0xFFFFFFFFu)", 65535, "int"), ("_NL_ITEM_INDEX(0x100020005L)", 5, "int"),
              ("_NL_ITEM_INDEX(0x20005) * 2", 10, "int"), ("_NL_ITEM_INDEX(_NL_ADDRESS_COUNTRY_AB2)", 3, "int"),
              ("_NL_ITEM_CATEGORY(_NL_IDENTIFICATION_CODESET)", 12, "int")]
+    # Spec clause: nl_langinfo(3), the locale-name item (NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME`, and
+    # its interpreter layout follows). Probed form: _NL_ITEM(category, 0xffff), argument and result parenthesised, the
+    # type follows the argument.
+    forms += [("_NL_LOCALE_NAME(0)", 65535, "int"), ("_NL_LOCALE_NAME(12)", 851967, "int"), ("_NL_LOCALE_NAME(1L)", 131071, "long"),
+              ("_NL_LOCALE_NAME(1u)", 131071, "unsigned"), ("_NL_LOCALE_NAME(1) * 2", 262142, "int"),
+              ("_NL_LOCALE_NAME(2 - 1)", 131071, "int"), ("_NL_LOCALE_NAME(1 ? 3 : 4)", 262143, "int"),
+              ("-_NL_LOCALE_NAME(1)", -131071, "int"), ("_NL_ITEM_INDEX(_NL_LOCALE_NAME(5))", 65535, "int"),
+              ("_NL_ITEM_CATEGORY(_NL_LOCALE_NAME(2))", 2, "int")]
     cxx = {c["id"]: c["language"] == "c++" for c in ctx.cfgs}
     for cid in ("c89", "gnu17", "cxx98", "cxx17"):
         same = "__is_same(__typeof__({e}), {t})" if cxx[cid] else "__builtin_types_compatible_p(__typeof__({e}), {t})"

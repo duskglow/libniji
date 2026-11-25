@@ -264,6 +264,19 @@ fn sym_nl_langinfo() {
     s::setlocale(LC_CTYPE, c("C.UTF-8").as_ptr());
     assert_eq!(text(s::nl_langinfo(CODESET)), "UTF-8");
     assert_eq!(text(s::nl_langinfo(-5)), "", "unknown items give the empty string");
+    // _NL_LOCALE_NAME(category) = _NL_ITEM(category, 0xffff) (NL-LOCALE-NAME-ABI; perl's perl.h asks it once
+    // <langinfo.h> defines the macro): the category's name as setlocale(category, NULL) gives it, "POSIX" read
+    // back as "C"; "" for LC_ALL and for a category number that does not exist (black-box probes of the reference).
+    s::setlocale(LC_ALL, c("POSIX").as_ptr());
+    s::setlocale(2, c("C.UTF-8").as_ptr());
+    for cat in 0..=12 {
+        let want = match cat { LC_ALL => "", 2 => "C.UTF-8", _ => "C" };
+        assert_eq!(text(s::nl_langinfo(cat << 16 | 0xFFFF)), want, "_NL_LOCALE_NAME({cat}) of the global locale");
+    }
+    for cat in [-1, 13, 100] {
+        assert_eq!(text(s::nl_langinfo(cat << 16 | 0xFFFF)), "", "_NL_LOCALE_NAME of category number {cat}");
+    }
+    assert_eq!(text(s::nl_langinfo_l(2 << 16 | 0xFFFF, GLOBAL_LOCALE)), "C.UTF-8", "LC_GLOBAL_LOCALE names the global locale");
 }
 
 #[test]
@@ -271,7 +284,15 @@ fn sym_nl_langinfo_l() {
     let l = s::newlocale(LC_ALL_MASK, c("C.UTF-8").as_ptr(), null_mut());
     assert_eq!(text(s::nl_langinfo_l(CODESET, l)), "UTF-8");
     assert_eq!(text(s::nl_langinfo_l(0xFFFF, l)), "C.UTF-8", "_NL_LOCALE_NAME of LC_CTYPE");
-    s::freelocale(l);
+    // A mixed object names each category by its own name, LC_ALL by ""; duplocale keeps the names.
+    let m = s::newlocale(1 << 2 | 1 << 4, c("POSIX").as_ptr(), l);
+    let d = s::duplocale(m);
+    for (cat, want) in [(0, "C.UTF-8"), (1, "C.UTF-8"), (2, "C"), (4, "C"), (LC_ALL, ""), (12, "C.UTF-8")] {
+        assert_eq!(text(s::nl_langinfo_l(cat << 16 | 0xFFFF, m)), want, "_NL_LOCALE_NAME({cat}) of a mixed object");
+        assert_eq!(text(s::nl_langinfo_l(cat << 16 | 0xFFFF, d)), want, "_NL_LOCALE_NAME({cat}) of its duplicate");
+    }
+    s::freelocale(d);
+    s::freelocale(m);
 }
 
 #[test]

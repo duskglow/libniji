@@ -345,6 +345,9 @@ def package_names():
     # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
     out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
     out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
+    # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
+    # the interpreter structure's layout with it.
+    out += ["_NL_LOCALE_NAME"]
     return out
 
 

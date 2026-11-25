@@ -17,6 +17,14 @@ __NIJI_BEGIN_C
 # define _NL_ITEM_INDEX(item) ((int) (item) & 0xffff)
 #endif
 
+/* The item whose nl_langinfo answer is the name of CATEGORY's locale, as setlocale (CATEGORY, NULL) would name it
+   ("" for LC_ALL): index 0xffff of the category. Its form, from black-box probes of the reference: the value is
+   _NL_ITEM (category, 0xffff), its type follows its argument, and it is not usable in #if (perl's perl.h tests only
+   whether it is defined, and that choice changes the layout of perl's interpreter structure). */
+#if 1
+# define _NL_LOCALE_NAME(category) _NL_ITEM ((category), _NL_ITEM_INDEX (-1))
+#endif
+
 #if 1
 # ifndef __NIJI_D_nl_catd
 #  define __NIJI_D_nl_catd 1
