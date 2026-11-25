@@ -2043,6 +2043,7 @@ function	gnu_dev_minor	sys/sysmacros.h			unsigned int (unsigned long)
 function	gnu_get_libc_release	gnu/libc-version.h			char const* ()
 function	gnu_get_libc_version	gnu/libc-version.h			char const* ()
 function	grantpt	complex.h			int (int)
+typedef	greg_t	arpa/nameser.h	8	8	long long
 typedef	gregset_t	arpa/nameser.h	184	8	long long [23]
 struct	group	grp.h	32	8	group
 function	group_member	arpa/nameser.h			int (unsigned int)
