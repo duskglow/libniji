@@ -1144,7 +1144,9 @@ function	bind_textdomain_codeset	libintl.h			char* (char const*, char const*)
 function	bindresvport	arpa/inet.h			int (int, sockaddr_in*)
 function	bindresvport6	arpa/inet.h			int (int, sockaddr_in6*)
 function	bindtextdomain	libintl.h			char* (char const*, char const*)
+typedef	blkcnt64_t	aio.h	8	8	long
 typedef	blkcnt_t	aio.h	8	8	long
+typedef	blksize_t	aio.h	8	8	long
 function	brk	arpa/nameser.h			int (void*)
 function	bsearch	complex.h			void* (void const*, void const*, unsigned long, unsigned long, int (*)(void const*, void const*))
 function	btowc	complex.h			unsigned int (int)
@@ -1152,6 +1154,7 @@ function	bzero	argz.h			void (void*, unsigned long)
 function	c16rtomb	uchar.h			unsigned long (char*, char16_t, __mbstate_t*)
 function	c32rtomb	uchar.h			unsigned long (char*, char32_t, __mbstate_t*)
 function	c8rtomb	uchar.h			unsigned long (char*, unsigned char, __mbstate_t*)
+typedef	caddr_t	aio.h	8	8	char*
 function	call_once	threads.h			void (__once_flag*, void (*)())
 function	calloc	complex.h			void* (unsigned long, unsigned long)
 function	canonicalize	complex.h			int (double*, double const*)
@@ -1264,6 +1267,7 @@ function	ctime	complex.h			char* (long const*)
 function	ctime_r	complex.h			char* (long const*, char*)
 function	cuserid	argp.h			char* (char*)
 function	daddl	complex.h			double (long double, long double)
+typedef	daddr_t	aio.h	4	4	int
 function	daemon	arpa/nameser.h			int (int, int)
 object	daylight	pthread.h	4	4	int
 function	dcgettext	libintl.h			char* (char const*, char const*, int)
@@ -1778,6 +1782,8 @@ function	fromfpxf32x	complex.h			long (_Float32x, int, unsigned int)
 function	fromfpxf64	complex.h			long (_Float64, int, unsigned int)
 function	fromfpxf64x	complex.h			long (_Float64x, int, unsigned int)
 function	fromfpxl	complex.h			long (long double, int, unsigned int)
+typedef	fsblkcnt64_t	aio.h	8	8	unsigned long
+typedef	fsblkcnt_t	aio.h	8	8	unsigned long
 function	fscanf	argp.h			int (_IO_FILE*, char const*, ...)
 function	fsconfig	sys/mount.h			int (int, unsigned int, char const*, void const*, int)
 function	fseek	argp.h			int (_IO_FILE*, long, int)
@@ -1786,6 +1792,9 @@ function	fseeko64	argp.h			int (_IO_FILE*, long, int)
 function	fsetpos	argp.h			int (_IO_FILE*, _G_fpos_t const*)
 function	fsetpos64	argp.h			int (_IO_FILE*, _G_fpos64_t const*)
 function	fsetxattr	sys/xattr.h			int (int, char const*, void const*, unsigned long, int)
+typedef	fsfilcnt64_t	aio.h	8	8	unsigned long
+typedef	fsfilcnt_t	aio.h	8	8	unsigned long
+typedef	fsid_t	aio.h	8	4	__fsid_t
 function	fsmount	sys/mount.h			int (int, unsigned int, unsigned int)
 function	fsopen	sys/mount.h			int (char const*, unsigned int)
 function	fspick	sys/mount.h			int (int, char const*, unsigned int)
@@ -2129,6 +2138,7 @@ function	initgroups	grp.h			int (char const*, unsigned int)
 function	initstate	complex.h			char* (unsigned int, char*, unsigned long)
 function	initstate_r	complex.h			int (unsigned int, char*, unsigned long, random_data*)
 function	innetgr	netdb.h			int (char const*, char const*, char const*, char const*)
+typedef	ino64_t	aio.h	8	8	unsigned long
 typedef	ino_t	aio.h	8	8	unsigned long
 function	inotify_add_watch	sys/inotify.h			int (int, char const*, unsigned int)
 struct	inotify_event	sys/inotify.h	16	4	inotify_event
@@ -2348,6 +2358,7 @@ function	localtime	complex.h			tm* (long const*)
 function	localtime_r	complex.h			tm* (long const*, tm*)
 function	lockf	arpa/nameser.h			int (int, int, long)
 function	lockf64	arpa/nameser.h			int (int, int, long)
+typedef	loff_t	aio.h	8	8	long
 function	log	complex.h			double (double)
 function	log10	complex.h			double (double)
 function	log10f	complex.h			float (float)
@@ -2950,6 +2961,7 @@ function	qfcvt_r	complex.h			int (long double, int, int*, int*, char*, unsigned 
 function	qgcvt	complex.h			char* (long double, int, char*)
 function	qsort	complex.h			void (void*, unsigned long, unsigned long, int (*)(void const*, void const*))
 function	qsort_r	complex.h			void (void*, unsigned long, unsigned long, int (*)(void const*, void const*, void*), void*)
+typedef	quad_t	aio.h	8	8	long
 function	quick_exit	complex.h			void (int)
 function	quotactl	sys/quota.h			int (int, char const*, int, char*)
 struct	r_debug	link.h	40	8	r_debug
@@ -2999,6 +3011,7 @@ function	register_printf_function	printf.h			int (int, int (*)(_IO_FILE*, printf
 function	register_printf_modifier	printf.h			int (wchar_t const*)
 function	register_printf_specifier	printf.h			int (int, int (*)(_IO_FILE*, printf_info const*, void const* const*), int (*)(printf_info const*, unsigned long, int*, int*))
 function	register_printf_type	printf.h			int (void (*)(void*, __va_list_tag (*) [1]))
+typedef	register_t	aio.h	8	8	long
 typedef	regmatch_t	re_comp.h	8	4	regmatch_t
 typedef	regoff_t	re_comp.h	4	4	int
 function	remainder	complex.h			double (double, double)
@@ -3256,6 +3269,7 @@ struct	sigevent	aio.h	64	8	sigevent
 typedef	sigevent_t	aio.h	64	8	sigevent
 function	sigfillset	arpa/nameser.h			int (__sigset_t*)
 function	siggetmask	arpa/nameser.h			int ()
+typedef	sighandler_t	arpa/nameser.h	8	8	void (*)(int)
 function	sighold	arpa/nameser.h			int (int)
 function	sigignore	arpa/nameser.h			int (int)
 typedef	siginfo_t	arpa/nameser.h	128	8	siginfo_t
@@ -3286,6 +3300,7 @@ function	sigstack	arpa/nameser.h			int (sigstack*, sigstack*)
 function	sigsuspend	arpa/nameser.h			int (__sigset_t const*)
 function	sigtimedwait	arpa/nameser.h			int (__sigset_t const*, siginfo_t*, timespec const*)
 union	sigval	aio.h	8	8	sigval
+typedef	sigval_t	arpa/nameser.h	8	8	sigval
 function	sigwait	arpa/nameser.h			int (__sigset_t const*, int*)
 function	sigwaitinfo	arpa/nameser.h			int (__sigset_t const*, siginfo_t*)
 function	sin	complex.h			double (double)
@@ -3513,6 +3528,7 @@ function	strverscmp	argz.h			int (char const*, char const*)
 function	strxfrm	argz.h			unsigned long (char*, char const*, unsigned long)
 function	strxfrm_l	argz.h			unsigned long (char*, char const*, unsigned long, __locale_struct*)
 function	stty	sgtty.h			int (int, sgttyb const*)
+typedef	suseconds_t	aio.h	8	8	long
 function	swab	arpa/nameser.h			void (void const*, void*, long)
 function	swapcontext	ucontext.h			int (ucontext_t*, ucontext_t const*)
 function	swapoff	sys/swap.h			int (char const*)
@@ -3721,6 +3737,15 @@ function	twalk	search.h			void (void const*, void (*)(void const*, VISIT, int))
 function	twalk_r	search.h			void (void const*, void (*)(void const*, VISIT, void*), void*)
 object	tzname	pthread.h	16	8	char* [2]
 function	tzset	complex.h			void ()
+typedef	u_char	aio.h	1	1	unsigned char
+typedef	u_int	aio.h	4	4	unsigned int
+typedef	u_int16_t	aio.h	2	2	unsigned short
+typedef	u_int32_t	aio.h	4	4	unsigned int
+typedef	u_int64_t	aio.h	8	8	unsigned long
+typedef	u_int8_t	aio.h	1	1	unsigned char
+typedef	u_long	aio.h	8	8	unsigned long
+typedef	u_quad_t	aio.h	8	8	unsigned long
+typedef	u_short	aio.h	2	2	unsigned short
 function	ualarm	arpa/nameser.h			unsigned int (unsigned int, unsigned int)
 typedef	ucontext_t	arpa/nameser.h	968	8	
 struct	ucontext_t	arpa/nameser.h	968	8	ucontext_t
@@ -3743,6 +3768,7 @@ function	ufromfpxf64	complex.h			unsigned long (_Float64, int, unsigned int)
 function	ufromfpxf64x	complex.h			unsigned long (_Float64x, int, unsigned int)
 function	ufromfpxl	complex.h			unsigned long (long double, int, unsigned int)
 typedef	uid_t	aio.h	4	4	unsigned int
+typedef	uint	aio.h	4	4	unsigned int
 typedef	uint16_t	arpa/inet.h	2	2	unsigned short
 typedef	uint32_t	arpa/inet.h	4	4	unsigned int
 typedef	uint64_t	arpa/inet.h	8	8	unsigned long
@@ -3759,6 +3785,7 @@ typedef	uintmax_t	arpa/nameser.h	8	8	unsigned long
 typedef	uintptr_t	arpa/nameser.h	8	8	unsigned long
 function	ulckpwdf	shadow.h			int ()
 function	ulimit	ulimit.h			long (int, ...)
+typedef	ulong	aio.h	8	8	unsigned long
 function	umask	ftw.h			unsigned int (unsigned int)
 function	umount	sys/mount.h			int (char const*)
 function	umount2	sys/mount.h			int (char const*, int)
@@ -3772,10 +3799,12 @@ function	unsetenv	complex.h			int (char const*)
 function	unshare	complex.h			int (int)
 function	updwtmp	lastlog.h			void (char const*, utmp const*)
 function	updwtmpx	utmpx.h			void (char const*, utmpx const*)
+typedef	useconds_t	aio.h	4	4	unsigned int
 function	uselocale	complex.h			__locale_struct* (__locale_struct*)
 struct	user	proc_service.h	912	8	user
 struct	user_fpregs_struct	proc_service.h	512	8	user_fpregs_struct
 struct	user_regs_struct	proc_service.h	216	8	user_regs_struct
+typedef	ushort	aio.h	2	2	unsigned short
 function	usleep	arpa/nameser.h			int (unsigned int)
 function	utime	utime.h			int (char const*, utimbuf const*)
 function	utimensat	ftw.h			int (int, char const*, timespec const*, int)
