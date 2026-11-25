@@ -2,6 +2,7 @@
 /* net/if.h: network interfaces (XSH <net/if.h>) */
 #ifndef __NIJI_H_net_if_h
 #define __NIJI_H_net_if_h 1
+#define _NET_IF_H 1
 
 #include <features.h>
 #if defined __USE_MISC
@@ -211,9 +212,6 @@ enum {
 #endif
 #if 1
 # define IF_NAMESIZE 16
-# ifndef _NET_IF_H
-#  define _NET_IF_H 1
-# endif
 #endif
 #if defined __USE_MISC
 # define IFF_ALLMULTI IFF_ALLMULTI

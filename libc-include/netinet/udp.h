@@ -2,6 +2,7 @@
 /* netinet/udp.h: UDP (udp(7), RFC 768) */
 #ifndef __NIJI_H_netinet_udp_h
 #define __NIJI_H_netinet_udp_h 1
+#define __NETINET_UDP_H 1
 
 #include <features.h>
 #include <sys/types.h>
@@ -43,6 +44,17 @@ typedef union pthread_attr_t pthread_attr_t;
 #endif
 #if 1
 # define SOL_UDP 17
+# define UDP_CORK 1
+# define UDP_ENCAP 100
+# define UDP_ENCAP_ESPINUDP 2
+# define UDP_ENCAP_ESPINUDP_NON_IKE 1
+# define UDP_ENCAP_GTP0 4
+# define UDP_ENCAP_GTP1U 5
+# define UDP_ENCAP_L2TPINUDP 3
+# define UDP_GRO 104
+# define UDP_NO_CHECK6_RX 102
+# define UDP_NO_CHECK6_TX 101
+# define UDP_SEGMENT 103
 #endif
 
 __NIJI_END_C

@@ -357,10 +357,10 @@ enum {
 /* d_type <-> st_mode file type (HEADERS-STAGE2-GAPS-C, probed): the DT_* value is the S_IFMT field shifted down by 12
    bits. The argument is parenthesised and the result has the type of the promoted argument (unsigned int for a mode_t,
    int for an int or unsigned char), so both are usable in `#if`. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define IFTODT(mode) (((mode) & 0170000) >> 12)
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define DTTOIF(dirtype) ((dirtype) << 12)
 #endif
 

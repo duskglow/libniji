@@ -2,6 +2,7 @@
 /* netdb.h: network database (XSH <netdb.h>) */
 #ifndef __NIJI_H_netdb_h
 #define __NIJI_H_netdb_h 1
+#define _NETDB_H 1
 
 #include <features.h>
 #include <netinet/in.h>
@@ -530,6 +531,10 @@ extern int *__h_errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__))
 # endif
 #endif
 #if 1
+# define _PATH_HEQUIV "/etc/hosts.equiv"
+# define _PATH_HOSTS "/etc/hosts"
+# define _PATH_NETWORKS "/etc/networks"
+# define _PATH_PROTOCOLS "/etc/protocols"
 # define _PATH_SERVICES "/etc/services"
 #endif
 #if __NIJI_POSIX >= 200112

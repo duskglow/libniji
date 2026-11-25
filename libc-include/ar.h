@@ -21,15 +21,9 @@ struct ar_hdr {
   char ar_fmag[2];
 };
 # endif
-# ifndef ARFMAG
-#  define ARFMAG "`\012"
-# endif
-# ifndef ARMAG
-#  define ARMAG "!<arch>\012"
-# endif
-# ifndef SARMAG
-#  define SARMAG 8
-# endif
+# define ARFMAG "`\012"
+# define ARMAG "!<arch>\012"
+# define SARMAG 8
 #endif
 
 __NIJI_END_C

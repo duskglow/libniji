@@ -213,132 +213,48 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 # define SCNxPTR "lx"
 #endif
 #if __NIJI_ISOC >= 2023
-# ifndef PRIB16
-#  define PRIB16 "B"
-# endif
-# ifndef PRIB32
-#  define PRIB32 "B"
-# endif
-# ifndef PRIB64
-#  define PRIB64 "lB"
-# endif
-# ifndef PRIB8
-#  define PRIB8 "B"
-# endif
-# ifndef PRIBFAST16
-#  define PRIBFAST16 "lB"
-# endif
-# ifndef PRIBFAST32
-#  define PRIBFAST32 "lB"
-# endif
-# ifndef PRIBFAST64
-#  define PRIBFAST64 "lB"
-# endif
-# ifndef PRIBFAST8
-#  define PRIBFAST8 "B"
-# endif
-# ifndef PRIBLEAST16
-#  define PRIBLEAST16 "B"
-# endif
-# ifndef PRIBLEAST32
-#  define PRIBLEAST32 "B"
-# endif
-# ifndef PRIBLEAST64
-#  define PRIBLEAST64 "lB"
-# endif
-# ifndef PRIBLEAST8
-#  define PRIBLEAST8 "B"
-# endif
-# ifndef PRIBMAX
-#  define PRIBMAX "lB"
-# endif
-# ifndef PRIBPTR
-#  define PRIBPTR "lB"
-# endif
-# ifndef PRIb16
-#  define PRIb16 "b"
-# endif
-# ifndef PRIb32
-#  define PRIb32 "b"
-# endif
-# ifndef PRIb64
-#  define PRIb64 "lb"
-# endif
-# ifndef PRIb8
-#  define PRIb8 "b"
-# endif
-# ifndef PRIbFAST16
-#  define PRIbFAST16 "lb"
-# endif
-# ifndef PRIbFAST32
-#  define PRIbFAST32 "lb"
-# endif
-# ifndef PRIbFAST64
-#  define PRIbFAST64 "lb"
-# endif
-# ifndef PRIbFAST8
-#  define PRIbFAST8 "b"
-# endif
-# ifndef PRIbLEAST16
-#  define PRIbLEAST16 "b"
-# endif
-# ifndef PRIbLEAST32
-#  define PRIbLEAST32 "b"
-# endif
-# ifndef PRIbLEAST64
-#  define PRIbLEAST64 "lb"
-# endif
-# ifndef PRIbLEAST8
-#  define PRIbLEAST8 "b"
-# endif
-# ifndef PRIbMAX
-#  define PRIbMAX "lb"
-# endif
-# ifndef PRIbPTR
-#  define PRIbPTR "lb"
-# endif
-# ifndef SCNb16
-#  define SCNb16 "hb"
-# endif
-# ifndef SCNb32
-#  define SCNb32 "b"
-# endif
-# ifndef SCNb64
-#  define SCNb64 "lb"
-# endif
-# ifndef SCNb8
-#  define SCNb8 "hhb"
-# endif
-# ifndef SCNbFAST16
-#  define SCNbFAST16 "lb"
-# endif
-# ifndef SCNbFAST32
-#  define SCNbFAST32 "lb"
-# endif
-# ifndef SCNbFAST64
-#  define SCNbFAST64 "lb"
-# endif
-# ifndef SCNbFAST8
-#  define SCNbFAST8 "hhb"
-# endif
-# ifndef SCNbLEAST16
-#  define SCNbLEAST16 "hb"
-# endif
-# ifndef SCNbLEAST32
-#  define SCNbLEAST32 "b"
-# endif
-# ifndef SCNbLEAST64
-#  define SCNbLEAST64 "lb"
-# endif
-# ifndef SCNbLEAST8
-#  define SCNbLEAST8 "hhb"
-# endif
-# ifndef SCNbMAX
-#  define SCNbMAX "lb"
-# endif
-# ifndef SCNbPTR
-#  define SCNbPTR "lb"
-# endif
+# define PRIB16 "B"
+# define PRIB32 "B"
+# define PRIB64 "lB"
+# define PRIB8 "B"
+# define PRIBFAST16 "lB"
+# define PRIBFAST32 "lB"
+# define PRIBFAST64 "lB"
+# define PRIBFAST8 "B"
+# define PRIBLEAST16 "B"
+# define PRIBLEAST32 "B"
+# define PRIBLEAST64 "lB"
+# define PRIBLEAST8 "B"
+# define PRIBMAX "lB"
+# define PRIBPTR "lB"
+# define PRIb16 "b"
+# define PRIb32 "b"
+# define PRIb64 "lb"
+# define PRIb8 "b"
+# define PRIbFAST16 "lb"
+# define PRIbFAST32 "lb"
+# define PRIbFAST64 "lb"
+# define PRIbFAST8 "b"
+# define PRIbLEAST16 "b"
+# define PRIbLEAST32 "b"
+# define PRIbLEAST64 "lb"
+# define PRIbLEAST8 "b"
+# define PRIbMAX "lb"
+# define PRIbPTR "lb"
+# define SCNb16 "hb"
+# define SCNb32 "b"
+# define SCNb64 "lb"
+# define SCNb8 "hhb"
+# define SCNbFAST16 "lb"
+# define SCNbFAST32 "lb"
+# define SCNbFAST64 "lb"
+# define SCNbFAST8 "hhb"
+# define SCNbLEAST16 "hb"
+# define SCNbLEAST32 "b"
+# define SCNbLEAST64 "lb"
+# define SCNbLEAST8 "hhb"
+# define SCNbMAX "lb"
+# define SCNbPTR "lb"
 #endif
 
 __NIJI_END_C
