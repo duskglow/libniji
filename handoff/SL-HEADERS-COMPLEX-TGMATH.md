@@ -38,3 +38,5 @@ peak 2.3G. Superseded: `-gen1`, `-chk1` (8 log10 differences, fixed), `-hc1` (P1
 
 **Open.** No ruling needed. Next: land. Remaining unshipped headers (validation/headers_unshipped.tsv): aio.h,
 mqueue.h, proc_service.h, thread_db.h, math-vector-fortran.h.
+
+**Run 2 (SL-HEADERS-COMPLEX-TGMATH-2, 11-25).** Merged origin/next; regenerated libc-include/complex.h (stale after next's nothrow marking; the only file of 238 that differed); added libc6-dev manifest rows for include/complex.h and include/tgmath.h (the xtask product-build lint test failed without them, the real cause of the earlier gate red). Plants baseline of the first attempt timed out at 600 s (header_check on two copies at once); rerun with --timeout 2400. Next: land.
