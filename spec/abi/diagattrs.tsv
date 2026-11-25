@@ -17,6 +17,19 @@ a64l	1	1							1
 abort			1						
 abs									const
 access	1								
+aio_error	1								
+aio_error64	1								
+aio_fsync	2								
+aio_fsync64	2								
+aio_init	1								
+aio_read	1								
+aio_read64	1								
+aio_return	1								
+aio_return64	1								
+aio_suspend	1								
+aio_suspend64	1								
+aio_write	1								
+aio_write64	1								
 aligned_alloc		1			1	2			
 alloca					1	1			
 alphasort	1,2								1
@@ -410,6 +423,8 @@ lcong48_r	1,2
 ldiv		1							const
 link	1,2	1							
 linkat	2,4	1							
+lio_listio	2								
+lio_listio64	2								
 llabs									const
 lldiv		1							const
 lockf		1							
@@ -449,6 +464,14 @@ mkstemp64	1	1
 mkstemps	1	1							
 mkstemps64	1	1							
 mktemp	1								
+mq_getattr	2								
+mq_open	1								
+mq_receive	2								
+mq_send	2								
+mq_setattr	2								
+mq_timedreceive	2,5								
+mq_timedsend	2,5								
+mq_unlink	1								
 mrand48_r	1,2								
 nan	1								const
 nanf	1								const

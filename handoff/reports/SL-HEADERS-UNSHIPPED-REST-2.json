@@ -1,0 +1,53 @@
+{
+ "task": "SL-HEADERS-UNSHIPPED-REST-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "run 1's red s19 gate fixed at the cause: mq_open's 3-argument sentinel test broke the reference corpus (a checking-wrapper error inside a header); mq_open joins NO_SENTINEL, diagattrs.tsv gains the 23 aio/lio/mq nonnull rows; gate and 7 plants green",
+ "branch": "task/sl-headers-unshipped-rest-2",
+ "head": "e73347476",
+ "gate": {
+  "affected": "sl-headers-unshipped-rest-2-gate rc 0 (direct tier: xtask tests incl. s19, test -p niji/niji-abi/niji-boundary/niji-math/niji-rt incl. native and interposed, conformance 103 programs, static)",
+  "peak": "gate: peak memory 11G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "Host vs branch separated by reproducing attr_probe's kept reference corpus on keke instead of rerunning the test at origin/next: gcc -fsyntax-only passes, -O2 -c fails with one error, in the reference's mqueue checking wrapper (mq_open called with 3 arguments); branch cause, not the host",
+  "run 1's WARN-NO-MSG plants (td-decl-dropped, gregs-decayed): msg now names the compiler error; both CAUGHT with their message",
+  "plants-2 ran a copy of the plants file from the keke scratch dir (the role was busy with the gate, sync_role BUSY); same content as handoff/SL-HEADERS-UNSHIPPED-REST-2-plants.txt, code tree identical to the gated head"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "aio_*, lio_listio*, mq_* declarations carry the reference's nonnull attributes (23 functions), so -Wnonnull diagnostics match",
+   "before": 0,
+   "after": 23,
+   "unit": "functions",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "SL-HEADERS-UNSHIPPED-REST's thread_db.h, proc_service.h, aio.h, mqueue.h can land (its gate was red only on s19); gdb thread support for Yohane stage 2",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants: 2 new (mq-open-sentinel, mq-timedsend-nonnull), 2 earlier WARN-NO-MSG now CAUGHT with their message",
+   "before": 5,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "attr_probe could treat any error located inside a reference header as a per-test failure by bisecting test lines instead of exiting with 'lines []'; a new header with a checking wrapper would then cost no red gate",
+ "next_step": "land; follow-up #266 (math-vector-fortran.h, Fortran generator form on a host with gfortran)",
+ "report_file": "handoff/SL-HEADERS-UNSHIPPED-REST.md",
+ "jobs": [
+  "sl-headers-unshipped-rest-2-gate",
+  "sl-headers-unshipped-rest-2-plants-2"
+ ]
+}

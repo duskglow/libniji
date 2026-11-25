@@ -23,3 +23,5 @@ sys/ipc.h	1	-
 sys/msg.h	1	-
 sys/sem.h	1	-
 sys/shm.h	1	-
+aio.h	1	-
+mqueue.h	1	-

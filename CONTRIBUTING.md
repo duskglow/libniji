@@ -145,8 +145,9 @@ the hot-text grouping to the tests that reach it. The CI FULL gate stays the exh
   `records/decisions/D-<section>/D-<section>.<n>.toml` (`cargo xtask records new decision D-12.19`
   writes the skeleton; fill it, then `cargo xtask records check`). Compat flags are
   `records/compat/COMPAT-<n>.toml` and the classified saturation rows `records/saturation/SR-<n>.toml`.
-  The tables `plan/07-decisions/*.md`, `docs/compat-flags.md`, `docs/saturation-register.md` and
-  `docs/saturation/01..07-*.md` are **generated** (`cargo xtask records-gen`, first line
+  The tables `plan/07-decisions/*.md`, `docs/compat-flags.md`, `docs/saturation-register.md`,
+  `docs/saturation/01..07-*.md` and `spec/abi/PROVENANCE` (a story that changes a `spec/abi` table adds a
+  fragment, `spec/abi/provenance.d/README.md`) are **generated** (`cargo xtask records-gen`, first line
   `@generated`): never edit them, and do not commit them in a change that adds records; the
   maintainers' merge train regenerates them (D-X.55). To see a view with your records in it, run
   `cargo xtask records-gen` and read it under `target/records-views/<same path>`; the tracked

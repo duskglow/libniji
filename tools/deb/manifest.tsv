@@ -42,6 +42,7 @@ both	libc6	usr/lib/x86_64-linux-gnu/librt.so.1	file	librt.so.1	0644	debug	placeh
 both	libc6	usr/lib/x86_64-linux-gnu/libthread_db.so.1	file	libthread_db.so.1	0644	debug	read by debuggers to list and inspect a program's threads (D-22.17)
 both	libc6	usr/lib/x86_64-linux-gnu/libutil.so.1	file	libutil.so.1	0644	debug	placeholder: its functions are in libc.so.6
 both	libc6	usr/lib64/ld-linux-x86-64.so.2	link	../lib/x86_64-linux-gnu/ld-linux-x86-64.so.2	-	none	the program interpreter /lib64/ld-linux-x86-64.so.2 through the merged-/usr link lib64 -> usr/lib64
+both	libc6-dev	usr/include/aio.h	file	include/aio.h	0644	none	-
 both	libc6-dev	usr/include/aliases.h	file	include/aliases.h	0644	none	-
 both	libc6-dev	usr/include/alloca.h	file	include/alloca.h	0644	none	-
 both	libc6-dev	usr/include/ar.h	file	include/ar.h	0644	none	-
@@ -98,6 +99,7 @@ both	libc6-dev	usr/include/mcheck.h	file	include/mcheck.h	0644	none	-
 both	libc6-dev	usr/include/memory.h	file	include/memory.h	0644	none	-
 both	libc6-dev	usr/include/mntent.h	file	include/mntent.h	0644	none	-
 both	libc6-dev	usr/include/monetary.h	file	include/monetary.h	0644	none	-
+both	libc6-dev	usr/include/mqueue.h	file	include/mqueue.h	0644	none	-
 both	libc6-dev	usr/include/net/ethernet.h	file	include/net/ethernet.h	0644	none	-
 both	libc6-dev	usr/include/net/if.h	file	include/net/if.h	0644	none	-
 both	libc6-dev	usr/include/net/if_arp.h	file	include/net/if_arp.h	0644	none	-
@@ -138,6 +140,7 @@ both	libc6-dev	usr/include/obstack.h	file	include/obstack.h	0644	none	-
 both	libc6-dev	usr/include/paths.h	file	include/paths.h	0644	none	-
 both	libc6-dev	usr/include/poll.h	file	include/poll.h	0644	none	-
 both	libc6-dev	usr/include/printf.h	file	include/printf.h	0644	none	-
+both	libc6-dev	usr/include/proc_service.h	file	include/proc_service.h	0644	none	-
 both	libc6-dev	usr/include/protocols/routed.h	file	include/protocols/routed.h	0644	none	-
 both	libc6-dev	usr/include/protocols/rwhod.h	file	include/protocols/rwhod.h	0644	none	-
 both	libc6-dev	usr/include/protocols/talkd.h	file	include/protocols/talkd.h	0644	none	-
@@ -176,6 +179,7 @@ both	libc6-dev	usr/include/tar.h	file	include/tar.h	0644	none	-
 both	libc6-dev	usr/include/termio.h	file	include/termio.h	0644	none	-
 both	libc6-dev	usr/include/termios.h	file	include/termios.h	0644	none	-
 both	libc6-dev	usr/include/tgmath.h	file	include/tgmath.h	0644	none	-
+both	libc6-dev	usr/include/thread_db.h	file	include/thread_db.h	0644	none	-
 both	libc6-dev	usr/include/threads.h	file	include/threads.h	0644	none	-
 both	libc6-dev	usr/include/time.h	file	include/time.h	0644	none	-
 both	libc6-dev	usr/include/ttyent.h	file	include/ttyent.h	0644	none	-

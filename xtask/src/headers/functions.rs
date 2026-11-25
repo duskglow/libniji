@@ -51,7 +51,58 @@ impl Gen<'_> {
             self.out.push(t);
         }
         // The decayed form of the compiler's `va_list` (an array of one `__va_list_tag`).
-        Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
+        let out = out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list");
+        Some(self.array_params(name, out))
+    }
+
+    /// headers/arrayparams.tsv: the listed parameters of `name`, pointers to an array typedef's element type in `decl`,
+    /// spelled in the array form (`unsigned long long [27]`), which GCC's -Warray-parameter tells apart.
+    fn array_params(&mut self, name: &str, decl: String) -> String {
+        let Some(rows) = self.t.arrayparams.get(name).cloned() else { return decl };
+        let open = format!("{name} (");
+        let (Some(at), Some(head)) = (decl.find(&open).map(|i| i + open.len()), decl.strip_suffix(')')) else {
+            self.errors.push(format!("{}: {name}: arrayparams.tsv row, but `{decl}` is no prototype", self.header));
+            return decl;
+        };
+        // The parameters, split at the commas outside parentheses and brackets.
+        let mut params = vec![String::new()];
+        let mut depth = 0i32;
+        for c in head[at..].chars() {
+            match c {
+                '(' | '[' => depth += 1,
+                ')' | ']' => depth -= 1,
+                ',' if depth == 0 => {
+                    params.push(String::new());
+                    continue;
+                }
+                _ => {}
+            }
+            if let Some(p) = params.last_mut() {
+                p.push(c);
+            }
+        }
+        for (k, td) in rows {
+            let ty = self.t.typedefs.get(&("typedef".to_string(), td.clone())).map(|r| r["cxx"].clone());
+            // `E [N]`: the element type and the bound.
+            let arr = ty.as_deref().and_then(|t| t.rsplit_once(" [")).and_then(|(e, n)| Some((e, n.strip_suffix(']')?))).filter(|(_, n)| n.parse::<u64>().is_ok());
+            let Some((elem, bound)) = arr else {
+                self.errors.push(format!("{}: {name}: arrayparams.tsv typedef `{td}` is not an array typedef in typedefs.tsv", self.header));
+                continue;
+            };
+            let elem = self.c_words(elem);
+            let Some(p) = params.get_mut(k - 1) else {
+                self.errors.push(format!("{}: {name}: arrayparams.tsv parameter {k} of {} parameters", self.header, params.len()));
+                continue;
+            };
+            let t = p.trim();
+            let (cst, base) = t.strip_prefix("const ").map_or(("", t), |b| ("const ", b));
+            if base.strip_suffix('*').map(str::trim_end) != Some(elem.as_str()) {
+                self.errors.push(format!("{}: {name}: parameter {k} `{t}` is not a pointer to `{td}`'s element type `{elem}`", self.header));
+                continue;
+            }
+            *p = format!("{}{cst}{elem} [{bound}]", if k == 1 { "" } else { " " });
+        }
+        format!("{}{})", &head[..at], params.join(","))
     }
 
     /// The declaration of `name` binding to `sym`. A function that binds to its own name is redirected to its 64-bit twin under

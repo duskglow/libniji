@@ -398,220 +398,138 @@ extern int bindresvport (int, struct sockaddr_in *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_IPPORT_RESERVED
-#  define __NIJI_D_enum_IPPORT_RESERVED 1
+# ifndef __NIJI_D_anon_IPPORT_RESERVED
+#  define __NIJI_D_anon_IPPORT_RESERVED 1
+#  if !defined IPPORT_RESERVED
+enum {
 #  ifndef IPPORT_RESERVED
-enum { IPPORT_RESERVED = 1024 };
+  IPPORT_RESERVED = 1024,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_IPPROTO_AH
-#  define __NIJI_D_enum_IPPROTO_AH 1
-#  ifndef IPPROTO_AH
-enum { IPPROTO_AH = 51 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_BEETPH
-#  define __NIJI_D_enum_IPPROTO_BEETPH 1
-#  ifndef IPPROTO_BEETPH
-enum { IPPROTO_BEETPH = 94 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_COMP
-#  define __NIJI_D_enum_IPPROTO_COMP 1
-#  ifndef IPPROTO_COMP
-enum { IPPROTO_COMP = 108 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_DCCP
-#  define __NIJI_D_enum_IPPROTO_DCCP 1
-#  ifndef IPPROTO_DCCP
-enum { IPPROTO_DCCP = 33 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_DSTOPTS
-#  define __NIJI_D_enum_IPPROTO_DSTOPTS 1
-#  ifndef IPPROTO_DSTOPTS
-enum { IPPROTO_DSTOPTS = 60 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_EGP
-#  define __NIJI_D_enum_IPPROTO_EGP 1
-#  ifndef IPPROTO_EGP
-enum { IPPROTO_EGP = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ENCAP
-#  define __NIJI_D_enum_IPPROTO_ENCAP 1
-#  ifndef IPPROTO_ENCAP
-enum { IPPROTO_ENCAP = 98 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ESP
-#  define __NIJI_D_enum_IPPROTO_ESP 1
-#  ifndef IPPROTO_ESP
-enum { IPPROTO_ESP = 50 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ETHERNET
-#  define __NIJI_D_enum_IPPROTO_ETHERNET 1
-#  ifndef IPPROTO_ETHERNET
-enum { IPPROTO_ETHERNET = 143 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_FRAGMENT
-#  define __NIJI_D_enum_IPPROTO_FRAGMENT 1
-#  ifndef IPPROTO_FRAGMENT
-enum { IPPROTO_FRAGMENT = 44 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_GRE
-#  define __NIJI_D_enum_IPPROTO_GRE 1
-#  ifndef IPPROTO_GRE
-enum { IPPROTO_GRE = 47 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_HOPOPTS
-#  define __NIJI_D_enum_IPPROTO_HOPOPTS 1
-#  ifndef IPPROTO_HOPOPTS
-enum { IPPROTO_HOPOPTS = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ICMP
-#  define __NIJI_D_enum_IPPROTO_ICMP 1
-#  ifndef IPPROTO_ICMP
-enum { IPPROTO_ICMP = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ICMPV6
-#  define __NIJI_D_enum_IPPROTO_ICMPV6 1
-#  ifndef IPPROTO_ICMPV6
-enum { IPPROTO_ICMPV6 = 58 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_IDP
-#  define __NIJI_D_enum_IPPROTO_IDP 1
-#  ifndef IPPROTO_IDP
-enum { IPPROTO_IDP = 22 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_IGMP
-#  define __NIJI_D_enum_IPPROTO_IGMP 1
-#  ifndef IPPROTO_IGMP
-enum { IPPROTO_IGMP = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_IP
-#  define __NIJI_D_enum_IPPROTO_IP 1
+# ifndef __NIJI_D_anon_IPPROTO_AH
+#  define __NIJI_D_anon_IPPROTO_AH 1
+#  if !defined IPPROTO_IP || !defined IPPROTO_ICMP || !defined IPPROTO_IGMP || !defined IPPROTO_IPIP || !defined IPPROTO_TCP || !defined IPPROTO_EGP \
+    || !defined IPPROTO_PUP || !defined IPPROTO_UDP || !defined IPPROTO_IDP || !defined IPPROTO_TP || !defined IPPROTO_DCCP || !defined IPPROTO_IPV6 \
+    || !defined IPPROTO_RSVP || !defined IPPROTO_GRE || !defined IPPROTO_ESP || !defined IPPROTO_AH || !defined IPPROTO_MTP || !defined IPPROTO_BEETPH \
+    || !defined IPPROTO_ENCAP || !defined IPPROTO_PIM || !defined IPPROTO_COMP || !defined IPPROTO_L2TP || !defined IPPROTO_SCTP || !defined IPPROTO_UDPLITE \
+    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP
+enum {
 #  ifndef IPPROTO_IP
-enum { IPPROTO_IP = 0 };
+  IPPROTO_IP = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_IPIP
-#  define __NIJI_D_enum_IPPROTO_IPIP 1
+#  ifndef IPPROTO_ICMP
+  IPPROTO_ICMP = 1,
+#  endif
+#  ifndef IPPROTO_IGMP
+  IPPROTO_IGMP = 2,
+#  endif
 #  ifndef IPPROTO_IPIP
-enum { IPPROTO_IPIP = 4 };
+  IPPROTO_IPIP = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_IPV6
-#  define __NIJI_D_enum_IPPROTO_IPV6 1
-#  ifndef IPPROTO_IPV6
-enum { IPPROTO_IPV6 = 41 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_L2TP
-#  define __NIJI_D_enum_IPPROTO_L2TP 1
-#  ifndef IPPROTO_L2TP
-enum { IPPROTO_L2TP = 115 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_MH
-#  define __NIJI_D_enum_IPPROTO_MH 1
-#  ifndef IPPROTO_MH
-enum { IPPROTO_MH = 135 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_MPLS
-#  define __NIJI_D_enum_IPPROTO_MPLS 1
-#  ifndef IPPROTO_MPLS
-enum { IPPROTO_MPLS = 137 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_MPTCP
-#  define __NIJI_D_enum_IPPROTO_MPTCP 1
-#  ifndef IPPROTO_MPTCP
-enum { IPPROTO_MPTCP = 262 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_MTP
-#  define __NIJI_D_enum_IPPROTO_MTP 1
-#  ifndef IPPROTO_MTP
-enum { IPPROTO_MTP = 92 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_NONE
-#  define __NIJI_D_enum_IPPROTO_NONE 1
-#  ifndef IPPROTO_NONE
-enum { IPPROTO_NONE = 59 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_PIM
-#  define __NIJI_D_enum_IPPROTO_PIM 1
-#  ifndef IPPROTO_PIM
-enum { IPPROTO_PIM = 103 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_PUP
-#  define __NIJI_D_enum_IPPROTO_PUP 1
-#  ifndef IPPROTO_PUP
-enum { IPPROTO_PUP = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_RAW
-#  define __NIJI_D_enum_IPPROTO_RAW 1
-#  ifndef IPPROTO_RAW
-enum { IPPROTO_RAW = 255 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_ROUTING
-#  define __NIJI_D_enum_IPPROTO_ROUTING 1
-#  ifndef IPPROTO_ROUTING
-enum { IPPROTO_ROUTING = 43 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_RSVP
-#  define __NIJI_D_enum_IPPROTO_RSVP 1
-#  ifndef IPPROTO_RSVP
-enum { IPPROTO_RSVP = 46 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_SCTP
-#  define __NIJI_D_enum_IPPROTO_SCTP 1
-#  ifndef IPPROTO_SCTP
-enum { IPPROTO_SCTP = 132 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_TCP
-#  define __NIJI_D_enum_IPPROTO_TCP 1
 #  ifndef IPPROTO_TCP
-enum { IPPROTO_TCP = 6 };
+  IPPROTO_TCP = 6,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_TP
-#  define __NIJI_D_enum_IPPROTO_TP 1
-#  ifndef IPPROTO_TP
-enum { IPPROTO_TP = 29 };
+#  ifndef IPPROTO_EGP
+  IPPROTO_EGP = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_IPPROTO_UDP
-#  define __NIJI_D_enum_IPPROTO_UDP 1
+#  ifndef IPPROTO_PUP
+  IPPROTO_PUP = 12,
+#  endif
 #  ifndef IPPROTO_UDP
-enum { IPPROTO_UDP = 17 };
+  IPPROTO_UDP = 17,
+#  endif
+#  ifndef IPPROTO_IDP
+  IPPROTO_IDP = 22,
+#  endif
+#  ifndef IPPROTO_TP
+  IPPROTO_TP = 29,
+#  endif
+#  ifndef IPPROTO_DCCP
+  IPPROTO_DCCP = 33,
+#  endif
+#  ifndef IPPROTO_IPV6
+  IPPROTO_IPV6 = 41,
+#  endif
+#  ifndef IPPROTO_RSVP
+  IPPROTO_RSVP = 46,
+#  endif
+#  ifndef IPPROTO_GRE
+  IPPROTO_GRE = 47,
+#  endif
+#  ifndef IPPROTO_ESP
+  IPPROTO_ESP = 50,
+#  endif
+#  ifndef IPPROTO_AH
+  IPPROTO_AH = 51,
+#  endif
+#  ifndef IPPROTO_MTP
+  IPPROTO_MTP = 92,
+#  endif
+#  ifndef IPPROTO_BEETPH
+  IPPROTO_BEETPH = 94,
+#  endif
+#  ifndef IPPROTO_ENCAP
+  IPPROTO_ENCAP = 98,
+#  endif
+#  ifndef IPPROTO_PIM
+  IPPROTO_PIM = 103,
+#  endif
+#  ifndef IPPROTO_COMP
+  IPPROTO_COMP = 108,
+#  endif
+#  ifndef IPPROTO_L2TP
+  IPPROTO_L2TP = 115,
+#  endif
+#  ifndef IPPROTO_SCTP
+  IPPROTO_SCTP = 132,
+#  endif
+#  ifndef IPPROTO_UDPLITE
+  IPPROTO_UDPLITE = 136,
+#  endif
+#  ifndef IPPROTO_MPLS
+  IPPROTO_MPLS = 137,
+#  endif
+#  ifndef IPPROTO_ETHERNET
+  IPPROTO_ETHERNET = 143,
+#  endif
+#  ifndef IPPROTO_RAW
+  IPPROTO_RAW = 255,
+#  endif
+#  ifndef IPPROTO_MPTCP
+  IPPROTO_MPTCP = 262,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_IPPROTO_UDPLITE
-#  define __NIJI_D_enum_IPPROTO_UDPLITE 1
-#  ifndef IPPROTO_UDPLITE
-enum { IPPROTO_UDPLITE = 136 };
+# ifndef __NIJI_D_anon_IPPROTO_DSTOPTS
+#  define __NIJI_D_anon_IPPROTO_DSTOPTS 1
+#  if !defined IPPROTO_HOPOPTS || !defined IPPROTO_ROUTING || !defined IPPROTO_FRAGMENT || !defined IPPROTO_ICMPV6 || !defined IPPROTO_NONE || !defined IPPROTO_DSTOPTS \
+    || !defined IPPROTO_MH
+enum {
+#  ifndef IPPROTO_HOPOPTS
+  IPPROTO_HOPOPTS = 0,
+#  endif
+#  ifndef IPPROTO_ROUTING
+  IPPROTO_ROUTING = 43,
+#  endif
+#  ifndef IPPROTO_FRAGMENT
+  IPPROTO_FRAGMENT = 44,
+#  endif
+#  ifndef IPPROTO_ICMPV6
+  IPPROTO_ICMPV6 = 58,
+#  endif
+#  ifndef IPPROTO_NONE
+  IPPROTO_NONE = 59,
+#  endif
+#  ifndef IPPROTO_DSTOPTS
+  IPPROTO_DSTOPTS = 60,
+#  endif
+#  ifndef IPPROTO_MH
+  IPPROTO_MH = 135,
+#  endif
+};
 #  endif
 # endif
 # ifndef INADDR_ALLHOSTS_GROUP
@@ -687,109 +605,109 @@ enum { IPPROTO_UDPLITE = 136 };
 #  define IN_LOOPBACKNET 127
 # endif
 # ifndef IPPROTO_AH
-#  define IPPROTO_AH 51
+#  define IPPROTO_AH IPPROTO_AH
 # endif
 # ifndef IPPROTO_BEETPH
-#  define IPPROTO_BEETPH 94
+#  define IPPROTO_BEETPH IPPROTO_BEETPH
 # endif
 # ifndef IPPROTO_COMP
-#  define IPPROTO_COMP 108
+#  define IPPROTO_COMP IPPROTO_COMP
 # endif
 # ifndef IPPROTO_DCCP
-#  define IPPROTO_DCCP 33
+#  define IPPROTO_DCCP IPPROTO_DCCP
 # endif
 # ifndef IPPROTO_DSTOPTS
-#  define IPPROTO_DSTOPTS 60
+#  define IPPROTO_DSTOPTS IPPROTO_DSTOPTS
 # endif
 # ifndef IPPROTO_EGP
-#  define IPPROTO_EGP 8
+#  define IPPROTO_EGP IPPROTO_EGP
 # endif
 # ifndef IPPROTO_ENCAP
-#  define IPPROTO_ENCAP 98
+#  define IPPROTO_ENCAP IPPROTO_ENCAP
 # endif
 # ifndef IPPROTO_ESP
-#  define IPPROTO_ESP 50
+#  define IPPROTO_ESP IPPROTO_ESP
 # endif
 # ifndef IPPROTO_ETHERNET
-#  define IPPROTO_ETHERNET 143
+#  define IPPROTO_ETHERNET IPPROTO_ETHERNET
 # endif
 # ifndef IPPROTO_FRAGMENT
-#  define IPPROTO_FRAGMENT 44
+#  define IPPROTO_FRAGMENT IPPROTO_FRAGMENT
 # endif
 # ifndef IPPROTO_GRE
-#  define IPPROTO_GRE 47
+#  define IPPROTO_GRE IPPROTO_GRE
 # endif
 # ifndef IPPROTO_HOPOPTS
-#  define IPPROTO_HOPOPTS 0
+#  define IPPROTO_HOPOPTS IPPROTO_HOPOPTS
 # endif
 # ifndef IPPROTO_ICMP
-#  define IPPROTO_ICMP 1
+#  define IPPROTO_ICMP IPPROTO_ICMP
 # endif
 # ifndef IPPROTO_ICMPV6
-#  define IPPROTO_ICMPV6 58
+#  define IPPROTO_ICMPV6 IPPROTO_ICMPV6
 # endif
 # ifndef IPPROTO_IDP
-#  define IPPROTO_IDP 22
+#  define IPPROTO_IDP IPPROTO_IDP
 # endif
 # ifndef IPPROTO_IGMP
-#  define IPPROTO_IGMP 2
+#  define IPPROTO_IGMP IPPROTO_IGMP
 # endif
 # ifndef IPPROTO_IP
-#  define IPPROTO_IP 0
+#  define IPPROTO_IP IPPROTO_IP
 # endif
 # ifndef IPPROTO_IPIP
-#  define IPPROTO_IPIP 4
+#  define IPPROTO_IPIP IPPROTO_IPIP
 # endif
 # ifndef IPPROTO_IPV6
-#  define IPPROTO_IPV6 41
+#  define IPPROTO_IPV6 IPPROTO_IPV6
 # endif
 # ifndef IPPROTO_L2TP
-#  define IPPROTO_L2TP 115
+#  define IPPROTO_L2TP IPPROTO_L2TP
 # endif
 # ifndef IPPROTO_MH
-#  define IPPROTO_MH 135
+#  define IPPROTO_MH IPPROTO_MH
 # endif
 # ifndef IPPROTO_MPLS
-#  define IPPROTO_MPLS 137
+#  define IPPROTO_MPLS IPPROTO_MPLS
 # endif
 # ifndef IPPROTO_MPTCP
-#  define IPPROTO_MPTCP 262
+#  define IPPROTO_MPTCP IPPROTO_MPTCP
 # endif
 # ifndef IPPROTO_MTP
-#  define IPPROTO_MTP 92
+#  define IPPROTO_MTP IPPROTO_MTP
 # endif
 # ifndef IPPROTO_NONE
-#  define IPPROTO_NONE 59
+#  define IPPROTO_NONE IPPROTO_NONE
 # endif
 # ifndef IPPROTO_PIM
-#  define IPPROTO_PIM 103
+#  define IPPROTO_PIM IPPROTO_PIM
 # endif
 # ifndef IPPROTO_PUP
-#  define IPPROTO_PUP 12
+#  define IPPROTO_PUP IPPROTO_PUP
 # endif
 # ifndef IPPROTO_RAW
-#  define IPPROTO_RAW 255
+#  define IPPROTO_RAW IPPROTO_RAW
 # endif
 # ifndef IPPROTO_ROUTING
-#  define IPPROTO_ROUTING 43
+#  define IPPROTO_ROUTING IPPROTO_ROUTING
 # endif
 # ifndef IPPROTO_RSVP
-#  define IPPROTO_RSVP 46
+#  define IPPROTO_RSVP IPPROTO_RSVP
 # endif
 # ifndef IPPROTO_SCTP
-#  define IPPROTO_SCTP 132
+#  define IPPROTO_SCTP IPPROTO_SCTP
 # endif
 # ifndef IPPROTO_TCP
-#  define IPPROTO_TCP 6
+#  define IPPROTO_TCP IPPROTO_TCP
 # endif
 # ifndef IPPROTO_TP
-#  define IPPROTO_TP 29
+#  define IPPROTO_TP IPPROTO_TP
 # endif
 # ifndef IPPROTO_UDP
-#  define IPPROTO_UDP 17
+#  define IPPROTO_UDP IPPROTO_UDP
 # endif
 # ifndef IPPROTO_UDPLITE
-#  define IPPROTO_UDPLITE 136
+#  define IPPROTO_UDPLITE IPPROTO_UDPLITE
 # endif
 # ifndef IPV6_2292DSTOPTS
 #  define IPV6_2292DSTOPTS 4

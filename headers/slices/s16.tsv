@@ -13,3 +13,5 @@ gnu/lib-names.h	1	-
 sys/platform/x86.h	1	-
 sys/profil.h	0	-
 sys/elf.h	0	-
+thread_db.h	1	-
+proc_service.h	1	-

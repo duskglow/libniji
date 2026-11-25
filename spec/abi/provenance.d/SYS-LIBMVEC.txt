@@ -1,0 +1,6 @@
+---
+order: 20
+---
+versions.tsv: + 216 libmvec.so.1 rows (SYS-LIBMVEC: libmvec.so.1 added to LIBS; `--versions-only` on the reference
+system gave 4816 rows, the committed 4600 plus these 216; only the 216 were spliced in, after libm.so.6, so the two
+hand-added GLIBC_2.41 rows stay). 4818 rows.

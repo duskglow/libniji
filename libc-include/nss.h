@@ -10,6 +10,18 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_enum_nss_status
+#  define __NIJI_D_enum_nss_status 1
+enum nss_status {
+  NSS_STATUS_TRYAGAIN = -2,
+  NSS_STATUS_UNAVAIL = -1,
+  NSS_STATUS_NOTFOUND = 0,
+  NSS_STATUS_SUCCESS = 1,
+  NSS_STATUS_RETURN = 2,
+};
+# endif
+#endif
 #if __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
@@ -26,26 +38,6 @@ union pthread_attr_t {
   long __align;
 };
 typedef union pthread_attr_t pthread_attr_t;
-# endif
-#endif
-#if 1
-# ifndef __NIJI_D_enum_NSS_STATUS_NOTFOUND
-#  define __NIJI_D_enum_NSS_STATUS_NOTFOUND 1
-#  ifndef NSS_STATUS_NOTFOUND
-enum { NSS_STATUS_NOTFOUND = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_NSS_STATUS_SUCCESS
-#  define __NIJI_D_enum_NSS_STATUS_SUCCESS 1
-#  ifndef NSS_STATUS_SUCCESS
-enum { NSS_STATUS_SUCCESS = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_NSS_STATUS_TRYAGAIN
-#  define __NIJI_D_enum_NSS_STATUS_TRYAGAIN 1
-#  ifndef NSS_STATUS_TRYAGAIN
-enum { NSS_STATUS_TRYAGAIN = (-2) };
-#  endif
 # endif
 #endif
 

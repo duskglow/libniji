@@ -585,7 +585,7 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 #  define NI_IDN_USE_STD3_ASCII_RULES 128
 # endif
 # ifndef SCOPE_DELIMITER
-#  define SCOPE_DELIMITER 37
+#  define SCOPE_DELIMITER '%'
 # endif
 #endif
 #if __NIJI_MISC

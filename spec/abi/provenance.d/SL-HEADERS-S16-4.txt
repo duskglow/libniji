@@ -1,0 +1,4 @@
+---
+order: 140
+---
+Slice 16 (SL-HEADERS-S16-4): typedefs.tsv rows of link.h La_x86_64_vector, La_x86_64_xmm, La_x86_64_ymm, La_x86_64_zmm and their visibility.tsv rows (`!time64only`, as La_x86_64_regs) added by hand, sizes and alignments from layouts.tsv; the element type of La_x86_64_xmm (float, 4 lanes) from a probe of the reference system (sizeof and element type of the typedef). ymm and zmm are 32 and 64 bytes aligned to 16, which a `vector_size` typedef cannot spell, so their rows are memberless (an aligned structure): RULING NEEDED for HEADERS-TABLES-COMPLETE (aligned vector typedefs).

@@ -9,31 +9,31 @@ __NIJI_BEGIN_C
 
 #if 1
 # ifndef AREGTYPE
-#  define AREGTYPE 0
+#  define AREGTYPE '\000'
 # endif
 # ifndef BLKTYPE
-#  define BLKTYPE 52
+#  define BLKTYPE '4'
 # endif
 # ifndef CHRTYPE
-#  define CHRTYPE 51
+#  define CHRTYPE '3'
 # endif
 # ifndef CONTTYPE
-#  define CONTTYPE 55
+#  define CONTTYPE '7'
 # endif
 # ifndef DIRTYPE
-#  define DIRTYPE 53
+#  define DIRTYPE '5'
 # endif
 # ifndef FIFOTYPE
-#  define FIFOTYPE 54
+#  define FIFOTYPE '6'
 # endif
 # ifndef LNKTYPE
-#  define LNKTYPE 49
+#  define LNKTYPE '1'
 # endif
 # ifndef REGTYPE
-#  define REGTYPE 48
+#  define REGTYPE '0'
 # endif
 # ifndef SYMTYPE
-#  define SYMTYPE 50
+#  define SYMTYPE '2'
 # endif
 # ifndef TGEXEC
 #  define TGEXEC 8

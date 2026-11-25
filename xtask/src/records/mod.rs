@@ -250,7 +250,9 @@ type Rendered = Vec<(String, String)>;
 /// Every view rendered, and the paths whose file differs from its rendering.
 fn stale(root: &Path) -> Result<(Rendered, Vec<String>), String> {
     let (views, records) = load_checked(root)?;
-    let rendered = render::render_all(root, &views, &records)?;
+    let mut rendered = render::render_all(root, &views, &records)?;
+    // spec/abi/PROVENANCE is a view of its fragments and the tables, train-owned like the decision tables (D-X.172).
+    rendered.extend(crate::provenance::rendered_view(root)?);
     let stale = rendered.iter().filter(|(p, text)| std::fs::read_to_string(root.join(p)).ok().as_deref() != Some(text.as_str())).map(|(p, _)| p.clone()).collect();
     Ok((rendered, stale))
 }
@@ -305,6 +307,21 @@ pub fn gen_cmd(root: &Path, check_only: bool, in_place: bool) -> Result<(), Stri
         );
     }
     Ok(())
+}
+
+/// `cargo xtask records-gen --check <view path>...`: `--check` for the named views only (a story branch whose new
+/// records leave a decision table pending can still prove a view it does commit, `spec/abi/PROVENANCE`, D-X.172).
+/// A path that is no view is an error.
+pub fn check_paths(root: &Path, paths: &[String]) -> Result<(), String> {
+    let (rendered, stale) = stale(root)?;
+    if let Some(p) = paths.iter().find(|p| !rendered.iter().any(|(q, _)| q == *p)) {
+        return Err(format!("{p}: not a view of records-gen"));
+    }
+    let named: Vec<&String> = stale.iter().filter(|p| paths.contains(p)).collect();
+    for p in &named {
+        eprintln!("{p} is stale: run `cargo xtask records-gen`");
+    }
+    if named.is_empty() { Ok(()) } else { Err(format!("{} view(s) stale", named.len())) }
 }
 
 /// The static check `records-gen`: stale views are fatal on the train (`NIJI_TRAIN=1`, which regenerated them just

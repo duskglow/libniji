@@ -78,8 +78,8 @@ extern int setxattr (const char *, const char *, const void *, unsigned long, in
 #if 1
 # ifndef XATTR_CREATE
 enum { XATTR_CREATE = 1, XATTR_REPLACE = 2 };
-#  define XATTR_CREATE 1
-#  define XATTR_REPLACE 2
+#  define XATTR_CREATE XATTR_CREATE
+#  define XATTR_REPLACE XATTR_REPLACE
 # endif
 #endif
 

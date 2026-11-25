@@ -13,6 +13,8 @@
 #          mode:    the open family (spec 11.1): without its mode argument the wrapper calls the `_2` symbol with
 #                   `args`, or the plain function when the flags are a compile-time constant that needs no mode; a
 #                   constant that needs one, or more than one variable argument, is a compile-time error.
+#          mode2:   mode with two optional arguments passed together (mq_open's mode and attributes, spec 25.3):
+#                   none or both; one, or more than two, is a compile-time error.
 # args     the `_chk` call's arguments (C.9: the destination size appended, the printf family's flag inserted):
 #          $N the wrapper's parameter N; $SN the object size of parameter N in bytes; $EN the same in elements of
 #          parameter N's pointee; $F the flag (1 at levels 2 and 3, else 0); $V the variadic arguments
@@ -57,6 +59,7 @@ memcpy	builtin	__builtin___memcpy_chk ($0, $1, $2, $S0)	-	0
 memmove	builtin	__builtin___memmove_chk ($0, $1, $2, $S0)	-	0
 mempcpy	builtin	__builtin___mempcpy_chk ($0, $1, $2, $S0)	-	0
 memset	builtin	__builtin___memset_chk ($0, $1, $2, $S0)	-	0
+mq_open	mode2	$0, $1	($1 & 0100) != 0	0
 obstack_printf	va	$0, $F, $1, $V	-	0
 obstack_vprintf	va	$0, $F, $1, $2	-	0
 open	mode	$0, $1	($1 & 0100) != 0 || ($1 & 020200000) == 020200000	0

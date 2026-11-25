@@ -1,0 +1,10 @@
+---
+order: 120
+---
+sys/reg.h and sys/debugreg.h names (SL-HEADERS-S09, ruling #6399): 53 rows in macros.tsv and constants.tsv by
+spec/tools/uapi_regs_table.py. Kernel ABI, so the source is the kernel: the register indexes are the member order of
+`struct user_regs_struct` (layouts.tsv; its first 21 members are the UAPI `struct pt_regs` of asm/ptrace.h), the DR_ names
+are the `#define`s of the UAPI header asm/debugreg.h (linux-libc-dev 6.8). Each row is cross-checked by a black-box probe of
+the reference (exit status only: the macro exists, with this value and type); six kernel names the reference does not give
+(DR6_RESERVED DR_BUS_LOCK DR_CONTROL_RESERVED DR_GLOBAL_ENABLE DR_LOCAL_ENABLE DR_TRAP_BITS) are not rows. visibility.tsv
+rows of the two headers by header_probe.py --headers sys/reg.h,sys/debugreg.h (27 and 26 macros, every configuration).
