@@ -1747,6 +1747,14 @@ pub struct ns_rr {
 
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
+pub struct HEADER {
+    pub id: [u8; 4],
+    pub qdcount: [u8; 4],
+    pub nscount: [u8; 4],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
 pub struct struct_in_addr {
     pub s_addr: u32,
 }

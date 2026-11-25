@@ -123,7 +123,7 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -141,7 +141,7 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -159,7 +159,7 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -177,7 +177,7 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -195,7 +195,7 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -225,7 +225,7 @@ extern long recv (int, void *, unsigned long, int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -257,7 +257,7 @@ extern long sendmsg (int, const struct msghdr *, int);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -293,7 +293,7 @@ extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
 #if __NIJI_GNU
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -1399,7 +1399,7 @@ __NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
 #endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -1413,7 +1413,7 @@ typedef union __attribute__ ((__transparent_union__)) {
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU
+#  if __NIJI_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;

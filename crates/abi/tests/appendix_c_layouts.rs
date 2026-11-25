@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (277 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (278 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1437,6 +1437,11 @@ fn abi_ns_rr() {
     expect_member("ns_rr", "ttl", offset_of!(ns_rr, ttl));
     expect_member("ns_rr", "rdlength", offset_of!(ns_rr, rdlength));
     expect_member("ns_rr", "rdata", offset_of!(ns_rr, rdata));
+}
+
+#[test]
+fn abi_header() {
+    expect_type("HEADER", size_of::<HEADER>(), align_of::<HEADER>());
 }
 
 #[test]

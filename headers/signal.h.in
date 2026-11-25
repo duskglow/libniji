@@ -10,7 +10,7 @@
 __NIJI_BEGIN_C
 
 @@owns NULL SIG_HOLD
-@@owns-macro SIG_DFL SIG_IGN SIG_ERR SIGRTMIN SIGRTMAX MINSIGSTKSZ SIGSTKSZ si_value si_status TEMP_FAILURE_RETRY
+@@owns-macro SIG_DFL SIG_IGN SIG_ERR SIGRTMIN SIGRTMAX MINSIGSTKSZ SIGSTKSZ si_value si_status TEMP_FAILURE_RETRY si_lower si_upper si_pkey si_call_addr si_syscall si_arch
 @@emit
 
 @@if NULL
@@ -53,6 +53,26 @@ __NIJI_BEGIN_C
 #endif
 @@when si_status
 # define si_status _sifields._sigchld.si_status
+#endif
+/* sigaction(2): the bounds and protection key of a SEGV_BNDERR or SEGV_PKUERR fault, and the system call a seccomp
+   filter trapped (SIGSYS): its address, number and audit architecture. */
+@@when si_lower
+# define si_lower _sifields._sigfault._bounds._addr_bnd._lower
+#endif
+@@when si_upper
+# define si_upper _sifields._sigfault._bounds._addr_bnd._upper
+#endif
+@@when si_pkey
+# define si_pkey _sifields._sigfault._bounds._pkey
+#endif
+@@when si_call_addr
+# define si_call_addr _sifields._sigsys._call_addr
+#endif
+@@when si_syscall
+# define si_syscall _sifields._sigsys._syscall
+#endif
+@@when si_arch
+# define si_arch _sifields._sigsys._arch
 #endif
 /* sigevent(3type): the thread-notification members are named at the top level of struct sigevent. */
 @@when sigevent
