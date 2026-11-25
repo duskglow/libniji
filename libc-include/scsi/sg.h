@@ -86,7 +86,31 @@ struct sg_scsi_id {
 # endif
 # ifndef __NIJI_D_struct_sg_io_hdr
 #  define __NIJI_D_struct_sg_io_hdr 1
-struct sg_io_hdr { char __niji_opaque[88] __attribute__ ((__aligned__ (8))); };
+struct sg_io_hdr {
+  int interface_id;
+  int dxfer_direction;
+  unsigned char cmd_len;
+  unsigned char mx_sb_len;
+  unsigned short iovec_count;
+  unsigned int dxfer_len;
+  void * dxferp;
+  unsigned char * cmdp;
+  unsigned char * sbp;
+  unsigned int timeout;
+  unsigned int flags;
+  int pack_id;
+  void * usr_ptr;
+  unsigned char status;
+  unsigned char masked_status;
+  unsigned char msg_status;
+  unsigned char sb_len_wr;
+  unsigned short host_status;
+  unsigned short driver_status;
+  int resid;
+  unsigned int duration;
+  unsigned int info;
+  int : 32;
+};
 # endif
 # ifndef __NIJI_D_Sg_io_hdr
 #  define __NIJI_D_Sg_io_hdr 1
@@ -94,7 +118,16 @@ typedef struct sg_io_hdr Sg_io_hdr;
 # endif
 # ifndef __NIJI_D_struct_sg_req_info
 #  define __NIJI_D_struct_sg_req_info 1
-struct sg_req_info { char __niji_opaque[24] __attribute__ ((__aligned__ (8))); };
+struct sg_req_info {
+  char req_state;
+  char orphan;
+  char sg_io_owned;
+  char problem;
+  int pack_id;
+  void * usr_ptr;
+  unsigned int duration;
+  int unused;
+};
 # endif
 # ifndef __NIJI_D_Sg_req_info
 #  define __NIJI_D_Sg_req_info 1
@@ -102,7 +135,16 @@ typedef struct sg_req_info Sg_req_info;
 # endif
 # ifndef __NIJI_D_struct_sg_scsi_id
 #  define __NIJI_D_struct_sg_scsi_id 1
-struct sg_scsi_id { char __niji_opaque[32] __attribute__ ((__aligned__ (4))); };
+struct sg_scsi_id {
+  int host_no;
+  int channel;
+  int scsi_id;
+  int lun;
+  int scsi_type;
+  short h_cmd_per_lun;
+  short d_queue_depth;
+  int unused[2];
+};
 # endif
 # ifndef __NIJI_D_Sg_scsi_id
 #  define __NIJI_D_Sg_scsi_id 1
@@ -110,7 +152,31 @@ typedef struct sg_scsi_id Sg_scsi_id;
 # endif
 # ifndef __NIJI_D_struct_sg_io_hdr
 #  define __NIJI_D_struct_sg_io_hdr 1
-struct sg_io_hdr { char __niji_opaque[88] __attribute__ ((__aligned__ (8))); };
+struct sg_io_hdr {
+  int interface_id;
+  int dxfer_direction;
+  unsigned char cmd_len;
+  unsigned char mx_sb_len;
+  unsigned short iovec_count;
+  unsigned int dxfer_len;
+  void * dxferp;
+  unsigned char * cmdp;
+  unsigned char * sbp;
+  unsigned int timeout;
+  unsigned int flags;
+  int pack_id;
+  void * usr_ptr;
+  unsigned char status;
+  unsigned char masked_status;
+  unsigned char msg_status;
+  unsigned char sb_len_wr;
+  unsigned short host_status;
+  unsigned short driver_status;
+  int resid;
+  unsigned int duration;
+  unsigned int info;
+  int : 32;
+};
 # endif
 # ifndef __NIJI_D_sg_io_hdr_t
 #  define __NIJI_D_sg_io_hdr_t 1
@@ -118,7 +184,10 @@ typedef struct sg_io_hdr sg_io_hdr_t;
 # endif
 # ifndef __NIJI_D_struct_sg_iovec
 #  define __NIJI_D_struct_sg_iovec 1
-struct sg_iovec { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct sg_iovec {
+  void * iov_base;
+  unsigned long iov_len;
+};
 # endif
 # ifndef __NIJI_D_sg_iovec_t
 #  define __NIJI_D_sg_iovec_t 1
@@ -126,7 +195,16 @@ typedef struct sg_iovec sg_iovec_t;
 # endif
 # ifndef __NIJI_D_struct_sg_req_info
 #  define __NIJI_D_struct_sg_req_info 1
-struct sg_req_info { char __niji_opaque[24] __attribute__ ((__aligned__ (8))); };
+struct sg_req_info {
+  char req_state;
+  char orphan;
+  char sg_io_owned;
+  char problem;
+  int pack_id;
+  void * usr_ptr;
+  unsigned int duration;
+  int unused;
+};
 # endif
 # ifndef __NIJI_D_sg_req_info_t
 #  define __NIJI_D_sg_req_info_t 1

@@ -144,6 +144,16 @@ struct tcphdr {
   };
 };
 # endif
+# ifndef __NIJI_D_enum_tcp_ca_state
+#  define __NIJI_D_enum_tcp_ca_state 1
+enum tcp_ca_state {
+  TCP_CA_Open = 0,
+  TCP_CA_Disorder = 1,
+  TCP_CA_CWR = 2,
+  TCP_CA_Recovery = 3,
+  TCP_CA_Loss = 4,
+};
+# endif
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
 union pthread_attr_t {
@@ -155,36 +165,6 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef __NIJI_D_tcp_seq
 #  define __NIJI_D_tcp_seq 1
 typedef unsigned int tcp_seq;
-# endif
-# ifndef __NIJI_D_enum_TCP_CA_CWR
-#  define __NIJI_D_enum_TCP_CA_CWR 1
-#  ifndef TCP_CA_CWR
-enum { TCP_CA_CWR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TCP_CA_Disorder
-#  define __NIJI_D_enum_TCP_CA_Disorder 1
-#  ifndef TCP_CA_Disorder
-enum { TCP_CA_Disorder = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TCP_CA_Loss
-#  define __NIJI_D_enum_TCP_CA_Loss 1
-#  ifndef TCP_CA_Loss
-enum { TCP_CA_Loss = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TCP_CA_Open
-#  define __NIJI_D_enum_TCP_CA_Open 1
-#  ifndef TCP_CA_Open
-enum { TCP_CA_Open = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TCP_CA_Recovery
-#  define __NIJI_D_enum_TCP_CA_Recovery 1
-#  ifndef TCP_CA_Recovery
-enum { TCP_CA_Recovery = 3 };
-#  endif
 # endif
 # ifndef __NIJI_D_enum_TCP_CLOSE
 #  define __NIJI_D_enum_TCP_CLOSE 1
