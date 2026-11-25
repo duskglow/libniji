@@ -1,5 +1,15 @@
 # HEADERS-CXX-ENUM-TYPES: enumerator and char-constant macros have the reference's C++ types (handoff)
 
+**State (leg 3, HEADERS-CXX-ENUM-TYPES-3):** branch `task/headers-cxx-enum-types-3`: merge of origin/next de74d9286 into the leg-2
+head; the only conflict was `spec/abi/PROVENANCE` (a list): both entries kept (enum-macros / enumerators paragraph of this
+story, typegeneric.tsv paragraph of next). No design change. Role keke:~/w/n1.
+Jobs on the merged head: headers-cxx-enum-types-3-lint1 (headers-gen --check, clippy -D warnings, static: rc 0);
+headers-cxx-enum-types-3-test1 (header_check.py 0 failed of 17663; cargo test -p xtask: all targets green except
+the_committed_gencat_transcripts_hold, which needs the product built in the role: not built yet in that role, rc 101);
+headers-cxx-enum-types-3-test2 (cargo xtask so, then the transcripts test: rc 0); headers-cxx-enum-types-3-plants2
+(HEADERS-CXX-ENUM-TYPES-2-plants.txt: 4 CAUGHT, 1 EQUIVALENT, 0 WARN). Superseded: headers-cxx-enum-types-3-plants1
+(baseline timed out at 600 s with two copies and the xtask tests on the same host; rerun with one copy and --timeout 1800).
+
 **State (leg 2, HEADERS-CXX-ENUM-TYPES-2):** branch `task/headers-cxx-enum-types-2` = `task/headers-cxx-enum-types`
 (head 2b38a86e5) plus bf7e09919, a merge of origin/next 623550dac resolving the CI conflict in
 `spec/tools/header_checks/form.py`: both FAIL paths kept, next's `enforced()` (ENFORCED (macro, header) pairs,
