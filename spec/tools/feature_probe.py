@@ -128,6 +128,35 @@ def forms_unit(header, name, include):
     return "kept" if 6 in errs else "replaced"
 
 
+def forms_batch(header, names, include, flags=("-std=gnu17", "-D_GNU_SOURCE")):
+    """`forms_unit` for many names of one header in one unit: every name is defined to the sentinel first, then the
+    header is included once and each name tested by its own `#ifndef` / `#elif` block. {name: result}. Only for
+    names whose early definition does not change what the header declares (no include guard, no feature-test macro):
+    header_checks/features.py batches so, and its `--reference` run checks the batched results against the one-name
+    results of macro-forms.tsv."""
+    lines = [f"#define {n} {SENTINEL}" for n in names] + [f"#include <{header}>"]
+    at = {}
+    for n in names:
+        lines += [f"#ifndef {n}", "#error", f"#elif ({n} * 1 + 0) == {SENTINEL}", "#error", "#endif"]
+        at[n] = len(lines) - 4
+    errs = error_lines(compiler("c", include) + list(flags), "\n".join(lines) + "\n", ".c")
+    out = {}
+    for n, ln in at.items():
+        out[n] = ("undefined" if ln + 1 in errs else "replaced-form" if ln + 2 in errs
+                  else "kept" if ln + 3 in errs else "replaced")
+    return out
+
+
+def gnu_pairs(headers=None):
+    """The (header, macro) pairs visibility.tsv shows in configuration `gnu`, sorted."""
+    with open(os.path.join(header_probe.ABI, "visibility.tsv"), newline="") as f:
+        vis = list(csv.DictReader(f, delimiter="\t"))
+    ids = [c[0] for c in header_probe.CONFIGS]
+    return sorted({(r["header"], r["name"]) for r in vis if r["kind"] == "macro" and r["header"] != "-"
+                   and (headers is None or r["header"] in headers)
+                   and "gnu" in header_probe_expand(r["configs"], ids)})
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("what", choices=["use", "forms"])
