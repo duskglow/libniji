@@ -1,11 +1,10 @@
 # HEADERS-NONNULL-MATCH plants (cargo xtask plants, docs/plants.md format).
-# The probe's three nonnull defects and the fortify split: the table the probe derives no longer matches the committed one.
+# The probe's nonnull defects: the table the probe derives no longer matches the committed one.
 probe-null-callback | spec/tools/attr_probe.py | lit:elif k in ("ptr", "fn"): ==> elif k == "ptr": | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:nonnull_columns_are_the_probes.*FAILED|nonnull columns differ
 probe-size-one | spec/tools/attr_probe.py | lit:a = "0" if zero else "1" ==> a = "1" | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:nonnull_columns_are_the_probes.*FAILED|nonnull columns differ
 probe-builtins | spec/tools/attr_probe.py | lit:("-nn", lambda k: k in NN_KINDS, ("-fno-builtin",)) ==> ("-nn", lambda k: k in NN_KINDS, ()) | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:nonnull_columns_are_the_probes.*FAILED|nonnull columns differ
-probe-fortify-split | spec/tools/attr_probe.py | lit:("nonnull", fort & off) ==> ("nonnull", fort) | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:nonnull_columns_are_the_probes.*FAILED|nonnull columns differ
+probe-macro-call | spec/tools/attr_probe.py | lit:{ (%s)(%s); }" % (n, args({j: null} ==> { %s(%s); }" % (n, args({j: null} | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:nonnull_columns_are_the_probes.*FAILED|nonnull columns differ
+# The fortify guard: a reference whose unfortified build drops parameter 1 must stop the table, not write one side.
+probe-fortify-guard | spec/tools/attr_probe.py | lit:off = plain.get(n, set()) ==> off = plain.get(n, set()) - {"1"} | cargo test -p xtask --bin xtask nonnull_columns_are_the_probes | msg:one _FORTIFY_SOURCE build only
 # Zero-length NULL buffers: an empty slice before any NULL check (getentropy, write, fwrite rely on it).
 conv-null-empty | crates/boundary/src/conv.rs | lit:(_, 0) => Ok(false), ==> (false, 0) => Ok(false), | cargo test -p niji-boundary --test s09_random_symbols sym_getentropy | msg:sym_getentropy.*FAILED|a NULL buffer for 0 bytes
-# The fortify-only nonnull emission (generator and features.h): fread_unlocked's stream is nonnull only under _FORTIFY_SOURCE.
-gen-fortify-macro | xtask/src/headers.rs | lit:("nonnull_fortify", "__NIJI_NONNULL_F"), ==> | cargo xtask headers-gen && python3 spec/tools/attr_probe.py check --config fortify2 --kinds n,rn | msg:fread_unlocked n 4
-features-fortify-macro | headers/features.h.in | lit:# define __NIJI_NONNULL_F(params) __attribute__ ((__nonnull__ params)) ==> # define __NIJI_NONNULL_F(params) | cargo xtask headers-gen && python3 spec/tools/attr_probe.py check --config fortify2 --kinds n,rn | msg:fread_unlocked n 4

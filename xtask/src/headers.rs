@@ -493,21 +493,7 @@ fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
     if !r["wur"].is_empty() {
         a.push("__warn_unused_result__".into());
     }
-    // The parameters the reference marks nonnull only when _FORTIFY_SOURCE is in effect, or only when it is not
-    // (HEADERS-NONNULL-MATCH): features.h's `__NIJI_NONNULL_F` is empty in an unfortified build, `__NIJI_NONNULL_NF`
-    // in a fortified one.
-    let mut nf = String::new();
-    for (col, mac) in [("nonnull_fortify", "__NIJI_NONNULL_F"), ("nonnull_nofortify", "__NIJI_NONNULL_NF")] {
-        let v = r.get(col).map(String::as_str).unwrap_or("");
-        if !v.is_empty() {
-            nf.push_str(&format!(" {mac} (({}))", v.replace(',', ", ")));
-        }
-    }
-    match (a.is_empty(), nf.is_empty()) {
-        (true, true) => None,
-        (true, false) => Some(nf),
-        _ => Some(format!(" __attribute__ (({})){nf}", a.join(", "))),
-    }
+    if a.is_empty() { None } else { Some(format!(" __attribute__ (({}))", a.join(", "))) }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):

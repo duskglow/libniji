@@ -46,9 +46,10 @@ mod tests {
         assert!(out.status.success(), "attr_probe check failed:\n{text}");
     }
 
-    // plan/headers.md slice 19 (no spec clause; HEADERS-NONNULL-MATCH). The nonnull columns of diagattrs.tsv are what
-    // the probe derives from the reference now: `attr_probe table --columns nonnull,nonnull_nofortify,nonnull_fortify` (the nonnull
-    // tests alone) rewrites a copy of the table, which must come out byte for byte the same. `check` above compares
+    // plan/headers.md slice 19 (no spec clause; HEADERS-NONNULL-MATCH). The nonnull column of diagattrs.tsv is what
+    // the probe derives from the reference now: `attr_probe table --columns nonnull` (the nonnull tests alone, with
+    // _FORTIFY_SOURCE on and off; it fails when the two disagree) rewrites a copy of the table, which must come out
+    // byte for byte the same. `check` above compares
     // the two sides through the same probe, so a probe defect that misreads both alike (a null callback on every
     // line, a size that wakes an `access` attribute, a builtin's own nonnull) passes it; this test sees it.
     // Skipped, and says why, where the compiler or the reference's headers are absent.
@@ -67,7 +68,7 @@ mod tests {
         fs::write(&copy, &want).unwrap();
         let out = std::process::Command::new("python3")
             .arg(root.join("spec/tools/attr_probe.py"))
-            .args(["table", "--columns", "nonnull,nonnull_nofortify,nonnull_fortify", "--out"])
+            .args(["table", "--columns", "nonnull", "--out"])
             .arg(&copy)
             .arg("--keep")
             .arg(dir.join("probe-work"))

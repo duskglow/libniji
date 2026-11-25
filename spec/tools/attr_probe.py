@@ -7,7 +7,7 @@
 `--config` names the build configuration (base: `_GNU_SOURCE`, `-O2`, `_FORTIFY_SOURCE=3`; gnu, default
 (no feature macro), fortify2, c++, c++-fortify3); outside base only the nonnull tests (`n.k`, `rn`) run, and a
 test line that builds on one side only is listed as "not declared alike", not counted. The table is written
-from base; `--columns nonnull,nonnull_nofortify,nonnull_fortify` writes those columns and keeps the others' values. `check
+from base; `--columns nonnull` writes that column and keeps the others' values. `check
 --kinds n,rn` compares only those test kinds, and of each line only the signal the kind measures (MEASURES).
 
 `table` compiles a corpus against the system's public headers (the reference) and writes
@@ -58,10 +58,10 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure nonnull_nofortify
-nonnull_fortify`): nonnull_nofortify lists the parameters marked only with `_FORTIFY_SOURCE` off (the `n.k` tests again
-in the gnu configuration; headers-gen emits them as `__NIJI_NONNULL_NF`), nonnull_fortify those marked only with it
-on (`__NIJI_NONNULL_F`); nonnull is the comma list of the 1-based parameters marked in both, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma
+list of the 1-based parameters marked nonnull; `table` runs the `n.k` tests again in the gnu configuration
+(`_FORTIFY_SOURCE` off) and fails, naming them, when a parameter is marked in one of the two only (the table cannot
+say so; none is, HEADERS-NONNULL-MATCH), format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
 parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
 """
@@ -590,8 +590,7 @@ def errno_kept(res):
     return {key[0] for key, flags, err in res.values() if key[1] == "e" and not err and "marker" in flags}
 
 
-TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure",
-                 "nonnull_nofortify", "nonnull_fortify")
+TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure")
 
 
 def nn_sets(inc, pr, cfg, keep):
@@ -625,7 +624,7 @@ def main():
     names, heads = declared(args.include, pr, cfg)
     PTR_TYPEDEFS.update(pointer_typedefs(pr, names, heads, cfg))
     # A table run that writes only the nonnull columns needs only the nonnull tests (a fraction of the corpus).
-    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull", "nonnull_nofortify", "nonnull_fortify"}
+    nn_only = args.mode == "table" and args.columns != "all" and set(args.columns.split(",")) <= {"nonnull"}
     text, meta = corpus(names, heads, pr, cfg, False if nn_only else None)
     ref = results(text, meta, None, args.keep, "ref", cfg)
     if args.mode == "table":
@@ -640,14 +639,19 @@ def main():
         rows = derive(ref, pr, names)
         for r in rows.values():
             r["nonnull"] = ",".join(sorted(set(r["nonnull"]), key=int))
-        # The nonnull tests again with _FORTIFY_SOURCE off (base has it on): a parameter marked in both is nonnull, one
-        # marked only with it on is nonnull_fortify, one marked only with it off nonnull_nofortify.
+        # The nonnull tests again with _FORTIFY_SOURCE off (base has it on). The table has one nonnull column, so a
+        # parameter marked in one build only cannot be written: stop and name it rather than pick a side.
         plain = nn_sets(args.include, pr, "gnu", args.keep)
-        for n, r in rows.items():
-            fort = set(filter(None, r["nonnull"].split(",")))
+        split = []
+        for n in sorted(set(rows) | set(plain)):
+            fort = set(filter(None, rows[n]["nonnull"].split(","))) if n in rows else set()
             off = plain.get(n, set())
-            for col, s in (("nonnull", fort & off), ("nonnull_fortify", fort - off), ("nonnull_nofortify", off - fort)):
-                r[col] = ",".join(sorted(s, key=int))
+            if fort != off:
+                split.append("%s (fortify on %s, off %s)" % (n, ",".join(sorted(fort, key=int)) or "-",
+                                                            ",".join(sorted(off, key=int)) or "-"))
+        if split:
+            sys.exit("attr_probe: the reference marks these nonnull in one _FORTIFY_SOURCE build only, which the table "
+                     "cannot say: %s" % "; ".join(split))
         cols = list(TABLE_COLUMNS[1:])
         if args.columns != "all":
             # Only the named columns come from this run; every other column keeps the table's value.
