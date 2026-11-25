@@ -1703,6 +1703,9 @@ typedef struct {
 # ifndef ELFDATANUM
 #  define ELFDATANUM 3
 # endif
+# ifndef ELFMAG
+#  define ELFMAG "\177ELF"
+# endif
 # ifndef ELFMAG0
 #  define ELFMAG0 127
 # endif

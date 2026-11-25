@@ -157,6 +157,20 @@ def initializers(ctx):
         if cid in expand(ver["configs"], ctx.ids):
             res.append((cid, "initializers resolv.h __RES",
                         f"#include <resolv.h>\n#if !defined __RES || __RES != {ctx.macros['__RES']['value']}\n#error __RES\n#endif\nint niji_res;\n"))
+    # ELF gABI, e_ident[EI_MAG0..EI_MAG3] (HEADERS-STAGE2-GAPS-B): where elf.h shows ELFMAG, it is a string literal of
+    # SELFMAG bytes (so `char m[] = ELFMAG` and memcmp(e_ident, ELFMAG, SELFMAG) work), and in C++11 and later its
+    # bytes are ELFMAG0..ELFMAG3 (whose values the P1 units check) then the terminator.
+    mag = next((r for r in ctx.vis if r["header"] == "elf.h" and r["name"] == "ELFMAG" and r["kind"] == "macro"), None)
+    if mag is None or ctx.macros.get("ELFMAG", {}).get("type") != "char[5]":
+        return res + [(ctx.ids[0], "initializers elf.h ELFMAG", "#error visibility.tsv or macros.tsv lacks ELFMAG (char[5])\n")]
+    for cid in expand(mag["configs"], ctx.ids):
+        body = ["#include <elf.h>", "static const char niji_mag[] = ELFMAG;",
+                "typedef char niji_mag_n[sizeof niji_mag == SELFMAG + 1 && sizeof ELFMAG == SELFMAG + 1 ? 1 : -1];",
+                "const char *niji_mag_use = niji_mag;"]
+        if cid.startswith("cxx") and cid != "cxx98":
+            body += ["static_assert (ELFMAG[0] == ELFMAG0 && ELFMAG[1] == ELFMAG1 && ELFMAG[2] == ELFMAG2"
+                     " && ELFMAG[3] == ELFMAG3 && ELFMAG[4] == 0, \"ELFMAG bytes\");"]
+        res.append((cid, "initializers elf.h ELFMAG", "\n".join(body) + "\n"))
     return res
 
 

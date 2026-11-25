@@ -8575,6 +8575,7 @@ elf.h	ELFDATA2LSB	macro	!time64only
 elf.h	ELFDATA2MSB	macro	!time64only
 elf.h	ELFDATANONE	macro	!time64only
 elf.h	ELFDATANUM	macro	!time64only
+elf.h	ELFMAG	macro	!time64only
 elf.h	ELFMAG0	macro	!time64only
 elf.h	ELFMAG1	macro	!time64only
 elf.h	ELFMAG2	macro	!time64only
@@ -15540,6 +15541,7 @@ link.h	ELFDATA2LSB	macro	!time64only
 link.h	ELFDATA2MSB	macro	!time64only
 link.h	ELFDATANONE	macro	!time64only
 link.h	ELFDATANUM	macro	!time64only
+link.h	ELFMAG	macro	!time64only
 link.h	ELFMAG0	macro	!time64only
 link.h	ELFMAG1	macro	!time64only
 link.h	ELFMAG2	macro	!time64only
@@ -36666,6 +36668,18 @@ netinet/udp.h	SIG_ATOMIC_MIN	macro	!time64only
 netinet/udp.h	SIG_ATOMIC_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/udp.h	SIZE_MAX	macro	!time64only
 netinet/udp.h	SIZE_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/udp.h	SOL_UDP	macro	!time64only
+netinet/udp.h	UDP_CORK	macro	!time64only
+netinet/udp.h	UDP_ENCAP	macro	!time64only
+netinet/udp.h	UDP_ENCAP_ESPINUDP	macro	!time64only
+netinet/udp.h	UDP_ENCAP_ESPINUDP_NON_IKE	macro	!time64only
+netinet/udp.h	UDP_ENCAP_GTP0	macro	!time64only
+netinet/udp.h	UDP_ENCAP_GTP1U	macro	!time64only
+netinet/udp.h	UDP_ENCAP_L2TPINUDP	macro	!time64only
+netinet/udp.h	UDP_GRO	macro	!time64only
+netinet/udp.h	UDP_NO_CHECK6_RX	macro	!time64only
+netinet/udp.h	UDP_NO_CHECK6_TX	macro	!time64only
+netinet/udp.h	UDP_SEGMENT	macro	!time64only
 netinet/udp.h	UINT16_C	macro	!time64only
 netinet/udp.h	UINT16_MAX	macro	!time64only
 netinet/udp.h	UINT16_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -48885,6 +48899,7 @@ sys/auxv.h	ELFDATA2LSB	macro	!time64only
 sys/auxv.h	ELFDATA2MSB	macro	!time64only
 sys/auxv.h	ELFDATANONE	macro	!time64only
 sys/auxv.h	ELFDATANUM	macro	!time64only
+sys/auxv.h	ELFMAG	macro	!time64only
 sys/auxv.h	ELFMAG0	macro	!time64only
 sys/auxv.h	ELFMAG1	macro	!time64only
 sys/auxv.h	ELFMAG2	macro	!time64only

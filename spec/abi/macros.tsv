@@ -1075,6 +1075,7 @@ ELFDATA2LSB	elf.h	int	1
 ELFDATA2MSB	elf.h	int	2
 ELFDATANONE	elf.h	int	0
 ELFDATANUM	elf.h	int	3
+ELFMAG	elf.h	char[5]	"\177ELF"
 ELFMAG0	elf.h	int	127
 ELFMAG1	elf.h	char	69
 ELFMAG2	elf.h	char	76
@@ -6722,6 +6723,7 @@ SOL_SMC	arpa/inet.h	int	286
 SOL_SOCKET	arpa/inet.h	int	1
 SOL_TIPC	arpa/inet.h	int	271
 SOL_TLS	arpa/inet.h	int	282
+SOL_UDP	netinet/udp.h	int	17
 SOL_X25	arpa/inet.h	int	262
 SOL_XDP	arpa/inet.h	int	283
 SOMAXCONN	arpa/inet.h	int	4096
@@ -7282,6 +7284,17 @@ T_WKS	arpa/nameser.h	int	11
 T_X25	arpa/nameser.h	int	19
 UCHAR_MAX	argp.h	int	255
 UCHAR_WIDTH	argp.h	int	8
+UDP_CORK	netinet/udp.h	int	1
+UDP_ENCAP	netinet/udp.h	int	100
+UDP_ENCAP_ESPINUDP	netinet/udp.h	int	2
+UDP_ENCAP_ESPINUDP_NON_IKE	netinet/udp.h	int	1
+UDP_ENCAP_GTP0	netinet/udp.h	int	4
+UDP_ENCAP_GTP1U	netinet/udp.h	int	5
+UDP_ENCAP_L2TPINUDP	netinet/udp.h	int	3
+UDP_GRO	netinet/udp.h	int	104
+UDP_NO_CHECK6_RX	netinet/udp.h	int	102
+UDP_NO_CHECK6_TX	netinet/udp.h	int	101
+UDP_SEGMENT	netinet/udp.h	int	103
 UINT16_MAX	arpa/nameser.h	int	65535
 UINT16_WIDTH	arpa/nameser.h	int	16
 UINT32_MAX	arpa/nameser.h	unsigned int	4294967295
