@@ -1,7 +1,7 @@
 # SL-HEADERS-COMPLEX-TGMATH: complex.h and tgmath.h (slice 11's deferred part), handoff
 
 **State.** Branch `task/sl-headers-complex-tgmath`, base origin/next 44304e709. Build role keke:~/w/r5. The slice is
-implemented and committed (`Ship complex.h and tgmath.h`); decision D-10.135 (amends D-10.125 (5)). Report:
+implemented and committed (`Ship complex.h and tgmath.h`); decision D-10.135 (amends D-10.125 (5); record `records/decisions/D-10/D-10.135.toml`). Precheck GREEN on 00d90742c. Report:
 `handoff/reports/SL-HEADERS-COMPLEX-TGMATH.json`. Scratch (outside the tree): `~/w/.scratch/SL-HEADERS-COMPLEX-TGMATH/`
 (`gen_tg.py` writes `headers/tgmath.h.in`; `grid2.py` prints a per-config grid of typegeneric.tsv).
 

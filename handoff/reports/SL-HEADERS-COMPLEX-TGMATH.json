@@ -1,6 +1,6 @@
 {"task": "SL-HEADERS-COMPLEX-TGMATH", "model": "opus", "tokens": null,
  "result": "libniji ships complex.h and tgmath.h: every type-generic macro resolves as the reference (8502 probe cases, 0 differences), CMPLX family constant expressions, C and C++ programs match the reference",
- "branch": "task/sl-headers-complex-tgmath", "head": null,
+ "branch": "task/sl-headers-complex-tgmath", "head": "00d90742c",
  "gate": {"affected": "707 passed / 0 failed (8 suites)", "peak": "2.3G"},
  "accepted_first_attempt": null,
  "rulings": [],
