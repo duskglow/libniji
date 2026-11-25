@@ -1,0 +1,3 @@
+# NL-LOCALE-NAME-ABI-3 plants (cargo xtask plants; docs/plants.md format). Results are appended at the foot.
+locale-struct-omitted | headers/reserved.tsv | lit:__locale_struct	emit ==> __locale_struct	omit | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^locale_struct "' | msg:FAIL locale_struct (locale|ctype|string)\.h
+names-slots-short | crates/boundary/src/locale.rs | lit:for (i, w) in words.iter().skip(16).take(13).enumerate() { ==> for (i, w) in words.iter().skip(16).take(6).enumerate() { | cargo test -p niji-boundary --test s07_locale_symbols sym_nl_langinfo_l | msg:__names\[\d+\] of a mixed object
