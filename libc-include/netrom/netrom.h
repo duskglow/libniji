@@ -9,9 +9,284 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_ctl_struct
+#  define __NIJI_D_struct_ax25_ctl_struct 1
+struct ax25_ctl_struct {
+  ax25_address port_addr;
+  ax25_address source_addr;
+  ax25_address dest_addr;
+  unsigned int cmd;
+  unsigned long arg;
+  unsigned char digi_count;
+  ax25_address digi_addr[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_fwd_struct
+#  define __NIJI_D_struct_ax25_fwd_struct 1
+struct ax25_fwd_struct {
+  ax25_address port_from;
+  ax25_address port_to;
+};
+# endif
+# ifndef __NIJI_D_struct_ax25_info_struct
+#  define __NIJI_D_struct_ax25_info_struct 1
+struct ax25_info_struct {
+  unsigned int n2;
+  unsigned int n2count;
+  unsigned int t1;
+  unsigned int t1timer;
+  unsigned int t2;
+  unsigned int t2timer;
+  unsigned int t3;
+  unsigned int t3timer;
+  unsigned int idle;
+  unsigned int idletimer;
+  unsigned int state;
+  unsigned int rcv_q;
+  unsigned int snd_q;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_route_opt_struct
+#  define __NIJI_D_struct_ax25_route_opt_struct 1
+struct ax25_route_opt_struct {
+  ax25_address port_addr;
+  ax25_address dest_addr;
+  int cmd;
+  int arg;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_routes_struct
+#  define __NIJI_D_struct_ax25_routes_struct 1
+struct ax25_routes_struct {
+  ax25_address port_addr;
+  ax25_address dest_addr;
+  unsigned char digi_count;
+  ax25_address digi_addr[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_sockaddr_ax25
+#  define __NIJI_D_struct_sockaddr_ax25 1
+struct sockaddr_ax25 {
+  unsigned short sax25_family;
+  ax25_address sax25_call;
+  int sax25_ndigis;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_full_sockaddr_ax25
+#  define __NIJI_D_struct_full_sockaddr_ax25 1
+struct full_sockaddr_ax25 {
+  struct sockaddr_ax25 fsa_ax25;
+  ax25_address fsa_digipeater[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_nr_route_struct
+#  define __NIJI_D_struct_nr_route_struct 1
+struct nr_route_struct {
+  int type;
+  ax25_address callsign;
+  char device[16];
+  unsigned int quality;
+  char mnemonic[7];
+  ax25_address neighbour;
+  unsigned int obs_count;
+  unsigned int ndigis;
+  ax25_address digipeaters[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_sockaddr_ax25
+#  define __NIJI_D_struct_sockaddr_ax25 1
+struct sockaddr_ax25 {
+  unsigned short sax25_family;
+  ax25_address sax25_call;
+  int sax25_ndigis;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
 # ifndef __NIJI_D_sa_family_t
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
+# endif
+# ifndef AX25_BACKOFF
+#  define AX25_BACKOFF 6
+# endif
+# ifndef AX25_EXTSEQ
+#  define AX25_EXTSEQ 7
+# endif
+# ifndef AX25_IAMDIGI
+#  define AX25_IAMDIGI 12
+# endif
+# ifndef AX25_IDLE
+#  define AX25_IDLE 9
+# endif
+# ifndef AX25_KILL
+#  define AX25_KILL 99
+# endif
+# ifndef AX25_MAX_DIGIS
+#  define AX25_MAX_DIGIS 8
+# endif
+# ifndef AX25_N2
+#  define AX25_N2 3
+# endif
+# ifndef AX25_NOUID_BLOCK
+#  define AX25_NOUID_BLOCK 1
+# endif
+# ifndef AX25_NOUID_DEFAULT
+#  define AX25_NOUID_DEFAULT 0
+# endif
+# ifndef AX25_PACLEN
+#  define AX25_PACLEN 10
+# endif
+# ifndef AX25_PIDINCL
+#  define AX25_PIDINCL 8
+# endif
+# ifndef AX25_SET_RT_IPMODE
+#  define AX25_SET_RT_IPMODE 2
+# endif
+# ifndef AX25_T1
+#  define AX25_T1 2
+# endif
+# ifndef AX25_T2
+#  define AX25_T2 5
+# endif
+# ifndef AX25_T3
+#  define AX25_T3 4
+# endif
+# ifndef AX25_WINDOW
+#  define AX25_WINDOW 1
+# endif
+# ifndef NETROM_IDLE
+#  define NETROM_IDLE 7
+# endif
+# ifndef NETROM_N2
+#  define NETROM_N2 3
+# endif
+# ifndef NETROM_NEIGH
+#  define NETROM_NEIGH 0
+# endif
+# ifndef NETROM_NODE
+#  define NETROM_NODE 1
+# endif
+# ifndef NETROM_T1
+#  define NETROM_T1 1
+# endif
+# ifndef NETROM_T2
+#  define NETROM_T2 2
+# endif
+# ifndef NETROM_T4
+#  define NETROM_T4 6
+# endif
+# ifndef SOL_AX25
+#  define SOL_AX25 257
+# endif
+# ifndef SOL_NETROM
+#  define SOL_NETROM 259
 # endif
 # ifndef _SS_SIZE
 #  define _SS_SIZE 128

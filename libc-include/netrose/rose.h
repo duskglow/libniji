@@ -10,6 +10,338 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_ctl_struct
+#  define __NIJI_D_struct_ax25_ctl_struct 1
+struct ax25_ctl_struct {
+  ax25_address port_addr;
+  ax25_address source_addr;
+  ax25_address dest_addr;
+  unsigned int cmd;
+  unsigned long arg;
+  unsigned char digi_count;
+  ax25_address digi_addr[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_fwd_struct
+#  define __NIJI_D_struct_ax25_fwd_struct 1
+struct ax25_fwd_struct {
+  ax25_address port_from;
+  ax25_address port_to;
+};
+# endif
+# ifndef __NIJI_D_struct_ax25_info_struct
+#  define __NIJI_D_struct_ax25_info_struct 1
+struct ax25_info_struct {
+  unsigned int n2;
+  unsigned int n2count;
+  unsigned int t1;
+  unsigned int t1timer;
+  unsigned int t2;
+  unsigned int t2timer;
+  unsigned int t3;
+  unsigned int t3timer;
+  unsigned int idle;
+  unsigned int idletimer;
+  unsigned int state;
+  unsigned int rcv_q;
+  unsigned int snd_q;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_route_opt_struct
+#  define __NIJI_D_struct_ax25_route_opt_struct 1
+struct ax25_route_opt_struct {
+  ax25_address port_addr;
+  ax25_address dest_addr;
+  int cmd;
+  int arg;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_routes_struct
+#  define __NIJI_D_struct_ax25_routes_struct 1
+struct ax25_routes_struct {
+  ax25_address port_addr;
+  ax25_address dest_addr;
+  unsigned char digi_count;
+  ax25_address digi_addr[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_sockaddr_ax25
+#  define __NIJI_D_struct_sockaddr_ax25 1
+struct sockaddr_ax25 {
+  unsigned short sax25_family;
+  ax25_address sax25_call;
+  int sax25_ndigis;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_full_sockaddr_ax25
+#  define __NIJI_D_struct_full_sockaddr_ax25 1
+struct full_sockaddr_ax25 {
+  struct sockaddr_ax25 fsa_ax25;
+  ax25_address fsa_digipeater[8];
+};
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_full_sockaddr_rose
+#  define __NIJI_D_struct_full_sockaddr_rose 1
+struct full_sockaddr_rose {
+  unsigned short srose_family;
+  rose_address srose_addr;
+  ax25_address srose_call;
+  unsigned int srose_ndigis;
+  ax25_address srose_digis[6];
+};
+# endif
+# ifndef __NIJI_D_struct_rose_cause_struct
+#  define __NIJI_D_struct_rose_cause_struct 1
+struct rose_cause_struct {
+  unsigned char cause;
+  unsigned char diagnostic;
+};
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_rose_facilities_struct
+#  define __NIJI_D_struct_rose_facilities_struct 1
+struct rose_facilities_struct {
+  rose_address source_addr;
+  rose_address dest_addr;
+  ax25_address source_call;
+  ax25_address dest_call;
+  unsigned char source_ndigis;
+  unsigned char dest_ndigis;
+  ax25_address source_digis[6];
+  ax25_address dest_digis[6];
+  unsigned int rand;
+  rose_address fail_addr;
+  ax25_address fail_call;
+};
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_rose_route_struct
+#  define __NIJI_D_struct_rose_route_struct 1
+struct rose_route_struct {
+  rose_address address;
+  unsigned short mask;
+  ax25_address neighbour;
+  char device[16];
+  unsigned char ndigis;
+  ax25_address digipeaters[8];
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_sockaddr_ax25
+#  define __NIJI_D_struct_sockaddr_ax25 1
+struct sockaddr_ax25 {
+  unsigned short sax25_family;
+  ax25_address sax25_call;
+  int sax25_ndigis;
+};
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_sockaddr_rose
+#  define __NIJI_D_struct_sockaddr_rose 1
+struct sockaddr_rose {
+  unsigned short srose_family;
+  rose_address srose_addr;
+  ax25_address srose_call;
+  int srose_ndigis;
+  ax25_address srose_digi;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_rose_address
+#  define __NIJI_D_rose_address 1
+typedef struct {
+  char rose_addr[5];
+} rose_address;
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -18,6 +350,119 @@ union pthread_attr_t {
   long __align;
 };
 typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
+# ifndef AX25_BACKOFF
+#  define AX25_BACKOFF 6
+# endif
+# ifndef AX25_EXTSEQ
+#  define AX25_EXTSEQ 7
+# endif
+# ifndef AX25_IAMDIGI
+#  define AX25_IAMDIGI 12
+# endif
+# ifndef AX25_IDLE
+#  define AX25_IDLE 9
+# endif
+# ifndef AX25_KILL
+#  define AX25_KILL 99
+# endif
+# ifndef AX25_MAX_DIGIS
+#  define AX25_MAX_DIGIS 8
+# endif
+# ifndef AX25_N2
+#  define AX25_N2 3
+# endif
+# ifndef AX25_NOUID_BLOCK
+#  define AX25_NOUID_BLOCK 1
+# endif
+# ifndef AX25_NOUID_DEFAULT
+#  define AX25_NOUID_DEFAULT 0
+# endif
+# ifndef AX25_PACLEN
+#  define AX25_PACLEN 10
+# endif
+# ifndef AX25_PIDINCL
+#  define AX25_PIDINCL 8
+# endif
+# ifndef AX25_SET_RT_IPMODE
+#  define AX25_SET_RT_IPMODE 2
+# endif
+# ifndef AX25_T1
+#  define AX25_T1 2
+# endif
+# ifndef AX25_T2
+#  define AX25_T2 5
+# endif
+# ifndef AX25_T3
+#  define AX25_T3 4
+# endif
+# ifndef AX25_WINDOW
+#  define AX25_WINDOW 1
+# endif
+# ifndef ROSE_ACCESS_BARRED
+#  define ROSE_ACCESS_BARRED 11
+# endif
+# ifndef ROSE_DEFER
+#  define ROSE_DEFER 1
+# endif
+# ifndef ROSE_DTE_ORIGINATED
+#  define ROSE_DTE_ORIGINATED 0
+# endif
+# ifndef ROSE_HOLDBACK
+#  define ROSE_HOLDBACK 7
+# endif
+# ifndef ROSE_IDLE
+#  define ROSE_IDLE 5
+# endif
+# ifndef ROSE_INVALID_FACILITY
+#  define ROSE_INVALID_FACILITY 3
+# endif
+# ifndef ROSE_LOCAL_PROCEDURE
+#  define ROSE_LOCAL_PROCEDURE 19
+# endif
+# ifndef ROSE_MAX_DIGIS
+#  define ROSE_MAX_DIGIS 6
+# endif
+# ifndef ROSE_MTU
+#  define ROSE_MTU 251
+# endif
+# ifndef ROSE_NETWORK_CONGESTION
+#  define ROSE_NETWORK_CONGESTION 5
+# endif
+# ifndef ROSE_NOT_OBTAINABLE
+#  define ROSE_NOT_OBTAINABLE 13
+# endif
+# ifndef ROSE_NUMBER_BUSY
+#  define ROSE_NUMBER_BUSY 1
+# endif
+# ifndef ROSE_OUT_OF_ORDER
+#  define ROSE_OUT_OF_ORDER 9
+# endif
+# ifndef ROSE_QBITINCL
+#  define ROSE_QBITINCL 6
+# endif
+# ifndef ROSE_REMOTE_PROCEDURE
+#  define ROSE_REMOTE_PROCEDURE 17
+# endif
+# ifndef ROSE_SHIP_ABSENT
+#  define ROSE_SHIP_ABSENT 57
+# endif
+# ifndef ROSE_T1
+#  define ROSE_T1 2
+# endif
+# ifndef ROSE_T2
+#  define ROSE_T2 3
+# endif
+# ifndef ROSE_T3
+#  define ROSE_T3 4
+# endif
+# ifndef SOL_AX25
+#  define SOL_AX25 257
+# endif
+# ifndef SOL_ROSE
+#  define SOL_ROSE 260
 # endif
 #endif
 

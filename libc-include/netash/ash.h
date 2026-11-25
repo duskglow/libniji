@@ -9,6 +9,16 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_sockaddr_ash
+#  define __NIJI_D_struct_sockaddr_ash 1
+struct sockaddr_ash {
+  unsigned short sash_family;
+  int sash_ifindex;
+  unsigned char sash_channel;
+  unsigned int sash_plen;
+  unsigned char sash_prefix[16];
+};
+# endif
 # ifndef __NIJI_D_sa_family_t
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
