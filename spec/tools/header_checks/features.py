@@ -149,9 +149,11 @@ def _forms(ctx, only):
     # what the header declares, so include guards (`_STDIO_H`: the reference skips the header) and KNOWN (the
     # feature-test macros among them) stay out.
     per = {}
+    # kernel-spelled.tsv: guarded on purpose (a kernel header's definition, when present, is the one in force).
+    kspell = {r["name"] for r in _tsv(ctx, "spec/abi/kernel-spelled.tsv")}
     for h, n in fp.gnu_pairs():
         want = expect.get((h, n), "replaced")
-        if n not in KNOWN and not GUARD.match(n) and not (h in KNOWN_KEPT and want == "kept"):
+        if n not in KNOWN and n not in kspell and not GUARD.match(n) and not (h in KNOWN_KEPT and want == "kept"):
             per.setdefault((h, want), []).append(n)
     keys = [k for k in sorted(per) if not only or only.search(f"FEATURES forms {k[0]}")]
     ctx.selected += len(keys)

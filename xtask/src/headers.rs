@@ -165,14 +165,6 @@ fn slice_table_problems(root: &Path, templates: &[String]) -> Result<Vec<String>
     Ok(out)
 }
 
-/// Macros a kernel UAPI header defines outright, in another spelling, before libniji's own definition can:
-/// `<asm/ioctls.h>` (included first by `<sys/ioctl.h>`, `<termios.h>` and the headers built on them) spells FIOASYNC
-/// `0x5452` and TIOCSER_TEMT `0x01`; `<linux/in6.h>` included before `<netinet/in.h>` defines IPPROTO_DSTOPTS as `60`.
-/// libniji's definition of these stays under `#ifndef`: with the kernel header in front, the kernel's outright
-/// definition is the one that replaces a program's, as in the reference, and a second outright definition in another
-/// spelling would be a redefinition (header_check.py P5 and its kernel-first orders, `-Wsystem-headers -Werror`).
-const KERNEL_SPELLED: &[&str] = &["FIOASYNC", "IPPROTO_DSTOPTS", "TIOCSER_TEMT"];
-
 struct Tables {
     lv: Levels,
     vis: Rows,
@@ -218,6 +210,12 @@ struct Tables {
     /// under `_GNU_SOURCE`). Those, and macros not visible there (not probed), are emitted under `#ifndef`; every
     /// other one is defined outright, as the reference does.
     guarded: BTreeSet<(String, String)>,
+    /// kernel-spelled.tsv (spec/tools/kernel_spelled.py): macros a kernel UAPI header also defines, in another
+    /// spelling (`<asm/ioctls.h>`, included first by `<sys/ioctl.h>`, spells FIOASYNC `0x5452`). They stay under
+    /// `#ifndef`: with the kernel header in front, its outright definition is the one that replaces a program's, as in
+    /// the reference; a second outright definition in another spelling would be a redefinition (header_check.py P5
+    /// and its kernel-first orders, `-Wsystem-headers -Werror`).
+    kernel_spelled: BTreeSet<String>,
     /// `vis` by header and name.
     vis_index: VisIndex,
 }
@@ -288,12 +286,12 @@ impl Tables {
     }
 
     /// Whether `header` defines the macro `name` outright (see `guarded`): visible there under `_GNU_SOURCE`
-    /// (configuration `gnu`, where the form was probed), not a macro-forms.tsv row and not [`KERNEL_SPELLED`].
+    /// (configuration `gnu`, where the form was probed), not a macro-forms.tsv row and not `kernel_spelled`.
     fn redefined(&self, header: &str, name: &str) -> bool {
         let gnu = self.lv.ids.iter().position(|i| i == "gnu");
         let shown = self.vis_row(header, name, "macro").and_then(|r| mask_of(&self.lv, &r["configs"]).ok());
         matches!((gnu, shown), (Some(g), Some(m)) if m >> g & 1 == 1) && !self.guarded.contains(&(header.to_string(), name.to_string()))
-            && !KERNEL_SPELLED.contains(&name)
+            && !self.kernel_spelled.contains(name)
     }
 
     /// The visibility.tsv rows of `header`, in table order.
@@ -410,10 +408,11 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let enum_macros = tsv(root, "spec/abi/enum-macros.tsv")?.into_iter().map(|r| (r["name"].clone(), (r["enumerator"].clone(), r["not_in"].split(',').filter(|h| !h.is_empty()).map(String::from).collect()))).collect();
+    let kernel_spelled = tsv(root, "spec/abi/kernel-spelled.tsv")?.into_iter().map(|r| r["name"].clone()).collect();
     let guarded = tsv(root, "spec/abi/macro-forms.tsv")?.into_iter().filter(|r| !r["result"].starts_with("replaced")).map(|r| (r["header"].clone(), r["name"].clone())).collect();
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, guarded, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, guarded, kernel_spelled, vis_index })
 }
 
 /// The scalar functions of the `libmvec.so.1` rows of versions.tsv (D-X.170). GCC's `simd ("notinbranch")` attribute
