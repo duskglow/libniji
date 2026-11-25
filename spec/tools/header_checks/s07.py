@@ -113,10 +113,13 @@ def array_param_units(ctx):
                         + "\n".join(d for x, d in decls if x == h) + "\n"))
     # <pthread.h> shows no `__sigsetjmp` (black-box probe, C and C++): a program's own declaration of it, here with a
     # type no header uses, is its first, and the cleanup macros, which call the symbol, still compile beside it.
+    # Defects: the name declared again at file scope; the returns_twice attribute dropped (C: a miscompiled cleanup).
     for cid in ctx.ids:
         if cid in ("gnu", "default", "cxx17") and cid in expand(vis.get(("pthread.h", "pthread_create"), ""), ctx.ids):
             c = 'extern "C" ' if cid == "cxx17" else ""
-            out.append((cid, "__sigsetjmp not shown pthread.h", f"#include <pthread.h>\n{c}int __sigsetjmp (long, int);\n"
+            # The macros' call returns twice (a cancellation comes back through it): the declaration says so.
+            rt = "typedef char niji_rt[__builtin_has_attribute (__niji_sigsetjmp, returns_twice) ? 1 : -1];\n" if not c else ""
+            out.append((cid, "__sigsetjmp not shown pthread.h", f"#include <pthread.h>\n{c}int __sigsetjmp (long, int);\n{rt}"
                         "static void niji_h (void *p) { (void) p; }\n"
                         "void niji_c (void) { pthread_cleanup_push (niji_h, 0); pthread_cleanup_pop (1); }\n"))
     return out
