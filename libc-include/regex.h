@@ -41,6 +41,29 @@ struct re_registers {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D_reg_errcode_t
+#  define __NIJI_D_reg_errcode_t 1
+typedef enum {
+  _REG_ENOSYS = -1,
+  _REG_NOERROR = 0,
+  _REG_NOMATCH = 1,
+  _REG_BADPAT = 2,
+  _REG_ECOLLATE = 3,
+  _REG_ECTYPE = 4,
+  _REG_EESCAPE = 5,
+  _REG_ESUBREG = 6,
+  _REG_EBRACK = 7,
+  _REG_EPAREN = 8,
+  _REG_EBRACE = 9,
+  _REG_BADBR = 10,
+  _REG_ERANGE = 11,
+  _REG_ESPACE = 12,
+  _REG_BADRPT = 13,
+  _REG_EEND = 14,
+  _REG_ESIZE = 15,
+  _REG_ERPAREN = 16,
+} reg_errcode_t;
+# endif
 # ifndef __NIJI_D_reg_syntax_t
 #  define __NIJI_D_reg_syntax_t 1
 typedef unsigned long reg_syntax_t;
@@ -161,49 +184,49 @@ extern unsigned long re_set_syntax (unsigned long);
 #endif
 #if 1
 # ifndef REG_BADBR
-#  define REG_BADBR 10
+#  define REG_BADBR _REG_BADBR
 # endif
 # ifndef REG_BADPAT
-#  define REG_BADPAT 2
+#  define REG_BADPAT _REG_BADPAT
 # endif
 # ifndef REG_BADRPT
-#  define REG_BADRPT 13
+#  define REG_BADRPT _REG_BADRPT
 # endif
 # ifndef REG_EBRACE
-#  define REG_EBRACE 9
+#  define REG_EBRACE _REG_EBRACE
 # endif
 # ifndef REG_EBRACK
-#  define REG_EBRACK 7
+#  define REG_EBRACK _REG_EBRACK
 # endif
 # ifndef REG_ECOLLATE
-#  define REG_ECOLLATE 3
+#  define REG_ECOLLATE _REG_ECOLLATE
 # endif
 # ifndef REG_ECTYPE
-#  define REG_ECTYPE 4
+#  define REG_ECTYPE _REG_ECTYPE
 # endif
 # ifndef REG_EEND
-#  define REG_EEND 14
+#  define REG_EEND _REG_EEND
 # endif
 # ifndef REG_EESCAPE
-#  define REG_EESCAPE 5
+#  define REG_EESCAPE _REG_EESCAPE
 # endif
 # ifndef REG_EPAREN
-#  define REG_EPAREN 8
+#  define REG_EPAREN _REG_EPAREN
 # endif
 # ifndef REG_ERANGE
-#  define REG_ERANGE 11
+#  define REG_ERANGE _REG_ERANGE
 # endif
 # ifndef REG_ERPAREN
-#  define REG_ERPAREN 16
+#  define REG_ERPAREN _REG_ERPAREN
 # endif
 # ifndef REG_ESIZE
-#  define REG_ESIZE 15
+#  define REG_ESIZE _REG_ESIZE
 # endif
 # ifndef REG_ESPACE
-#  define REG_ESPACE 12
+#  define REG_ESPACE _REG_ESPACE
 # endif
 # ifndef REG_ESUBREG
-#  define REG_ESUBREG 6
+#  define REG_ESUBREG _REG_ESUBREG
 # endif
 # ifndef REG_EXTENDED
 #  define REG_EXTENDED 1
@@ -215,10 +238,10 @@ extern unsigned long re_set_syntax (unsigned long);
 #  define REG_NEWLINE 4
 # endif
 # ifndef REG_NOERROR
-#  define REG_NOERROR 0
+#  define REG_NOERROR _REG_NOERROR
 # endif
 # ifndef REG_NOMATCH
-#  define REG_NOMATCH 1
+#  define REG_NOMATCH _REG_NOMATCH
 # endif
 # ifndef REG_NOSUB
 #  define REG_NOSUB 8
@@ -372,7 +395,7 @@ extern unsigned long re_set_syntax (unsigned long);
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef REG_ENOSYS
-#  define REG_ENOSYS (-1)
+#  define REG_ENOSYS _REG_ENOSYS
 # endif
 #endif
 
