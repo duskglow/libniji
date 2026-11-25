@@ -17,8 +17,8 @@ __NIJI_BEGIN_C
 @@if XATTR_CREATE
 # ifndef XATTR_CREATE
 enum { XATTR_CREATE = @@value(XATTR_CREATE), XATTR_REPLACE = @@value(XATTR_REPLACE) };
-#  define XATTR_CREATE @@value(XATTR_CREATE)
-#  define XATTR_REPLACE @@value(XATTR_REPLACE)
+#  define XATTR_CREATE XATTR_CREATE
+#  define XATTR_REPLACE XATTR_REPLACE
 # endif
 #endif
 

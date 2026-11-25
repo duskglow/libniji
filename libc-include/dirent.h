@@ -238,58 +238,39 @@ extern int scandir (const char *, struct dirent ***, int (*) (const struct diren
 # endif
 #endif
 #if __NIJI_MISC
-# ifndef __NIJI_D_enum_DT_BLK
-#  define __NIJI_D_enum_DT_BLK 1
-#  ifndef DT_BLK
-enum { DT_BLK = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_CHR
-#  define __NIJI_D_enum_DT_CHR 1
-#  ifndef DT_CHR
-enum { DT_CHR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_DIR
-#  define __NIJI_D_enum_DT_DIR 1
-#  ifndef DT_DIR
-enum { DT_DIR = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_FIFO
-#  define __NIJI_D_enum_DT_FIFO 1
-#  ifndef DT_FIFO
-enum { DT_FIFO = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_LNK
-#  define __NIJI_D_enum_DT_LNK 1
-#  ifndef DT_LNK
-enum { DT_LNK = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_REG
-#  define __NIJI_D_enum_DT_REG 1
-#  ifndef DT_REG
-enum { DT_REG = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_SOCK
-#  define __NIJI_D_enum_DT_SOCK 1
-#  ifndef DT_SOCK
-enum { DT_SOCK = 12 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_DT_UNKNOWN
-#  define __NIJI_D_enum_DT_UNKNOWN 1
+# ifndef __NIJI_D_anon_DT_BLK
+#  define __NIJI_D_anon_DT_BLK 1
+#  if !defined DT_UNKNOWN || !defined DT_FIFO || !defined DT_CHR || !defined DT_DIR || !defined DT_BLK || !defined DT_REG \
+    || !defined DT_LNK || !defined DT_SOCK || !defined DT_WHT
+enum {
 #  ifndef DT_UNKNOWN
-enum { DT_UNKNOWN = 0 };
+  DT_UNKNOWN = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_DT_WHT
-#  define __NIJI_D_enum_DT_WHT 1
+#  ifndef DT_FIFO
+  DT_FIFO = 1,
+#  endif
+#  ifndef DT_CHR
+  DT_CHR = 2,
+#  endif
+#  ifndef DT_DIR
+  DT_DIR = 4,
+#  endif
+#  ifndef DT_BLK
+  DT_BLK = 6,
+#  endif
+#  ifndef DT_REG
+  DT_REG = 8,
+#  endif
+#  ifndef DT_LNK
+  DT_LNK = 10,
+#  endif
+#  ifndef DT_SOCK
+  DT_SOCK = 12,
+#  endif
 #  ifndef DT_WHT
-enum { DT_WHT = 14 };
+  DT_WHT = 14,
+#  endif
+};
 #  endif
 # endif
 #endif
@@ -320,31 +301,31 @@ enum { DT_WHT = 14 };
 #  define DELAYTIMER_MAX 2147483647
 # endif
 # ifndef DT_BLK
-#  define DT_BLK 6
+#  define DT_BLK DT_BLK
 # endif
 # ifndef DT_CHR
-#  define DT_CHR 2
+#  define DT_CHR DT_CHR
 # endif
 # ifndef DT_DIR
-#  define DT_DIR 4
+#  define DT_DIR DT_DIR
 # endif
 # ifndef DT_FIFO
-#  define DT_FIFO 1
+#  define DT_FIFO DT_FIFO
 # endif
 # ifndef DT_LNK
-#  define DT_LNK 10
+#  define DT_LNK DT_LNK
 # endif
 # ifndef DT_REG
-#  define DT_REG 8
+#  define DT_REG DT_REG
 # endif
 # ifndef DT_SOCK
-#  define DT_SOCK 12
+#  define DT_SOCK DT_SOCK
 # endif
 # ifndef DT_UNKNOWN
-#  define DT_UNKNOWN 0
+#  define DT_UNKNOWN DT_UNKNOWN
 # endif
 # ifndef DT_WHT
-#  define DT_WHT 14
+#  define DT_WHT DT_WHT
 # endif
 # ifndef HOST_NAME_MAX
 #  define HOST_NAME_MAX 64

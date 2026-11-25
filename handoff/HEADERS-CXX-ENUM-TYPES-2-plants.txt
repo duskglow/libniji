@@ -1,0 +1,12 @@
+# Plants of HEADERS-CXX-ENUM-TYPES-2 (cargo xtask plants; docs/plants.md): the merge of origin/next joined two FAIL
+# paths in spec/tools/header_checks/form.py: failing() (C++ type / enumeration differences, HEADERS-CXX-ENUM-TYPES)
+# and enforced() (the ENFORCED (macro, header) pairs, HEADERS-FORM-BREAKS). Each plant breaks a table or template so
+# that one path must report it, through header_check.py (problems()) or form.py stand-alone (main()).
+m-problems-failing | spec/abi/enum-macros.tsv | perl:s/^_SC_ARG_MAX\t[^\n]*\n//m | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py' | msg:FAIL form \[type differs\] _SC_ARG_MAX <unistd.h> cxx17
+m-problems-enforced | headers/sys/mount.h.in | lit:@@if MS_NOUSER ==> #if 0 | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py' | msg:FAIL form MS_NOUSER <sys/mount.h> c
+m-main-failing | spec/abi/macros.tsv | perl:s/^(REGTYPE\ttar\.h\t)char/${1}int/m | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_checks/form.py --headers tar.h' | msg:FAIL form \[type differs\] REGTYPE <tar.h> cxx17
+m-main-enforced | headers/sys/vlimit.h.in | lit:@@if INFINITY ==> #if 0 | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_checks/form.py --headers sys/vlimit.h' | msg:FAIL form INFINITY <sys/vlimit.h>
+m-no-dedupe | spec/tools/header_checks/form.py | lit: or is_enforced(n, h, cid): ==> : | python3 -I spec/tools/header_checks/form.py --headers sys/mount.h,pthread.h | equivalent:no ENFORCED pair has a C++ type or enumeration difference today (MS_NOUSER is enforced in the C configurations only and kept by D-X.126 in C++), so without the guard no row is reported twice; the guard only keeps one line per row once an ENFORCED pair also differs in type
+# cargo xtask plants results (job headers-cxx-enum-types-2-plants1, keke, head 45a54da80): 5 plants: 4 CAUGHT, 0 SURVIVED,
+# 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT. m-problems-failing, m-problems-enforced, m-main-failing,
+# m-main-enforced: CAUGHT by their message; m-no-dedupe: EQUIVALENT.

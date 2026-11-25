@@ -1,0 +1,14 @@
+# Plants of HEADERS-CXX-ENUM-TYPES (cargo xtask plants; docs/plants.md): each breaks one part of the change and the
+# macro form check (spec/tools/header_checks/form.py, whose C++ type and enumeration differences now FAIL) must catch
+# it. The table and generator plants regenerate the headers in the plant copy and probe the one header concerned.
+sc-int-literal | spec/abi/enum-macros.tsv | perl:s/^_SC_ARG_MAX\t[^\n]*\n//m | cargo xtask headers-gen && python3 -I spec/tools/header_checks/form.py --headers unistd.h | msg:FAIL form \[type differs\] _SC_ARG_MAX <unistd.h> cxx17
+tar-type-int | spec/abi/macros.tsv | perl:s/^(REGTYPE\ttar\.h\t)char/${1}int/m | cargo xtask headers-gen && python3 -I spec/tools/header_checks/form.py --headers tar.h | msg:FAIL form \[type differs\] REGTYPE <tar.h> cxx17
+anon-one-per-name | xtask/src/headers/enums.rs | lit:self.t.enum_of.get(name).filter(|t| t.starts_with("anon ")).cloned() ==> None | cargo xtask headers-gen && python3 -I spec/tools/header_checks/form.py --headers unistd.h | msg:FAIL form \[enumeration differs\] _SC_[A-Z0-9_]+ <unistd.h> cxx17
+form-no-underlying | spec/tools/header_checks/form.py | lit:lines.append(f"char niji_ut_{i}[sizeof(niji_ty(niji_ul<decltype(({n}))>()))];") ==> pass | python3 -I spec/tools/header_checks/form.py --headers none.h | msg:FAIL form control NIJI_EA cxx17: ut
+form-no-same | spec/tools/header_checks/form.py | lit:__is_same(decltype(({n})), decltype(({p}))) ? 2 : 1 ==> 1 | python3 -I spec/tools/header_checks/form.py --headers none.h | msg:FAIL form control NIJI_EB cxx17: sp
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# sc-int-literal: CAUGHT, caught by no test the log names
+# tar-type-int: CAUGHT, caught by no test the log names
+# anon-one-per-name: CAUGHT, caught by no test the log names
+# form-no-underlying: CAUGHT, caught by no test the log names
+# form-no-same: CAUGHT, caught by no test the log names

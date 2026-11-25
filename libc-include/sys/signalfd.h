@@ -50,23 +50,24 @@ typedef __sigset_t sigset_t;
 #  define __NIJI_D_signalfd 1
 extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_SFD_CLOEXEC
-#  define __NIJI_D_enum_SFD_CLOEXEC 1
-#  ifndef SFD_CLOEXEC
-enum { SFD_CLOEXEC = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SFD_NONBLOCK
-#  define __NIJI_D_enum_SFD_NONBLOCK 1
+# ifndef __NIJI_D_anon_SFD_CLOEXEC
+#  define __NIJI_D_anon_SFD_CLOEXEC 1
+#  if !defined SFD_NONBLOCK || !defined SFD_CLOEXEC
+enum {
 #  ifndef SFD_NONBLOCK
-enum { SFD_NONBLOCK = 2048 };
+  SFD_NONBLOCK = 2048,
+#  endif
+#  ifndef SFD_CLOEXEC
+  SFD_CLOEXEC = 524288,
+#  endif
+};
 #  endif
 # endif
 # ifndef SFD_CLOEXEC
-#  define SFD_CLOEXEC 524288
+#  define SFD_CLOEXEC SFD_CLOEXEC
 # endif
 # ifndef SFD_NONBLOCK
-#  define SFD_NONBLOCK 2048
+#  define SFD_NONBLOCK SFD_NONBLOCK
 # endif
 #endif
 

@@ -129,6 +129,18 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
         let v: i64 = value.parse().map_err(|_| format!("bad value {value:?}"))?;
         return Ok(if v < 0 { format!("(-{}L)", v.unsigned_abs()) } else { format!("{v}L") });
     }
+    // A character constant (HEADERS-CXX-ENUM-TYPES): type `char` in C++, `int` in C (C11 6.4.4.4, C++17 [lex.ccon]),
+    // as the reference's; printable characters as themselves, the others as an octal escape.
+    if ty == "char" {
+        // `char` is signed on x86-64 (psABI): a byte above 0x7f has a negative value (`'\377'` is -1).
+        let v: i16 = value.parse().ok().filter(|v| (-128..=255).contains(v)).ok_or(format!("bad char value {value:?}"))?;
+        let v = v as u8;
+        return Ok(match v {
+            b'\'' | b'\\' => format!("'\\{}'", v as char),
+            0x20..=0x7e => format!("'{}'", v as char),
+            _ => format!("'\\{v:03o}'"),
+        });
+    }
     let suffix = match ty {
         "int" => "",
         "long" => "L",

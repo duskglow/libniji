@@ -20,176 +20,141 @@ extern int addseverity (int, const char *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_MM_APPL
-#  define __NIJI_D_enum_MM_APPL 1
-#  ifndef MM_APPL
-enum { MM_APPL = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_CONSOLE
-#  define __NIJI_D_enum_MM_CONSOLE 1
-#  ifndef MM_CONSOLE
-enum { MM_CONSOLE = 512 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_ERROR
-#  define __NIJI_D_enum_MM_ERROR 1
-#  ifndef MM_ERROR
-enum { MM_ERROR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_FIRM
-#  define __NIJI_D_enum_MM_FIRM 1
-#  ifndef MM_FIRM
-enum { MM_FIRM = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_HALT
-#  define __NIJI_D_enum_MM_HALT 1
-#  ifndef MM_HALT
-enum { MM_HALT = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_HARD
-#  define __NIJI_D_enum_MM_HARD 1
+# ifndef __NIJI_D_anon_MM_APPL
+#  define __NIJI_D_anon_MM_APPL 1
+#  if !defined MM_HARD || !defined MM_SOFT || !defined MM_FIRM || !defined MM_APPL || !defined MM_UTIL || !defined MM_OPSYS \
+    || !defined MM_RECOVER || !defined MM_NRECOV || !defined MM_PRINT || !defined MM_CONSOLE
+enum {
 #  ifndef MM_HARD
-enum { MM_HARD = 1 };
+  MM_HARD = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_MM_INFO
-#  define __NIJI_D_enum_MM_INFO 1
-#  ifndef MM_INFO
-enum { MM_INFO = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_NOCON
-#  define __NIJI_D_enum_MM_NOCON 1
-#  ifndef MM_NOCON
-enum { MM_NOCON = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_NOMSG
-#  define __NIJI_D_enum_MM_NOMSG 1
-#  ifndef MM_NOMSG
-enum { MM_NOMSG = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_NOSEV
-#  define __NIJI_D_enum_MM_NOSEV 1
-#  ifndef MM_NOSEV
-enum { MM_NOSEV = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_NOTOK
-#  define __NIJI_D_enum_MM_NOTOK 1
-#  ifndef MM_NOTOK
-enum { MM_NOTOK = (-1) };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_NRECOV
-#  define __NIJI_D_enum_MM_NRECOV 1
-#  ifndef MM_NRECOV
-enum { MM_NRECOV = 128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_OK
-#  define __NIJI_D_enum_MM_OK 1
-#  ifndef MM_OK
-enum { MM_OK = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_OPSYS
-#  define __NIJI_D_enum_MM_OPSYS 1
-#  ifndef MM_OPSYS
-enum { MM_OPSYS = 32 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_PRINT
-#  define __NIJI_D_enum_MM_PRINT 1
-#  ifndef MM_PRINT
-enum { MM_PRINT = 256 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_RECOVER
-#  define __NIJI_D_enum_MM_RECOVER 1
-#  ifndef MM_RECOVER
-enum { MM_RECOVER = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MM_SOFT
-#  define __NIJI_D_enum_MM_SOFT 1
 #  ifndef MM_SOFT
-enum { MM_SOFT = 2 };
+  MM_SOFT = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_MM_UTIL
-#  define __NIJI_D_enum_MM_UTIL 1
+#  ifndef MM_FIRM
+  MM_FIRM = 4,
+#  endif
+#  ifndef MM_APPL
+  MM_APPL = 8,
+#  endif
 #  ifndef MM_UTIL
-enum { MM_UTIL = 16 };
+  MM_UTIL = 16,
+#  endif
+#  ifndef MM_OPSYS
+  MM_OPSYS = 32,
+#  endif
+#  ifndef MM_RECOVER
+  MM_RECOVER = 64,
+#  endif
+#  ifndef MM_NRECOV
+  MM_NRECOV = 128,
+#  endif
+#  ifndef MM_PRINT
+  MM_PRINT = 256,
+#  endif
+#  ifndef MM_CONSOLE
+  MM_CONSOLE = 512,
+#  endif
+};
 #  endif
 # endif
-# ifndef __NIJI_D_enum_MM_WARNING
-#  define __NIJI_D_enum_MM_WARNING 1
+# ifndef __NIJI_D_anon_MM_ERROR
+#  define __NIJI_D_anon_MM_ERROR 1
+#  if !defined MM_NOSEV || !defined MM_HALT || !defined MM_ERROR || !defined MM_WARNING || !defined MM_INFO
+enum {
+#  ifndef MM_NOSEV
+  MM_NOSEV = 0,
+#  endif
+#  ifndef MM_HALT
+  MM_HALT = 1,
+#  endif
+#  ifndef MM_ERROR
+  MM_ERROR = 2,
+#  endif
 #  ifndef MM_WARNING
-enum { MM_WARNING = 3 };
+  MM_WARNING = 3,
+#  endif
+#  ifndef MM_INFO
+  MM_INFO = 4,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_MM_NOCON
+#  define __NIJI_D_anon_MM_NOCON 1
+#  if !defined MM_NOTOK || !defined MM_OK || !defined MM_NOMSG || !defined MM_NOCON
+enum {
+#  ifndef MM_NOTOK
+  MM_NOTOK = -1,
+#  endif
+#  ifndef MM_OK
+  MM_OK = 0,
+#  endif
+#  ifndef MM_NOMSG
+  MM_NOMSG = 1,
+#  endif
+#  ifndef MM_NOCON
+  MM_NOCON = 4,
+#  endif
+};
 #  endif
 # endif
 # ifndef MM_APPL
-#  define MM_APPL 8
+#  define MM_APPL MM_APPL
 # endif
 # ifndef MM_CONSOLE
-#  define MM_CONSOLE 512
+#  define MM_CONSOLE MM_CONSOLE
 # endif
 # ifndef MM_ERROR
-#  define MM_ERROR 2
+#  define MM_ERROR MM_ERROR
 # endif
 # ifndef MM_FIRM
-#  define MM_FIRM 4
+#  define MM_FIRM MM_FIRM
 # endif
 # ifndef MM_HALT
-#  define MM_HALT 1
+#  define MM_HALT MM_HALT
 # endif
 # ifndef MM_HARD
-#  define MM_HARD 1
+#  define MM_HARD MM_HARD
 # endif
 # ifndef MM_INFO
-#  define MM_INFO 4
+#  define MM_INFO MM_INFO
 # endif
 # ifndef MM_NOCON
-#  define MM_NOCON 4
+#  define MM_NOCON MM_NOCON
 # endif
 # ifndef MM_NOMSG
-#  define MM_NOMSG 1
+#  define MM_NOMSG MM_NOMSG
 # endif
 # ifndef MM_NOSEV
-#  define MM_NOSEV 0
+#  define MM_NOSEV MM_NOSEV
 # endif
 # ifndef MM_NOTOK
-#  define MM_NOTOK (-1)
+#  define MM_NOTOK MM_NOTOK
 # endif
 # ifndef MM_NRECOV
-#  define MM_NRECOV 128
+#  define MM_NRECOV MM_NRECOV
 # endif
 # ifndef MM_OK
-#  define MM_OK 0
+#  define MM_OK MM_OK
 # endif
 # ifndef MM_OPSYS
-#  define MM_OPSYS 32
+#  define MM_OPSYS MM_OPSYS
 # endif
 # ifndef MM_PRINT
-#  define MM_PRINT 256
+#  define MM_PRINT MM_PRINT
 # endif
 # ifndef MM_RECOVER
-#  define MM_RECOVER 64
+#  define MM_RECOVER MM_RECOVER
 # endif
 # ifndef MM_SOFT
-#  define MM_SOFT 2
+#  define MM_SOFT MM_SOFT
 # endif
 # ifndef MM_UTIL
-#  define MM_UTIL 16
+#  define MM_UTIL MM_UTIL
 # endif
 # ifndef MM_WARNING
-#  define MM_WARNING 3
+#  define MM_WARNING MM_WARNING
 # endif
 #endif
 
