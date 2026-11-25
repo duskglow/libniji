@@ -30,6 +30,13 @@ probed visibility, type, layout and value (no differences row, no compat option)
 * Plants (job headers-apt-gaps-plants1): 5 CAUGHT, 0 SURVIVED, 0 WARN (handoff/HEADERS-APT-GAPS-plants.txt).
 * clippy (workspace, all targets, all features, -D warnings) and cargo xtask static: clean (job headers-apt-gaps-lint1).
 
+## HEADERS-APT-GAPS-2 (merge run, branch task/headers-apt-gaps-2)
+Merged origin/next (31 commits). Conflicts: crates/abi/tests/appendix_c_layouts.rs (generated: took next's, re-ran
+`cargo xtask abi-gen`, copied back; 6-line diff) and spec/abi/PROVENANCE (both sides kept). On the merged head: clippy and
+static clean, headers-gen then header_check (form probe on) 0 failed of 18140 (job headers-apt-gaps-2-lint), direct-tier
+gate ok rc 0 peak 12G (headers-apt-gaps-2-gate), plants 5 CAUGHT 0 SURVIVED 0 WARN (headers-apt-gaps-2-plants).
+apt build still not run. No design changes.
+
 ## Not done / not verified
 * apt 3.0.4 `dpkg-buildpackage -b` on mei (brief step 4) was **not run**: it needs debs built from this head and the
   ypk flow on mei, beyond this run's budget. The three gaps' probes are 0 DIFF; whether apt has a fourth gap is
