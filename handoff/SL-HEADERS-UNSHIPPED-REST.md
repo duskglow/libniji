@@ -33,6 +33,9 @@ headers/*.tsv table `function, parameter index, typedef`, used by functions.rs `
 functions; (3) headers-gen + rows test; (4) rerun t5.sh (`~/work/sl-headers-unshipped-rest/t5.sh`, label -t6) and
 plants (new dir plants-3); (5) precheck `--jobs <t6>,<plants-3> --head <sha>`, report json, handback-check.
 Budget note: leg 3 used ~130 calls; the fix plus reruns is ~20 calls.
+**Also RED: `cargo xtask static` fails its `abi-types` check** at 118c52ad2 (t5 ended; `~/work/sl-headers-unshipped-rest/
+t5-static.log` on keke names what): most likely the 53 new layout rows (prgregset_t, elf_fpregset_t, prstatus_t,
+prpsinfo_t) in crates/abi need a registration abi-types expects. Read that log first; fix with the defect above.
 
 **Probe-settled (reference, black box).** proc_service.h's 15 ps_* functions: plain symbol in every configuration,
 C++ included, no exception specification (libniji identical). sys/procfs.h gives prgregset_t (216 bytes),
