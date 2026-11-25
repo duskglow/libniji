@@ -363,6 +363,11 @@ ERRNO_VETO = ("the call may set errno (the reference's objects keep an errno che
               "declaration is not pure, and the compiler does not report a call whose result is unused (-Wunused-value)")
 ERRNO_INLINE = ("the reference's caller folds the errno check with no pure or const in the table: its header expands the "
                 "call inline; libniji's calls the library, which keeps the check (not slice 19's)")
+# Known difference the `s` test explains: its unit is -fno-builtin, where only a declaration's own format attribute
+# reports the null pointers it appends as extra arguments (-Wformat-extra-args); the sentinel (-Wformat=) agrees.
+SENTINEL_FORMAT = ("the sentinel test (-fno-builtin) agrees; libniji's declaration carries the format attribute, the "
+                   "reference's leaves format checking to the compiler's own knowledge of the function, so only "
+                   "libniji's reports -Wformat-extra-args without builtins (with builtins the f, g and h tests agree)")
 CTYPE_OPEN = re.compile(r"^is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)$")
 
 
@@ -530,6 +535,8 @@ def main():
                     why = ERRNO_VETO
                 elif kind == "e" and "folded" in ref[ln][1] and "marker" in got[ln][1] and not table[n]["pure"]:
                     why = ERRNO_INLINE
+                elif kind == "s" and only == {"-Wformat-extra-args"} and table[n]["format"]:
+                    why = SENTINEL_FORMAT
             if why:
                 known[ref[ln][0][0]] = why
                 continue

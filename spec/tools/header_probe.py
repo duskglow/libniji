@@ -399,6 +399,11 @@ def stage2_names():
     out += [f"RTLD_DI_{r}" for r in ("LMID", "LINKMAP", "CONFIGADDR", "SERINFO", "SERINFOSIZE", "ORIGIN", "PROFILENAME",
                                      "PROFILEOUT", "TLS_MODID", "TLS_DATA", "PHDR", "MAX")]
     out += [f"Elf{w}_{t}" for w in (32, 64) for t in ELF_TYPES]
+    # netinet/udp.h's socket options and encapsulation types (udp(7) and the kernel UAPI linux/udp.h's macro names),
+    # and elf.h's ELFMAG, the string beside ELFMAG0..ELFMAG3 and SELFMAG (chrpath).
+    out += ["SOL_UDP", "TCP_ENCAP_ESPINTCP", "ELFMAG"]
+    out += [f"UDP_{n}" for n in ("CORK", "ENCAP", "NO_CHECK6_TX", "NO_CHECK6_RX", "SEGMENT", "GRO")]
+    out += [f"UDP_ENCAP_{n}" for n in ("ESPINUDP_NON_IKE", "ESPINUDP", "L2TPINUDP", "GTP0", "GTP1U", "RXRPC")]
     return out
 
 
