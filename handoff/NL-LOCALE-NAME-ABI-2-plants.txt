@@ -6,3 +6,7 @@
 stdio-guard-owned | headers/stdio.h.in | lit:@@owns NULL va_list stdin stdout stderr gets ==> @@owns NULL va_list stdin stdout stderr gets _STDIO_H | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G stdio\.h _STDIO_H
 reserved-emit-ignored | xtask/src/headers.rs | lit:        Some("emit") => false, ==>         Some("emit") => true, | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G
 igmp-guard-unconditional | headers/netinet/igmp.h.in | lit:@@needs-if in_addr netinet/in.h ==> #include <netinet/in.h> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^P1G "' | msg:FAIL P1G netinet/igmp\.h _NETINET_IN_H
+# cargo xtask plants results, job nl-locale-name-abi-2-plants3 (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT,
+# 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT): stdio-guard-owned, reserved-emit-ignored, igmp-guard-unconditional
+# all CAUGHT by their msg (FAIL P1G lines of header_check).
+

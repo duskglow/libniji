@@ -6,7 +6,7 @@
  "branch": "task/nl-locale-name-abi-2",
  "head": null,
  "gate": {
-  "affected": "FULL: the train's (generated tables). test1: header_check 0 failed of 20622 (P1G 0 failed of 507 in p1g1), cargo test -p xtask all suites ok (665 + 34 passed); test2: cargo xtask so + niji-boundary s07_locale_symbols, see jobs; lint: clippy -D warnings + static on the final head",
+  "affected": "FULL: the train's (generated tables). test1: header_check 0 failed of 20622 and cargo test -p xtask all suites ok; p1g1: P1G 0 failed of 507; test2: cargo xtask so + niji-boundary s07_locale_symbols 43 passed; lint: clippy -D warnings + static on the final head; plants3: 3 CAUGHT of 3",
   "peak": null
  },
  "accepted_first_attempt": null,
@@ -20,11 +20,32 @@
   "Bash: . ~/src/liella-ops/tools/vm_ssh.sh && vm_ssh_cmd mei && \"${VSSH[@]}\" 'ls -la ~/work/RELEASE-SNAPSHOT-1125B/ | head -40' (denied by the auto-mode classifier [Unauthorized Access]); the stage-2 rebuild step stopped there"
  ],
  "impact": [
-  {"kind": "correctness", "what": "perl XS modules using nostdio.h after <stdio.h>: _STDIO_H now tells them stdio.h was included (FILE kept)", "before": 0, "after": 1, "unit": "macro present in stdio.h and its includers", "measured": true},
-  {"kind": "coverage", "what": "header_check P1G units: every include guard headers/reserved.tsv emits, per p1 header and configuration (previously tested nowhere); 3 plants", "before": 0, "after": 507, "unit": "units", "measured": true}
+  {
+   "kind": "correctness",
+   "what": "perl XS modules using nostdio.h after <stdio.h>: _STDIO_H now tells them stdio.h was included (FILE kept)",
+   "before": 0,
+   "after": 1,
+   "unit": "macro present in stdio.h and its includers",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check P1G units: every include guard headers/reserved.tsv emits, per p1 header and configuration (previously tested nowhere); 3 plants",
+   "before": 0,
+   "after": 507,
+   "unit": "units",
+   "measured": true
+  }
  ],
  "improvement": "test jobs that need the products should say so up front: s07_locale_symbols' conformance tests fail as 7 'products missing' panics in a role without `cargo xtask so`; a guard that skips them with a reason, or `cargo xtask affected` building them, would have saved a rerun.",
  "next_step": "The train (FULL: generated tables); then the stage-2 rebuild of grep/gettext (gnulib localename) and liblocale-gettext-perl once the mei recipe is permitted.",
  "report_file": "handoff/NL-LOCALE-NAME-ABI.md",
- "jobs": []
+ "jobs": [
+  "nl-locale-name-abi-2-p1g1",
+  "nl-locale-name-abi-2-test1",
+  "nl-locale-name-abi-2-test2",
+  "nl-locale-name-abi-2-plants3",
+  "nl-locale-name-abi-2-lint",
+  "nl-locale-name-abi-2-precheck"
+ ]
 }
