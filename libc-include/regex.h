@@ -126,11 +126,11 @@ extern int regcomp (regex_t *, const char *, int);
 # endif
 # ifndef __NIJI_D_regerror
 #  define __NIJI_D_regerror 1
-extern unsigned long regerror (int, const regex_t *, char *, unsigned long) __attribute__ ((__nonnull__ (3)));
+extern unsigned long regerror (int, const regex_t *, char *, unsigned long);
 # endif
 # ifndef __NIJI_D_regexec
 #  define __NIJI_D_regexec 1
-extern int regexec (const regex_t *, const char *, unsigned long, regmatch_t *, int) __attribute__ ((__nonnull__ (4)));
+extern int regexec (const regex_t *, const char *, unsigned long, regmatch_t *, int);
 # endif
 # ifndef __NIJI_D_regfree
 #  define __NIJI_D_regfree 1
@@ -146,31 +146,31 @@ extern int re_compile_fastmap (struct re_pattern_buffer *);
 struct re_pattern_buffer;
 # ifndef __NIJI_D_re_compile_pattern
 #  define __NIJI_D_re_compile_pattern 1
-extern const char *re_compile_pattern (const char *, unsigned long, struct re_pattern_buffer *) __attribute__ ((__nonnull__ (1)));
+extern const char *re_compile_pattern (const char *, unsigned long, struct re_pattern_buffer *);
 # endif
 struct re_pattern_buffer;
 struct re_registers;
 # ifndef __NIJI_D_re_match
 #  define __NIJI_D_re_match 1
-extern int re_match (struct re_pattern_buffer *, const char *, int, int, struct re_registers *) __attribute__ ((__nonnull__ (2)));
+extern int re_match (struct re_pattern_buffer *, const char *, int, int, struct re_registers *);
 # endif
 struct re_pattern_buffer;
 struct re_registers;
 # ifndef __NIJI_D_re_match_2
 #  define __NIJI_D_re_match_2 1
-extern int re_match_2 (struct re_pattern_buffer *, const char *, int, const char *, int, int, struct re_registers *, int) __attribute__ ((__nonnull__ (2, 4)));
+extern int re_match_2 (struct re_pattern_buffer *, const char *, int, const char *, int, int, struct re_registers *, int);
 # endif
 struct re_pattern_buffer;
 struct re_registers;
 # ifndef __NIJI_D_re_search
 #  define __NIJI_D_re_search 1
-extern int re_search (struct re_pattern_buffer *, const char *, int, int, int, struct re_registers *) __attribute__ ((__nonnull__ (2)));
+extern int re_search (struct re_pattern_buffer *, const char *, int, int, int, struct re_registers *);
 # endif
 struct re_pattern_buffer;
 struct re_registers;
 # ifndef __NIJI_D_re_search_2
 #  define __NIJI_D_re_search_2 1
-extern int re_search_2 (struct re_pattern_buffer *, const char *, int, const char *, int, int, int, struct re_registers *, int) __attribute__ ((__nonnull__ (2, 4)));
+extern int re_search_2 (struct re_pattern_buffer *, const char *, int, const char *, int, int, int, struct re_registers *, int);
 # endif
 struct re_pattern_buffer;
 struct re_registers;

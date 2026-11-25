@@ -46,6 +46,13 @@ extern int getifaddrs (struct ifaddrs **) __NIJI_NOTHROW;
 # endif
 #endif
 
+/* getifaddrs(3): the broadcast address (IFF_BROADCAST) and the point-to-point destination (IFF_POINTOPOINT) share
+   the union ifa_ifu; each name is a macro for its member. */
+#if 1
+# define ifa_broadaddr ifa_ifu.ifu_broadaddr
+# define ifa_dstaddr ifa_ifu.ifu_dstaddr
+#endif
+
 __NIJI_END_C
 
 #endif

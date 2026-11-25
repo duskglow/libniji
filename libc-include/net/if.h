@@ -297,6 +297,12 @@ enum {
 # define ifc_buf ifc_ifcu.ifcu_buf
 # define ifc_req ifc_ifcu.ifcu_req
 #endif
+/* The BSD interface address record's two names for its union's address (the same spelling as <ifaddrs.h>'s for
+   struct ifaddrs, so the two headers together define each macro once). */
+#if __NIJI_MISC
+# define ifa_broadaddr ifa_ifu.ifu_broadaddr
+# define ifa_dstaddr ifa_ifu.ifu_dstaddr
+#endif
 
 __NIJI_END_C
 

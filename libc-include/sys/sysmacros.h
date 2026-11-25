@@ -23,15 +23,15 @@ typedef int __pid_t;
 # endif
 # ifndef __NIJI_D_gnu_dev_major
 #  define __NIJI_D_gnu_dev_major 1
-extern unsigned int gnu_dev_major (unsigned long) __NIJI_NOTHROW;
+extern unsigned int gnu_dev_major (unsigned long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_gnu_dev_makedev
 #  define __NIJI_D_gnu_dev_makedev 1
-extern unsigned long gnu_dev_makedev (unsigned int, unsigned int) __NIJI_NOTHROW;
+extern unsigned long gnu_dev_makedev (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_gnu_dev_minor
 #  define __NIJI_D_gnu_dev_minor 1
-extern unsigned int gnu_dev_minor (unsigned long) __NIJI_NOTHROW;
+extern unsigned int gnu_dev_minor (unsigned long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 

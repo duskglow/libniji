@@ -1355,6 +1355,7 @@ fn fwrite_forms(f: Fwrite, locked: bool, high: c_int) {
     let fp = open(&t, "w");
     assert_eq!(f(b"abcd".as_ptr().cast(), 2, 2, fp), 2);
     assert_eq!((f(b"x".as_ptr().cast(), 0, 1, fp), f(b"x".as_ptr().cast(), 1, 0, fp)), (0, 0), "size or n 0");
+    assert_eq!((f(null(), 0, 1, fp), f(null(), 1, 0, fp)), (0, 0), "a NULL buffer for 0 bytes (nullable in the header)");
     assert!(!window_full(fp), "an open window: the front path (P5)");
     assert_eq!(waits(fp, |fp| assert_eq!(f(b"ef".as_ptr().cast(), 1, 2, fp), 2)), locked, "the stream lock");
     assert_eq!(x::fclose(fp), 0);

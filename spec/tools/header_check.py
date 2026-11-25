@@ -4,7 +4,7 @@ P1 identity with the tables and P8 kernel UAPI coexistence.
 
     python3 spec/tools/header_check.py [--work DIR] [--include DIR]
 
-Needs gcc and g++ only (any host; no reference headers are read: every unit is compiled with `-nostdinc
+Needs gcc and g++ (clang-19 or clang for the clang P5 units, optional; any host; no reference headers are read: every unit is compiled with `-nostdinc
 -isystem <DIR> -isystem <the compiler's own include>`, DIR = libc-include/ by default, or the tree `cargo xtask
 so` staged, target/niji/include).
 
@@ -18,6 +18,8 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * levels  a unit that includes features.h and `#error`s unless each `__NIJI_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
 * P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
+          and with clang where one is installed (`clang_p5`: C and C++, strict and GNU modes; skipped with a printed
+          reason otherwise);
 * P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value (in each header that
           shows the macro, whichever header owns its row; reserved names only in the owner), typedefs.tsv size and
           alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
@@ -299,6 +301,56 @@ def p8(inc, gccinc, work, pairs):
     return fails, total
 
 
+# P5 under clang (HEADERS-GETTEXT-CLANG: postgresql-17 compiles its JIT code with clang, which has none of the _FloatN
+# keywords but _Float16): (title, language, flags), C and C++, a strict and a GNU mode of each, and strict C with
+# _GNU_SOURCE (the configuration of that package's failure).
+CLANG_CONFIGS = [("clang-c17", "c", "-std=c17"), ("clang-gnu2x", "c", "-std=gnu2x"),
+                 ("clang-c17-gnu", "c", "-std=c17 -D_GNU_SOURCE"), ("clang-c++17", "c++", "-std=c++17"),
+                 ("clang-gnu++20", "c++", "-std=gnu++20")]
+
+
+def clang_compilers():
+    """(clang, clang++): `NIJI_CLANG` (a C compiler path; its `++` twin beside it), else clang-19 or clang on PATH."""
+    import shutil
+    env = os.environ.get("NIJI_CLANG")
+    for cc in ([env] if env else ["clang-19", "clang"]):
+        path = shutil.which(cc)
+        if path:
+            cxx = shutil.which(cc.replace("clang", "clang++", 1))
+            if cxx:
+                return path, cxx
+    return None
+
+
+def clang_p5(inc, kern, work, headers, only):
+    """P5 with clang: each header alone and twice, in each CLANG_CONFIGS mode, `-Wall -Wextra -Werror`. The search
+    order is the compiler driver's own: clang's resource directory (its <stddef.h>, <float.h>, <tgmath.h>, ...) before
+    the C library's. Skipped, with the reason printed, where no clang is installed. Returns (failed, run)."""
+    cc = clang_compilers()
+    if not cc:
+        print("header_check: clang P5 skipped: no clang-19 or clang (and its clang++) on PATH, NIJI_CLANG unset")
+        return 0, 0
+    res = subprocess.run([cc[0], "-print-resource-dir"], capture_output=True, text=True, check=True).stdout.strip()
+    fails = total = 0
+    for cid, lang, flags in CLANG_CONFIGS:
+        units = [(f"P5 {h} {cid}", f"#include <{h}>\n#include <{h}>\nint niji_check_tu;\n") for h in headers]
+        if only:
+            units = [u for u in units if only.search(u[0])]
+        for i, (what, text) in enumerate(units):
+            src = os.path.join(work, f"{cid}-{i}.{'cc' if lang == 'c++' else 'c'}")
+            with open(src, "w") as f:
+                f.write(text)
+            cmd = [cc[1] if lang == "c++" else cc[0], *flags.split(), "-nostdinc", "-isystem", os.path.join(res, "include"),
+                   "-isystem", inc, *(uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kern]),
+                   "-fsyntax-only", "-Wall", "-Wextra", "-Werror", src]
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            total += 1
+            if r.returncode != 0:
+                fails += 1
+                print(f"FAIL {what}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    return fails, total
+
+
 def rows(rel):
     out, head = [], None
     with open(os.path.join(ROOT, rel)) as f:
@@ -400,6 +452,8 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    f5, t5 = clang_p5(inc, kern, work, [r["header"] for r in srows if r["header"] not in must_fail], only)
+    fails, total = fails + f5, total + t5
     if only:
         if total == 0:
             print(f"FAIL --only {args.only}: no unit selected")

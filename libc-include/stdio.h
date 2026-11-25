@@ -267,7 +267,7 @@ extern FILE *fopen (const char *, const char *) __asm__ ("fopen64") __attribute_
 # endif
 # ifndef __NIJI_D_fprintf
 #  define __NIJI_D_fprintf 1
-extern int fprintf (FILE *, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3), __nonnull__ (1, 2)));
+extern int fprintf (FILE *, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3), __nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fputc
 #  define __NIJI_D_fputc 1
@@ -275,7 +275,7 @@ extern int fputc (int, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fputs
 #  define __NIJI_D_fputs 1
-extern int fputs (const char *, FILE *) __attribute__ ((__nonnull__ (1, 2)));
+extern int fputs (const char *, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fread
 #  define __NIJI_D_fread 1
@@ -292,11 +292,11 @@ extern FILE *freopen (const char *, const char *, FILE *) __asm__ ("freopen64") 
 # ifndef __NIJI_D_fscanf
 #  define __NIJI_D_fscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc23_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1, 2), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc23_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
 #  elif __NIJI_ISOC < 2023
-extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc99_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1, 2), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc99_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int fscanf (FILE *, const char *, ...) __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1, 2), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_fseek
@@ -317,7 +317,7 @@ extern long int ftell (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_re
 # endif
 # ifndef __NIJI_D_fwrite
 #  define __NIJI_D_fwrite 1
-extern unsigned long fwrite (const void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (1, 4)));
+extern unsigned long fwrite (const void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4)));
 # endif
 # ifndef __NIJI_D_getc
 #  define __NIJI_D_getc 1
@@ -333,7 +333,7 @@ extern void perror (const char *);
 # endif
 # ifndef __NIJI_D_printf
 #  define __NIJI_D_printf 1
-extern int printf (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2), __nonnull__ (1)));
+extern int printf (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 # endif
 # ifndef __NIJI_D_putc
 #  define __NIJI_D_putc 1
@@ -345,7 +345,7 @@ extern int putchar (int);
 # endif
 # ifndef __NIJI_D_puts
 #  define __NIJI_D_puts 1
-extern int puts (const char *) __attribute__ ((__nonnull__ (1)));
+extern int puts (const char *);
 # endif
 # ifndef __NIJI_D_remove
 #  define __NIJI_D_remove 1
@@ -362,11 +362,11 @@ extern void rewind (FILE *) __attribute__ ((__nonnull__ (1)));
 # ifndef __NIJI_D_scanf
 #  define __NIJI_D_scanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int scanf (const char *, ...) __asm__ ("__isoc23_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __nonnull__ (1), __warn_unused_result__));
+extern int scanf (const char *, ...) __asm__ ("__isoc23_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
 #  elif __NIJI_ISOC < 2023
-extern int scanf (const char *, ...) __asm__ ("__isoc99_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __nonnull__ (1), __warn_unused_result__));
+extern int scanf (const char *, ...) __asm__ ("__isoc99_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int scanf (const char *, ...) __attribute__ ((__format__ (__scanf__, 1, 2), __nonnull__ (1), __warn_unused_result__));
+extern int scanf (const char *, ...) __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_setbuf
@@ -379,16 +379,16 @@ extern int setvbuf (FILE *, char *, int, unsigned long) __NIJI_NOTHROW __attribu
 # endif
 # ifndef __NIJI_D_sprintf
 #  define __NIJI_D_sprintf 1
-extern int sprintf (char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3), __nonnull__ (1, 2)));
+extern int sprintf (char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3)));
 # endif
 # ifndef __NIJI_D_sscanf
 #  define __NIJI_D_sscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __asm__ ("__isoc23_sscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (2)));
+extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __asm__ ("__isoc23_sscanf") __attribute__ ((__format__ (__scanf__, 2, 3)));
 #  elif __NIJI_ISOC < 2023
-extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __asm__ ("__isoc99_sscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (2)));
+extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __asm__ ("__isoc99_sscanf") __attribute__ ((__format__ (__scanf__, 2, 3)));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (2)));
+extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__scanf__, 2, 3)));
 #  endif
 # endif
 # ifndef __NIJI_D_tmpfile
@@ -409,15 +409,15 @@ extern int ungetc (int, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_vfprintf
 #  define __NIJI_D_vfprintf 1
-extern int vfprintf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0), __nonnull__ (1, 2)));
+extern int vfprintf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0), __nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_vprintf
 #  define __NIJI_D_vprintf 1
-extern int vprintf (const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 1, 0), __nonnull__ (1)));
+extern int vprintf (const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 1, 0)));
 # endif
 # ifndef __NIJI_D_vsprintf
 #  define __NIJI_D_vsprintf 1
-extern int vsprintf (char *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0), __nonnull__ (1, 2)));
+extern int vsprintf (char *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
 #endif
 #if __NIJI_GNU
@@ -431,7 +431,7 @@ extern char *fgets_unlocked (char *, int, FILE *) __attribute__ ((__nonnull__ (3
 # endif
 # ifndef __NIJI_D_fputs_unlocked
 #  define __NIJI_D_fputs_unlocked 1
-extern int fputs_unlocked (const char *, FILE *) __attribute__ ((__nonnull__ (1, 2)));
+extern int fputs_unlocked (const char *, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 struct obstack;
 # ifndef __NIJI_D_obstack_printf
@@ -457,40 +457,40 @@ extern char *cuserid (char *);
 #if __NIJI_ISOC >= 1999
 # ifndef __NIJI_D_snprintf
 #  define __NIJI_D_snprintf 1
-extern int snprintf (char *, unsigned long, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 3, 4), __nonnull__ (3)));
+extern int snprintf (char *, unsigned long, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 3, 4)));
 # endif
 # ifndef __NIJI_D_vfscanf
 #  define __NIJI_D_vfscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc23_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1, 2), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc23_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
 #  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc99_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1, 2), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc99_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1, 2), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_vscanf
 #  define __NIJI_D_vscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc23_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc23_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
 #  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
-extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc99_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc99_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int vscanf (const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 1, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_vsnprintf
 #  define __NIJI_D_vsnprintf 1
-extern int vsnprintf (char *, unsigned long, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 3, 0), __nonnull__ (3)));
+extern int vsnprintf (char *, unsigned long, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 3, 0)));
 # endif
 # ifndef __NIJI_D_vsscanf
 #  define __NIJI_D_vsscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("__isoc23_vsscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (2)));
+extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("__isoc23_vsscanf") __attribute__ ((__format__ (__scanf__, 2, 0)));
 #  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
-extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("__isoc99_vsscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (2)));
+extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("__isoc99_vsscanf") __attribute__ ((__format__ (__scanf__, 2, 0)));
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (2)));
+extern int vsscanf (const char *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__scanf__, 2, 0)));
 #  endif
 # endif
 #endif
@@ -567,7 +567,7 @@ extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE 
 # endif
 # ifndef __NIJI_D_fwrite_unlocked
 #  define __NIJI_D_fwrite_unlocked 1
-extern unsigned long fwrite_unlocked (const void *, unsigned long, unsigned long, FILE *);
+extern unsigned long fwrite_unlocked (const void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4)));
 # endif
 # ifndef __NIJI_D_setbuffer
 #  define __NIJI_D_setbuffer 1

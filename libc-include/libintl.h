@@ -58,7 +58,7 @@ extern char *bindtextdomain (const char *, const char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dcgettext
 #  define __NIJI_D_dcgettext 1
-extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dcngettext
 #  define __NIJI_D_dcngettext 1
@@ -189,6 +189,14 @@ extern locale_t uselocale (locale_t) __NIJI_NOTHROW;
 # ifndef LC_TIME_MASK
 #  define LC_TIME_MASK 4
 # endif
+#endif
+
+/* The gettext interface revision this C library supports for a major revision (gettext.m4's AM_GNU_GETTEXT test
+   for "GNU gettext in libc"): minor revision 1 of major revision 0 (ngettext, dngettext and dcngettext with plural
+   forms, and the system-dependent format strings of a .mo file, `<PRId64>` and the like), -1 for any other major
+   revision. An int constant expression of a constant argument, which is evaluated once. */
+#if 1
+# define __GNU_GETTEXT_SUPPORTED_REVISION(major) ((major) == 0 ? 1 : -1)
 #endif
 
 #if __NIJI_FORTIFY >= 1

@@ -49,7 +49,7 @@ typedef __sigset_t sigset_t;
 # endif
 # ifndef __NIJI_D_signalfd
 #  define __NIJI_D_signalfd 1
-extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW;
+extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_anon_SFD_CLOEXEC
 #  define __NIJI_D_anon_SFD_CLOEXEC 1

@@ -115,7 +115,7 @@ typedef struct {
 struct epoll_event;
 # ifndef __NIJI_D_epoll_pwait
 #  define __NIJI_D_epoll_pwait 1
-extern int epoll_pwait (int, struct epoll_event *, int, int, const __sigset_t *);
+extern int epoll_pwait (int, struct epoll_event *, int, int, const __sigset_t *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
@@ -127,12 +127,12 @@ struct epoll_event;
 struct timespec;
 # ifndef __NIJI_D_epoll_pwait2
 #  define __NIJI_D_epoll_pwait2 1
-extern int epoll_pwait2 (int, struct epoll_event *, int, const struct timespec *, const __sigset_t *);
+extern int epoll_pwait2 (int, struct epoll_event *, int, const struct timespec *, const __sigset_t *) __attribute__ ((__nonnull__ (2)));
 # endif
 struct epoll_event;
 # ifndef __NIJI_D_epoll_wait
 #  define __NIJI_D_epoll_wait 1
-extern int epoll_wait (int, struct epoll_event *, int, int);
+extern int epoll_wait (int, struct epoll_event *, int, int) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_anon_EPOLL_CLOEXEC
 #  define __NIJI_D_anon_EPOLL_CLOEXEC 1

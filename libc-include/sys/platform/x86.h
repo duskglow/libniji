@@ -20,7 +20,7 @@ struct cpuid_feature {
 struct cpuid_feature;
 # ifndef __NIJI_D___x86_get_cpuid_feature_leaf
 #  define __NIJI_D___x86_get_cpuid_feature_leaf 1
-extern const struct cpuid_feature *__x86_get_cpuid_feature_leaf (unsigned int);
+extern const struct cpuid_feature *__x86_get_cpuid_feature_leaf (unsigned int) __attribute__ ((__pure__));
 # endif
 #endif
 

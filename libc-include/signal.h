@@ -844,6 +844,10 @@ typedef union {
 #  define __NIJI_D_fpregset_t 1
 typedef struct _libc_fpstate * fpregset_t;
 # endif
+# ifndef __NIJI_D_greg_t
+#  define __NIJI_D_greg_t 1
+typedef long long greg_t;
+# endif
 # ifndef __NIJI_D_gregset_t
 #  define __NIJI_D_gregset_t 1
 typedef long long gregset_t[23];
@@ -1078,7 +1082,7 @@ extern unsigned int getegid (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getentropy
 #  define __NIJI_D_getentropy 1
-extern int getentropy (void *, unsigned long) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int getentropy (void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_geteuid
 #  define __NIJI_D_geteuid 1
@@ -1220,12 +1224,12 @@ extern int profil (short unsigned int *, unsigned long, unsigned long, unsigned 
 #  define __NIJI_D_pwrite 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 500
 #   if __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__warn_unused_result__));
 #   else
-extern long pwrite (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_read
@@ -1390,7 +1394,7 @@ extern int vhangup (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_write
 #  define __NIJI_D_write 1
-extern long write (int, const void *, unsigned long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long write (int, const void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 #endif
 #if __NIJI_GNU
@@ -1473,7 +1477,7 @@ extern int pthread_sigqueue (unsigned long, int, const union sigval ) __NIJI_NOT
 # endif
 # ifndef __NIJI_D_pwrite64
 #  define __NIJI_D_pwrite64 1
-extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setresgid
 #  define __NIJI_D_setresgid 1

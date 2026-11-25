@@ -325,31 +325,31 @@ extern int inet6_opt_set_val (void *, int, void *, unsigned int) __NIJI_NOTHROW;
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_alloc
 #  define __NIJI_D_inet6_option_alloc 1
-extern unsigned char *inet6_option_alloc (struct cmsghdr *, int, int, int) __NIJI_NOTHROW;
+extern unsigned char *inet6_option_alloc (struct cmsghdr *, int, int, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_append
 #  define __NIJI_D_inet6_option_append 1
-extern int inet6_option_append (struct cmsghdr *, const unsigned char *, int, int) __NIJI_NOTHROW;
+extern int inet6_option_append (struct cmsghdr *, const unsigned char *, int, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_find
 #  define __NIJI_D_inet6_option_find 1
-extern int inet6_option_find (const struct cmsghdr *, unsigned char **, int) __NIJI_NOTHROW;
+extern int inet6_option_find (const struct cmsghdr *, unsigned char **, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_init
 #  define __NIJI_D_inet6_option_init 1
-extern int inet6_option_init (void *, struct cmsghdr **, int) __NIJI_NOTHROW;
+extern int inet6_option_init (void *, struct cmsghdr **, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct cmsghdr;
 # ifndef __NIJI_D_inet6_option_next
 #  define __NIJI_D_inet6_option_next 1
-extern int inet6_option_next (const struct cmsghdr *, unsigned char **) __NIJI_NOTHROW;
+extern int inet6_option_next (const struct cmsghdr *, unsigned char **) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_inet6_option_space
 #  define __NIJI_D_inet6_option_space 1
-extern int inet6_option_space (int) __NIJI_NOTHROW;
+extern int inet6_option_space (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct in6_addr;
 # ifndef __NIJI_D_inet6_rth_add

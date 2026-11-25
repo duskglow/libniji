@@ -68,11 +68,11 @@ extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__const__));
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_strcasecmp_l
 #  define __NIJI_D_strcasecmp_l 1
-extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
 # endif
 # ifndef __NIJI_D_strncasecmp_l
 #  define __NIJI_D_strncasecmp_l 1
-extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 4), __pure__));
 # endif
 #endif
 #if __NIJI_FORTIFY > 0

@@ -3792,6 +3792,7 @@ arpa/nameser.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	gid_t	typedef	!time64only
+arpa/nameser.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -13760,6 +13761,8 @@ ifaddrs.h	getsockname	function	!time64only
 ifaddrs.h	getsockopt	function	!time64only
 ifaddrs.h	gid_t	typedef	!time64only
 ifaddrs.h	id_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,isoc99,isoc11,isoc2x,time64only
+ifaddrs.h	ifa_broadaddr	macro	!time64only
+ifaddrs.h	ifa_dstaddr	macro	!time64only
 ifaddrs.h	ifaddrs	struct	!time64only
 ifaddrs.h	ino64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ifaddrs.h	ino_t	typedef	!time64only
@@ -15036,6 +15039,7 @@ libintl.h	_POSIX_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,pos
 libintl.h	_SYS_CDEFS_H	macro	!time64only
 libintl.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 libintl.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+libintl.h	__GNU_GETTEXT_SUPPORTED_REVISION	macro	!time64only
 libintl.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 libintl.h	__dcgettext	function	!time64only
 libintl.h	__dgettext	function	!time64only
@@ -22549,6 +22553,8 @@ net/if.h	if_indextoname	function	!time64only
 net/if.h	if_nameindex	function	!time64only
 net/if.h	if_nameindex	struct	!time64only
 net/if.h	if_nametoindex	function	!time64only
+net/if.h	ifa_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifa_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -24172,6 +24178,8 @@ net/if_ppp.h	if_indextoname	function	!time64only
 net/if_ppp.h	if_nameindex	function	!time64only
 net/if_ppp.h	if_nameindex	struct	!time64only
 net/if_ppp.h	if_nametoindex	function	!time64only
+net/if_ppp.h	ifa_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifa_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -25080,6 +25088,8 @@ net/if_shaper.h	if_indextoname	function	!time64only
 net/if_shaper.h	if_nameindex	function	!time64only
 net/if_shaper.h	if_nameindex	struct	!time64only
 net/if_shaper.h	if_nametoindex	function	!time64only
+net/if_shaper.h	ifa_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifa_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -44458,6 +44468,7 @@ resolv.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	getw	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen600,xopen700,isoc99,isoc11,isoc2x,time64only
 resolv.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	gid_t	typedef	!time64only
+resolv.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	group_source_req	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -47117,6 +47128,7 @@ signal.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	gid_t	typedef	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+signal.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 signal.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 signal.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -58130,6 +58142,7 @@ sys/param.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	gid_t	typedef	!time64only
+sys/param.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/param.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/param.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -62412,6 +62425,7 @@ sys/signal.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	gid_t	typedef	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/signal.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -65532,6 +65546,7 @@ sys/ucontext.h	_libc_fpstate	struct	!time64only
 sys/ucontext.h	_libc_fpxreg	struct	!time64only
 sys/ucontext.h	_libc_xmmreg	struct	!time64only
 sys/ucontext.h	fpregset_t	typedef	!time64only
+sys/ucontext.h	greg_t	typedef	!time64only
 sys/ucontext.h	gregset_t	typedef	!time64only
 sys/ucontext.h	mcontext_t	typedef	!time64only
 sys/ucontext.h	sigset_t	typedef	!time64only
@@ -68044,6 +68059,7 @@ sys/wait.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	gid_t	typedef	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/wait.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -73871,6 +73887,7 @@ ucontext.h	_libc_fpxreg	struct	!time64only
 ucontext.h	_libc_xmmreg	struct	!time64only
 ucontext.h	fpregset_t	typedef	!time64only
 ucontext.h	getcontext	function	!time64only
+ucontext.h	greg_t	typedef	!time64only
 ucontext.h	gregset_t	typedef	!time64only
 ucontext.h	makecontext	function	!time64only
 ucontext.h	mcontext_t	typedef	!time64only
@@ -76645,6 +76662,7 @@ wait.h	getuid	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	getusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	getwd	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	gid_t	typedef	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+wait.h	greg_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	gregset_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	group_member	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	gsignal	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23

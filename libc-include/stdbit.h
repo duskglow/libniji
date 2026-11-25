@@ -100,7 +100,13 @@ typedef unsigned char uint_least8_t;
 #define __STDC_ENDIAN_NATIVE__ __BYTE_ORDER__
 
 __extension__ typedef unsigned long long __niji_stdbit_ull;
+/* C++ has no _Bool (the compilers' <stdbool.h> define it as `bool` only in some C++ modes: clang's not under a strict
+   -std=c++NN): the same type there is `bool`. */
+#ifdef __cplusplus
+typedef bool __niji_stdbit_bool;
+#else
 __extension__ typedef _Bool __niji_stdbit_bool;
+#endif
 
 extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_uc (unsigned char __v) __NIJI_NOTHROW {return __v == 0 ? 8u : ((unsigned int) __builtin_clzll (__v) - 56u); }
 extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_leading_zeros_us (unsigned short __v) __NIJI_NOTHROW {return __v == 0 ? 16u : ((unsigned int) __builtin_clzll (__v) - 48u); }
