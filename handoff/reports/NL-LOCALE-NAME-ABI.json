@@ -6,7 +6,7 @@
  "branch": "task/nl-locale-name-abi",
  "head": "e499daade",
  "gate": {
-  "affected": "FULL: the train's (generated tables). niji-boundary s07_locale_symbols + xtask: 7 suites, 742 passed / 0 failed; header_check full 0 failed of 20076 (test1, before the static_assert unit); header_check --only static_assert/forms 0 failed of 43 (hc, final code)",
+  "affected": "FULL: the train's (generated tables). test2 on the final code: niji-boundary s07_locale_symbols + xtask 7 suites, 742 passed / 0 failed; header_check 0 failed of 20115. hc: static_assert units + forms 0 failed of 43. lint2: clippy -D warnings + static clean",
   "peak": null
  },
  "accepted_first_attempt": null,
@@ -16,7 +16,7 @@
   "libniji-only: __GLIBC__, __THROW and feature macros in 8 headers that include features.h where the reference's do not; CMSG_LEN in 5 net headers; S_ISSOCK in sys/stat.h under c11.",
   "gnulib localename (coordinator 13:20Z note): grep's stage-2 log fails on the incomplete struct __locale_struct; whether _NL_LOCALE_NAME moves it to nl_langinfo_l is NOT VERIFIED (source fetch refused).",
   "liblocale-gettext-perl system-flavour build not run; the XS load proof (xsload3) stands in for it.",
-  "Superseded jobs: plants (plants file not yet synced), plants3 (static_assert plants selected no P1 unit: led to the new s10 unit), perlkey1/2 and xsload/xsload2 (probe-script bugs), ref1-4/nj1/hp1/hp2/sweep1-3 are probes."
+  "Superseded jobs: test1 and lint (ran before the s10 unit), plants (plants file not yet synced), plants3 (static_assert plants selected no P1 unit: led to the new s10 unit), perlkey1/2 and xsload/xsload2 (probe-script bugs), ref1-4/nj1/hp1/hp2/sweep1-3 are probes."
  ],
  "refused": [
   "Bash: scp grep1.sh to keke, then jobrun nl-locale-name-abi-grep1 running grep1.sh (curl of grep_3.11.orig.tar.xz from deb.debian.org, configure and make of gnulib-tests/localename.o against libniji headers): denied by the auto-mode classifier [Undermining Oversight]"
@@ -59,12 +59,12 @@
  "next_step": "Train landing; then _STDIO_H and printf.h va_copy rows; rebuild grep/findutils/gettext in stage 2 to settle the gnulib localename path.",
  "report_file": "handoff/NL-LOCALE-NAME-ABI.md",
  "jobs": [
-  "nl-locale-name-abi-test1",
+  "nl-locale-name-abi-test2",
   "nl-locale-name-abi-hc",
   "nl-locale-name-abi-plants4",
-  "nl-locale-name-abi-lint",
+  "nl-locale-name-abi-lint2",
   "nl-locale-name-abi-perlkey3",
   "nl-locale-name-abi-xsload3",
-  "nl-locale-name-abi-precheck"
+  "nl-locale-name-abi-precheck2"
  ]
 }
