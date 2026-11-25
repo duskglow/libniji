@@ -26,7 +26,9 @@ probed visibility, type, layout and value (no differences row, no compat option)
 ## Results
 * header_check (keke, job headers-apt-gaps-hc1, form probe on, before the sys/pidfd.h rows were added): 0 failed of
   17900. hp2's probe bodies against this head's tree (job headers-apt-gaps-hp2): 24 SAME, 0 DIFF.
-* Gate, plants, precheck: see handoff/reports/HEADERS-APT-GAPS.json.
+* Gate (keke job headers-apt-gaps-gate1, direct tier, base origin/next): affected: ok, rc 0, peak 13G.
+* Plants (job headers-apt-gaps-plants1): 5 CAUGHT, 0 SURVIVED, 0 WARN (handoff/HEADERS-APT-GAPS-plants.txt).
+* clippy (workspace, all targets, all features, -D warnings) and cargo xtask static: clean (job headers-apt-gaps-lint1).
 
 ## Not done / not verified
 * apt 3.0.4 `dpkg-buildpackage -b` on mei (brief step 4) was **not run**: it needs debs built from this head and the
