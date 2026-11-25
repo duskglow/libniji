@@ -523,7 +523,10 @@ typedef void (*sig_t)(int);
 # endif
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
-union sigval { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); };
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
 # endif
 # ifndef __NIJI_D_sigval_t
 #  define __NIJI_D_sigval_t 1

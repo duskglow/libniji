@@ -1,0 +1,62 @@
+{
+ "task": "SL-HEADERS-UNSHIPPED-REST",
+ "model": "opus",
+ "tokens": null,
+ "result": "thread_db.h, proc_service.h, aio.h, mqueue.h shipped (generator tables, probe-settled forms, debugger-shaped libthread_db client and aio/mqueue C programs green); math-vector-fortran.h left unshipped pending a Fortran generator form (RULING NEEDED)",
+ "branch": "task/sl-headers-unshipped-rest",
+ "head": "548188cdf",
+ "gate": {
+  "affected": "pending (sl-headers-unshipped-rest-gate); t6 on the same code: header_check 0 failed of 17462, thread_db_products 2 passed, conformance 2+4 passed, clippy and static clean",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "precheck slice-contract: this header slice changes the shared generator (xtask/src/headers.rs, functions.rs: headers/arrayparams.tsv for array-form parameters; typedefs.rs: a typedef from its tag layout rows), needed for proc_service.h/thread_db.h to match the reference",
+   "recommendation": "accept the generator change in this story (small, table-driven, plants cover it) rather than split it into a generator story"
+  },
+  {
+   "item": "math-vector-fortran.h is not shipped: all 168 _ZGV names gfortran's directives would reference are libmvec exports of libniji, but shipping needs a Fortran output form of the header generator and a gfortran test (the build role has no gfortran)",
+   "recommendation": "a follow-up story on a host with gfortran"
+  }
+ ],
+ "informational": [
+  "plants td-decl-dropped and gregs-decayed: WARN-NO-MSG, caught by thread_db_products a_debugger_shaped_client... with the intended compile error (implicit declaration of td_thr_get_info; argument 3 ... mismatched bound [-Werror=array-parameter=]); the msg regex named a message the test does not print",
+  "P4 part 2: thread_db.h's 120 callsites lines are the documented C-linkage difference; the other differences are in headers this branch does not change and differ on next too",
+  "SUPERSEDED: t6 (kind test, no tested-content record), plants-3 (copied the role tree while t6 regenerated libc-include): reran as gate and plants-4"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "gdb's thread support (thread_db.h, proc_service.h) builds on libniji's headers: Yohane stage 2",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check rows for the four headers, a debugger-shaped libthread_db client test, s11_aio_listio conformance program, 5 plants",
+   "before": null,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "ps_lgetregs/ps_lsetregs/td_thr_getgregs/td_thr_setgregs declared in the array form, so a prgregset_t definition builds under -Werror",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "the probe splice for spec/abi tables should sort with the checker's key (abi-types order) instead of appending blocks; a shared sort helper in spec/tools would have saved a red leg",
+ "next_step": "follow-up story: Fortran output form of the header generator for math-vector-fortran.h, on a host with gfortran",
+ "report_file": "handoff/SL-HEADERS-UNSHIPPED-REST.md",
+ "jobs": [
+  "sl-headers-unshipped-rest-gate",
+  "sl-headers-unshipped-rest-plants-4"
+ ]
+}

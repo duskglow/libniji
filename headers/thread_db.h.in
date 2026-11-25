@@ -1,0 +1,41 @@
+@@generated
+/* thread_db.h: the thread debugging interface libthread_db.so.1 offers a debugger (the debugger supplies the
+   <proc_service.h> callbacks). */
+#ifndef __NIJI_H_thread_db_h
+#define __NIJI_H_thread_db_h 1
+
+#include <features.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/procfs.h>
+
+__NIJI_BEGIN_C
+
+/* The debugger's handle on the target process: defined by the debugger, opaque here. */
+struct ps_prochandle;
+
+@@emit
+
+@@if TD_SIGNO_MASK
+@@null TD_SIGNO_MASK
+#endif
+
+/* Event sets: event N (1 ... TD_MAX_EVENT_NUM) is bit (N - 1) % 32 of word (N - 1) / 32 of event_bits.
+   td_eventismember yields that word masked to the bit (nonzero when set); td_eventisempty yields 0 or 1. */
+#define td_event_emptyset(setp) \
+  ((void) ((setp)->event_bits[0] = 0, (setp)->event_bits[1] = 0))
+#define td_event_fillset(setp) \
+  ((void) ((setp)->event_bits[0] = ~(uint32_t) 0, (setp)->event_bits[1] = ~(uint32_t) 0))
+#define td_event_addset(setp, n) \
+  ((void) ((setp)->event_bits[((unsigned int) (n) - 1) >> 5] |= (uint32_t) 1 << (((unsigned int) (n) - 1) & 31)))
+#define td_event_delset(setp, n) \
+  ((void) ((setp)->event_bits[((unsigned int) (n) - 1) >> 5] &= ~((uint32_t) 1 << (((unsigned int) (n) - 1) & 31))))
+#define td_eventismember(setp, n) \
+  ((setp)->event_bits[((unsigned int) (n) - 1) >> 5] & ((uint32_t) 1 << (((unsigned int) (n) - 1) & 31)))
+#define td_eventisempty(setp) \
+  ((setp)->event_bits[0] == 0 && (setp)->event_bits[1] == 0)
+
+__NIJI_END_C
+
+#endif

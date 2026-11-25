@@ -152,6 +152,26 @@ enum __itimer_which {
   ITIMER_PROF = 2,
 };
 # endif
+# ifndef __NIJI_D_struct_user_fpregs_struct
+#  define __NIJI_D_struct_user_fpregs_struct 1
+struct user_fpregs_struct {
+  unsigned short cwd;
+  unsigned short swd;
+  unsigned short ftw;
+  unsigned short fop;
+  unsigned long long rip;
+  unsigned long long rdp;
+  unsigned int mxcsr;
+  unsigned int mxcr_mask;
+  unsigned int st_space[32];
+  unsigned int xmm_space[64];
+  unsigned int padding[24];
+};
+# endif
+# ifndef __NIJI_D_elf_fpregset_t
+#  define __NIJI_D_elf_fpregset_t 1
+typedef struct user_fpregs_struct elf_fpregset_t;
+# endif
 # ifndef __NIJI_D_elf_greg_t
 #  define __NIJI_D_elf_greg_t 1
 typedef unsigned long long elf_greg_t;
@@ -172,11 +192,113 @@ typedef int lwpid_t;
 # endif
 # ifndef __NIJI_D_struct_user_fpregs_struct
 #  define __NIJI_D_struct_user_fpregs_struct 1
-struct user_fpregs_struct { char __niji_opaque[512] __attribute__ ((__aligned__ (8))); };
+struct user_fpregs_struct {
+  unsigned short cwd;
+  unsigned short swd;
+  unsigned short ftw;
+  unsigned short fop;
+  unsigned long long rip;
+  unsigned long long rdp;
+  unsigned int mxcsr;
+  unsigned int mxcr_mask;
+  unsigned int st_space[32];
+  unsigned int xmm_space[64];
+  unsigned int padding[24];
+};
 # endif
 # ifndef __NIJI_D_prfpregset_t
 #  define __NIJI_D_prfpregset_t 1
 typedef struct user_fpregs_struct prfpregset_t;
+# endif
+# ifndef __NIJI_D_prgregset_t
+#  define __NIJI_D_prgregset_t 1
+typedef unsigned long long prgregset_t[27];
+# endif
+# ifndef __NIJI_D_struct_elf_prpsinfo
+#  define __NIJI_D_struct_elf_prpsinfo 1
+struct elf_prpsinfo {
+  char pr_state;
+  char pr_sname;
+  char pr_zomb;
+  char pr_nice;
+  unsigned long pr_flag;
+  unsigned int pr_uid;
+  unsigned int pr_gid;
+  int pr_pid;
+  int pr_ppid;
+  int pr_pgrp;
+  int pr_sid;
+  char pr_fname[16];
+  char pr_psargs[80];
+};
+# endif
+# ifndef __NIJI_D_prpsinfo_t
+#  define __NIJI_D_prpsinfo_t 1
+typedef struct elf_prpsinfo prpsinfo_t;
+# endif
+# ifndef __NIJI_D_struct_elf_siginfo
+#  define __NIJI_D_struct_elf_siginfo 1
+struct elf_siginfo {
+  int si_signo;
+  int si_code;
+  int si_errno;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_elf_gregset_t
+#  define __NIJI_D_elf_gregset_t 1
+typedef unsigned long long elf_gregset_t[27];
+# endif
+# ifndef __NIJI_D_struct_elf_prstatus
+#  define __NIJI_D_struct_elf_prstatus 1
+struct elf_prstatus {
+  struct elf_siginfo pr_info;
+  short pr_cursig;
+  unsigned long pr_sigpend;
+  unsigned long pr_sighold;
+  int pr_pid;
+  int pr_ppid;
+  int pr_pgrp;
+  int pr_sid;
+  struct timeval pr_utime;
+  struct timeval pr_stime;
+  struct timeval pr_cutime;
+  struct timeval pr_cstime;
+  elf_gregset_t pr_reg;
+  int pr_fpvalid;
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_prstatus_t
+#  define __NIJI_D_prstatus_t 1
+typedef struct elf_prstatus prstatus_t;
 # endif
 # ifndef __NIJI_D_psaddr_t
 #  define __NIJI_D_psaddr_t 1

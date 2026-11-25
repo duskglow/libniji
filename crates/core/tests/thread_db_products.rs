@@ -72,6 +72,64 @@ fn tv_values(s: &str) -> Vec<i64> {
     v
 }
 
+/// `tests/oracle/thread_db_client.c` built and run: on the reference (the build host's headers and
+/// `-lthread_db`), or on libniji (`products`: its staged headers alone with the compiler's own and
+/// the kernel UAPI directory, as niji-gcc orders them; linked dynamically against the products'
+/// `libthread_db.so` and `libc.so.6` under the products' loader). Its stdout.
+fn client(products: Option<&Path>, dir: &Path) -> String {
+    let src = root().join("crates/core/tests/oracle/thread_db_client.c");
+    let exe = dir.join(if products.is_some() { "thread_db_client-niji" } else { "thread_db_client-ref" });
+    let mut cc = Command::new("cc");
+    cc.args(["-std=gnu17", "-O1", "-Wall", "-Wextra", "-Werror"]);
+    match products {
+        None => {
+            cc.arg(&src).arg("-lthread_db");
+        }
+        Some(lib) => {
+            let gccinc = Command::new("cc").arg("-print-file-name=include").output().unwrap().stdout;
+            let gccinc = String::from_utf8(gccinc).unwrap();
+            cc.args(["-nostdinc", "-isystem"]).arg(lib.join("include")).args(["-isystem", gccinc.trim(), "-isystem"]).arg(lib.join("uapi"));
+            cc.args(["-nostdlib", "-fno-builtin"]).arg(lib.join("niji-crt1.o")).arg(&src).arg(format!("-L{}", lib.display()));
+            cc.arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()));
+            cc.arg("-lthread_db").arg(lib.join("libc.so.6")).arg("-lgcc");
+        }
+    }
+    assert!(oracle::build(cc, &exe), "thread_db_client.c does not build ({})", if products.is_some() { "libniji" } else { "reference" });
+    let mut run = Command::new("timeout");
+    run.arg(timeout::secs(60));
+    if let Some(lib) = products {
+        // libc.so.6 is a pinned soname: a development build is reached through LD_LIBRARY_PATH (D-27.16), set by
+        // `env` for the client alone (the host's `timeout` keeps the host's libc.so.6).
+        run.arg("env").arg(format!("LD_LIBRARY_PATH={}", lib.display()));
+    }
+    let o = run.arg(&exe).output().unwrap();
+    assert!(o.status.success(), "thread_db_client exits {:?}: {}", o.status, String::from_utf8_lossy(&o.stderr));
+    String::from_utf8(o.stdout).unwrap()
+}
+
+#[test]
+fn a_debugger_shaped_client_builds_on_libniji_headers_and_matches_the_reference() {
+    // Clauses: no spec clause (spec §22.10 names libthread_db.so.1's interface; plan/headers.md slice 16: <thread_db.h>
+    // and <proc_service.h> as gdb's thread support includes them). The client defines every ps_* callback with the
+    // header's prototype, calls td_init, td_ta_new and links td_thr_get_info; its sizes, offsets, event-set macro
+    // results and td_ta_new's refusal of a target without symbols must equal the reference's.
+    let r = root();
+    let products = r.join("target/niji");
+    for p in ["libc.so.6", "libthread_db.so", "libthread_db.so.1", "ld-linux-x86-64.so.2", "niji-crt1.o", "include/thread_db.h", "uapi"] {
+        assert!(products.join(p).exists(), "{p} is missing from the products: run `cargo xtask so`");
+    }
+    if skip_note::missing("cc") {
+        skip_note::skipped("skipped: no C compiler");
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let want = client(None, &dir);
+    let got = client(Some(&products.canonicalize().unwrap()), &dir);
+    assert!(want.starts_with("td_init ok\ntd_ta_new refused, looked up\n"), "the reference's client:\n{want}");
+    assert_eq!(got, want, "libniji's client (left) against the reference's (right)");
+}
+
 #[test]
 fn gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core() {
     // Clauses: no spec clause (spec §22.10 names libthread_db.so.1's interface, not a behaviour clause).

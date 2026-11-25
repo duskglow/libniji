@@ -319,6 +319,13 @@ typedef idtype_t	P_ALL	0
 typedef idtype_t	P_PID	1
 typedef idtype_t	P_PGID	2
 typedef idtype_t	P_PIDFD	3
+typedef ps_err_e	PS_OK	0
+typedef ps_err_e	PS_ERR	1
+typedef ps_err_e	PS_BADPID	2
+typedef ps_err_e	PS_BADLID	3
+typedef ps_err_e	PS_BADADDR	4
+typedef ps_err_e	PS_NOSYM	5
+typedef ps_err_e	PS_NOFREGS	6
 typedef reg_errcode_t	_REG_ENOSYS	-1
 typedef reg_errcode_t	_REG_NOERROR	0
 typedef reg_errcode_t	_REG_NOMATCH	1
