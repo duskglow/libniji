@@ -3887,6 +3887,7 @@ arpa/nameser.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,
 arpa/nameser.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	sig_atomic_t	typedef	!time64only
+arpa/nameser.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	sigaction	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	sigaction	struct	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 arpa/nameser.h	sigaddset	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
@@ -43430,6 +43431,7 @@ resolv.h	shutdown	function	!time64only
 resolv.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 resolv.h	sig_atomic_t	typedef	!time64only
+resolv.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	sigaction	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 resolv.h	sigaction	struct	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 resolv.h	sigaddset	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
@@ -45548,6 +45550,7 @@ signal.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 signal.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 signal.h	sig_atomic_t	typedef	!time64only
+signal.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	sigaction	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 signal.h	sigaction	struct	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 signal.h	sigaddset	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
@@ -56425,6 +56428,7 @@ sys/param.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx
 sys/param.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 sys/param.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 sys/param.h	sig_atomic_t	typedef	!time64only
+sys/param.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	sigaction	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 sys/param.h	sigaction	struct	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 sys/param.h	sigaddset	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
@@ -60615,6 +60619,7 @@ sys/signal.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cx
 sys/signal.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	sig_atomic_t	typedef	!time64only
+sys/signal.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	sigaction	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	sigaction	struct	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
 sys/signal.h	sigaddset	function	!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only
@@ -66213,6 +66218,7 @@ sys/wait.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx2
 sys/wait.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	sig_atomic_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+sys/wait.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	sigaction	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	sigaction	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/wait.h	sigaddset	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
@@ -74713,6 +74719,7 @@ wait.h	setusershell	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	si_status	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	si_value	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	sig_atomic_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+wait.h	sig_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	sigaction	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	sigaction	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 wait.h	sigaddset	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only

@@ -517,6 +517,10 @@ typedef void (*sighandler_t)(int);
 # endif
 #endif
 #if __NIJI_MISC
+# ifndef __NIJI_D_sig_t
+#  define __NIJI_D_sig_t 1
+typedef void (*sig_t)(int);
+# endif
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); };

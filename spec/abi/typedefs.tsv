@@ -3254,6 +3254,7 @@ function	shmget	sys/shm.h			int (int, unsigned long, int)
 struct	shmid_ds	sys/shm.h	112	8	shmid_ds
 function	shutdown	arpa/inet.h			int (int, int)
 typedef	sig_atomic_t	arpa/nameser.h	4	4	int
+typedef	sig_t	arpa/nameser.h	8	8	void (*)(int)
 function	sigabbrev_np	argz.h			char const* (int)
 struct	sigaction	arpa/nameser.h	152	8	sigaction
 function	sigaction	arpa/nameser.h			int (int, sigaction const*, sigaction*)

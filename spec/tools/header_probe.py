@@ -328,10 +328,11 @@ def package_names():
     own source or the reference system's installed documentation names: the BSD integer type names (tree's
     `u_long`; busybox's `caddr_t`, `loff_t`, `ulong`), the regex translate-table type (busybox's grep), and the
     login-accounting and other default path macros (busybox's sources, utmp(5), utmpx(5) and the installed
-    documentation). A candidate is only a name to test: which header shows it, and its type or value, are probed."""
+    documentation), and the BSD signal-handler type name `sig_t` (apt's configure checks for it or `sighandler_t`).
+    A candidate is only a name to test: which header shows it, and its type or value, are probed."""
     out = ["u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t",
            "u_int8_t", "u_int16_t", "u_int32_t", "u_int64_t", "caddr_t", "daddr_t", "loff_t", "register_t",
-           "RE_TRANSLATE_TYPE", "UTMP_FILE", "UTMPX_FILE", "WTMP_FILE", "WTMPX_FILE"]
+           "RE_TRANSLATE_TYPE", "UTMP_FILE", "UTMPX_FILE", "WTMP_FILE", "WTMPX_FILE", "sig_t"]
     out += [f"_PATH_{p}" for p in ("BSHELL", "BTMP", "DEFPATH", "DEV", "FSTAB", "GROUP", "GSHADOW", "KLOG", "LOG",
                                    "LOGIN", "MNTTAB", "MOUNTED", "MTAB", "PASSWD", "SERVICES", "SHADOW", "TMP",
                                    "TTY", "TTYS", "UTMP", "UTMPX", "WTMP", "WTMPX")]
