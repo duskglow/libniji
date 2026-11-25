@@ -38,9 +38,16 @@ ccde9d613 typedefs.tsv ar_hdr/utimbuf rows moved to sorted order (static abi-typ
   and zlib/gmp headers from packages beside): gmp.h `mpz_out_str` after <stdio.h> in C (gnu17, c89) and C++ (gnu++17):
   ok; bzip2 1.0.8 libbz2.a + bzip2 + bzip2recover: ok; elfutils 0.190 configure + lib + libelf.a: ok; coreutils 9.4
   configure --with-libgmp (HAVE_GMP_H 1, LIB_GMP -lgmp) + src/expr: proof4.
+* lint2 RESULT: rc 0 (clippy clean, static clean, headers-gen --check ok, 0 failed of 87). plants and lint2 are the
+  JOBS for the code head ccde9d613 (+ hc2 for the full header_check / xtask result on the same generated tree).
+* coreutils: RUNNING at leg-2 end: `headers-stage2-gaps-c-proof6` (script ~/work/headers-stage2-gaps-c/proof3.sh,
+  `make -k -j16 V=1` of the whole configured tree, judges src/expr: built + `-lgmp` on its link line; prints the count
+  and first lines of other errors, which are INFORMATIONAL unless they touch this story's headers). Read with
+  `~/bin/jobwait headers-stage2-gaps-c-proof6` and the tail of ~/logs/headers-stage2-gaps-c-proof6.log.
 * SUPERSEDED: `-hc1` (0/20166 + xtask green, on df1671e60, before the leg-2 fixes), `-gen3` (found the two defects),
   `-gen4` (new units 0/723, pre-commit tree), `-proof` (script set-up: gmp.h path, missing libgmp10/zlib1g-dev),
-  `-proof3` (script checked HAVE_GMP; coreutils names it HAVE_GMP_H; configure itself was fine).
+  `-proof3`/`-proof4` (my script's gmp check named the wrong config.h / Makefile variable; configure was fine: HAVE_GMP_H
+  1), `-proof5` (`make src/expr` alone skips BUILT_SOURCES: gnulib's replacement stdckdint.h was not generated).
 
 ## NEXT (leg 3): coordinator note 13:43Z (wins over the brief)
 "in your completeness pass, the amateur-radio and legacy protocol headers first: struct sockaddr_ax25
