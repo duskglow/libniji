@@ -38,7 +38,12 @@ fn intc(g: &mut Gen<'_>, _args: &[&str]) {
             _ => "",
         };
         let body = if suffix.is_empty() { "c".to_string() } else { format!("c ## {suffix}") };
-        g.out.extend([format!("# ifndef {m}"), format!("#  define {m}(c) {body}"), "# endif".into()]);
+        // The reference's form (macro-forms.tsv, as for the object-like macros): its definition replaces a program's.
+        if g.t.redefined(&g.header, &m) {
+            g.out.push(format!("# define {m}(c) {body}"));
+        } else {
+            g.out.extend([format!("# ifndef {m}"), format!("#  define {m}(c) {body}"), "# endif".into()]);
+        }
     }
 }
 
