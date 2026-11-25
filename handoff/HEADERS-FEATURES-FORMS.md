@@ -1,8 +1,19 @@
-# HEADERS-FEATURES-FORMS (handoff, end of leg 3 of run 1)
+# HEADERS-FEATURES-FORMS (handoff, end of run 2, HEADERS-FEATURES-FORMS-2)
 
-**State:** branch `task/headers-features-forms` (from origin/next db602e58c), role keke:~/w/r2. Head: the commit
-after this note. Generated headers regenerated and committed. Report json: `handoff/reports/HEADERS-FEATURES-FORMS.json`;
-plants record: `handoff/HEADERS-FEATURES-FORMS-plants.txt`.
+**State:** branch `task/headers-features-forms-2` (run 1's `task/headers-features-forms` plus run 2's commits; base
+origin/next db602e58c), role keke:~/w/r1. Head: the commit after this note. Report json:
+`handoff/reports/HEADERS-FEATURES-FORMS-2.json` (run 1: `...-FORMS.json`); plants records:
+`handoff/HEADERS-FEATURES-FORMS-plants.txt` (run 1, 7/7 CAUGHT), `handoff/HEADERS-FEATURES-FORMS-2-plants.txt` (1/1).
+
+## Run 2 (this run)
+* Gate3's red (p2_visibility_of_the_fixed_rows: "extra sys/pidfd.h F_OWNER_GID enumerator") was a gap in the
+  reference table, not in libniji's headers: a black-box probe (`header_probe.py --names` over every public header on
+  the reference) shows F_OWNER_GID as an enumerator in the same six headers and configurations as F_OWNER_PGRP
+  (fcntl.h, sys/fcntl.h, sys/file.h, mqueue.h, sys/mount.h, sys/pidfd.h; gnu and every C++ mode). Run 1 spliced rows
+  only for F_OWNER_TID/PID/PGRP. 6 rows spliced into visibility.tsv; headers unchanged.
+* Provenance fragment `spec/abi/provenance.d/HEADERS-FEATURES-FORMS-2.txt` added for the branch's table changes (run 1
+  added none).
+* Plant hff2-gid-row (row deleted) CAUGHT by p2_visibility_of_the_fixed_rows.
 
 ## Done
 * Leg 1: probes and tables (`spec/abi/use-macros.tsv`, `spec/abi/macro-forms.tsv`, 47 visibility rows), features.h.in
@@ -50,10 +61,15 @@ plants record: `handoff/HEADERS-FEATURES-FORMS-plants.txt`.
 * `struct f_owner_ex.type` is `unsigned int` (layouts: `enum __pid_type`), pre-existing generator behaviour.
 * Numeric `__USE_*` levels a program defines itself are not honoured (only MISC/GNU).
 
+* Other enumerators.tsv names may lack visibility.tsv rows the same way (only the six P2 headers are compared in the
+  direct tier); a full `header_probe.py` re-run would settle it (INFORMATIONAL).
+
 ## Exact next step
 Land. If the gate or plants named in the hand-back are red: fix what they name, run only that suite.
 
-Jobs (keke, labels prefixed headers-features-forms-): final head: gate3, plants3, pkg6 (proofs), regen3 (table,
-headers-gen, stubs, clippy). Superseded: pkg1..5 (script iterations / earlier heads), pkgctl (next), pkgctl252 (25.2),
+Run 2 jobs (keke, labels prefixed headers-features-forms-2-): gate (direct/bounded xtask set), plants, lint0 (clippy +
+static on the inherited head), gidprobe (reference probe of F_OWNER_GID).
+Run 1 jobs (keke, labels prefixed headers-features-forms-): gate3 (red: F_OWNER_GID row, fixed in run 2), plants3,
+pkg6 (proofs), regen3 (table, headers-gen, stubs, clippy). Superseded: pkg1..5 (script iterations / earlier heads), pkgctl (next), pkgctl252 (25.2),
 fio and kspell (probes), lint1, gate (875 FAILs), gate2 (FIOCLEX), plants1 (--only bug), plants2 (stopped, stale head),
 regen, regen2 (ran before a sync).
