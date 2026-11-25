@@ -1,0 +1,28 @@
+{"task": "RELEASE-SNAPSHOT-1124D", "model": "opus", "tokens": null,
+ "result": "NOT snapshot-ready at 44304e709: libniji's headers compile/link/run in C and C++ in both flavours (234 of 236, 2 refuse direct inclusion as stock's do; 0 FAIL), yohane-1 cmocka PASS, 5 of 7 Debian packages build; header gaps (u_long, RE_TRANSLATE_TYPE, utmp/wtmp path macros, xxhash S_IF*) break tree, xxhash and static busybox (4e not run); heap_meta_products #21 test red; start-up +12.1k instr with 3 libraries",
+ "branch": "task/release-snapshot-1124d", "head": null,
+ "gate": {"affected": "GATE bad=0 (direct tier, no code change); plants 6 CAUGHT / 0 SURVIVED", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+   {"item": "Publish snapshot-2026-11-24.2 (44304e709) with the header gaps, the #21 products-test red and the start-up rise as known limitations, or hold for fixes", "recommendation": "publish: Yohane's stage 2 is blocked on having any headers; 234 of 236 shipped headers and 5 of 7 sample packages work, and the gaps are named per header for R-H7; brief the gap fixes at once and cut the next serial when they land"},
+   {"item": "heap_meta_products find_over_200000_entries_bounds_its_address_space fails on next (36,672..38,464 KiB over 3 entries > 35,000) while the packaged #21 formula passes 5 of 5", "recommendation": "brief a story to find the cause (inference only: the 3-file base fell 9,600 KiB with the smaller start-up reservation while the 200,000 need is unchanged) and settle whether the test's bound should be on the absolute need"}
+ ],
+ "informational": [
+   "Header gaps (stock 2.39 PASS, libniji FAIL, mei hp-1): <sys/types.h> u_long (default mode); <regex.h> RE_TRANSLATE_TYPE (_GNU_SOURCE); <paths.h> _PATH_WTMP, <utmp.h> WTMP_FILE/_PATH_UTMP, <utmpx.h> WTMPX_FILE/UTMPX_FILE; xxhash's S_IFMT/S_IFREG/S_IFDIR configuration not isolated",
+   "Evidence jobs with rc 1 by finding: mei:release-snapshot-1124d-ypk-1 (tree, xxhash, busybox), mei:release-snapshot-1124d-yhc-1 (niji-cc absent from the packages), keke:release-snapshot-1124d-heapnode-1 (#21 test)",
+   "Coverage: 242 of Debian libc6-dev 2.41's 478 header names missing (11 outside bits/, 66 stock-includable bits/): handoff/RELEASE-SNAPSHOT-1124D-headers.txt",
+   "Start-up vs 24.1: +1,937..+1,996 user instructions (empty main, clock_gettime), +12,142/+12,145 with 3 libraries, both CPU classes; faults equal",
+   "Docs: tools/deb/description/libc6-dev and README.md:27 still say there are no headers; SL-HEADERS-S20.md names niji-cc, which no package ships; install-packages.md names a.out.h as shipped",
+   "lint warnings 43 -> 50 (new no-manual-page, locales debconf, niji6-dev absolute-symlink-in-top-level-folder); L3 fixed",
+   "Root checks: 37 of 42 verdict sets equal 24.1's; yohane FAIL -> PASS, roots 21 -> 31 PASS, y12/y21/lint as in the handoff"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "header checks added to the snapshot procedure (per-header C/C++ units both flavours, Debian package builds, static busybox, identifier probe)", "before": 0, "after": 4, "unit": "new root checks", "measured": true},
+   {"kind": "correctness", "what": "yohane-1 (gcc cm.c -lcmocka in a system-flavour root) on the snapshot", "before": 2, "after": 0, "unit": "failing checks", "measured": true},
+   {"kind": "perf", "what": "start-up, 3 libraries, Zen 1 (24.1 -> head)", "before": 229422, "after": 241564, "unit": "user instr/start", "measured": true}
+ ],
+ "jobs": ["keke:release-snapshot-1124d-gate-1", "keke:release-snapshot-1124d-plants-1", "keke:release-snapshot-1124d-debs-1", "keke:release-snapshot-1124d-smoke-keke-1", "keke:release-snapshot-1124d-startup-keke-1", "keke:release-snapshot-1124d-install-1", "mei:release-snapshot-1124d-smoke-mei-1", "mei:release-snapshot-1124d-startup-mei-1", "mei:release-snapshot-1124d-yh-1", "mei:release-snapshot-1124d-yohane-1", "mei:release-snapshot-1124d-y21-1"],
+ "improvement": "the snapshot procedure had no header check at all; yh/yhc/ypk/hp now are reusable root jobs (stock vs libniji per header, real package builds) and found three gaps the in-tree header tests missed",
+ "next_step": "coordinator rules on publishing 24.2 and briefs the header-gap fixes (u_long, RE_TRANSLATE_TYPE, utmp/wtmp paths, xxhash S_IF*), the heap_meta_products red and the stale no-headers docs",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1124D.md"}
