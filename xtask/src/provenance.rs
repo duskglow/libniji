@@ -43,6 +43,7 @@ const TABLES: &[Counted] = &[
     ("layouts.tsv", "rows", &[("type", "types")]),
     ("initializers.tsv", "rows", &[]),
     ("enumerators.tsv", "rows", &[("tag", "tags")]),
+    ("enum-macros.tsv", "rows", &[]),
     ("prototypes.tsv", "rows", &[("header", "headers")]),
     ("chk-prototypes.tsv", "rows", &[]),
     ("constants.tsv", "rows", &[]),
