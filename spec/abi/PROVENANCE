@@ -61,3 +61,8 @@ visibility.tsv (25 `__locale_t` typedef rows, each with the configurations of th
 `__CORRECT_ISO_CPP_STRING_H_PROTO` and 3 `__CORRECT_ISO_CPP_WCHAR_H_PROTO` macro rows, C++ configurations only). The
 typedefs.tsv row of `__locale_t` by type_probe.py --headers argp.h (8, 8, `__locale_struct*`).
 HEADERS-APT-GAPS: visibility.tsv rows for HEADER and the siginfo_t member names si_call_addr, si_syscall, si_arch, si_lower, si_upper, si_pkey (header_probe.py --names, 51 rows spliced, committed rows unchanged); HEADER added to abi_extract.py's types, its 16 layouts.tsv rows taken from an abi_extract.py --layouts-only run (only those spliced: the run also differs in rows of struct _fpstate, struct _libc_fpstate and __sigset_t, left for a follow-up), its typedefs.tsv row from type_probe.py --headers arpa/nameser.h. GCC 13.3, glibc 2.39.
+typegeneric.tsv (SL-HEADERS-COMPLEX-TGMATH): spec/tools/tgmath_probe.py on the reference system (ldd (Ubuntu GLIBC
+2.39-0ubuntu8.9) 2.39, GCC 13.3), eight configurations (C89, C99, C11, C2X strict, gnu17, _GNU_SOURCE, C++98 and
+gnu++17 through the C++ library's wrappers), 23474 rows: per tgmath.h macro and argument types the functions the call
+references, the result type and the form; per complex.h macro its type and whether it is a constant expression.
+Read back are only exit statuses and the symbols and object sizes of the probe's own objects.

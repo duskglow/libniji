@@ -102,6 +102,7 @@ aio.h	__blksize_t	typedef	!time64only
 aio.h	__caddr_t	typedef	!time64only
 aio.h	__clock_t	typedef	!time64only
 aio.h	__clockid_t	typedef	!time64only
+aio.h	__daddr_t	typedef	!time64only
 aio.h	__dev_t	typedef	!time64only
 aio.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 aio.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -288,6 +289,7 @@ aliases.h	__blksize_t	typedef	!time64only
 aliases.h	__caddr_t	typedef	!time64only
 aliases.h	__clock_t	typedef	!time64only
 aliases.h	__clockid_t	typedef	!time64only
+aliases.h	__daddr_t	typedef	!time64only
 aliases.h	__dev_t	typedef	!time64only
 aliases.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 aliases.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -827,6 +829,7 @@ argp.h	__clockid_t	typedef	!time64only
 argp.h	__ctype_b_loc	function	!time64only
 argp.h	__ctype_tolower_loc	function	!time64only
 argp.h	__ctype_toupper_loc	function	!time64only
+argp.h	__daddr_t	typedef	!time64only
 argp.h	__dev_t	typedef	!time64only
 argp.h	__dprintf_chk	function	fortify2,fortify3
 argp.h	__errno_location	function	!time64only
@@ -1994,6 +1997,7 @@ arpa/inet.h	__caddr_t	typedef	!time64only
 arpa/inet.h	__clock_t	typedef	!time64only
 arpa/inet.h	__clockid_t	typedef	!time64only
 arpa/inet.h	__cmsg_nxthdr	function	!time64only
+arpa/inet.h	__daddr_t	typedef	!time64only
 arpa/inet.h	__dev_t	typedef	!time64only
 arpa/inet.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -3616,6 +3620,7 @@ arpa/nameser.h	__blksize_t	typedef	!time64only
 arpa/nameser.h	__caddr_t	typedef	!time64only
 arpa/nameser.h	__clock_t	typedef	!time64only
 arpa/nameser.h	__clockid_t	typedef	!time64only
+arpa/nameser.h	__daddr_t	typedef	!time64only
 arpa/nameser.h	__dev_t	typedef	!time64only
 arpa/nameser.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -4159,6 +4164,7 @@ arpa/nameser_compat.h	__blksize_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64
 arpa/nameser_compat.h	__caddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser_compat.h	__clock_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser_compat.h	__clockid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+arpa/nameser_compat.h	__daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser_compat.h	__dev_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser_compat.h	__fsblkcnt64_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/nameser_compat.h	__fsblkcnt_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -4407,6 +4413,7 @@ byteswap.h	__blksize_t	typedef	!time64only
 byteswap.h	__caddr_t	typedef	!time64only
 byteswap.h	__clock_t	typedef	!time64only
 byteswap.h	__clockid_t	typedef	!time64only
+byteswap.h	__daddr_t	typedef	!time64only
 byteswap.h	__dev_t	typedef	!time64only
 byteswap.h	__fsblkcnt64_t	typedef	!time64only
 byteswap.h	__fsblkcnt_t	typedef	!time64only
@@ -5192,6 +5199,7 @@ complex.h	__ctype_b_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__ctype_get_mb_cur_max	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__ctype_tolower_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__ctype_toupper_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
+complex.h	__daddr_t	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__daylight	object	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__dev_t	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__drem	function	cxx11,cxx14,cxx17,cxx20,cxx23
@@ -7640,6 +7648,7 @@ ctype.h	__clockid_t	typedef	!time64only
 ctype.h	__ctype_b_loc	function	!time64only
 ctype.h	__ctype_tolower_loc	function	!time64only
 ctype.h	__ctype_toupper_loc	function	!time64only
+ctype.h	__daddr_t	typedef	!time64only
 ctype.h	__dev_t	typedef	!time64only
 ctype.h	__fsblkcnt64_t	typedef	!time64only
 ctype.h	__fsblkcnt_t	typedef	!time64only
@@ -7865,6 +7874,7 @@ dirent.h	__blksize_t	typedef	!time64only
 dirent.h	__caddr_t	typedef	!time64only
 dirent.h	__clock_t	typedef	!time64only
 dirent.h	__clockid_t	typedef	!time64only
+dirent.h	__daddr_t	typedef	!time64only
 dirent.h	__dev_t	typedef	!time64only
 dirent.h	__fsblkcnt64_t	typedef	!time64only
 dirent.h	__fsblkcnt_t	typedef	!time64only
@@ -11186,6 +11196,7 @@ elf.h	__blksize_t	typedef	!time64only
 elf.h	__caddr_t	typedef	!time64only
 elf.h	__clock_t	typedef	!time64only
 elf.h	__clockid_t	typedef	!time64only
+elf.h	__daddr_t	typedef	!time64only
 elf.h	__dev_t	typedef	!time64only
 elf.h	__fsblkcnt64_t	typedef	!time64only
 elf.h	__fsblkcnt_t	typedef	!time64only
@@ -11280,6 +11291,7 @@ endian.h	__blksize_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64
 endian.h	__caddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 endian.h	__clock_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 endian.h	__clockid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+endian.h	__daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 endian.h	__dev_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 endian.h	__fsblkcnt64_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 endian.h	__fsblkcnt_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -12011,6 +12023,7 @@ fcntl.h	__blksize_t	typedef	!time64only
 fcntl.h	__caddr_t	typedef	!time64only
 fcntl.h	__clock_t	typedef	!time64only
 fcntl.h	__clockid_t	typedef	!time64only
+fcntl.h	__daddr_t	typedef	!time64only
 fcntl.h	__dev_t	typedef	!time64only
 fcntl.h	__fsblkcnt64_t	typedef	!time64only
 fcntl.h	__fsblkcnt_t	typedef	!time64only
@@ -12388,6 +12401,7 @@ fts.h	__blksize_t	typedef	!time64only
 fts.h	__caddr_t	typedef	!time64only
 fts.h	__clock_t	typedef	!time64only
 fts.h	__clockid_t	typedef	!time64only
+fts.h	__daddr_t	typedef	!time64only
 fts.h	__dev_t	typedef	!time64only
 fts.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fts.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -12656,6 +12670,7 @@ ftw.h	__blksize_t	typedef	!time64only
 ftw.h	__caddr_t	typedef	!time64only
 ftw.h	__clock_t	typedef	!time64only
 ftw.h	__clockid_t	typedef	!time64only
+ftw.h	__daddr_t	typedef	!time64only
 ftw.h	__dev_t	typedef	!time64only
 ftw.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ftw.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -12956,6 +12971,7 @@ grp.h	__blksize_t	typedef	!time64only
 grp.h	__caddr_t	typedef	!time64only
 grp.h	__clock_t	typedef	!time64only
 grp.h	__clockid_t	typedef	!time64only
+grp.h	__daddr_t	typedef	!time64only
 grp.h	__dev_t	typedef	!time64only
 grp.h	__fsblkcnt64_t	typedef	!time64only
 grp.h	__fsblkcnt_t	typedef	!time64only
@@ -13456,6 +13472,7 @@ ifaddrs.h	__caddr_t	typedef	!time64only
 ifaddrs.h	__clock_t	typedef	!time64only
 ifaddrs.h	__clockid_t	typedef	!time64only
 ifaddrs.h	__cmsg_nxthdr	function	!time64only
+ifaddrs.h	__daddr_t	typedef	!time64only
 ifaddrs.h	__dev_t	typedef	!time64only
 ifaddrs.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ifaddrs.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -13885,6 +13902,7 @@ inttypes.h	__blksize_t	typedef	!time64only
 inttypes.h	__caddr_t	typedef	!time64only
 inttypes.h	__clock_t	typedef	!time64only
 inttypes.h	__clockid_t	typedef	!time64only
+inttypes.h	__daddr_t	typedef	!time64only
 inttypes.h	__dev_t	typedef	!time64only
 inttypes.h	__fsblkcnt64_t	typedef	!time64only
 inttypes.h	__fsblkcnt_t	typedef	!time64only
@@ -14283,6 +14301,7 @@ lastlog.h	__blksize_t	typedef	!time64only
 lastlog.h	__caddr_t	typedef	!time64only
 lastlog.h	__clock_t	typedef	!time64only
 lastlog.h	__clockid_t	typedef	!time64only
+lastlog.h	__daddr_t	typedef	!time64only
 lastlog.h	__dev_t	typedef	!time64only
 lastlog.h	__fd_mask	typedef	!time64only
 lastlog.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -17928,6 +17947,7 @@ link.h	__blksize_t	typedef	!time64only
 link.h	__caddr_t	typedef	!time64only
 link.h	__clock_t	typedef	!time64only
 link.h	__clockid_t	typedef	!time64only
+link.h	__daddr_t	typedef	!time64only
 link.h	__dev_t	typedef	!time64only
 link.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 link.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -18223,6 +18243,7 @@ malloc.h	__blksize_t	typedef	!time64only
 malloc.h	__caddr_t	typedef	!time64only
 malloc.h	__clock_t	typedef	!time64only
 malloc.h	__clockid_t	typedef	!time64only
+malloc.h	__daddr_t	typedef	!time64only
 malloc.h	__dev_t	typedef	!time64only
 malloc.h	__dprintf_chk	function	fortify2,fortify3
 malloc.h	__fgets_chk	function	fortify1,fortify2,fortify3
@@ -18730,6 +18751,7 @@ math.h	__coshf64x	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	__coshl	function	!c89,time64only
 math.h	__cosl	function	!c89,time64only
 math.h	__ctype_get_mb_cur_max	function	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+math.h	__daddr_t	typedef	!time64only
 math.h	__dev_t	typedef	!time64only
 math.h	__drem	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	__dremf	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -20649,6 +20671,7 @@ monetary.h	__blksize_t	typedef	!time64only
 monetary.h	__caddr_t	typedef	!time64only
 monetary.h	__clock_t	typedef	!time64only
 monetary.h	__clockid_t	typedef	!time64only
+monetary.h	__daddr_t	typedef	!time64only
 monetary.h	__dev_t	typedef	!time64only
 monetary.h	__fsblkcnt64_t	typedef	!time64only
 monetary.h	__fsblkcnt_t	typedef	!time64only
@@ -20909,6 +20932,7 @@ mqueue.h	__blksize_t	typedef	!time64only
 mqueue.h	__caddr_t	typedef	!time64only
 mqueue.h	__clock_t	typedef	!time64only
 mqueue.h	__clockid_t	typedef	!time64only
+mqueue.h	__daddr_t	typedef	!time64only
 mqueue.h	__dev_t	typedef	!time64only
 mqueue.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -21349,6 +21373,7 @@ net/ethernet.h	__blksize_t	typedef	!time64only
 net/ethernet.h	__caddr_t	typedef	!time64only
 net/ethernet.h	__clock_t	typedef	!time64only
 net/ethernet.h	__clockid_t	typedef	!time64only
+net/ethernet.h	__daddr_t	typedef	!time64only
 net/ethernet.h	__dev_t	typedef	!time64only
 net/ethernet.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/ethernet.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -21890,6 +21915,7 @@ net/if.h	__caddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,d
 net/if.h	__clock_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	__clockid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	__daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	__dev_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -21964,7 +21990,27 @@ net/if.h	if_indextoname	function	!time64only
 net/if.h	if_nameindex	function	!time64only
 net/if.h	if_nameindex	struct	!time64only
 net/if.h	if_nametoindex	function	!time64only
+net/if.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifconf	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ifmap	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_addr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_bandwidth	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_data	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_flags	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_hwaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_ifindex	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_map	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_metric	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_mtu	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_name	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_netmask	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_newname	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_qlen	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	ifr_slave	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ifreq	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ino64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	ino_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -22583,6 +22629,7 @@ net/if_arp.h	__caddr_t	typedef	!time64only
 net/if_arp.h	__clock_t	typedef	!time64only
 net/if_arp.h	__clockid_t	typedef	!time64only
 net/if_arp.h	__cmsg_nxthdr	function	!time64only
+net/if_arp.h	__daddr_t	typedef	!time64only
 net/if_arp.h	__dev_t	typedef	!time64only
 net/if_arp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_arp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -23483,6 +23530,7 @@ net/if_ppp.h	__caddr_t	typedef	!time64only
 net/if_ppp.h	__clock_t	typedef	!time64only
 net/if_ppp.h	__clockid_t	typedef	!time64only
 net/if_ppp.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	__daddr_t	typedef	!time64only
 net/if_ppp.h	__dev_t	typedef	!time64only
 net/if_ppp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -23562,7 +23610,27 @@ net/if_ppp.h	if_indextoname	function	!time64only
 net/if_ppp.h	if_nameindex	function	!time64only
 net/if_ppp.h	if_nameindex	struct	!time64only
 net/if_ppp.h	if_nametoindex	function	!time64only
+net/if_ppp.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifconf	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ifmap	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_addr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_bandwidth	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_data	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_flags	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_hwaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_ifindex	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_map	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_metric	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_mtu	macro	!time64only
+net/if_ppp.h	ifr_name	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_netmask	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_newname	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_qlen	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_ppp.h	ifr_slave	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ifreq	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ino64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ino_t	typedef	!time64only
@@ -24373,6 +24441,7 @@ net/if_shaper.h	__caddr_t	typedef	!time64only
 net/if_shaper.h	__clock_t	typedef	!time64only
 net/if_shaper.h	__clockid_t	typedef	!time64only
 net/if_shaper.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	__daddr_t	typedef	!time64only
 net/if_shaper.h	__dev_t	typedef	!time64only
 net/if_shaper.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -24447,7 +24516,27 @@ net/if_shaper.h	if_indextoname	function	!time64only
 net/if_shaper.h	if_nameindex	function	!time64only
 net/if_shaper.h	if_nameindex	struct	!time64only
 net/if_shaper.h	if_nametoindex	function	!time64only
+net/if_shaper.h	ifaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifc_buf	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifc_req	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifconf	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ifmap	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_addr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_bandwidth	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_broadaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_data	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_dstaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_flags	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_hwaddr	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_ifindex	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_map	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_metric	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_mtu	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_name	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_netmask	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_newname	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_qlen	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if_shaper.h	ifr_slave	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ifreq	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ino64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ino_t	typedef	!time64only
@@ -24610,6 +24699,7 @@ net/ppp_defs.h	__blksize_t	typedef	!time64only
 net/ppp_defs.h	__caddr_t	typedef	!time64only
 net/ppp_defs.h	__clock_t	typedef	!time64only
 net/ppp_defs.h	__clockid_t	typedef	!time64only
+net/ppp_defs.h	__daddr_t	typedef	!time64only
 net/ppp_defs.h	__dev_t	typedef	!time64only
 net/ppp_defs.h	__fsblkcnt64_t	typedef	!time64only
 net/ppp_defs.h	__fsblkcnt_t	typedef	!time64only
@@ -25277,6 +25367,7 @@ net/route.h	__caddr_t	typedef	!time64only
 net/route.h	__clock_t	typedef	!time64only
 net/route.h	__clockid_t	typedef	!time64only
 net/route.h	__cmsg_nxthdr	function	!time64only
+net/route.h	__daddr_t	typedef	!time64only
 net/route.h	__dev_t	typedef	!time64only
 net/route.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -25859,6 +25950,7 @@ netatalk/at.h	__caddr_t	typedef	!time64only
 netatalk/at.h	__clock_t	typedef	!time64only
 netatalk/at.h	__clockid_t	typedef	!time64only
 netatalk/at.h	__cmsg_nxthdr	function	!time64only
+netatalk/at.h	__daddr_t	typedef	!time64only
 netatalk/at.h	__dev_t	typedef	!time64only
 netatalk/at.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netatalk/at.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -26673,6 +26765,7 @@ netdb.h	__caddr_t	typedef	!time64only
 netdb.h	__clock_t	typedef	!time64only
 netdb.h	__clockid_t	typedef	!time64only
 netdb.h	__cmsg_nxthdr	function	!time64only
+netdb.h	__daddr_t	typedef	!time64only
 netdb.h	__dev_t	typedef	!time64only
 netdb.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netdb.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -27643,6 +27736,7 @@ netinet/ether.h	__caddr_t	typedef	!time64only
 netinet/ether.h	__clock_t	typedef	!time64only
 netinet/ether.h	__clockid_t	typedef	!time64only
 netinet/ether.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ether.h	__daddr_t	typedef	!time64only
 netinet/ether.h	__dev_t	typedef	!time64only
 netinet/ether.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -28740,6 +28834,7 @@ netinet/icmp6.h	__caddr_t	typedef	!time64only
 netinet/icmp6.h	__clock_t	typedef	!time64only
 netinet/icmp6.h	__clockid_t	typedef	!time64only
 netinet/icmp6.h	__cmsg_nxthdr	function	!time64only
+netinet/icmp6.h	__daddr_t	typedef	!time64only
 netinet/icmp6.h	__dev_t	typedef	!time64only
 netinet/icmp6.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 netinet/icmp6.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -29733,6 +29828,7 @@ netinet/if_ether.h	__caddr_t	typedef	!time64only
 netinet/if_ether.h	__clock_t	typedef	!time64only
 netinet/if_ether.h	__clockid_t	typedef	!time64only
 netinet/if_ether.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/if_ether.h	__daddr_t	typedef	!time64only
 netinet/if_ether.h	__dev_t	typedef	!time64only
 netinet/if_ether.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -30064,6 +30160,7 @@ netinet/if_fddi.h	__blksize_t	typedef	!time64only
 netinet/if_fddi.h	__caddr_t	typedef	!time64only
 netinet/if_fddi.h	__clock_t	typedef	!time64only
 netinet/if_fddi.h	__clockid_t	typedef	!time64only
+netinet/if_fddi.h	__daddr_t	typedef	!time64only
 netinet/if_fddi.h	__dev_t	typedef	!time64only
 netinet/if_fddi.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_fddi.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -30354,6 +30451,7 @@ netinet/if_tr.h	__blksize_t	typedef	!time64only
 netinet/if_tr.h	__caddr_t	typedef	!time64only
 netinet/if_tr.h	__clock_t	typedef	!time64only
 netinet/if_tr.h	__clockid_t	typedef	!time64only
+netinet/if_tr.h	__daddr_t	typedef	!time64only
 netinet/if_tr.h	__dev_t	typedef	!time64only
 netinet/if_tr.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_tr.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -31078,6 +31176,7 @@ netinet/igmp.h	__caddr_t	typedef	!time64only
 netinet/igmp.h	__clock_t	typedef	!time64only
 netinet/igmp.h	__clockid_t	typedef	!time64only
 netinet/igmp.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/igmp.h	__daddr_t	typedef	!time64only
 netinet/igmp.h	__dev_t	typedef	!time64only
 netinet/igmp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -31866,6 +31965,7 @@ netinet/in.h	__caddr_t	typedef	!time64only
 netinet/in.h	__clock_t	typedef	!time64only
 netinet/in.h	__clockid_t	typedef	!time64only
 netinet/in.h	__cmsg_nxthdr	function	!time64only
+netinet/in.h	__daddr_t	typedef	!time64only
 netinet/in.h	__dev_t	typedef	!time64only
 netinet/in.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -32213,6 +32313,7 @@ netinet/in_systm.h	__blksize_t	typedef	!time64only
 netinet/in_systm.h	__caddr_t	typedef	!time64only
 netinet/in_systm.h	__clock_t	typedef	!time64only
 netinet/in_systm.h	__clockid_t	typedef	!time64only
+netinet/in_systm.h	__daddr_t	typedef	!time64only
 netinet/in_systm.h	__dev_t	typedef	!time64only
 netinet/in_systm.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in_systm.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -33030,6 +33131,7 @@ netinet/ip.h	__caddr_t	typedef	!time64only
 netinet/ip.h	__clock_t	typedef	!time64only
 netinet/ip.h	__clockid_t	typedef	!time64only
 netinet/ip.h	__cmsg_nxthdr	function	!time64only
+netinet/ip.h	__daddr_t	typedef	!time64only
 netinet/ip.h	__dev_t	typedef	!time64only
 netinet/ip.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -34073,6 +34175,7 @@ netinet/ip6.h	__caddr_t	typedef	!time64only
 netinet/ip6.h	__clock_t	typedef	!time64only
 netinet/ip6.h	__clockid_t	typedef	!time64only
 netinet/ip6.h	__cmsg_nxthdr	function	!time64only
+netinet/ip6.h	__daddr_t	typedef	!time64only
 netinet/ip6.h	__dev_t	typedef	!time64only
 netinet/ip6.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -35160,6 +35263,7 @@ netinet/ip_icmp.h	__caddr_t	typedef	!time64only
 netinet/ip_icmp.h	__clock_t	typedef	!time64only
 netinet/ip_icmp.h	__clockid_t	typedef	!time64only
 netinet/ip_icmp.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/ip_icmp.h	__daddr_t	typedef	!time64only
 netinet/ip_icmp.h	__dev_t	typedef	!time64only
 netinet/ip_icmp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -35847,6 +35951,7 @@ netinet/tcp.h	__caddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,tim
 netinet/tcp.h	__clock_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	__clockid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	__cmsg_nxthdr	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/tcp.h	__daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	__dev_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -36169,6 +36274,7 @@ netinet/udp.h	__blksize_t	typedef	!time64only
 netinet/udp.h	__caddr_t	typedef	!time64only
 netinet/udp.h	__clock_t	typedef	!time64only
 netinet/udp.h	__clockid_t	typedef	!time64only
+netinet/udp.h	__daddr_t	typedef	!time64only
 netinet/udp.h	__dev_t	typedef	!time64only
 netinet/udp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/udp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -36455,6 +36561,7 @@ netipx/ipx.h	__blksize_t	typedef	!time64only
 netipx/ipx.h	__caddr_t	typedef	!time64only
 netipx/ipx.h	__clock_t	typedef	!time64only
 netipx/ipx.h	__clockid_t	typedef	!time64only
+netipx/ipx.h	__daddr_t	typedef	!time64only
 netipx/ipx.h	__dev_t	typedef	!time64only
 netipx/ipx.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netipx/ipx.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -36611,6 +36718,41 @@ netiucv/iucv.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netiucv/iucv.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netiucv/iucv.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 netiucv/iucv.h	sa_family_t	typedef	!time64only
+netpacket/packet.h	PACKET_ADD_MEMBERSHIP	macro	*
+netpacket/packet.h	PACKET_AUXDATA	macro	*
+netpacket/packet.h	PACKET_BROADCAST	macro	*
+netpacket/packet.h	PACKET_COPY_THRESH	macro	*
+netpacket/packet.h	PACKET_DROP_MEMBERSHIP	macro	*
+netpacket/packet.h	PACKET_FANOUT	macro	*
+netpacket/packet.h	PACKET_FANOUT_DATA	macro	*
+netpacket/packet.h	PACKET_FASTROUTE	macro	*
+netpacket/packet.h	PACKET_HDRLEN	macro	*
+netpacket/packet.h	PACKET_HOST	macro	*
+netpacket/packet.h	PACKET_IGNORE_OUTGOING	macro	*
+netpacket/packet.h	PACKET_LOOPBACK	macro	*
+netpacket/packet.h	PACKET_LOSS	macro	*
+netpacket/packet.h	PACKET_MR_ALLMULTI	macro	*
+netpacket/packet.h	PACKET_MR_MULTICAST	macro	*
+netpacket/packet.h	PACKET_MR_PROMISC	macro	*
+netpacket/packet.h	PACKET_MR_UNICAST	macro	*
+netpacket/packet.h	PACKET_MULTICAST	macro	*
+netpacket/packet.h	PACKET_ORIGDEV	macro	*
+netpacket/packet.h	PACKET_OTHERHOST	macro	*
+netpacket/packet.h	PACKET_OUTGOING	macro	*
+netpacket/packet.h	PACKET_QDISC_BYPASS	macro	*
+netpacket/packet.h	PACKET_RECV_OUTPUT	macro	*
+netpacket/packet.h	PACKET_RESERVE	macro	*
+netpacket/packet.h	PACKET_ROLLOVER_STATS	macro	*
+netpacket/packet.h	PACKET_RX_RING	macro	*
+netpacket/packet.h	PACKET_STATISTICS	macro	*
+netpacket/packet.h	PACKET_TIMESTAMP	macro	*
+netpacket/packet.h	PACKET_TX_HAS_OFF	macro	*
+netpacket/packet.h	PACKET_TX_RING	macro	*
+netpacket/packet.h	PACKET_TX_TIMESTAMP	macro	*
+netpacket/packet.h	PACKET_VERSION	macro	*
+netpacket/packet.h	PACKET_VNET_HDR	macro	*
+netpacket/packet.h	PACKET_VNET_HDR_SZ	macro	*
+netpacket/packet.h	packet_mreq	struct	*
 netpacket/packet.h	sockaddr_ll	struct	*
 netrom/netrom.h	-	include-error	time64only
 netrom/netrom.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -36994,6 +37136,7 @@ netrose/rose.h	__caddr_t	typedef	!time64only
 netrose/rose.h	__clock_t	typedef	!time64only
 netrose/rose.h	__clockid_t	typedef	!time64only
 netrose/rose.h	__cmsg_nxthdr	function	!time64only
+netrose/rose.h	__daddr_t	typedef	!time64only
 netrose/rose.h	__dev_t	typedef	!time64only
 netrose/rose.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netrose/rose.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -37326,6 +37469,7 @@ nss.h	__blksize_t	typedef	!time64only
 nss.h	__caddr_t	typedef	!time64only
 nss.h	__clock_t	typedef	!time64only
 nss.h	__clockid_t	typedef	!time64only
+nss.h	__daddr_t	typedef	!time64only
 nss.h	__dev_t	typedef	!time64only
 nss.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 nss.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -37653,6 +37797,7 @@ poll.h	__blksize_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__caddr_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__clock_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__clockid_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+poll.h	__daddr_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__dev_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__fsblkcnt64_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 poll.h	__fsblkcnt_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -37799,6 +37944,7 @@ proc_service.h	__blksize_t	typedef	!time64only
 proc_service.h	__caddr_t	typedef	!time64only
 proc_service.h	__clock_t	typedef	!time64only
 proc_service.h	__clockid_t	typedef	!time64only
+proc_service.h	__daddr_t	typedef	!time64only
 proc_service.h	__dev_t	typedef	!time64only
 proc_service.h	__fd_mask	typedef	!time64only
 proc_service.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -38300,6 +38446,7 @@ protocols/routed.h	__caddr_t	typedef	!time64only
 protocols/routed.h	__clock_t	typedef	!time64only
 protocols/routed.h	__clockid_t	typedef	!time64only
 protocols/routed.h	__cmsg_nxthdr	function	!time64only
+protocols/routed.h	__daddr_t	typedef	!time64only
 protocols/routed.h	__dev_t	typedef	!time64only
 protocols/routed.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -38509,6 +38656,7 @@ protocols/rwhod.h	__blksize_t	typedef	!time64only
 protocols/rwhod.h	__caddr_t	typedef	!time64only
 protocols/rwhod.h	__clock_t	typedef	!time64only
 protocols/rwhod.h	__clockid_t	typedef	!time64only
+protocols/rwhod.h	__daddr_t	typedef	!time64only
 protocols/rwhod.h	__dev_t	typedef	!time64only
 protocols/rwhod.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -39081,6 +39229,7 @@ protocols/talkd.h	__caddr_t	typedef	!time64only
 protocols/talkd.h	__clock_t	typedef	!time64only
 protocols/talkd.h	__clockid_t	typedef	!time64only
 protocols/talkd.h	__cmsg_nxthdr	function	!time64only
+protocols/talkd.h	__daddr_t	typedef	!time64only
 protocols/talkd.h	__dev_t	typedef	!time64only
 protocols/talkd.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -39310,6 +39459,7 @@ protocols/timed.h	__blksize_t	typedef	!time64only
 protocols/timed.h	__caddr_t	typedef	!time64only
 protocols/timed.h	__clock_t	typedef	!time64only
 protocols/timed.h	__clockid_t	typedef	!time64only
+protocols/timed.h	__daddr_t	typedef	!time64only
 protocols/timed.h	__dev_t	typedef	!time64only
 protocols/timed.h	__fd_mask	typedef	!time64only
 protocols/timed.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -39625,6 +39775,7 @@ pthread.h	__cancel_jmp_buf_tag	struct	!time64only
 pthread.h	__clock_t	typedef	!time64only
 pthread.h	__clockid_t	typedef	!time64only
 pthread.h	__cpu_mask	typedef	!time64only
+pthread.h	__daddr_t	typedef	!time64only
 pthread.h	__daylight	object	!time64only
 pthread.h	__dev_t	typedef	!time64only
 pthread.h	__fsblkcnt64_t	typedef	!time64only
@@ -40268,6 +40419,7 @@ pty.h	__blksize_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix19
 pty.h	__caddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	__clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	__clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+pty.h	__daddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	__dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	__fsblkcnt64_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	__fsblkcnt_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
@@ -40350,6 +40502,7 @@ pwd.h	__blksize_t	typedef	!time64only
 pwd.h	__caddr_t	typedef	!time64only
 pwd.h	__clock_t	typedef	!time64only
 pwd.h	__clockid_t	typedef	!time64only
+pwd.h	__daddr_t	typedef	!time64only
 pwd.h	__dev_t	typedef	!time64only
 pwd.h	__fsblkcnt64_t	typedef	!time64only
 pwd.h	__fsblkcnt_t	typedef	!time64only
@@ -40520,6 +40673,7 @@ re_comp.h	__blksize_t	typedef	!time64only
 re_comp.h	__caddr_t	typedef	!time64only
 re_comp.h	__clock_t	typedef	!time64only
 re_comp.h	__clockid_t	typedef	!time64only
+re_comp.h	__daddr_t	typedef	!time64only
 re_comp.h	__dev_t	typedef	!time64only
 re_comp.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 re_comp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -40774,6 +40928,7 @@ regex.h	__blksize_t	typedef	!time64only
 regex.h	__caddr_t	typedef	!time64only
 regex.h	__clock_t	typedef	!time64only
 regex.h	__clockid_t	typedef	!time64only
+regex.h	__daddr_t	typedef	!time64only
 regex.h	__dev_t	typedef	!time64only
 regex.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 regex.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -42932,6 +43087,7 @@ resolv.h	__caddr_t	typedef	!time64only
 resolv.h	__clock_t	typedef	!time64only
 resolv.h	__clockid_t	typedef	!time64only
 resolv.h	__cmsg_nxthdr	function	!time64only
+resolv.h	__daddr_t	typedef	!time64only
 resolv.h	__dev_t	typedef	!time64only
 resolv.h	__dn_count_labels	function	!time64only
 resolv.h	__dprintf_chk	function	fortify2,fortify3
@@ -43698,6 +43854,7 @@ sched.h	__caddr_t	typedef	!time64only
 sched.h	__clock_t	typedef	!time64only
 sched.h	__clockid_t	typedef	!time64only
 sched.h	__cpu_mask	typedef	!time64only
+sched.h	__daddr_t	typedef	!time64only
 sched.h	__daylight	object	c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x
 sched.h	__dev_t	typedef	!time64only
 sched.h	__fsblkcnt64_t	typedef	!time64only
@@ -43929,6 +44086,7 @@ semaphore.h	__blksize_t	typedef	!time64only
 semaphore.h	__caddr_t	typedef	!time64only
 semaphore.h	__clock_t	typedef	!time64only
 semaphore.h	__clockid_t	typedef	!time64only
+semaphore.h	__daddr_t	typedef	!time64only
 semaphore.h	__dev_t	typedef	!time64only
 semaphore.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 semaphore.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -45368,6 +45526,7 @@ signal.h	__blksize_t	typedef	!time64only
 signal.h	__caddr_t	typedef	!time64only
 signal.h	__clock_t	typedef	!time64only
 signal.h	__clockid_t	typedef	!time64only
+signal.h	__daddr_t	typedef	!time64only
 signal.h	__dev_t	typedef	!time64only
 signal.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 signal.h	__fsblkcnt64_t	typedef	!time64only
@@ -45765,6 +45924,7 @@ spawn.h	__caddr_t	typedef	!time64only
 spawn.h	__clock_t	typedef	!time64only
 spawn.h	__clockid_t	typedef	!time64only
 spawn.h	__cpu_mask	typedef	!time64only
+spawn.h	__daddr_t	typedef	!time64only
 spawn.h	__daylight	object	c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x
 spawn.h	__dev_t	typedef	!time64only
 spawn.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -45997,6 +46157,7 @@ stdbit.h	__blksize_t	typedef	!time64only
 stdbit.h	__caddr_t	typedef	!time64only
 stdbit.h	__clock_t	typedef	!time64only
 stdbit.h	__clockid_t	typedef	!time64only
+stdbit.h	__daddr_t	typedef	!time64only
 stdbit.h	__dev_t	typedef	!time64only
 stdbit.h	__fsblkcnt64_t	typedef	!time64only
 stdbit.h	__fsblkcnt_t	typedef	!time64only
@@ -46313,6 +46474,7 @@ stdint.h	__blksize_t	typedef	!time64only
 stdint.h	__caddr_t	typedef	!time64only
 stdint.h	__clock_t	typedef	!time64only
 stdint.h	__clockid_t	typedef	!time64only
+stdint.h	__daddr_t	typedef	!time64only
 stdint.h	__dev_t	typedef	!time64only
 stdint.h	__fsblkcnt64_t	typedef	!time64only
 stdint.h	__fsblkcnt_t	typedef	!time64only
@@ -46432,6 +46594,7 @@ stdio.h	__blksize_t	typedef	!time64only
 stdio.h	__caddr_t	typedef	!time64only
 stdio.h	__clock_t	typedef	!time64only
 stdio.h	__clockid_t	typedef	!time64only
+stdio.h	__daddr_t	typedef	!time64only
 stdio.h	__dev_t	typedef	!time64only
 stdio.h	__dprintf_chk	function	fortify2,fortify3
 stdio.h	__fgets_chk	function	fortify1,fortify2,fortify3
@@ -46670,6 +46833,7 @@ stdio_ext.h	__blksize_t	typedef	!time64only
 stdio_ext.h	__caddr_t	typedef	!time64only
 stdio_ext.h	__clock_t	typedef	!time64only
 stdio_ext.h	__clockid_t	typedef	!time64only
+stdio_ext.h	__daddr_t	typedef	!time64only
 stdio_ext.h	__dev_t	typedef	!time64only
 stdio_ext.h	__dprintf_chk	function	fortify2,fortify3
 stdio_ext.h	__fbufsize	function	!time64only
@@ -46926,6 +47090,7 @@ stdlib.h	__clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posi
 stdlib.h	__compar_d_fn_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	__compar_fn_t	typedef	!time64only
 stdlib.h	__ctype_get_mb_cur_max	function	!time64only
+stdlib.h	__daddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	__dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -47477,6 +47642,7 @@ sys/acct.h	__blksize_t	typedef	!time64only
 sys/acct.h	__caddr_t	typedef	!time64only
 sys/acct.h	__clock_t	typedef	!time64only
 sys/acct.h	__clockid_t	typedef	!time64only
+sys/acct.h	__daddr_t	typedef	!time64only
 sys/acct.h	__dev_t	typedef	!time64only
 sys/acct.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/acct.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -50825,6 +50991,7 @@ sys/auxv.h	__blksize_t	typedef	!time64only
 sys/auxv.h	__caddr_t	typedef	!time64only
 sys/auxv.h	__clock_t	typedef	!time64only
 sys/auxv.h	__clockid_t	typedef	!time64only
+sys/auxv.h	__daddr_t	typedef	!time64only
 sys/auxv.h	__dev_t	typedef	!time64only
 sys/auxv.h	__fsblkcnt64_t	typedef	!time64only
 sys/auxv.h	__fsblkcnt_t	typedef	!time64only
@@ -50936,6 +51103,7 @@ sys/bitypes.h	__blksize_t	typedef	!time64only
 sys/bitypes.h	__caddr_t	typedef	!time64only
 sys/bitypes.h	__clock_t	typedef	!time64only
 sys/bitypes.h	__clockid_t	typedef	!time64only
+sys/bitypes.h	__daddr_t	typedef	!time64only
 sys/bitypes.h	__dev_t	typedef	!time64only
 sys/bitypes.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/bitypes.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -51196,6 +51364,7 @@ sys/dir.h	__blksize_t	typedef	!time64only
 sys/dir.h	__caddr_t	typedef	!time64only
 sys/dir.h	__clock_t	typedef	!time64only
 sys/dir.h	__clockid_t	typedef	!time64only
+sys/dir.h	__daddr_t	typedef	!time64only
 sys/dir.h	__dev_t	typedef	!time64only
 sys/dir.h	__fsblkcnt64_t	typedef	!time64only
 sys/dir.h	__fsblkcnt_t	typedef	!time64only
@@ -51441,6 +51610,7 @@ sys/epoll.h	__blksize_t	typedef	!time64only
 sys/epoll.h	__caddr_t	typedef	!time64only
 sys/epoll.h	__clock_t	typedef	!time64only
 sys/epoll.h	__clockid_t	typedef	!time64only
+sys/epoll.h	__daddr_t	typedef	!time64only
 sys/epoll.h	__dev_t	typedef	!time64only
 sys/epoll.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/epoll.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -51873,6 +52043,7 @@ sys/eventfd.h	__blksize_t	typedef	!time64only
 sys/eventfd.h	__caddr_t	typedef	!time64only
 sys/eventfd.h	__clock_t	typedef	!time64only
 sys/eventfd.h	__clockid_t	typedef	!time64only
+sys/eventfd.h	__daddr_t	typedef	!time64only
 sys/eventfd.h	__dev_t	typedef	!time64only
 sys/eventfd.h	__fsblkcnt64_t	typedef	!time64only
 sys/eventfd.h	__fsblkcnt_t	typedef	!time64only
@@ -52139,6 +52310,7 @@ sys/fanotify.h	__blksize_t	typedef	!time64only
 sys/fanotify.h	__caddr_t	typedef	!time64only
 sys/fanotify.h	__clock_t	typedef	!time64only
 sys/fanotify.h	__clockid_t	typedef	!time64only
+sys/fanotify.h	__daddr_t	typedef	!time64only
 sys/fanotify.h	__dev_t	typedef	!time64only
 sys/fanotify.h	__fsblkcnt64_t	typedef	!time64only
 sys/fanotify.h	__fsblkcnt_t	typedef	!time64only
@@ -52406,6 +52578,7 @@ sys/fcntl.h	__blksize_t	typedef	!time64only
 sys/fcntl.h	__caddr_t	typedef	!time64only
 sys/fcntl.h	__clock_t	typedef	!time64only
 sys/fcntl.h	__clockid_t	typedef	!time64only
+sys/fcntl.h	__daddr_t	typedef	!time64only
 sys/fcntl.h	__dev_t	typedef	!time64only
 sys/fcntl.h	__fsblkcnt64_t	typedef	!time64only
 sys/fcntl.h	__fsblkcnt_t	typedef	!time64only
@@ -52680,6 +52853,7 @@ sys/file.h	__blksize_t	typedef	!time64only
 sys/file.h	__caddr_t	typedef	!time64only
 sys/file.h	__clock_t	typedef	!time64only
 sys/file.h	__clockid_t	typedef	!time64only
+sys/file.h	__daddr_t	typedef	!time64only
 sys/file.h	__dev_t	typedef	!time64only
 sys/file.h	__fsblkcnt64_t	typedef	!time64only
 sys/file.h	__fsblkcnt_t	typedef	!time64only
@@ -52804,6 +52978,7 @@ sys/fsuid.h	__blksize_t	typedef	!time64only
 sys/fsuid.h	__caddr_t	typedef	!time64only
 sys/fsuid.h	__clock_t	typedef	!time64only
 sys/fsuid.h	__clockid_t	typedef	!time64only
+sys/fsuid.h	__daddr_t	typedef	!time64only
 sys/fsuid.h	__dev_t	typedef	!time64only
 sys/fsuid.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fsuid.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -52982,6 +53157,7 @@ sys/gmon.h	__blksize_t	typedef	!time64only
 sys/gmon.h	__caddr_t	typedef	!time64only
 sys/gmon.h	__clock_t	typedef	!time64only
 sys/gmon.h	__clockid_t	typedef	!time64only
+sys/gmon.h	__daddr_t	typedef	!time64only
 sys/gmon.h	__dev_t	typedef	!time64only
 sys/gmon.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/gmon.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -53267,6 +53443,7 @@ sys/inotify.h	__blksize_t	typedef	!time64only
 sys/inotify.h	__caddr_t	typedef	!time64only
 sys/inotify.h	__clock_t	typedef	!time64only
 sys/inotify.h	__clockid_t	typedef	!time64only
+sys/inotify.h	__daddr_t	typedef	!time64only
 sys/inotify.h	__dev_t	typedef	!time64only
 sys/inotify.h	__fsblkcnt64_t	typedef	!time64only
 sys/inotify.h	__fsblkcnt_t	typedef	!time64only
@@ -53616,6 +53793,7 @@ sys/ipc.h	__blksize_t	typedef	!time64only
 sys/ipc.h	__caddr_t	typedef	!time64only
 sys/ipc.h	__clock_t	typedef	!time64only
 sys/ipc.h	__clockid_t	typedef	!time64only
+sys/ipc.h	__daddr_t	typedef	!time64only
 sys/ipc.h	__dev_t	typedef	!time64only
 sys/ipc.h	__fsblkcnt64_t	typedef	!time64only
 sys/ipc.h	__fsblkcnt_t	typedef	!time64only
@@ -53776,6 +53954,7 @@ sys/mman.h	__blksize_t	typedef	!time64only
 sys/mman.h	__caddr_t	typedef	!time64only
 sys/mman.h	__clock_t	typedef	!time64only
 sys/mman.h	__clockid_t	typedef	!time64only
+sys/mman.h	__daddr_t	typedef	!time64only
 sys/mman.h	__dev_t	typedef	!time64only
 sys/mman.h	__fsblkcnt64_t	typedef	!time64only
 sys/mman.h	__fsblkcnt_t	typedef	!time64only
@@ -54469,6 +54648,7 @@ sys/mount.h	__blksize_t	typedef	!time64only
 sys/mount.h	__caddr_t	typedef	!time64only
 sys/mount.h	__clock_t	typedef	!time64only
 sys/mount.h	__clockid_t	typedef	!time64only
+sys/mount.h	__daddr_t	typedef	!time64only
 sys/mount.h	__dev_t	typedef	!time64only
 sys/mount.h	__fsblkcnt64_t	typedef	!time64only
 sys/mount.h	__fsblkcnt_t	typedef	!time64only
@@ -54632,6 +54812,7 @@ sys/msg.h	__blksize_t	typedef	!time64only
 sys/msg.h	__caddr_t	typedef	!time64only
 sys/msg.h	__clock_t	typedef	!time64only
 sys/msg.h	__clockid_t	typedef	!time64only
+sys/msg.h	__daddr_t	typedef	!time64only
 sys/msg.h	__dev_t	typedef	!time64only
 sys/msg.h	__fsblkcnt64_t	typedef	!time64only
 sys/msg.h	__fsblkcnt_t	typedef	!time64only
@@ -54704,6 +54885,7 @@ sys/mtio.h	CSTOP	macro	!time64only
 sys/mtio.h	CSUSP	macro	!time64only
 sys/mtio.h	CTIME	macro	!time64only
 sys/mtio.h	CWERASE	macro	!time64only
+sys/mtio.h	DEFTAPE	macro	!time64only
 sys/mtio.h	FD_CLR	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	FD_ISSET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	FD_SET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -54715,12 +54897,112 @@ sys/mtio.h	FIONBIO	macro	!time64only
 sys/mtio.h	FIONCLEX	macro	!time64only
 sys/mtio.h	FIONREAD	macro	!time64only
 sys/mtio.h	FIOQSIZE	macro	!time64only
+sys/mtio.h	GMT_BOT	macro	!time64only
+sys/mtio.h	GMT_DR_OPEN	macro	!time64only
+sys/mtio.h	GMT_D_1600	macro	!time64only
+sys/mtio.h	GMT_D_6250	macro	!time64only
+sys/mtio.h	GMT_D_800	macro	!time64only
+sys/mtio.h	GMT_EOD	macro	!time64only
+sys/mtio.h	GMT_EOF	macro	!time64only
+sys/mtio.h	GMT_EOT	macro	!time64only
+sys/mtio.h	GMT_IM_REP_EN	macro	!time64only
+sys/mtio.h	GMT_ONLINE	macro	!time64only
+sys/mtio.h	GMT_SM	macro	!time64only
+sys/mtio.h	GMT_WR_PROT	macro	!time64only
 sys/mtio.h	IOCSIZE_MASK	macro	!time64only
 sys/mtio.h	IOCSIZE_SHIFT	macro	!time64only
 sys/mtio.h	IOC_IN	macro	!time64only
 sys/mtio.h	IOC_INOUT	macro	!time64only
 sys/mtio.h	IOC_OUT	macro	!time64only
 sys/mtio.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mtio.h	MTBSF	macro	!time64only
+sys/mtio.h	MTBSFM	macro	!time64only
+sys/mtio.h	MTBSR	macro	!time64only
+sys/mtio.h	MTBSS	macro	!time64only
+sys/mtio.h	MTCOMPRESSION	macro	!time64only
+sys/mtio.h	MTEOM	macro	!time64only
+sys/mtio.h	MTERASE	macro	!time64only
+sys/mtio.h	MTFSF	macro	!time64only
+sys/mtio.h	MTFSFM	macro	!time64only
+sys/mtio.h	MTFSR	macro	!time64only
+sys/mtio.h	MTFSS	macro	!time64only
+sys/mtio.h	MTIOCGET	macro	!time64only
+sys/mtio.h	MTIOCGETCONFIG	macro	!time64only
+sys/mtio.h	MTIOCPOS	macro	!time64only
+sys/mtio.h	MTIOCSETCONFIG	macro	!time64only
+sys/mtio.h	MTIOCTOP	macro	!time64only
+sys/mtio.h	MTLOAD	macro	!time64only
+sys/mtio.h	MTLOCK	macro	!time64only
+sys/mtio.h	MTMKPART	macro	!time64only
+sys/mtio.h	MTNOP	macro	!time64only
+sys/mtio.h	MTOFFL	macro	!time64only
+sys/mtio.h	MTRAS1	macro	!time64only
+sys/mtio.h	MTRAS2	macro	!time64only
+sys/mtio.h	MTRAS3	macro	!time64only
+sys/mtio.h	MTRESET	macro	!time64only
+sys/mtio.h	MTRETEN	macro	!time64only
+sys/mtio.h	MTREW	macro	!time64only
+sys/mtio.h	MTSEEK	macro	!time64only
+sys/mtio.h	MTSETBLK	macro	!time64only
+sys/mtio.h	MTSETDENSITY	macro	!time64only
+sys/mtio.h	MTSETDRVBUFFER	macro	!time64only
+sys/mtio.h	MTSETPART	macro	!time64only
+sys/mtio.h	MTTELL	macro	!time64only
+sys/mtio.h	MTUNLOAD	macro	!time64only
+sys/mtio.h	MTUNLOCK	macro	!time64only
+sys/mtio.h	MTWEOF	macro	!time64only
+sys/mtio.h	MTWSM	macro	!time64only
+sys/mtio.h	MT_ISARCHIVESC499	macro	!time64only
+sys/mtio.h	MT_ISARCHIVE_2060L	macro	!time64only
+sys/mtio.h	MT_ISARCHIVE_2150L	macro	!time64only
+sys/mtio.h	MT_ISARCHIVE_5945L2	macro	!time64only
+sys/mtio.h	MT_ISARCHIVE_VP60I	macro	!time64only
+sys/mtio.h	MT_ISCMSJ500	macro	!time64only
+sys/mtio.h	MT_ISDDS1	macro	!time64only
+sys/mtio.h	MT_ISDDS2	macro	!time64only
+sys/mtio.h	MT_ISEVEREX_FT40A	macro	!time64only
+sys/mtio.h	MT_ISFTAPE_FLAG	macro	!time64only
+sys/mtio.h	MT_ISFTAPE_UNKNOWN	macro	!time64only
+sys/mtio.h	MT_ISQIC02	macro	!time64only
+sys/mtio.h	MT_ISQIC02_ALL_FEATURES	macro	!time64only
+sys/mtio.h	MT_ISSCSI1	macro	!time64only
+sys/mtio.h	MT_ISSCSI2	macro	!time64only
+sys/mtio.h	MT_ISTDC3610	macro	!time64only
+sys/mtio.h	MT_ISTEAC_MT2ST	macro	!time64only
+sys/mtio.h	MT_ISUNKNOWN	macro	!time64only
+sys/mtio.h	MT_ISWT5099EEN24	macro	!time64only
+sys/mtio.h	MT_ISWT5150	macro	!time64only
+sys/mtio.h	MT_ST_ASYNC_WRITES	macro	!time64only
+sys/mtio.h	MT_ST_AUTO_LOCK	macro	!time64only
+sys/mtio.h	MT_ST_BLKSIZE_MASK	macro	!time64only
+sys/mtio.h	MT_ST_BLKSIZE_SHIFT	macro	!time64only
+sys/mtio.h	MT_ST_BOOLEANS	macro	!time64only
+sys/mtio.h	MT_ST_BUFFER_WRITES	macro	!time64only
+sys/mtio.h	MT_ST_CAN_BSR	macro	!time64only
+sys/mtio.h	MT_ST_CAN_PARTITIONS	macro	!time64only
+sys/mtio.h	MT_ST_CLEARBOOLEANS	macro	!time64only
+sys/mtio.h	MT_ST_CLEAR_DEFAULT	macro	!time64only
+sys/mtio.h	MT_ST_DEBUGGING	macro	!time64only
+sys/mtio.h	MT_ST_DEF_BLKSIZE	macro	!time64only
+sys/mtio.h	MT_ST_DEF_COMPRESSION	macro	!time64only
+sys/mtio.h	MT_ST_DEF_DENSITY	macro	!time64only
+sys/mtio.h	MT_ST_DEF_DRVBUFFER	macro	!time64only
+sys/mtio.h	MT_ST_DEF_OPTIONS	macro	!time64only
+sys/mtio.h	MT_ST_DEF_WRITES	macro	!time64only
+sys/mtio.h	MT_ST_DENSITY_MASK	macro	!time64only
+sys/mtio.h	MT_ST_DENSITY_SHIFT	macro	!time64only
+sys/mtio.h	MT_ST_FAST_MTEOM	macro	!time64only
+sys/mtio.h	MT_ST_HPLOADER_OFFSET	macro	!time64only
+sys/mtio.h	MT_ST_NO_BLKLIMS	macro	!time64only
+sys/mtio.h	MT_ST_OPTIONS	macro	!time64only
+sys/mtio.h	MT_ST_READ_AHEAD	macro	!time64only
+sys/mtio.h	MT_ST_SCSI2LOGICAL	macro	!time64only
+sys/mtio.h	MT_ST_SETBOOLEANS	macro	!time64only
+sys/mtio.h	MT_ST_SOFTERR_MASK	macro	!time64only
+sys/mtio.h	MT_ST_SOFTERR_SHIFT	macro	!time64only
+sys/mtio.h	MT_ST_TWO_FM	macro	!time64only
+sys/mtio.h	MT_ST_WRITE_THRESHOLD	macro	!time64only
+sys/mtio.h	MT_TAPE_INFO	macro	!time64only
 sys/mtio.h	NCC	macro	!time64only
 sys/mtio.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	N_6PACK	macro	!time64only
@@ -54941,6 +55223,7 @@ sys/mtio.h	__blksize_t	typedef	!time64only
 sys/mtio.h	__caddr_t	typedef	!time64only
 sys/mtio.h	__clock_t	typedef	!time64only
 sys/mtio.h	__clockid_t	typedef	!time64only
+sys/mtio.h	__daddr_t	typedef	!time64only
 sys/mtio.h	__dev_t	typedef	!time64only
 sys/mtio.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -55009,6 +55292,11 @@ sys/mtio.h	key_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199
 sys/mtio.h	le64toh	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	loff_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	mode_t	typedef	!time64only
+sys/mtio.h	mt_tape_info	struct	!time64only
+sys/mtio.h	mtconfiginfo	struct	!time64only
+sys/mtio.h	mtget	struct	!time64only
+sys/mtio.h	mtop	struct	!time64only
+sys/mtio.h	mtpos	struct	!time64only
 sys/mtio.h	nlink_t	typedef	!time64only
 sys/mtio.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mtio.h	off_t	typedef	!time64only
@@ -56217,6 +56505,7 @@ sys/param.h	__blksize_t	typedef	!time64only
 sys/param.h	__caddr_t	typedef	!time64only
 sys/param.h	__clock_t	typedef	!time64only
 sys/param.h	__clockid_t	typedef	!time64only
+sys/param.h	__daddr_t	typedef	!time64only
 sys/param.h	__dev_t	typedef	!time64only
 sys/param.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/param.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -56785,6 +57074,7 @@ sys/pidfd.h	__blksize_t	typedef	!time64only
 sys/pidfd.h	__caddr_t	typedef	!time64only
 sys/pidfd.h	__clock_t	typedef	!time64only
 sys/pidfd.h	__clockid_t	typedef	!time64only
+sys/pidfd.h	__daddr_t	typedef	!time64only
 sys/pidfd.h	__dev_t	typedef	!time64only
 sys/pidfd.h	__fsblkcnt64_t	typedef	!time64only
 sys/pidfd.h	__fsblkcnt_t	typedef	!time64only
@@ -56939,6 +57229,7 @@ sys/poll.h	__blksize_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__caddr_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__clock_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__clockid_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/poll.h	__daddr_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__dev_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__fsblkcnt64_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	__fsblkcnt_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -57238,6 +57529,7 @@ sys/procfs.h	__blksize_t	typedef	!time64only
 sys/procfs.h	__caddr_t	typedef	!time64only
 sys/procfs.h	__clock_t	typedef	!time64only
 sys/procfs.h	__clockid_t	typedef	!time64only
+sys/procfs.h	__daddr_t	typedef	!time64only
 sys/procfs.h	__dev_t	typedef	!time64only
 sys/procfs.h	__fd_mask	typedef	!time64only
 sys/procfs.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -57432,6 +57724,7 @@ sys/profil.h	__blksize_t	typedef	!time64only
 sys/profil.h	__caddr_t	typedef	!time64only
 sys/profil.h	__clock_t	typedef	!time64only
 sys/profil.h	__clockid_t	typedef	!time64only
+sys/profil.h	__daddr_t	typedef	!time64only
 sys/profil.h	__dev_t	typedef	!time64only
 sys/profil.h	__fd_mask	typedef	!time64only
 sys/profil.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -57640,6 +57933,7 @@ sys/ptrace.h	__blksize_t	typedef	!time64only
 sys/ptrace.h	__caddr_t	typedef	!time64only
 sys/ptrace.h	__clock_t	typedef	!time64only
 sys/ptrace.h	__clockid_t	typedef	!time64only
+sys/ptrace.h	__daddr_t	typedef	!time64only
 sys/ptrace.h	__dev_t	typedef	!time64only
 sys/ptrace.h	__fsblkcnt64_t	typedef	!time64only
 sys/ptrace.h	__fsblkcnt_t	typedef	!time64only
@@ -57853,6 +58147,7 @@ sys/quota.h	__blksize_t	typedef	!time64only
 sys/quota.h	__caddr_t	typedef	!time64only
 sys/quota.h	__clock_t	typedef	!time64only
 sys/quota.h	__clockid_t	typedef	!time64only
+sys/quota.h	__daddr_t	typedef	!time64only
 sys/quota.h	__dev_t	typedef	!time64only
 sys/quota.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/quota.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -58027,6 +58322,7 @@ sys/random.h	__blksize_t	typedef	!time64only
 sys/random.h	__caddr_t	typedef	!time64only
 sys/random.h	__clock_t	typedef	!time64only
 sys/random.h	__clockid_t	typedef	!time64only
+sys/random.h	__daddr_t	typedef	!time64only
 sys/random.h	__dev_t	typedef	!time64only
 sys/random.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/random.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -58474,6 +58770,7 @@ sys/raw.h	__blksize_t	typedef	!time64only
 sys/raw.h	__caddr_t	typedef	!time64only
 sys/raw.h	__clock_t	typedef	!time64only
 sys/raw.h	__clockid_t	typedef	!time64only
+sys/raw.h	__daddr_t	typedef	!time64only
 sys/raw.h	__dev_t	typedef	!time64only
 sys/raw.h	__fsblkcnt64_t	typedef	!time64only
 sys/raw.h	__fsblkcnt_t	typedef	!time64only
@@ -58660,6 +58957,7 @@ sys/resource.h	__blksize_t	typedef	!time64only
 sys/resource.h	__caddr_t	typedef	!time64only
 sys/resource.h	__clock_t	typedef	!time64only
 sys/resource.h	__clockid_t	typedef	!time64only
+sys/resource.h	__daddr_t	typedef	!time64only
 sys/resource.h	__dev_t	typedef	!time64only
 sys/resource.h	__fsblkcnt64_t	typedef	!time64only
 sys/resource.h	__fsblkcnt_t	typedef	!time64only
@@ -58839,6 +59137,7 @@ sys/rseq.h	__blksize_t	typedef	!time64only
 sys/rseq.h	__caddr_t	typedef	!time64only
 sys/rseq.h	__clock_t	typedef	!time64only
 sys/rseq.h	__clockid_t	typedef	!time64only
+sys/rseq.h	__daddr_t	typedef	!time64only
 sys/rseq.h	__dev_t	typedef	!time64only
 sys/rseq.h	__fsblkcnt64_t	typedef	!time64only
 sys/rseq.h	__fsblkcnt_t	typedef	!time64only
@@ -58949,6 +59248,7 @@ sys/select.h	__blksize_t	typedef	!time64only
 sys/select.h	__caddr_t	typedef	!time64only
 sys/select.h	__clock_t	typedef	!time64only
 sys/select.h	__clockid_t	typedef	!time64only
+sys/select.h	__daddr_t	typedef	!time64only
 sys/select.h	__dev_t	typedef	!time64only
 sys/select.h	__fd_mask	typedef	!time64only
 sys/select.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -59066,6 +59366,7 @@ sys/sem.h	__blksize_t	typedef	!time64only
 sys/sem.h	__caddr_t	typedef	!time64only
 sys/sem.h	__clock_t	typedef	!time64only
 sys/sem.h	__clockid_t	typedef	!time64only
+sys/sem.h	__daddr_t	typedef	!time64only
 sys/sem.h	__dev_t	typedef	!time64only
 sys/sem.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/sem.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -59236,6 +59537,7 @@ sys/sendfile.h	__blksize_t	typedef	!time64only
 sys/sendfile.h	__caddr_t	typedef	!time64only
 sys/sendfile.h	__clock_t	typedef	!time64only
 sys/sendfile.h	__clockid_t	typedef	!time64only
+sys/sendfile.h	__daddr_t	typedef	!time64only
 sys/sendfile.h	__dev_t	typedef	!time64only
 sys/sendfile.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/sendfile.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -59401,6 +59703,7 @@ sys/shm.h	__blksize_t	typedef	!time64only
 sys/shm.h	__caddr_t	typedef	!time64only
 sys/shm.h	__clock_t	typedef	!time64only
 sys/shm.h	__clockid_t	typedef	!time64only
+sys/shm.h	__daddr_t	typedef	!time64only
 sys/shm.h	__dev_t	typedef	!time64only
 sys/shm.h	__fsblkcnt64_t	typedef	!time64only
 sys/shm.h	__fsblkcnt_t	typedef	!time64only
@@ -60455,6 +60758,7 @@ sys/signal.h	__blksize_t	typedef	!time64only
 sys/signal.h	__caddr_t	typedef	!time64only
 sys/signal.h	__clock_t	typedef	!time64only
 sys/signal.h	__clockid_t	typedef	!time64only
+sys/signal.h	__daddr_t	typedef	!time64only
 sys/signal.h	__dev_t	typedef	!time64only
 sys/signal.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/signal.h	__fsblkcnt64_t	typedef	!time64only
@@ -60864,6 +61168,7 @@ sys/signalfd.h	__blksize_t	typedef	!time64only
 sys/signalfd.h	__caddr_t	typedef	!time64only
 sys/signalfd.h	__clock_t	typedef	!time64only
 sys/signalfd.h	__clockid_t	typedef	!time64only
+sys/signalfd.h	__daddr_t	typedef	!time64only
 sys/signalfd.h	__dev_t	typedef	!time64only
 sys/signalfd.h	__fsblkcnt64_t	typedef	!time64only
 sys/signalfd.h	__fsblkcnt_t	typedef	!time64only
@@ -61307,6 +61612,7 @@ sys/socket.h	__caddr_t	typedef	!time64only
 sys/socket.h	__clock_t	typedef	!time64only
 sys/socket.h	__clockid_t	typedef	!time64only
 sys/socket.h	__cmsg_nxthdr	function	!time64only
+sys/socket.h	__daddr_t	typedef	!time64only
 sys/socket.h	__dev_t	typedef	!time64only
 sys/socket.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socket.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -61815,6 +62121,7 @@ sys/socketvar.h	__caddr_t	typedef	!time64only
 sys/socketvar.h	__clock_t	typedef	!time64only
 sys/socketvar.h	__clockid_t	typedef	!time64only
 sys/socketvar.h	__cmsg_nxthdr	function	!time64only
+sys/socketvar.h	__daddr_t	typedef	!time64only
 sys/socketvar.h	__dev_t	typedef	!time64only
 sys/socketvar.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socketvar.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -62016,6 +62323,7 @@ sys/soundcard.h	__blksize_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64
 sys/soundcard.h	__caddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/soundcard.h	__clock_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/soundcard.h	__clockid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/soundcard.h	__daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/soundcard.h	__dev_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/soundcard.h	__fsblkcnt64_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/soundcard.h	__fsblkcnt_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -62140,6 +62448,7 @@ sys/stat.h	__blksize_t	typedef	!time64only
 sys/stat.h	__caddr_t	typedef	!time64only
 sys/stat.h	__clock_t	typedef	!time64only
 sys/stat.h	__clockid_t	typedef	!time64only
+sys/stat.h	__daddr_t	typedef	!time64only
 sys/stat.h	__dev_t	typedef	!time64only
 sys/stat.h	__fsblkcnt64_t	typedef	!time64only
 sys/stat.h	__fsblkcnt_t	typedef	!time64only
@@ -62243,6 +62552,7 @@ sys/statfs.h	__blksize_t	typedef	!time64only
 sys/statfs.h	__caddr_t	typedef	!time64only
 sys/statfs.h	__clock_t	typedef	!time64only
 sys/statfs.h	__clockid_t	typedef	!time64only
+sys/statfs.h	__daddr_t	typedef	!time64only
 sys/statfs.h	__dev_t	typedef	!time64only
 sys/statfs.h	__fsblkcnt64_t	typedef	!time64only
 sys/statfs.h	__fsblkcnt_t	typedef	!time64only
@@ -62333,6 +62643,7 @@ sys/statvfs.h	__blksize_t	typedef	!time64only
 sys/statvfs.h	__caddr_t	typedef	!time64only
 sys/statvfs.h	__clock_t	typedef	!time64only
 sys/statvfs.h	__clockid_t	typedef	!time64only
+sys/statvfs.h	__daddr_t	typedef	!time64only
 sys/statvfs.h	__dev_t	typedef	!time64only
 sys/statvfs.h	__fsblkcnt64_t	typedef	!time64only
 sys/statvfs.h	__fsblkcnt_t	typedef	!time64only
@@ -62522,6 +62833,7 @@ sys/sysmacros.h	__blksize_t	typedef	!time64only
 sys/sysmacros.h	__caddr_t	typedef	!time64only
 sys/sysmacros.h	__clock_t	typedef	!time64only
 sys/sysmacros.h	__clockid_t	typedef	!time64only
+sys/sysmacros.h	__daddr_t	typedef	!time64only
 sys/sysmacros.h	__dev_t	typedef	!time64only
 sys/sysmacros.h	__fsblkcnt64_t	typedef	!time64only
 sys/sysmacros.h	__fsblkcnt_t	typedef	!time64only
@@ -62755,6 +63067,7 @@ sys/termios.h	__blksize_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309
 sys/termios.h	__caddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/termios.h	__clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/termios.h	__clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+sys/termios.h	__daddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/termios.h	__dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/termios.h	__fsblkcnt64_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 sys/termios.h	__fsblkcnt_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
@@ -62848,6 +63161,7 @@ sys/time.h	__blksize_t	typedef	!time64only
 sys/time.h	__caddr_t	typedef	!time64only
 sys/time.h	__clock_t	typedef	!time64only
 sys/time.h	__clockid_t	typedef	!time64only
+sys/time.h	__daddr_t	typedef	!time64only
 sys/time.h	__dev_t	typedef	!time64only
 sys/time.h	__fd_mask	typedef	!time64only
 sys/time.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -62930,6 +63244,7 @@ sys/timeb.h	__blksize_t	typedef	!time64only
 sys/timeb.h	__caddr_t	typedef	!time64only
 sys/timeb.h	__clock_t	typedef	!time64only
 sys/timeb.h	__clockid_t	typedef	!time64only
+sys/timeb.h	__daddr_t	typedef	!time64only
 sys/timeb.h	__dev_t	typedef	!time64only
 sys/timeb.h	__fsblkcnt64_t	typedef	!time64only
 sys/timeb.h	__fsblkcnt_t	typedef	!time64only
@@ -63063,6 +63378,7 @@ sys/timerfd.h	__blksize_t	typedef	!time64only
 sys/timerfd.h	__caddr_t	typedef	!time64only
 sys/timerfd.h	__clock_t	typedef	!time64only
 sys/timerfd.h	__clockid_t	typedef	!time64only
+sys/timerfd.h	__daddr_t	typedef	!time64only
 sys/timerfd.h	__daylight	object	!time64only
 sys/timerfd.h	__dev_t	typedef	!time64only
 sys/timerfd.h	__fsblkcnt64_t	typedef	!time64only
@@ -63182,6 +63498,7 @@ sys/times.h	__blksize_t	typedef	!time64only
 sys/times.h	__caddr_t	typedef	!time64only
 sys/times.h	__clock_t	typedef	!time64only
 sys/times.h	__clockid_t	typedef	!time64only
+sys/times.h	__daddr_t	typedef	!time64only
 sys/times.h	__dev_t	typedef	!time64only
 sys/times.h	__fsblkcnt64_t	typedef	!time64only
 sys/times.h	__fsblkcnt_t	typedef	!time64only
@@ -63312,6 +63629,7 @@ sys/timex.h	__blksize_t	typedef	!time64only
 sys/timex.h	__caddr_t	typedef	!time64only
 sys/timex.h	__clock_t	typedef	!time64only
 sys/timex.h	__clockid_t	typedef	!time64only
+sys/timex.h	__daddr_t	typedef	!time64only
 sys/timex.h	__dev_t	typedef	!time64only
 sys/timex.h	__fd_mask	typedef	!time64only
 sys/timex.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -63450,6 +63768,7 @@ sys/types.h	__blksize_t	typedef	!time64only
 sys/types.h	__caddr_t	typedef	!time64only
 sys/types.h	__clock_t	typedef	!time64only
 sys/types.h	__clockid_t	typedef	!time64only
+sys/types.h	__daddr_t	typedef	!time64only
 sys/types.h	__dev_t	typedef	!time64only
 sys/types.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/types.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -63635,6 +63954,7 @@ sys/ucontext.h	__blksize_t	typedef	!time64only
 sys/ucontext.h	__caddr_t	typedef	!time64only
 sys/ucontext.h	__clock_t	typedef	!time64only
 sys/ucontext.h	__clockid_t	typedef	!time64only
+sys/ucontext.h	__daddr_t	typedef	!time64only
 sys/ucontext.h	__dev_t	typedef	!time64only
 sys/ucontext.h	__fsblkcnt64_t	typedef	!time64only
 sys/ucontext.h	__fsblkcnt_t	typedef	!time64only
@@ -63738,6 +64058,7 @@ sys/uio.h	__blksize_t	typedef	!time64only
 sys/uio.h	__caddr_t	typedef	!time64only
 sys/uio.h	__clock_t	typedef	!time64only
 sys/uio.h	__clockid_t	typedef	!time64only
+sys/uio.h	__daddr_t	typedef	!time64only
 sys/uio.h	__dev_t	typedef	!time64only
 sys/uio.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/uio.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -64714,6 +65035,7 @@ sys/unistd.h	__caddr_t	typedef	!time64only
 sys/unistd.h	__clock_t	typedef	!time64only
 sys/unistd.h	__clockid_t	typedef	!time64only
 sys/unistd.h	__confstr_chk	function	fortify1,fortify2,fortify3
+sys/unistd.h	__daddr_t	typedef	!time64only
 sys/unistd.h	__dev_t	typedef	!time64only
 sys/unistd.h	__environ	object	!time64only
 sys/unistd.h	__fsblkcnt64_t	typedef	!time64only
@@ -64971,6 +65293,7 @@ sys/vfs.h	__blksize_t	typedef	!time64only
 sys/vfs.h	__caddr_t	typedef	!time64only
 sys/vfs.h	__clock_t	typedef	!time64only
 sys/vfs.h	__clockid_t	typedef	!time64only
+sys/vfs.h	__daddr_t	typedef	!time64only
 sys/vfs.h	__dev_t	typedef	!time64only
 sys/vfs.h	__fsblkcnt64_t	typedef	!time64only
 sys/vfs.h	__fsblkcnt_t	typedef	!time64only
@@ -66057,6 +66380,7 @@ sys/wait.h	__blksize_t	typedef	!time64only
 sys/wait.h	__caddr_t	typedef	!time64only
 sys/wait.h	__clock_t	typedef	!time64only
 sys/wait.h	__clockid_t	typedef	!time64only
+sys/wait.h	__daddr_t	typedef	!time64only
 sys/wait.h	__dev_t	typedef	!time64only
 sys/wait.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/wait.h	__fsblkcnt64_t	typedef	!time64only
@@ -66400,6 +66724,7 @@ sys/xattr.h	__blksize_t	typedef	!time64only
 sys/xattr.h	__caddr_t	typedef	!time64only
 sys/xattr.h	__clock_t	typedef	!time64only
 sys/xattr.h	__clockid_t	typedef	!time64only
+sys/xattr.h	__daddr_t	typedef	!time64only
 sys/xattr.h	__dev_t	typedef	!time64only
 sys/xattr.h	__fd_mask	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/xattr.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -67027,6 +67352,7 @@ termio.h	__blksize_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posi
 termio.h	__caddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	__clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	__clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+termio.h	__daddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	__dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	__fsblkcnt64_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	__fsblkcnt_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
@@ -67274,6 +67600,7 @@ termios.h	__blksize_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,pos
 termios.h	__caddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termios.h	__clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termios.h	__clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
+termios.h	__daddr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termios.h	__dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termios.h	__fsblkcnt64_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termios.h	__fsblkcnt_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
@@ -68077,6 +68404,7 @@ tgmath.h	__ctype_b_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__ctype_get_mb_cur_max	function	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__ctype_tolower_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__ctype_toupper_loc	function	cxx11,cxx14,cxx17,cxx20,cxx23
+tgmath.h	__daddr_t	typedef	!time64only
 tgmath.h	__daylight	object	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__dev_t	typedef	!time64only
 tgmath.h	__drem	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -70935,6 +71263,7 @@ thread_db.h	__cancel_jmp_buf_tag	struct	!time64only
 thread_db.h	__clock_t	typedef	!time64only
 thread_db.h	__clockid_t	typedef	!time64only
 thread_db.h	__cpu_mask	typedef	!time64only
+thread_db.h	__daddr_t	typedef	!time64only
 thread_db.h	__daylight	object	!time64only
 thread_db.h	__dev_t	typedef	!time64only
 thread_db.h	__fd_mask	typedef	!time64only
@@ -71449,6 +71778,7 @@ threads.h	__blksize_t	typedef	!time64only
 threads.h	__caddr_t	typedef	!time64only
 threads.h	__clock_t	typedef	!time64only
 threads.h	__clockid_t	typedef	!time64only
+threads.h	__daddr_t	typedef	!time64only
 threads.h	__daylight	object	!time64only
 threads.h	__dev_t	typedef	!time64only
 threads.h	__fsblkcnt64_t	typedef	!time64only
@@ -71674,6 +72004,7 @@ time.h	__blksize_t	typedef	!time64only
 time.h	__caddr_t	typedef	!time64only
 time.h	__clock_t	typedef	!time64only
 time.h	__clockid_t	typedef	!time64only
+time.h	__daddr_t	typedef	!time64only
 time.h	__daylight	object	!time64only
 time.h	__dev_t	typedef	!time64only
 time.h	__fsblkcnt64_t	typedef	!time64only
@@ -71816,6 +72147,7 @@ uchar.h	__blksize_t	typedef	!time64only
 uchar.h	__caddr_t	typedef	!time64only
 uchar.h	__clock_t	typedef	!time64only
 uchar.h	__clockid_t	typedef	!time64only
+uchar.h	__daddr_t	typedef	!time64only
 uchar.h	__dev_t	typedef	!time64only
 uchar.h	__fsblkcnt64_t	typedef	!time64only
 uchar.h	__fsblkcnt_t	typedef	!time64only
@@ -71935,6 +72267,7 @@ ucontext.h	__blksize_t	typedef	!time64only
 ucontext.h	__caddr_t	typedef	!time64only
 ucontext.h	__clock_t	typedef	!time64only
 ucontext.h	__clockid_t	typedef	!time64only
+ucontext.h	__daddr_t	typedef	!time64only
 ucontext.h	__dev_t	typedef	!time64only
 ucontext.h	__fsblkcnt64_t	typedef	!time64only
 ucontext.h	__fsblkcnt_t	typedef	!time64only
@@ -72750,6 +73083,7 @@ unistd.h	__caddr_t	typedef	!time64only
 unistd.h	__clock_t	typedef	!time64only
 unistd.h	__clockid_t	typedef	!time64only
 unistd.h	__confstr_chk	function	fortify1,fortify2,fortify3
+unistd.h	__daddr_t	typedef	!time64only
 unistd.h	__dev_t	typedef	!time64only
 unistd.h	__environ	object	!time64only
 unistd.h	__fsblkcnt64_t	typedef	!time64only
@@ -72969,6 +73303,7 @@ utime.h	__blksize_t	typedef	!time64only
 utime.h	__caddr_t	typedef	!time64only
 utime.h	__clock_t	typedef	!time64only
 utime.h	__clockid_t	typedef	!time64only
+utime.h	__daddr_t	typedef	!time64only
 utime.h	__dev_t	typedef	!time64only
 utime.h	__fsblkcnt64_t	typedef	!time64only
 utime.h	__fsblkcnt_t	typedef	!time64only
@@ -73094,6 +73429,7 @@ utmp.h	__blksize_t	typedef	!time64only
 utmp.h	__caddr_t	typedef	!time64only
 utmp.h	__clock_t	typedef	!time64only
 utmp.h	__clockid_t	typedef	!time64only
+utmp.h	__daddr_t	typedef	!time64only
 utmp.h	__dev_t	typedef	!time64only
 utmp.h	__fd_mask	typedef	!time64only
 utmp.h	__fdelt_chk	function	fortify1,fortify2,fortify3
@@ -73305,6 +73641,7 @@ utmpx.h	__blksize_t	typedef	!time64only
 utmpx.h	__caddr_t	typedef	!time64only
 utmpx.h	__clock_t	typedef	!time64only
 utmpx.h	__clockid_t	typedef	!time64only
+utmpx.h	__daddr_t	typedef	!time64only
 utmpx.h	__dev_t	typedef	!time64only
 utmpx.h	__exit_status	struct	!time64only
 utmpx.h	__fd_mask	typedef	!time64only
@@ -74564,6 +74901,7 @@ wait.h	__blksize_t	typedef	!time64only
 wait.h	__caddr_t	typedef	!time64only
 wait.h	__clock_t	typedef	!time64only
 wait.h	__clockid_t	typedef	!time64only
+wait.h	__daddr_t	typedef	!time64only
 wait.h	__dev_t	typedef	!time64only
 wait.h	__environ	object	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wait.h	__fsblkcnt64_t	typedef	!time64only
@@ -74892,6 +75230,7 @@ wchar.h	__blksize_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__caddr_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__clock_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__clockid_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
+wchar.h	__daddr_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__dev_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__fgetws_chk	function	fortify1,fortify2,fortify3
 wchar.h	__fsblkcnt64_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
@@ -75114,6 +75453,7 @@ wctype.h	__blksize_t	typedef	!time64only
 wctype.h	__caddr_t	typedef	!time64only
 wctype.h	__clock_t	typedef	!time64only
 wctype.h	__clockid_t	typedef	!time64only
+wctype.h	__daddr_t	typedef	!time64only
 wctype.h	__dev_t	typedef	!time64only
 wctype.h	__fsblkcnt64_t	typedef	!time64only
 wctype.h	__fsblkcnt_t	typedef	!time64only

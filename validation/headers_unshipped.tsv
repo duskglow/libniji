@@ -9,9 +9,7 @@
 # Columns, tab-separated: header, what it waits for.
 header	waits_for
 aio.h	struct sigevent and struct aiocb64 in the generator's tables (plan/headers.md slice 14)
-complex.h	a slice of its own: a C++ spelling for union typedefs and the C++ library wrappers' rows (D-10.125)
 finclude/x86_64-linux-gnu/math-vector-fortran.h	a Fortran output form of the generator, fed by the libmvec tables (D-10.125)
 mqueue.h	struct sigevent in the generator's tables (plan/headers.md slice 14)
 proc_service.h	a template (plan/headers.md slice 16; R-H7: ship, for debuggers)
-tgmath.h	a slice of its own: type-generic macro rows (D-10.125)
 thread_db.h	a template (plan/headers.md slice 16; R-H7: ship, for debuggers)

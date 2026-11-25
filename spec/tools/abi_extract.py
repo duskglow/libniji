@@ -41,7 +41,7 @@ sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfil
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
 net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
-net/route.h netinet/if_ether.h arpa/tftp.h""".split()
+net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -150,6 +150,11 @@ TYPES = [
      "nd_redirect", "nd_opt_hdr", "nd_opt_prefix_info", "nd_opt_rd_hdr", "nd_opt_mtu", "nd_opt_adv_interval",
      "nd_opt_home_agent_info", "nd_opt_route_info", "nd_opt_rdnss", "nd_opt_dnssl", "mld_hdr", "icmp6_router_renum",
      "rr_pco_match", "rr_pco_use", "rr_result", "tftphdr")],
+ # HEADERS-BUSYBOX-GAPS: struct ifconf (netdevice(7)), the packet socket and tape structures (header_probe.py
+ # busybox_names() names the sources); a tag the reference does not define is dropped by available_types().
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "ifconf", "ifaddr", "packet_mreq", "sockaddr_pkt", "tpacket_req", "tpacket_stats", "tpacket_auxdata", "tpacket_hdr",
+     "mtop", "mtget", "mtpos", "mtconfiginfo", "mt_tape_info")],
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),

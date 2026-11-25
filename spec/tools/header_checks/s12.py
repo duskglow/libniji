@@ -67,6 +67,7 @@ def units(ctx):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             res.append((cid, f"P1 {h}", body))
+    res += member_names(ctx)
     # P8, libc-first only (ruling #6458: the kernel header first is not supported; slice 13 measures it): <netinet/in.h>
     # with linux/in6.h, once, with the shared tags used so a missing or doubled definition fails to compile. The other
     # kernel pairs are the `uapi` cells of headers/slices/s12.tsv, both orders.
@@ -93,6 +94,52 @@ def units(ctx):
                     "    + getsockname (s, p, pl) + getpeername (s, p, pl)\n"
                     "    + (int) recvfrom (s, 0, 0, 0, p, pl) + (int) recvfrom (s, 0, 0, 0, 0, 0)\n"
                     "    + (int) sendto (s, 0, 0, 0, p, l) + (int) sendto (s, 0, 0, 0, c, l) + (int) sendto (s, 0, 0, 0, 0, 0);\n}\n"))
+    return res
+
+
+# netdevice(7): the member names of struct ifreq and struct ifconf, each a macro for a member of a union the layout
+# table records (black-box form probe, HEADERS-BUSYBOX-GAPS: with the nested member's name made unusable after the
+# header, the reference rejects a use of the macro). name: (tag, the nested member it names).
+MEMBER_MACROS = {
+    "ifr_name": ("ifreq", "ifr_ifrn.ifrn_name"),
+    **{f"ifr_{m}": ("ifreq", f"ifr_ifru.ifru_{m}") for m in
+       ("hwaddr", "addr", "dstaddr", "broadaddr", "netmask", "flags", "mtu", "map", "slave", "data", "newname")},
+    **{f"ifr_{m}": ("ifreq", "ifr_ifru.ifru_ivalue") for m in ("metric", "ifindex", "bandwidth", "qlen")},
+    "ifc_buf": ("ifconf", "ifc_ifcu.ifcu_buf"),
+    "ifc_req": ("ifconf", "ifc_ifcu.ifcu_req"),
+}
+
+
+def member_names(ctx):
+    """netdevice(7) member names of <net/if.h> (no spec clause beyond netdevice(7); HEADERS-BUSYBOX-GAPS): where
+    visibility.tsv shows NAME, it is a macro for exactly the nested member MEMBER_MACROS records, so a use resolves in
+    a structure that has only that path (the same offset alone would accept `ifr_ifindex` as `ifru_mtu`), and its
+    offset in the real tag is the nested member's; where it does not, the header does not define it."""
+    offs = {(r["type"], r["member"]): r["offset_or_size"] for r in ctx.rows("spec/abi/layouts.tsv") if r["member"]}
+    shown, rows = {}, [r for r in ctx.vis if r["header"] == "net/if.h" and r["name"] in MEMBER_MACROS]
+    if {r["name"] for r in rows} != set(MEMBER_MACROS):
+        return [(ctx.ids[0], "member names net/if.h", "#error visibility.tsv and MEMBER_MACROS name different sets\n")]
+    for r in rows:
+        for cid in expand(r["configs"], ctx.ids):
+            shown.setdefault(cid, []).append(r["name"])
+    hdr = next(r for r in ctx.vis if r["header"] == "net/if.h" and r["name"] == "ifreq")
+    res = []
+    for cid in ctx.ids:
+        names = sorted(shown.get(cid, []))
+        if not names:
+            if cid in expand(hdr["configs"], ctx.ids) or not any(cid in expand(r["configs"], ctx.ids) for r in ctx.vis if r["header"] == "net/if.h"):
+                continue
+            body = "#include <net/if.h>\n" + "".join(f"#ifdef {n}\n#error {n} is defined where struct {MEMBER_MACROS[n][0]} is not shown\n#endif\n" for n in MEMBER_MACROS)
+            res.append((cid, "member names net/if.h (not shown)", body))
+            continue
+        body = ["#include <net/if.h>"]
+        for i, n in enumerate(names):
+            tag, path = MEMBER_MACROS[n]
+            outer, leaf = path.split(".")
+            body += [f"struct niji_mn{i} {{ struct {{ char {leaf}[{i + 2}]; }} {outer}; }};",
+                     f"typedef char niji_mn{i}_form[sizeof(((struct niji_mn{i} *)0)->{n}) == {i + 2} ? 1 : -1];",
+                     f"typedef char niji_mn{i}_off[__builtin_offsetof(struct {tag}, {n}) == {offs[('struct ' + tag, path)]} ? 1 : -1];"]
+        res.append((cid, "member names net/if.h", "\n".join(body) + "\n"))
     return res
 
 

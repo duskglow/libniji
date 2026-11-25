@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <net/if.h>
 @@needs sys/ioctl.h
 
 __NIJI_BEGIN_C

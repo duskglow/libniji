@@ -55,6 +55,7 @@ both	libc6-dev	usr/include/arpa/telnet.h	file	include/arpa/telnet.h	0644	none	-
 both	libc6-dev	usr/include/arpa/tftp.h	file	include/arpa/tftp.h	0644	none	-
 both	libc6-dev	usr/include/assert.h	file	include/assert.h	0644	none	-
 both	libc6-dev	usr/include/byteswap.h	file	include/byteswap.h	0644	none	-
+both	libc6-dev	usr/include/complex.h	file	include/complex.h	0644	none	-
 both	libc6-dev	usr/include/cpio.h	file	include/cpio.h	0644	none	-
 both	libc6-dev	usr/include/ctype.h	file	include/ctype.h	0644	none	-
 both	libc6-dev	usr/include/dirent.h	file	include/dirent.h	0644	none	-
@@ -174,6 +175,7 @@ both	libc6-dev	usr/include/syslog.h	file	include/syslog.h	0644	none	-
 both	libc6-dev	usr/include/tar.h	file	include/tar.h	0644	none	-
 both	libc6-dev	usr/include/termio.h	file	include/termio.h	0644	none	-
 both	libc6-dev	usr/include/termios.h	file	include/termios.h	0644	none	-
+both	libc6-dev	usr/include/tgmath.h	file	include/tgmath.h	0644	none	-
 both	libc6-dev	usr/include/threads.h	file	include/threads.h	0644	none	-
 both	libc6-dev	usr/include/time.h	file	include/time.h	0644	none	-
 both	libc6-dev	usr/include/ttyent.h	file	include/ttyent.h	0644	none	-

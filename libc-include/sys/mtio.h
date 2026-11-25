@@ -9,6 +9,65 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_mt_tape_info
+#  define __NIJI_D_struct_mt_tape_info 1
+struct mt_tape_info {
+  long t_type;
+  char * t_name;
+};
+# endif
+# ifndef __NIJI_D_struct_mtconfiginfo
+#  define __NIJI_D_struct_mtconfiginfo 1
+struct mtconfiginfo {
+  long mt_type;
+  long ifc_type;
+  unsigned short irqnr;
+  unsigned short dmanr;
+  unsigned short port;
+  unsigned long debug;
+  unsigned int have_dens : 1;
+  unsigned int have_bsf : 1;
+  unsigned int have_fsr : 1;
+  unsigned int have_bsr : 1;
+  unsigned int have_eod : 1;
+  unsigned int have_seek : 1;
+  unsigned int have_tell : 1;
+  unsigned int have_ras1 : 1;
+  unsigned int have_ras2 : 1;
+  unsigned int have_ras3 : 1;
+  unsigned int have_qfa : 1;
+  unsigned int pad1 : 5;
+  char reserved[10];
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_struct_mtget
+#  define __NIJI_D_struct_mtget 1
+struct mtget {
+  long mt_type;
+  long mt_resid;
+  long mt_dsreg;
+  long mt_gstat;
+  long mt_erreg;
+  int mt_fileno;
+  int mt_blkno;
+};
+# endif
+# ifndef __NIJI_D_struct_mtop
+#  define __NIJI_D_struct_mtop 1
+struct mtop {
+  short mt_op;
+  int mt_count;
+};
+# endif
+# ifndef __NIJI_D_struct_mtpos
+#  define __NIJI_D_struct_mtpos 1
+struct mtpos {
+  long mt_blkno;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -18,6 +77,312 @@ union pthread_attr_t {
 };
 typedef union pthread_attr_t pthread_attr_t;
 # endif
+#endif
+#if 1
+# ifndef DEFTAPE
+#  define DEFTAPE "/dev/tape"
+# endif
+# ifndef MTBSF
+#  define MTBSF 2
+# endif
+# ifndef MTBSFM
+#  define MTBSFM 10
+# endif
+# ifndef MTBSR
+#  define MTBSR 4
+# endif
+# ifndef MTBSS
+#  define MTBSS 26
+# endif
+# ifndef MTCOMPRESSION
+#  define MTCOMPRESSION 32
+# endif
+# ifndef MTEOM
+#  define MTEOM 12
+# endif
+# ifndef MTERASE
+#  define MTERASE 13
+# endif
+# ifndef MTFSF
+#  define MTFSF 1
+# endif
+# ifndef MTFSFM
+#  define MTFSFM 11
+# endif
+# ifndef MTFSR
+#  define MTFSR 3
+# endif
+# ifndef MTFSS
+#  define MTFSS 25
+# endif
+# ifndef MTIOCGET
+#  define MTIOCGET 2150657282UL
+# endif
+# ifndef MTIOCGETCONFIG
+#  define MTIOCGETCONFIG 2150657284UL
+# endif
+# ifndef MTIOCPOS
+#  define MTIOCPOS 2148035843UL
+# endif
+# ifndef MTIOCSETCONFIG
+#  define MTIOCSETCONFIG 1076915461UL
+# endif
+# ifndef MTIOCTOP
+#  define MTIOCTOP 1074294017UL
+# endif
+# ifndef MTLOAD
+#  define MTLOAD 30
+# endif
+# ifndef MTLOCK
+#  define MTLOCK 28
+# endif
+# ifndef MTMKPART
+#  define MTMKPART 34
+# endif
+# ifndef MTNOP
+#  define MTNOP 8
+# endif
+# ifndef MTOFFL
+#  define MTOFFL 7
+# endif
+# ifndef MTRAS1
+#  define MTRAS1 14
+# endif
+# ifndef MTRAS2
+#  define MTRAS2 15
+# endif
+# ifndef MTRAS3
+#  define MTRAS3 16
+# endif
+# ifndef MTRESET
+#  define MTRESET 0
+# endif
+# ifndef MTRETEN
+#  define MTRETEN 9
+# endif
+# ifndef MTREW
+#  define MTREW 6
+# endif
+# ifndef MTSEEK
+#  define MTSEEK 22
+# endif
+# ifndef MTSETBLK
+#  define MTSETBLK 20
+# endif
+# ifndef MTSETDENSITY
+#  define MTSETDENSITY 21
+# endif
+# ifndef MTSETDRVBUFFER
+#  define MTSETDRVBUFFER 24
+# endif
+# ifndef MTSETPART
+#  define MTSETPART 33
+# endif
+# ifndef MTTELL
+#  define MTTELL 23
+# endif
+# ifndef MTUNLOAD
+#  define MTUNLOAD 31
+# endif
+# ifndef MTUNLOCK
+#  define MTUNLOCK 29
+# endif
+# ifndef MTWEOF
+#  define MTWEOF 5
+# endif
+# ifndef MTWSM
+#  define MTWSM 27
+# endif
+# ifndef MT_ISARCHIVESC499
+#  define MT_ISARCHIVESC499 10
+# endif
+# ifndef MT_ISARCHIVE_2060L
+#  define MT_ISARCHIVE_2060L 9
+# endif
+# ifndef MT_ISARCHIVE_2150L
+#  define MT_ISARCHIVE_2150L 8
+# endif
+# ifndef MT_ISARCHIVE_5945L2
+#  define MT_ISARCHIVE_5945L2 4
+# endif
+# ifndef MT_ISARCHIVE_VP60I
+#  define MT_ISARCHIVE_VP60I 7
+# endif
+# ifndef MT_ISCMSJ500
+#  define MT_ISCMSJ500 5
+# endif
+# ifndef MT_ISDDS1
+#  define MT_ISDDS1 81
+# endif
+# ifndef MT_ISDDS2
+#  define MT_ISDDS2 82
+# endif
+# ifndef MT_ISEVEREX_FT40A
+#  define MT_ISEVEREX_FT40A 50
+# endif
+# ifndef MT_ISFTAPE_FLAG
+#  define MT_ISFTAPE_FLAG 8388608
+# endif
+# ifndef MT_ISFTAPE_UNKNOWN
+#  define MT_ISFTAPE_UNKNOWN 8388608
+# endif
+# ifndef MT_ISQIC02
+#  define MT_ISQIC02 2
+# endif
+# ifndef MT_ISQIC02_ALL_FEATURES
+#  define MT_ISQIC02_ALL_FEATURES 15
+# endif
+# ifndef MT_ISSCSI1
+#  define MT_ISSCSI1 113
+# endif
+# ifndef MT_ISSCSI2
+#  define MT_ISSCSI2 114
+# endif
+# ifndef MT_ISTDC3610
+#  define MT_ISTDC3610 6
+# endif
+# ifndef MT_ISTEAC_MT2ST
+#  define MT_ISTEAC_MT2ST 18
+# endif
+# ifndef MT_ISUNKNOWN
+#  define MT_ISUNKNOWN 1
+# endif
+# ifndef MT_ISWT5099EEN24
+#  define MT_ISWT5099EEN24 17
+# endif
+# ifndef MT_ISWT5150
+#  define MT_ISWT5150 3
+# endif
+# ifndef MT_ST_ASYNC_WRITES
+#  define MT_ST_ASYNC_WRITES 2
+# endif
+# ifndef MT_ST_AUTO_LOCK
+#  define MT_ST_AUTO_LOCK 64
+# endif
+# ifndef MT_ST_BLKSIZE_MASK
+#  define MT_ST_BLKSIZE_MASK 16777215
+# endif
+# ifndef MT_ST_BLKSIZE_SHIFT
+#  define MT_ST_BLKSIZE_SHIFT 0
+# endif
+# ifndef MT_ST_BOOLEANS
+#  define MT_ST_BOOLEANS 268435456
+# endif
+# ifndef MT_ST_BUFFER_WRITES
+#  define MT_ST_BUFFER_WRITES 1
+# endif
+# ifndef MT_ST_CAN_BSR
+#  define MT_ST_CAN_BSR 256
+# endif
+# ifndef MT_ST_CAN_PARTITIONS
+#  define MT_ST_CAN_PARTITIONS 1024
+# endif
+# ifndef MT_ST_CLEARBOOLEANS
+#  define MT_ST_CLEARBOOLEANS 1073741824
+# endif
+# ifndef MT_ST_CLEAR_DEFAULT
+#  define MT_ST_CLEAR_DEFAULT 1048575
+# endif
+# ifndef MT_ST_DEBUGGING
+#  define MT_ST_DEBUGGING 8
+# endif
+# ifndef MT_ST_DEF_BLKSIZE
+#  define MT_ST_DEF_BLKSIZE 1342177280
+# endif
+# ifndef MT_ST_DEF_COMPRESSION
+#  define MT_ST_DEF_COMPRESSION 1612709888
+# endif
+# ifndef MT_ST_DEF_DENSITY
+#  define MT_ST_DEF_DENSITY 1611661312
+# endif
+# ifndef MT_ST_DEF_DRVBUFFER
+#  define MT_ST_DEF_DRVBUFFER 1613758464
+# endif
+# ifndef MT_ST_DEF_OPTIONS
+#  define MT_ST_DEF_OPTIONS 1610612736
+# endif
+# ifndef MT_ST_DEF_WRITES
+#  define MT_ST_DEF_WRITES 128
+# endif
+# ifndef MT_ST_DENSITY_MASK
+#  define MT_ST_DENSITY_MASK 4278190080U
+# endif
+# ifndef MT_ST_DENSITY_SHIFT
+#  define MT_ST_DENSITY_SHIFT 24
+# endif
+# ifndef MT_ST_FAST_MTEOM
+#  define MT_ST_FAST_MTEOM 32
+# endif
+# ifndef MT_ST_HPLOADER_OFFSET
+#  define MT_ST_HPLOADER_OFFSET 10000
+# endif
+# ifndef MT_ST_NO_BLKLIMS
+#  define MT_ST_NO_BLKLIMS 512
+# endif
+# ifndef MT_ST_OPTIONS
+#  define MT_ST_OPTIONS 4026531840U
+# endif
+# ifndef MT_ST_READ_AHEAD
+#  define MT_ST_READ_AHEAD 4
+# endif
+# ifndef MT_ST_SCSI2LOGICAL
+#  define MT_ST_SCSI2LOGICAL 2048
+# endif
+# ifndef MT_ST_SETBOOLEANS
+#  define MT_ST_SETBOOLEANS 805306368
+# endif
+# ifndef MT_ST_SOFTERR_MASK
+#  define MT_ST_SOFTERR_MASK 65535
+# endif
+# ifndef MT_ST_SOFTERR_SHIFT
+#  define MT_ST_SOFTERR_SHIFT 0
+# endif
+# ifndef MT_ST_TWO_FM
+#  define MT_ST_TWO_FM 16
+# endif
+# ifndef MT_ST_WRITE_THRESHOLD
+#  define MT_ST_WRITE_THRESHOLD 536870912
+# endif
+#endif
+
+/* st(4): the generic status bits of mt_gstat, each a test of one bit of its argument (the mask's type is that of
+   the constant: unsigned int for the top bit, int for the others). */
+#if 1
+# define GMT_EOF(x) ((x) & 0x80000000)
+# define GMT_BOT(x) ((x) & 0x40000000)
+# define GMT_EOT(x) ((x) & 0x20000000)
+# define GMT_SM(x) ((x) & 0x10000000)
+# define GMT_EOD(x) ((x) & 0x08000000)
+# define GMT_WR_PROT(x) ((x) & 0x04000000)
+# define GMT_ONLINE(x) ((x) & 0x01000000)
+# define GMT_D_6250(x) ((x) & 0x00800000)
+# define GMT_D_1600(x) ((x) & 0x00400000)
+# define GMT_D_800(x) ((x) & 0x00200000)
+# define GMT_DR_OPEN(x) ((x) & 0x00040000)
+# define GMT_IM_REP_EN(x) ((x) & 0x00010000)
+#endif
+
+/* The initializer of a struct mt_tape_info table: one row per drive type, ending in a zero row. */
+#if 1
+# define MT_TAPE_INFO { \
+	{ MT_ISUNKNOWN, "Unknown type of tape device" }, \
+	{ MT_ISQIC02, "Generic QIC-02 tape streamer" }, \
+	{ MT_ISWT5150, "Wangtek 5150, QIC-150" }, \
+	{ MT_ISARCHIVE_5945L2, "Archive 5945L-2" }, \
+	{ MT_ISCMSJ500, "CMS Jumbo 500" }, \
+	{ MT_ISTDC3610, "Tandberg TDC 3610, QIC-24" }, \
+	{ MT_ISARCHIVE_VP60I, "Archive VP60i, QIC-02" }, \
+	{ MT_ISARCHIVE_2150L, "Archive Viper 2150L" }, \
+	{ MT_ISARCHIVE_2060L, "Archive Viper 2060L" }, \
+	{ MT_ISARCHIVESC499, "Archive SC-499 QIC-36 controller" }, \
+	{ MT_ISQIC02_ALL_FEATURES, "Generic QIC-02 tape, all features" }, \
+	{ MT_ISWT5099EEN24, "Wangtek 5099-een24, 60MB" }, \
+	{ MT_ISTEAC_MT2ST, "Teac MT-2ST 155mb data cassette drive" }, \
+	{ MT_ISEVEREX_FT40A, "Everex FT40A, QIC-40" }, \
+	{ MT_ISSCSI1, "Generic SCSI-1 tape" }, \
+	{ MT_ISSCSI2, "Generic SCSI-2 tape" }, \
+	{ 0, 0 } \
+}
 #endif
 
 __NIJI_END_C

@@ -3301,6 +3301,90 @@ pub struct struct_tftphdr {
     pub th_u1: struct_tftphdr__th_u1,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_ifconf__ifc_ifcu {
+    pub ifcu_buf: usize,
+    pub ifcu_req: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ifconf {
+    pub ifc_len: i32,
+    pub ifc_ifcu: struct_ifconf__ifc_ifcu,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_ifaddr__ifa_ifu {
+    pub ifu_broadaddr: struct_sockaddr,
+    pub ifu_dstaddr: struct_sockaddr,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ifaddr {
+    pub ifa_addr: struct_sockaddr,
+    pub ifa_ifu: struct_ifaddr__ifa_ifu,
+    pub ifa_ifp: usize,
+    pub ifa_next: usize,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_packet_mreq {
+    pub mr_ifindex: i32,
+    pub mr_type: u16,
+    pub mr_alen: u16,
+    pub mr_address: [u8; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_mtop {
+    pub mt_op: i16,
+    pub mt_count: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_mtget {
+    pub mt_type: i64,
+    pub mt_resid: i64,
+    pub mt_dsreg: i64,
+    pub mt_gstat: i64,
+    pub mt_erreg: i64,
+    pub mt_fileno: i32,
+    pub mt_blkno: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_mtpos {
+    pub mt_blkno: i64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_mtconfiginfo {
+    pub mt_type: i64,
+    pub ifc_type: i64,
+    pub irqnr: u16,
+    pub dmanr: u16,
+    pub port: u16,
+    pub debug: u64,
+    pub have_dens: [u8; 2],
+    pub reserved: [i8; 10],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_mt_tape_info {
+    pub t_type: i64,
+    pub t_name: usize,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct Elf32_Ehdr {
