@@ -234,6 +234,8 @@ extern int scandir (const char *, struct dirent ***, int (*) (const struct diren
 #if __NIJI_MISC
 # ifndef __NIJI_D_anon_DT_BLK
 #  define __NIJI_D_anon_DT_BLK 1
+#  if !defined DT_UNKNOWN || !defined DT_FIFO || !defined DT_CHR || !defined DT_DIR || !defined DT_BLK || !defined DT_REG \
+    || !defined DT_LNK || !defined DT_SOCK || !defined DT_WHT
 enum {
 #  ifndef DT_UNKNOWN
   DT_UNKNOWN = 0,
@@ -263,6 +265,7 @@ enum {
   DT_WHT = 14,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if 1

@@ -289,6 +289,7 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 #if (__NIJI_GNU) || (__NIJI_XSI >= 450)
 # ifndef __NIJI_D_anon_FTW_ACTIONRETVAL
 #  define __NIJI_D_anon_FTW_ACTIONRETVAL 1
+#  if ((__NIJI_XSI >= 450) && !defined FTW_PHYS) || ((__NIJI_XSI >= 450) && !defined FTW_MOUNT) || ((__NIJI_XSI >= 450) && !defined FTW_CHDIR) || ((__NIJI_XSI >= 450) && !defined FTW_DEPTH) || ((__NIJI_GNU) && !defined FTW_ACTIONRETVAL)
 enum {
 #  if __NIJI_XSI >= 450
 #  ifndef FTW_PHYS
@@ -316,11 +317,14 @@ enum {
 #  endif
 #  endif
 };
+#  endif
 # endif
 #endif
 #if 1
 # ifndef __NIJI_D_anon_FTW_D
 #  define __NIJI_D_anon_FTW_D 1
+#  if !defined FTW_F || !defined FTW_D || !defined FTW_DNR || !defined FTW_NS || ((__NIJI_MISC || __NIJI_XSI >= 450) && !defined FTW_SL) || ((__NIJI_XSI >= 450) && !defined FTW_DP) \
+    || ((__NIJI_XSI >= 450) && !defined FTW_SLN)
 enum {
 #  ifndef FTW_F
   FTW_F = 0,
@@ -350,11 +354,13 @@ enum {
 #  endif
 #  endif
 };
+#  endif
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_anon_FTW_CONTINUE
 #  define __NIJI_D_anon_FTW_CONTINUE 1
+#  if !defined FTW_CONTINUE || !defined FTW_STOP || !defined FTW_SKIP_SUBTREE || !defined FTW_SKIP_SIBLINGS
 enum {
 #  ifndef FTW_CONTINUE
   FTW_CONTINUE = 0,
@@ -369,6 +375,7 @@ enum {
   FTW_SKIP_SIBLINGS = 3,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if 1

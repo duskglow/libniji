@@ -14,6 +14,7 @@ extern long int ulimit (int, ...) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_anon_UL_GETFSIZE
 #  define __NIJI_D_anon_UL_GETFSIZE 1
+#  if !defined UL_GETFSIZE || !defined UL_SETFSIZE
 enum {
 #  ifndef UL_GETFSIZE
   UL_GETFSIZE = 1,
@@ -22,6 +23,7 @@ enum {
   UL_SETFSIZE = 2,
 #  endif
 };
+#  endif
 # endif
 # ifndef UL_GETFSIZE
 #  define UL_GETFSIZE UL_GETFSIZE

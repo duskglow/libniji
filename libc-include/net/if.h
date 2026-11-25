@@ -116,6 +116,9 @@ extern unsigned int if_nametoindex (const char *) __NIJI_NOTHROW;
 #if __NIJI_MISC
 # ifndef __NIJI_D_anon_IFF_ALLMULTI
 #  define __NIJI_D_anon_IFF_ALLMULTI 1
+#  if !defined IFF_UP || !defined IFF_BROADCAST || !defined IFF_DEBUG || !defined IFF_LOOPBACK || !defined IFF_POINTOPOINT || !defined IFF_NOTRAILERS \
+    || !defined IFF_RUNNING || !defined IFF_NOARP || !defined IFF_PROMISC || !defined IFF_ALLMULTI || !defined IFF_MASTER || !defined IFF_SLAVE \
+    || !defined IFF_MULTICAST || !defined IFF_PORTSEL || !defined IFF_AUTOMEDIA || !defined IFF_DYNAMIC
 enum {
 #  ifndef IFF_UP
   IFF_UP = 1,
@@ -166,6 +169,7 @@ enum {
   IFF_DYNAMIC = 32768,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if 1

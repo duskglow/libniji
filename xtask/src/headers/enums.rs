@@ -54,8 +54,12 @@ impl Gen<'_> {
 
     /// The members of the enumeration without a name `tag` this header shows, with the condition of each: its own
     /// enumerator row, or (a reserved enumerator `__niji_NAME` that only the macro NAME names) that macro's row.
-    fn anon_members(&mut self, tag: &str) -> Vec<(String, String, String)> {
+    /// `all`: every member, unconditionally (an enumerator emitted outside any header: the rows test).
+    fn anon_members(&mut self, tag: &str, all: bool) -> Vec<(String, String, String)> {
         let members = self.t.enums.get(tag).cloned().unwrap_or_default();
+        if all {
+            return members.into_iter().map(|(n, v)| (n, v, "1".to_string())).collect();
+        }
         let mut out = Vec::new();
         for (n, v) in members {
             let c = if self.t.vis_row(&self.header, &n, "enumerator").is_some() {
@@ -76,7 +80,7 @@ impl Gen<'_> {
     /// The condition under which this header declares the enumeration without a name `tag`: that of any member it
     /// shows.
     pub(super) fn anon_cond(&mut self, tag: &str) -> String {
-        let mut cs: Vec<String> = self.anon_members(tag).into_iter().map(|(_, _, c)| c).collect();
+        let mut cs: Vec<String> = self.anon_members(tag, false).into_iter().map(|(_, _, c)| c).collect();
         cs.sort();
         cs.dedup();
         match cs.as_slice() {
@@ -91,21 +95,32 @@ impl Gen<'_> {
     /// first declares it: the reference's enumerations have the same members in every header that shows them). A
     /// member that a macro of the same name already provides (a kernel header that came first) is left out, as a
     /// single enumerator is; a member this header shows under a narrower condition than the enumeration's is under it.
-    pub(super) fn anon_body(&mut self, tag: &str, cond: &str) {
-        let members = self.anon_members(tag);
-        let mut body = vec!["enum {".to_string()];
+    /// The enumeration is declared only when one of those members is left (`enum { };` is invalid: `<linux/in6.h>`
+    /// before `<netinet/in.h>` defines every `IPPROTO_HOPOPTS` ... `IPPROTO_MH` as a macro). `all`: as `anon_members`.
+    pub(super) fn anon_body(&mut self, tag: &str, cond: &str, all: bool) {
+        let members = self.anon_members(tag, all);
+        let narrow = |c: &str| c != cond && c != "1";
+        let terms: Vec<String> = members.iter().map(|(n, _, c)| if narrow(c) { format!("(({c}) && !defined {n})") } else { format!("!defined {n}") }).collect();
+        let mut test = String::new();
+        for (k, chunk) in terms.chunks(6).enumerate() {
+            if k > 0 {
+                test.push_str(" \\\n    || ");
+            }
+            test.push_str(&chunk.join(" || "));
+        }
+        let mut body = vec![format!("#  if {test}"), "enum {".to_string()];
         for (n, v, c) in members {
-            let narrow = c != cond && c != "1";
-            if narrow {
+            let under = narrow(&c);
+            if under {
                 body.push(format!("#  if {c}"));
             }
             body.extend([format!("#  ifndef {n}"), format!("  {n} = {v},"), "#  endif".into()]);
-            if narrow {
+            if under {
                 body.push("#  endif".into());
             }
             self.emitted.insert(format!("enumerator {n}"));
         }
-        body.push("};".into());
+        body.extend(["};".into(), "#  endif".into()]);
         let key = format!("anon_{}", &tag["anon ".len()..]);
         self.guard(&key, body);
     }

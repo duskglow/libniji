@@ -30,6 +30,7 @@ extern void wordfree (wordexp_t *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_anon_WRDE_APPEND
 #  define __NIJI_D_anon_WRDE_APPEND 1
+#  if !defined WRDE_DOOFFS || !defined WRDE_APPEND || !defined WRDE_NOCMD || !defined WRDE_REUSE || !defined WRDE_SHOWERR || !defined WRDE_UNDEF
 enum {
 #  ifndef WRDE_DOOFFS
   WRDE_DOOFFS = 1,
@@ -50,9 +51,11 @@ enum {
   WRDE_UNDEF = 32,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_WRDE_BADCHAR
 #  define __NIJI_D_anon_WRDE_BADCHAR 1
+#  if !defined WRDE_NOSPACE || !defined WRDE_BADCHAR || !defined WRDE_BADVAL || !defined WRDE_CMDSUB || !defined WRDE_SYNTAX
 enum {
 #  ifndef WRDE_NOSPACE
   WRDE_NOSPACE = 1,
@@ -70,6 +73,7 @@ enum {
   WRDE_SYNTAX = 5,
 #  endif
 };
+#  endif
 # endif
 #endif
 

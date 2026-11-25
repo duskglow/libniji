@@ -37,6 +37,7 @@ extern int inotify_rm_watch (int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_anon_IN_CLOEXEC
 #  define __NIJI_D_anon_IN_CLOEXEC 1
+#  if !defined IN_NONBLOCK || !defined IN_CLOEXEC
 enum {
 #  ifndef IN_NONBLOCK
   IN_NONBLOCK = 2048,
@@ -45,6 +46,7 @@ enum {
   IN_CLOEXEC = 524288,
 #  endif
 };
+#  endif
 # endif
 # ifndef IN_ACCESS
 #  define IN_ACCESS 1

@@ -54,6 +54,31 @@ extern char *nl_langinfo_l (int, locale_t);
 #if 1
 # ifndef __NIJI_D_anon_ABDAY_1
 #  define __NIJI_D_anon_ABDAY_1 1
+#  if !defined _NL_CTYPE_CLASS || !defined _NL_CTYPE_TOUPPER || !defined _NL_CTYPE_TOLOWER || !defined _NL_CTYPE_CLASS32 || !defined _NL_CTYPE_CLASS_NAMES || !defined _NL_CTYPE_MAP_NAMES \
+    || !defined _NL_CTYPE_WIDTH || !defined _NL_CTYPE_MB_CUR_MAX || !defined CODESET || !defined _NL_CTYPE_TOUPPER32 || !defined _NL_CTYPE_TOLOWER32 || !defined _NL_CTYPE_CLASS_OFFSET \
+    || !defined _NL_CTYPE_MAP_OFFSET || !defined _NL_CTYPE_INDIGITS_MB_LEN || !defined _NL_CTYPE_INDIGITS_WC_LEN || !defined _NL_CTYPE_OUTDIGIT0_WC || !defined _NL_CTYPE_OUTDIGIT9_WC || !defined _NL_CTYPE_TRANSLIT_TAB_SIZE \
+    || !defined _NL_CTYPE_TRANSLIT_FROM_IDX || !defined _NL_CTYPE_TRANSLIT_FROM_TBL || !defined _NL_CTYPE_TRANSLIT_TO_TBL || !defined _NL_CTYPE_TRANSLIT_DEFAULT_MISSING_LEN || !defined _NL_CTYPE_TRANSLIT_DEFAULT_MISSING || !defined _NL_CTYPE_TRANSLIT_IGNORE_LEN \
+    || !defined _NL_CTYPE_MAP_TO_NONASCII || !defined _NL_CTYPE_NONASCII_CASE || !defined RADIXCHAR || !defined __DECIMAL_POINT || !defined THOUSEP || !defined __GROUPING \
+    || !defined _NL_NUMERIC_DECIMAL_POINT_WC || !defined _NL_NUMERIC_THOUSANDS_SEP_WC || !defined ABDAY_1 || !defined ABDAY_2 || !defined ABDAY_3 || !defined ABDAY_4 \
+    || !defined ABDAY_5 || !defined ABDAY_6 || !defined ABDAY_7 || !defined DAY_1 || !defined DAY_2 || !defined DAY_3 \
+    || !defined DAY_4 || !defined DAY_5 || !defined DAY_6 || !defined DAY_7 || !defined ABMON_1 || !defined ABMON_2 \
+    || !defined ABMON_3 || !defined ABMON_4 || !defined ABMON_5 || !defined ABMON_6 || !defined ABMON_7 || !defined ABMON_8 \
+    || !defined ABMON_9 || !defined ABMON_10 || !defined ABMON_11 || !defined ABMON_12 || !defined MON_1 || !defined MON_2 \
+    || !defined MON_3 || !defined MON_4 || !defined MON_5 || !defined MON_6 || !defined MON_7 || !defined MON_8 \
+    || !defined MON_9 || !defined MON_10 || !defined MON_11 || !defined MON_12 || !defined AM_STR || !defined PM_STR \
+    || !defined D_T_FMT || !defined D_FMT || !defined T_FMT || !defined T_FMT_AMPM || !defined ERA || ((__NIJI_GNU) && !defined __niji_ERA_YEAR) \
+    || !defined ERA_D_FMT || !defined ALT_DIGITS || !defined ERA_D_T_FMT || !defined ERA_T_FMT || !defined _NL_TIME_ERA_NUM_ENTRIES || !defined _NL_TIME_WEEK_1STDAY \
+    || !defined _DATE_FMT || ((__NIJI_GNU) && !defined __niji_ALTMON_1) || ((__NIJI_GNU) && !defined __niji_ALTMON_2) || ((__NIJI_GNU) && !defined __niji_ALTMON_3) || ((__NIJI_GNU) && !defined __niji_ALTMON_4) || ((__NIJI_GNU) && !defined __niji_ALTMON_5) \
+    || ((__NIJI_GNU) && !defined __niji_ALTMON_6) || ((__NIJI_GNU) && !defined __niji_ALTMON_7) || ((__NIJI_GNU) && !defined __niji_ALTMON_8) || ((__NIJI_GNU) && !defined __niji_ALTMON_9) || ((__NIJI_GNU) && !defined __niji_ALTMON_10) || ((__NIJI_GNU) && !defined __niji_ALTMON_11) \
+    || ((__NIJI_GNU) && !defined __niji_ALTMON_12) || !defined _NL_COLLATE_NRULES || !defined _NL_COLLATE_RULESETS || !defined _NL_COLLATE_TABLEMB || !defined _NL_COLLATE_WEIGHTMB || !defined _NL_COLLATE_EXTRAMB \
+    || !defined _NL_COLLATE_INDIRECTMB || !defined _NL_COLLATE_TABLEWC || !defined _NL_COLLATE_WEIGHTWC || !defined _NL_COLLATE_EXTRAWC || !defined _NL_COLLATE_INDIRECTWC || !defined _NL_COLLATE_SYMB_HASH_SIZEMB \
+    || !defined _NL_COLLATE_COLLSEQMB || !defined _NL_COLLATE_COLLSEQWC || !defined __INT_CURR_SYMBOL || ((__NIJI_GNU) && !defined __niji_CURRENCY_SYMBOL) || ((__NIJI_GNU) && !defined __niji_MON_DECIMAL_POINT) || ((__NIJI_GNU) && !defined __niji_MON_THOUSANDS_SEP) \
+    || ((__NIJI_GNU) && !defined __niji_MON_GROUPING) || ((__NIJI_GNU) && !defined __niji_POSITIVE_SIGN) || ((__NIJI_GNU) && !defined __niji_NEGATIVE_SIGN) || !defined __INT_FRAC_DIGITS || ((__NIJI_GNU) && !defined __niji_FRAC_DIGITS) || ((__NIJI_GNU) && !defined __niji_P_CS_PRECEDES) \
+    || ((__NIJI_GNU) && !defined __niji_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_N_SIGN_POSN) || !defined __niji_CRNCYSTR \
+    || ((__NIJI_GNU) && !defined __niji_INT_P_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_INT_N_SIGN_POSN) \
+    || !defined _NL_MONETARY_UNO_VALID_FROM || !defined _NL_MONETARY_UNO_VALID_TO || !defined _NL_MONETARY_DUO_VALID_FROM || !defined _NL_MONETARY_DUO_VALID_TO || !defined _NL_MONETARY_DECIMAL_POINT_WC || !defined _NL_MONETARY_THOUSANDS_SEP_WC \
+    || !defined __niji_YESEXPR || !defined __niji_NOEXPR || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_YESSTR) || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_NOSTR) || !defined _NL_PAPER_HEIGHT || !defined _NL_PAPER_WIDTH \
+    || !defined _NL_ADDRESS_POSTAL_FMT || !defined _NL_ADDRESS_COUNTRY_NUM
 enum {
 #  ifndef _NL_CTYPE_CLASS
   _NL_CTYPE_CLASS = 0,
@@ -562,6 +587,7 @@ enum {
   _NL_ADDRESS_COUNTRY_NUM = 589830,
 #  endif
 };
+#  endif
 # endif
 # ifndef ABDAY_1
 #  define ABDAY_1 ABDAY_1

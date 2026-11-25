@@ -94,6 +94,9 @@ extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_ST_APPEND
 #  define __NIJI_D_anon_ST_APPEND 1
+#  if !defined ST_RDONLY || !defined ST_NOSUID || ((__NIJI_GNU) && !defined ST_NODEV) || ((__NIJI_GNU) && !defined ST_NOEXEC) || ((__NIJI_GNU) && !defined ST_SYNCHRONOUS) || ((__NIJI_GNU) && !defined ST_MANDLOCK) \
+    || ((__NIJI_GNU) && !defined ST_WRITE) || ((__NIJI_GNU) && !defined ST_APPEND) || ((__NIJI_GNU) && !defined ST_IMMUTABLE) || ((__NIJI_GNU) && !defined ST_NOATIME) || ((__NIJI_GNU) && !defined ST_NODIRATIME) || ((__NIJI_GNU) && !defined ST_RELATIME) \
+    || ((__NIJI_GNU) && !defined ST_NOSYMFOLLOW)
 enum {
 #  ifndef ST_RDONLY
   ST_RDONLY = 1,
@@ -157,6 +160,7 @@ enum {
 #  endif
 #  endif
 };
+#  endif
 # endif
 # ifndef ST_NOSUID
 #  define ST_NOSUID ST_NOSUID

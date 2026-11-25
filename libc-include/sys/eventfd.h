@@ -27,6 +27,7 @@ extern int eventfd_write (int, unsigned long);
 # endif
 # ifndef __NIJI_D_anon_EFD_CLOEXEC
 #  define __NIJI_D_anon_EFD_CLOEXEC 1
+#  if !defined EFD_SEMAPHORE || !defined EFD_NONBLOCK || !defined EFD_CLOEXEC
 enum {
 #  ifndef EFD_SEMAPHORE
   EFD_SEMAPHORE = 1,
@@ -38,6 +39,7 @@ enum {
   EFD_CLOEXEC = 524288,
 #  endif
 };
+#  endif
 # endif
 # ifndef EFD_CLOEXEC
 #  define EFD_CLOEXEC EFD_CLOEXEC

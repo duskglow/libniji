@@ -135,11 +135,13 @@ extern int epoll_wait (int, struct epoll_event *, int, int);
 # endif
 # ifndef __NIJI_D_anon_EPOLL_CLOEXEC
 #  define __NIJI_D_anon_EPOLL_CLOEXEC 1
+#  if !defined EPOLL_CLOEXEC
 enum {
 #  ifndef EPOLL_CLOEXEC
   EPOLL_CLOEXEC = 524288,
 #  endif
 };
+#  endif
 # endif
 # ifndef EPOLLERR
 #  define EPOLLERR EPOLLERR

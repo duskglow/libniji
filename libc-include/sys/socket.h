@@ -350,6 +350,10 @@ extern int sockatmark (int) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_MSG_BATCH
 #  define __NIJI_D_anon_MSG_BATCH 1
+#  if !defined MSG_OOB || !defined MSG_PEEK || !defined MSG_DONTROUTE || ((__NIJI_GNU) && !defined MSG_TRYHARD) || !defined MSG_CTRUNC || !defined MSG_PROXY \
+    || !defined MSG_TRUNC || !defined MSG_DONTWAIT || !defined MSG_EOR || !defined MSG_WAITALL || !defined MSG_FIN || !defined MSG_SYN \
+    || !defined MSG_CONFIRM || !defined MSG_RST || !defined MSG_ERRQUEUE || !defined MSG_NOSIGNAL || !defined MSG_MORE || !defined MSG_WAITFORONE \
+    || !defined MSG_BATCH || !defined MSG_ZEROCOPY || !defined MSG_FASTOPEN || !defined MSG_CMSG_CLOEXEC
 enum {
 #  ifndef MSG_OOB
   MSG_OOB = 1,
@@ -420,9 +424,11 @@ enum {
   MSG_CMSG_CLOEXEC = 1073741824,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_SCM_CREDENTIALS
 #  define __NIJI_D_anon_SCM_CREDENTIALS 1
+#  if !defined SCM_RIGHTS || ((__NIJI_GNU) && !defined SCM_CREDENTIALS) || ((__NIJI_GNU) && !defined SCM_SECURITY) || ((__NIJI_GNU) && !defined SCM_PIDFD)
 enum {
 #  ifndef SCM_RIGHTS
   SCM_RIGHTS = 1,
@@ -443,9 +449,11 @@ enum {
 #  endif
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_SHUT_RD
 #  define __NIJI_D_anon_SHUT_RD 1
+#  if !defined SHUT_RD || !defined SHUT_WR || !defined SHUT_RDWR
 enum {
 #  ifndef SHUT_RD
   SHUT_RD = 0,
@@ -457,6 +465,7 @@ enum {
   SHUT_RDWR = 2,
 #  endif
 };
+#  endif
 # endif
 # ifndef AF_ALG
 #  define AF_ALG 38

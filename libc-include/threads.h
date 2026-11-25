@@ -162,6 +162,7 @@ extern int tss_set (unsigned int, void *);
 # endif
 # ifndef __NIJI_D_anon_mtx_plain
 #  define __NIJI_D_anon_mtx_plain 1
+#  if !defined mtx_plain || !defined mtx_recursive || !defined mtx_timed
 enum {
 #  ifndef mtx_plain
   mtx_plain = 0,
@@ -173,9 +174,11 @@ enum {
   mtx_timed = 2,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_thrd_busy
 #  define __NIJI_D_anon_thrd_busy 1
+#  if !defined thrd_success || !defined thrd_busy || !defined thrd_error || !defined thrd_nomem || !defined thrd_timedout
 enum {
 #  ifndef thrd_success
   thrd_success = 0,
@@ -193,6 +196,7 @@ enum {
   thrd_timedout = 4,
 #  endif
 };
+#  endif
 # endif
 # ifndef TSS_DTOR_ITERATIONS
 #  define TSS_DTOR_ITERATIONS 4

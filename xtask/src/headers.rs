@@ -614,10 +614,15 @@ impl Gen<'_> {
                     self.typedef(&td);
                     return;
                 }
-                // An enumerator of an enumeration without a name: the whole enumeration, once.
+                // An enumerator of an enumeration without a name: the whole enumeration, once. Emitted outside any
+                // header that lists it (the rows test), with every member.
                 if let Some(tag) = self.anon_enum(name) {
-                    let c = self.anon_cond(&tag);
-                    self.anon_body(&tag, &c);
+                    if self.t.vis_row(&self.header, name, "enumerator").is_none() {
+                        self.anon_body(&tag, "1", true);
+                    } else {
+                        let c = self.anon_cond(&tag);
+                        self.anon_body(&tag, &c, false);
+                    }
                     return;
                 }
                 let v = self.value(name);
@@ -626,7 +631,7 @@ impl Gen<'_> {
             }
             "anon" => {
                 let c = self.anon_cond(name);
-                self.anon_body(name, &c);
+                self.anon_body(name, &c, false);
             }
             "typedef" => self.typedef(name),
             "struct" | "union" | "enum" => self.tag(name, kind),

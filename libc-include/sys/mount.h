@@ -232,6 +232,7 @@ enum { MS_UNBINDABLE = 131072 };
 # endif
 # ifndef __NIJI_D_anon_MNT_DETACH
 #  define __NIJI_D_anon_MNT_DETACH 1
+#  if !defined MNT_FORCE || !defined MNT_DETACH || !defined MNT_EXPIRE || !defined UMOUNT_NOFOLLOW
 enum {
 #  ifndef MNT_FORCE
   MNT_FORCE = 1,
@@ -246,6 +247,7 @@ enum {
   UMOUNT_NOFOLLOW = 8,
 #  endif
 };
+#  endif
 # endif
 # ifndef BLKBSZGET
 #  define BLKBSZGET 2148012656UL

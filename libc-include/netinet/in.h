@@ -400,14 +400,21 @@ extern int bindresvport (int, struct sockaddr_in *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_IPPORT_RESERVED
 #  define __NIJI_D_anon_IPPORT_RESERVED 1
+#  if !defined IPPORT_RESERVED
 enum {
 #  ifndef IPPORT_RESERVED
   IPPORT_RESERVED = 1024,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_IPPROTO_AH
 #  define __NIJI_D_anon_IPPROTO_AH 1
+#  if !defined IPPROTO_IP || !defined IPPROTO_ICMP || !defined IPPROTO_IGMP || !defined IPPROTO_IPIP || !defined IPPROTO_TCP || !defined IPPROTO_EGP \
+    || !defined IPPROTO_PUP || !defined IPPROTO_UDP || !defined IPPROTO_IDP || !defined IPPROTO_TP || !defined IPPROTO_DCCP || !defined IPPROTO_IPV6 \
+    || !defined IPPROTO_RSVP || !defined IPPROTO_GRE || !defined IPPROTO_ESP || !defined IPPROTO_AH || !defined IPPROTO_MTP || !defined IPPROTO_BEETPH \
+    || !defined IPPROTO_ENCAP || !defined IPPROTO_PIM || !defined IPPROTO_COMP || !defined IPPROTO_L2TP || !defined IPPROTO_SCTP || !defined IPPROTO_UDPLITE \
+    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP
 enum {
 #  ifndef IPPROTO_IP
   IPPROTO_IP = 0,
@@ -494,9 +501,12 @@ enum {
   IPPROTO_MPTCP = 262,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_IPPROTO_DSTOPTS
 #  define __NIJI_D_anon_IPPROTO_DSTOPTS 1
+#  if !defined IPPROTO_HOPOPTS || !defined IPPROTO_ROUTING || !defined IPPROTO_FRAGMENT || !defined IPPROTO_ICMPV6 || !defined IPPROTO_NONE || !defined IPPROTO_DSTOPTS \
+    || !defined IPPROTO_MH
 enum {
 #  ifndef IPPROTO_HOPOPTS
   IPPROTO_HOPOPTS = 0,
@@ -520,6 +530,7 @@ enum {
   IPPROTO_MH = 135,
 #  endif
 };
+#  endif
 # endif
 # ifndef INADDR_ALLHOSTS_GROUP
 #  define INADDR_ALLHOSTS_GROUP 3758096385U

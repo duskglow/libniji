@@ -272,6 +272,10 @@ typedef struct ucontext_t ucontext_t;
 #if __NIJI_GNU
 # ifndef __NIJI_D_anon_REG_CR2
 #  define __NIJI_D_anon_REG_CR2 1
+#  if !defined REG_R8 || !defined REG_R9 || !defined REG_R10 || !defined REG_R11 || !defined REG_R12 || !defined REG_R13 \
+    || !defined REG_R14 || !defined REG_R15 || !defined REG_RDI || !defined REG_RSI || !defined REG_RBP || !defined REG_RBX \
+    || !defined REG_RDX || !defined REG_RAX || !defined REG_RCX || !defined REG_RSP || !defined REG_RIP || !defined REG_EFL \
+    || !defined REG_CSGSFS || !defined REG_ERR || !defined REG_TRAPNO || !defined REG_OLDMASK || !defined REG_CR2
 enum {
 #  ifndef REG_R8
   REG_R8 = 0,
@@ -343,6 +347,7 @@ enum {
   REG_CR2 = 22,
 #  endif
 };
+#  endif
 # endif
 # ifndef REG_CR2
 #  define REG_CR2 REG_CR2

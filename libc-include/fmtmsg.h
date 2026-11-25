@@ -22,6 +22,8 @@ extern int addseverity (int, const char *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_MM_APPL
 #  define __NIJI_D_anon_MM_APPL 1
+#  if !defined MM_HARD || !defined MM_SOFT || !defined MM_FIRM || !defined MM_APPL || !defined MM_UTIL || !defined MM_OPSYS \
+    || !defined MM_RECOVER || !defined MM_NRECOV || !defined MM_PRINT || !defined MM_CONSOLE
 enum {
 #  ifndef MM_HARD
   MM_HARD = 1,
@@ -54,9 +56,11 @@ enum {
   MM_CONSOLE = 512,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_MM_ERROR
 #  define __NIJI_D_anon_MM_ERROR 1
+#  if !defined MM_NOSEV || !defined MM_HALT || !defined MM_ERROR || !defined MM_WARNING || !defined MM_INFO
 enum {
 #  ifndef MM_NOSEV
   MM_NOSEV = 0,
@@ -74,9 +78,11 @@ enum {
   MM_INFO = 4,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_MM_NOCON
 #  define __NIJI_D_anon_MM_NOCON 1
+#  if !defined MM_NOTOK || !defined MM_OK || !defined MM_NOMSG || !defined MM_NOCON
 enum {
 #  ifndef MM_NOTOK
   MM_NOTOK = -1,
@@ -91,6 +97,7 @@ enum {
   MM_NOCON = 4,
 #  endif
 };
+#  endif
 # endif
 # ifndef MM_APPL
 #  define MM_APPL MM_APPL

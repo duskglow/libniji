@@ -52,6 +52,7 @@ extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_anon_SFD_CLOEXEC
 #  define __NIJI_D_anon_SFD_CLOEXEC 1
+#  if !defined SFD_NONBLOCK || !defined SFD_CLOEXEC
 enum {
 #  ifndef SFD_NONBLOCK
   SFD_NONBLOCK = 2048,
@@ -60,6 +61,7 @@ enum {
   SFD_CLOEXEC = 524288,
 #  endif
 };
+#  endif
 # endif
 # ifndef SFD_CLOEXEC
 #  define SFD_CLOEXEC SFD_CLOEXEC

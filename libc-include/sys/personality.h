@@ -14,11 +14,13 @@ extern int personality (long unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_anon_ADDR_NO_RANDOMIZE
 #  define __NIJI_D_anon_ADDR_NO_RANDOMIZE 1
+#  if !defined ADDR_NO_RANDOMIZE
 enum {
 #  ifndef ADDR_NO_RANDOMIZE
   ADDR_NO_RANDOMIZE = 262144,
 #  endif
 };
+#  endif
 # endif
 #endif
 

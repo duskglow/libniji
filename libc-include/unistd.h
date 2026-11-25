@@ -710,6 +710,17 @@ extern void swab (const void *, void *, long) __NIJI_NOTHROW __attribute__ ((__n
 #if 1
 # ifndef __NIJI_D_anon__CS_GNU_LIBC_VERSION
 #  define __NIJI_D_anon__CS_GNU_LIBC_VERSION 1
+#  if !defined _CS_PATH || !defined _CS_V6_WIDTH_RESTRICTED_ENVS || !defined _CS_GNU_LIBC_VERSION || !defined _CS_GNU_LIBPTHREAD_VERSION || !defined _CS_V5_WIDTH_RESTRICTED_ENVS || !defined _CS_V7_WIDTH_RESTRICTED_ENVS \
+    || !defined _CS_LFS_CFLAGS || !defined _CS_LFS_LDFLAGS || !defined _CS_LFS_LIBS || !defined _CS_LFS_LINTFLAGS || !defined _CS_LFS64_CFLAGS || !defined _CS_LFS64_LDFLAGS \
+    || !defined _CS_LFS64_LIBS || !defined _CS_LFS64_LINTFLAGS || !defined _CS_XBS5_ILP32_OFF32_CFLAGS || !defined _CS_XBS5_ILP32_OFF32_LDFLAGS || !defined _CS_XBS5_ILP32_OFF32_LIBS || !defined _CS_XBS5_ILP32_OFF32_LINTFLAGS \
+    || !defined _CS_XBS5_ILP32_OFFBIG_CFLAGS || !defined _CS_XBS5_ILP32_OFFBIG_LDFLAGS || !defined _CS_XBS5_ILP32_OFFBIG_LIBS || !defined _CS_XBS5_ILP32_OFFBIG_LINTFLAGS || !defined _CS_XBS5_LP64_OFF64_CFLAGS || !defined _CS_XBS5_LP64_OFF64_LDFLAGS \
+    || !defined _CS_XBS5_LP64_OFF64_LIBS || !defined _CS_XBS5_LP64_OFF64_LINTFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_CFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_LDFLAGS || !defined _CS_XBS5_LPBIG_OFFBIG_LIBS || !defined _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS \
+    || !defined _CS_POSIX_V6_ILP32_OFF32_CFLAGS || !defined _CS_POSIX_V6_ILP32_OFF32_LDFLAGS || !defined _CS_POSIX_V6_ILP32_OFF32_LIBS || !defined _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS || !defined _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS || !defined _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS \
+    || !defined _CS_POSIX_V6_ILP32_OFFBIG_LIBS || !defined _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_CFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_LDFLAGS || !defined _CS_POSIX_V6_LP64_OFF64_LIBS || !defined _CS_POSIX_V6_LP64_OFF64_LINTFLAGS \
+    || !defined _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LIBS || !defined _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS || !defined _CS_POSIX_V7_ILP32_OFF32_CFLAGS || !defined _CS_POSIX_V7_ILP32_OFF32_LDFLAGS \
+    || !defined _CS_POSIX_V7_ILP32_OFF32_LIBS || !defined _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LIBS || !defined _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS \
+    || !defined _CS_POSIX_V7_LP64_OFF64_CFLAGS || !defined _CS_POSIX_V7_LP64_OFF64_LDFLAGS || !defined _CS_POSIX_V7_LP64_OFF64_LIBS || !defined _CS_POSIX_V7_LP64_OFF64_LINTFLAGS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS \
+    || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LIBS || !defined _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS || !defined _CS_V6_ENV || !defined _CS_V7_ENV
 enum {
 #  ifndef _CS_PATH
   _CS_PATH = 0,
@@ -904,9 +915,14 @@ enum {
   _CS_V7_ENV = 1149,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon__PC_2_SYMLINKS
 #  define __NIJI_D_anon__PC_2_SYMLINKS 1
+#  if !defined _PC_LINK_MAX || !defined _PC_MAX_CANON || !defined _PC_MAX_INPUT || !defined _PC_NAME_MAX || !defined _PC_PATH_MAX || !defined _PC_PIPE_BUF \
+    || !defined _PC_CHOWN_RESTRICTED || !defined _PC_NO_TRUNC || !defined _PC_VDISABLE || !defined _PC_SYNC_IO || !defined _PC_ASYNC_IO || !defined _PC_PRIO_IO \
+    || !defined _PC_SOCK_MAXBUF || !defined _PC_FILESIZEBITS || !defined _PC_REC_INCR_XFER_SIZE || !defined _PC_REC_MAX_XFER_SIZE || !defined _PC_REC_MIN_XFER_SIZE || !defined _PC_REC_XFER_ALIGN \
+    || !defined _PC_ALLOC_SIZE_MIN || !defined _PC_SYMLINK_MAX || !defined _PC_2_SYMLINKS
 enum {
 #  ifndef _PC_LINK_MAX
   _PC_LINK_MAX = 0,
@@ -972,9 +988,47 @@ enum {
   _PC_2_SYMLINKS = 20,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon__SC_2_CHAR_TERM
 #  define __NIJI_D_anon__SC_2_CHAR_TERM 1
+#  if !defined _SC_ARG_MAX || !defined _SC_CHILD_MAX || !defined _SC_CLK_TCK || !defined _SC_NGROUPS_MAX || !defined _SC_OPEN_MAX || !defined _SC_STREAM_MAX \
+    || !defined _SC_TZNAME_MAX || !defined _SC_JOB_CONTROL || !defined _SC_SAVED_IDS || !defined _SC_REALTIME_SIGNALS || !defined _SC_PRIORITY_SCHEDULING || !defined _SC_TIMERS \
+    || !defined _SC_ASYNCHRONOUS_IO || !defined _SC_PRIORITIZED_IO || !defined _SC_SYNCHRONIZED_IO || !defined _SC_FSYNC || !defined _SC_MAPPED_FILES || !defined _SC_MEMLOCK \
+    || !defined _SC_MEMLOCK_RANGE || !defined _SC_MEMORY_PROTECTION || !defined _SC_MESSAGE_PASSING || !defined _SC_SEMAPHORES || !defined _SC_SHARED_MEMORY_OBJECTS || !defined _SC_AIO_LISTIO_MAX \
+    || !defined _SC_AIO_MAX || !defined _SC_AIO_PRIO_DELTA_MAX || !defined _SC_DELAYTIMER_MAX || !defined _SC_MQ_OPEN_MAX || !defined _SC_MQ_PRIO_MAX || !defined _SC_VERSION \
+    || !defined _SC_PAGESIZE || !defined _SC_RTSIG_MAX || !defined _SC_SEM_NSEMS_MAX || !defined _SC_SEM_VALUE_MAX || !defined _SC_SIGQUEUE_MAX || !defined _SC_TIMER_MAX \
+    || !defined _SC_BC_BASE_MAX || !defined _SC_BC_DIM_MAX || !defined _SC_BC_SCALE_MAX || !defined _SC_BC_STRING_MAX || !defined _SC_COLL_WEIGHTS_MAX || !defined _SC_EQUIV_CLASS_MAX \
+    || !defined _SC_EXPR_NEST_MAX || !defined _SC_LINE_MAX || !defined _SC_RE_DUP_MAX || !defined _SC_CHARCLASS_NAME_MAX || !defined _SC_2_VERSION || !defined _SC_2_C_BIND \
+    || !defined _SC_2_C_DEV || !defined _SC_2_FORT_DEV || !defined _SC_2_FORT_RUN || !defined _SC_2_SW_DEV || !defined _SC_2_LOCALEDEF || !defined _SC_PII \
+    || !defined _SC_PII_XTI || !defined _SC_PII_SOCKET || !defined _SC_PII_INTERNET || !defined _SC_PII_OSI || !defined _SC_POLL || !defined _SC_SELECT \
+    || !defined _SC_IOV_MAX || !defined _SC_UIO_MAXIOV || !defined _SC_PII_INTERNET_STREAM || !defined _SC_PII_INTERNET_DGRAM || !defined _SC_PII_OSI_COTS || !defined _SC_PII_OSI_CLTS \
+    || !defined _SC_PII_OSI_M || !defined _SC_T_IOV_MAX || !defined _SC_THREADS || !defined _SC_THREAD_SAFE_FUNCTIONS || !defined _SC_GETGR_R_SIZE_MAX || !defined _SC_GETPW_R_SIZE_MAX \
+    || !defined _SC_LOGIN_NAME_MAX || !defined _SC_TTY_NAME_MAX || !defined _SC_THREAD_DESTRUCTOR_ITERATIONS || !defined _SC_THREAD_KEYS_MAX || !defined _SC_THREAD_STACK_MIN || !defined _SC_THREAD_THREADS_MAX \
+    || !defined _SC_THREAD_ATTR_STACKADDR || !defined _SC_THREAD_ATTR_STACKSIZE || !defined _SC_THREAD_PRIORITY_SCHEDULING || !defined _SC_THREAD_PRIO_INHERIT || !defined _SC_THREAD_PRIO_PROTECT || !defined _SC_THREAD_PROCESS_SHARED \
+    || !defined _SC_NPROCESSORS_CONF || !defined _SC_NPROCESSORS_ONLN || !defined _SC_PHYS_PAGES || !defined _SC_AVPHYS_PAGES || !defined _SC_ATEXIT_MAX || !defined _SC_PASS_MAX \
+    || !defined _SC_XOPEN_VERSION || !defined _SC_XOPEN_XCU_VERSION || !defined _SC_XOPEN_UNIX || !defined _SC_XOPEN_CRYPT || !defined _SC_XOPEN_ENH_I18N || !defined _SC_XOPEN_SHM \
+    || !defined _SC_2_CHAR_TERM || !defined _SC_2_C_VERSION || !defined _SC_2_UPE || !defined _SC_XOPEN_XPG2 || !defined _SC_XOPEN_XPG3 || !defined _SC_XOPEN_XPG4 \
+    || !defined _SC_CHAR_BIT || !defined _SC_CHAR_MAX || !defined _SC_CHAR_MIN || !defined _SC_INT_MAX || !defined _SC_INT_MIN || !defined _SC_LONG_BIT \
+    || !defined _SC_WORD_BIT || !defined _SC_MB_LEN_MAX || !defined _SC_NZERO || !defined _SC_SSIZE_MAX || !defined _SC_SCHAR_MAX || !defined _SC_SCHAR_MIN \
+    || !defined _SC_SHRT_MAX || !defined _SC_SHRT_MIN || !defined _SC_UCHAR_MAX || !defined _SC_UINT_MAX || !defined _SC_ULONG_MAX || !defined _SC_USHRT_MAX \
+    || !defined _SC_NL_ARGMAX || !defined _SC_NL_LANGMAX || !defined _SC_NL_MSGMAX || !defined _SC_NL_NMAX || !defined _SC_NL_SETMAX || !defined _SC_NL_TEXTMAX \
+    || !defined _SC_XBS5_ILP32_OFF32 || !defined _SC_XBS5_ILP32_OFFBIG || !defined _SC_XBS5_LP64_OFF64 || !defined _SC_XBS5_LPBIG_OFFBIG || !defined _SC_XOPEN_LEGACY || !defined _SC_XOPEN_REALTIME \
+    || !defined _SC_XOPEN_REALTIME_THREADS || !defined _SC_ADVISORY_INFO || !defined _SC_BARRIERS || !defined _SC_BASE || !defined _SC_C_LANG_SUPPORT || !defined _SC_C_LANG_SUPPORT_R \
+    || !defined _SC_CLOCK_SELECTION || !defined _SC_CPUTIME || !defined _SC_THREAD_CPUTIME || !defined _SC_DEVICE_IO || !defined _SC_DEVICE_SPECIFIC || !defined _SC_DEVICE_SPECIFIC_R \
+    || !defined _SC_FD_MGMT || !defined _SC_FIFO || !defined _SC_PIPE || !defined _SC_FILE_ATTRIBUTES || !defined _SC_FILE_LOCKING || !defined _SC_FILE_SYSTEM \
+    || !defined _SC_MONOTONIC_CLOCK || !defined _SC_MULTI_PROCESS || !defined _SC_SINGLE_PROCESS || !defined _SC_NETWORKING || !defined _SC_READER_WRITER_LOCKS || !defined _SC_SPIN_LOCKS \
+    || !defined _SC_REGEXP || !defined _SC_REGEX_VERSION || !defined _SC_SHELL || !defined _SC_SIGNALS || !defined _SC_SPAWN || !defined _SC_SPORADIC_SERVER \
+    || !defined _SC_THREAD_SPORADIC_SERVER || !defined _SC_SYSTEM_DATABASE || !defined _SC_SYSTEM_DATABASE_R || !defined _SC_TIMEOUTS || !defined _SC_TYPED_MEMORY_OBJECTS || !defined _SC_USER_GROUPS \
+    || !defined _SC_USER_GROUPS_R || !defined _SC_2_PBS || !defined _SC_2_PBS_ACCOUNTING || !defined _SC_2_PBS_LOCATE || !defined _SC_2_PBS_MESSAGE || !defined _SC_2_PBS_TRACK \
+    || !defined _SC_SYMLOOP_MAX || !defined _SC_STREAMS || !defined _SC_2_PBS_CHECKPOINT || !defined _SC_V6_ILP32_OFF32 || !defined _SC_V6_ILP32_OFFBIG || !defined _SC_V6_LP64_OFF64 \
+    || !defined _SC_V6_LPBIG_OFFBIG || !defined _SC_HOST_NAME_MAX || !defined _SC_TRACE || !defined _SC_TRACE_EVENT_FILTER || !defined _SC_TRACE_INHERIT || !defined _SC_TRACE_LOG \
+    || !defined _SC_LEVEL1_ICACHE_SIZE || !defined _SC_LEVEL1_ICACHE_ASSOC || !defined _SC_LEVEL1_ICACHE_LINESIZE || !defined _SC_LEVEL1_DCACHE_SIZE || !defined _SC_LEVEL1_DCACHE_ASSOC || !defined _SC_LEVEL1_DCACHE_LINESIZE \
+    || !defined _SC_LEVEL2_CACHE_SIZE || !defined _SC_LEVEL2_CACHE_ASSOC || !defined _SC_LEVEL2_CACHE_LINESIZE || !defined _SC_LEVEL3_CACHE_SIZE || !defined _SC_LEVEL3_CACHE_ASSOC || !defined _SC_LEVEL3_CACHE_LINESIZE \
+    || !defined _SC_LEVEL4_CACHE_SIZE || !defined _SC_LEVEL4_CACHE_ASSOC || !defined _SC_LEVEL4_CACHE_LINESIZE || !defined _SC_IPV6 || !defined _SC_RAW_SOCKETS || !defined _SC_V7_ILP32_OFF32 \
+    || !defined _SC_V7_ILP32_OFFBIG || !defined _SC_V7_LP64_OFF64 || !defined _SC_V7_LPBIG_OFFBIG || !defined _SC_SS_REPL_MAX || !defined _SC_TRACE_EVENT_NAME_MAX || !defined _SC_TRACE_NAME_MAX \
+    || !defined _SC_TRACE_SYS_MAX || !defined _SC_TRACE_USER_EVENT_MAX || !defined _SC_XOPEN_STREAMS || !defined _SC_THREAD_ROBUST_PRIO_INHERIT || !defined _SC_THREAD_ROBUST_PRIO_PROTECT || !defined _SC_MINSIGSTKSZ \
+    || !defined _SC_SIGSTKSZ
 enum {
 #  ifndef _SC_ARG_MAX
   _SC_ARG_MAX = 0,
@@ -1628,6 +1682,7 @@ enum {
   _SC_SIGSTKSZ = 250,
 #  endif
 };
+#  endif
 # endif
 # ifndef F_OK
 #  define F_OK 0

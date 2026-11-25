@@ -807,6 +807,7 @@ extern int pthread_setconcurrency (int) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_anon_PTHREAD_CANCEL_ASYNCHRONOUS
 #  define __NIJI_D_anon_PTHREAD_CANCEL_ASYNCHRONOUS 1
+#  if !defined PTHREAD_CANCEL_DEFERRED || !defined PTHREAD_CANCEL_ASYNCHRONOUS
 enum {
 #  ifndef PTHREAD_CANCEL_DEFERRED
   PTHREAD_CANCEL_DEFERRED = 0,
@@ -815,9 +816,11 @@ enum {
   PTHREAD_CANCEL_ASYNCHRONOUS = 1,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_CANCEL_DISABLE
 #  define __NIJI_D_anon_PTHREAD_CANCEL_DISABLE 1
+#  if !defined PTHREAD_CANCEL_ENABLE || !defined PTHREAD_CANCEL_DISABLE
 enum {
 #  ifndef PTHREAD_CANCEL_ENABLE
   PTHREAD_CANCEL_ENABLE = 0,
@@ -826,9 +829,11 @@ enum {
   PTHREAD_CANCEL_DISABLE = 1,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_CREATE_DETACHED
 #  define __NIJI_D_anon_PTHREAD_CREATE_DETACHED 1
+#  if !defined PTHREAD_CREATE_JOINABLE || !defined PTHREAD_CREATE_DETACHED
 enum {
 #  ifndef PTHREAD_CREATE_JOINABLE
   PTHREAD_CREATE_JOINABLE = 0,
@@ -837,9 +842,11 @@ enum {
   PTHREAD_CREATE_DETACHED = 1,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_EXPLICIT_SCHED
 #  define __NIJI_D_anon_PTHREAD_EXPLICIT_SCHED 1
+#  if !defined PTHREAD_INHERIT_SCHED || !defined PTHREAD_EXPLICIT_SCHED
 enum {
 #  ifndef PTHREAD_INHERIT_SCHED
   PTHREAD_INHERIT_SCHED = 0,
@@ -848,9 +855,11 @@ enum {
   PTHREAD_EXPLICIT_SCHED = 1,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_MUTEX_ADAPTIVE_NP
 #  define __NIJI_D_anon_PTHREAD_MUTEX_ADAPTIVE_NP 1
+#  if ((__NIJI_POSIX >= 200809 || __NIJI_XSI >= 500) && !defined PTHREAD_MUTEX_DEFAULT) || ((__NIJI_POSIX >= 200809 || __NIJI_XSI >= 500) && !defined PTHREAD_MUTEX_NORMAL) || !defined PTHREAD_MUTEX_TIMED_NP || ((__NIJI_POSIX >= 200809 || __NIJI_XSI >= 500) && !defined PTHREAD_MUTEX_RECURSIVE) || ((__NIJI_POSIX >= 200809 || __NIJI_XSI >= 500) && !defined PTHREAD_MUTEX_ERRORCHECK) || !defined PTHREAD_MUTEX_ADAPTIVE_NP
 enum {
 #  if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
 #  ifndef PTHREAD_MUTEX_DEFAULT
@@ -879,9 +888,11 @@ enum {
   PTHREAD_MUTEX_ADAPTIVE_NP = 3,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_PROCESS_PRIVATE
 #  define __NIJI_D_anon_PTHREAD_PROCESS_PRIVATE 1
+#  if !defined PTHREAD_PROCESS_PRIVATE || !defined PTHREAD_PROCESS_SHARED
 enum {
 #  ifndef PTHREAD_PROCESS_PRIVATE
   PTHREAD_PROCESS_PRIVATE = 0,
@@ -890,9 +901,11 @@ enum {
   PTHREAD_PROCESS_SHARED = 1,
 #  endif
 };
+#  endif
 # endif
 # ifndef __NIJI_D_anon_PTHREAD_SCOPE_PROCESS
 #  define __NIJI_D_anon_PTHREAD_SCOPE_PROCESS 1
+#  if !defined PTHREAD_SCOPE_SYSTEM || !defined PTHREAD_SCOPE_PROCESS
 enum {
 #  ifndef PTHREAD_SCOPE_SYSTEM
   PTHREAD_SCOPE_SYSTEM = 0,
@@ -901,11 +914,13 @@ enum {
   PTHREAD_SCOPE_PROCESS = 1,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_anon_PTHREAD_PRIO_INHERIT
 #  define __NIJI_D_anon_PTHREAD_PRIO_INHERIT 1
+#  if !defined PTHREAD_PRIO_NONE || !defined PTHREAD_PRIO_INHERIT || !defined PTHREAD_PRIO_PROTECT
 enum {
 #  ifndef PTHREAD_PRIO_NONE
   PTHREAD_PRIO_NONE = 0,
@@ -917,11 +932,13 @@ enum {
   PTHREAD_PRIO_PROTECT = 2,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_anon_PTHREAD_MUTEX_ROBUST
 #  define __NIJI_D_anon_PTHREAD_MUTEX_ROBUST 1
+#  if !defined PTHREAD_MUTEX_STALLED || !defined PTHREAD_MUTEX_STALLED_NP || !defined PTHREAD_MUTEX_ROBUST || !defined PTHREAD_MUTEX_ROBUST_NP
 enum {
 #  ifndef PTHREAD_MUTEX_STALLED
   PTHREAD_MUTEX_STALLED = 0,
@@ -936,11 +953,13 @@ enum {
   PTHREAD_MUTEX_ROBUST_NP = 1,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # ifndef __NIJI_D_anon_PTHREAD_RWLOCK_DEFAULT_NP
 #  define __NIJI_D_anon_PTHREAD_RWLOCK_DEFAULT_NP 1
+#  if !defined PTHREAD_RWLOCK_DEFAULT_NP || !defined PTHREAD_RWLOCK_PREFER_READER_NP || !defined PTHREAD_RWLOCK_PREFER_WRITER_NP || !defined PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP
 enum {
 #  ifndef PTHREAD_RWLOCK_DEFAULT_NP
   PTHREAD_RWLOCK_DEFAULT_NP = 0,
@@ -955,6 +974,7 @@ enum {
   PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP = 2,
 #  endif
 };
+#  endif
 # endif
 #endif
 #if 1
