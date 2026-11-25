@@ -1,3 +1,7 @@
 # NL-LOCALE-NAME-ABI-3 plants (cargo xtask plants; docs/plants.md format). Results are appended at the foot.
 locale-struct-omitted | headers/reserved.tsv | lit:__locale_struct	emit ==> __locale_struct	omit | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "^locale_struct "' | msg:FAIL locale_struct (locale|ctype|string)\.h
 names-slots-short | crates/boundary/src/locale.rs | lit:for (i, w) in words.iter().skip(16).take(13).enumerate() { ==> for (i, w) in words.iter().skip(16).take(6).enumerate() { | cargo test -p niji-boundary --test s07_locale_symbols sym_nl_langinfo_l | msg:__names\[[0-9]+\] of a mixed object
+# cargo xtask plants results, job nl-locale-name-abi-3-plants2 (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT,
+# 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT): locale-struct-omitted (FAIL locale_struct lines of header_check),
+# names-slots-short (sym_nl_langinfo_l: "__names[7] of a mixed object is set"). Superseded: plants1 (same plants;
+# names-slots-short caught by that assertion but WARN-NO-MSG: its msg regex used \d, which the tool's regex lacks).
