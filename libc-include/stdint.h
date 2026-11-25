@@ -223,36 +223,16 @@ typedef unsigned long uintptr_t;
 #endif
 
 /* C 7.20.4: the integer-constant macros, from the typedefs.tsv rows of the least-width types. */
-# ifndef INT8_C
-#  define INT8_C(c) c
-# endif
-# ifndef UINT8_C
-#  define UINT8_C(c) c
-# endif
-# ifndef INT16_C
-#  define INT16_C(c) c
-# endif
-# ifndef UINT16_C
-#  define UINT16_C(c) c
-# endif
-# ifndef INT32_C
-#  define INT32_C(c) c
-# endif
-# ifndef UINT32_C
-#  define UINT32_C(c) c ## U
-# endif
-# ifndef INT64_C
-#  define INT64_C(c) c ## L
-# endif
-# ifndef UINT64_C
-#  define UINT64_C(c) c ## UL
-# endif
-# ifndef INTMAX_C
-#  define INTMAX_C(c) c ## L
-# endif
-# ifndef UINTMAX_C
-#  define UINTMAX_C(c) c ## UL
-# endif
+# define INT8_C(c) c
+# define UINT8_C(c) c
+# define INT16_C(c) c
+# define UINT16_C(c) c
+# define INT32_C(c) c
+# define UINT32_C(c) c ## U
+# define INT64_C(c) c ## L
+# define UINT64_C(c) c ## UL
+# define INTMAX_C(c) c ## L
+# define UINTMAX_C(c) c ## UL
 
 __NIJI_END_C
 
