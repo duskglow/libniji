@@ -1,0 +1,389 @@
+@@generated
+/* tgmath.h: type-generic macros (C 7.25 with C2X's additions, TS 18661-3 for the _FloatN and _FloatNx types). Each
+   macro selects the math.h or complex.h function for its arguments' types with GCC's `__builtin_tgmath` (GCC manual,
+   "Other Built-in Functions"): integer arguments count as double, a complex argument selects the complex function, and
+   a type no listed function takes is an error. The builtin exists in C only, so in C++ the macros are defined and a
+   use does not compile (the C++ library's <cmath> and <complex> are the C++ forms). */
+#ifndef __NIJI_H_tgmath_h
+#define __NIJI_H_tgmath_h 1
+
+#include <math.h>
+#include <complex.h>
+
+@@owns-macro acos acosh asin asinh atan atanh cos cosh exp log pow sin sinh sqrt tan tanh fabs atan2 cbrt ceil copysign erf erfc exp2 expm1 fdim floor fma fmax fmin fmod frexp hypot ilogb ldexp lgamma llrint llround log10 log1p log2 logb lrint lround nearbyint nextafter remainder remquo rint round scalbln scalbn tgamma trunc nexttoward scalb carg cimag conj cproj creal exp10 fmaximum fmaximum_mag fmaximum_mag_num fmaximum_num fminimum fminimum_mag fminimum_mag_num fminimum_num fromfp fromfpx llogb nextdown nextup roundeven ufromfp ufromfpx fmaxmag fminmag fadd dadd f32add f32xadd f64add f64xadd fsub dsub f32sub f32xsub f64sub f64xsub fmul dmul f32mul f32xmul f64mul f64xmul fdiv ddiv f32div f32xdiv f64div f64xdiv fsqrt dsqrt f32sqrt f32xsqrt f64sqrt f64xsqrt ffma dfma f32fma f32xfma f64fma f64xfma
+@@emit-c
+
+/* The functions of one macro, each followed by a comma: float, double and long double, then the _FloatN and _FloatNx
+   functions where math.h and complex.h declare them (the configurations of the _FloatN narrowing macros). */
+@@if-c sinf32 function
+# define __NIJI_TGN(fn) fn##f32, fn##f64, fn##f128, fn##f32x, fn##f64x,
+#else
+# define __NIJI_TGN(fn)
+#endif
+/* log10 of a complex argument: clog10, a GNU extension, where complex.h declares it. */
+@@if-c clog10 function
+# define __NIJI_TGLOG10C __NIJI_TGR (clog10)
+#else
+# define __NIJI_TGLOG10C
+#endif
+#define __NIJI_TGR(fn) fn##f, fn, fn##l, __NIJI_TGN (fn)
+#define __NIJI_TGRC(fn) __NIJI_TGR (fn) __NIJI_TGR (c##fn)
+
+/* C 7.25 p4: real and complex functions. fabs of a complex argument is cabs. */
+@@if-c acos
+# define acos(x) __builtin_tgmath (__NIJI_TGRC (acos) x)
+#endif
+@@if-c acosh
+# define acosh(x) __builtin_tgmath (__NIJI_TGRC (acosh) x)
+#endif
+@@if-c asin
+# define asin(x) __builtin_tgmath (__NIJI_TGRC (asin) x)
+#endif
+@@if-c asinh
+# define asinh(x) __builtin_tgmath (__NIJI_TGRC (asinh) x)
+#endif
+@@if-c atan
+# define atan(x) __builtin_tgmath (__NIJI_TGRC (atan) x)
+#endif
+@@if-c atanh
+# define atanh(x) __builtin_tgmath (__NIJI_TGRC (atanh) x)
+#endif
+@@if-c cos
+# define cos(x) __builtin_tgmath (__NIJI_TGRC (cos) x)
+#endif
+@@if-c cosh
+# define cosh(x) __builtin_tgmath (__NIJI_TGRC (cosh) x)
+#endif
+@@if-c exp
+# define exp(x) __builtin_tgmath (__NIJI_TGRC (exp) x)
+#endif
+@@if-c log
+# define log(x) __builtin_tgmath (__NIJI_TGRC (log) x)
+#endif
+@@if-c pow
+# define pow(x, y) __builtin_tgmath (__NIJI_TGRC (pow) x, y)
+#endif
+@@if-c sin
+# define sin(x) __builtin_tgmath (__NIJI_TGRC (sin) x)
+#endif
+@@if-c sinh
+# define sinh(x) __builtin_tgmath (__NIJI_TGRC (sinh) x)
+#endif
+@@if-c sqrt
+# define sqrt(x) __builtin_tgmath (__NIJI_TGRC (sqrt) x)
+#endif
+@@if-c tan
+# define tan(x) __builtin_tgmath (__NIJI_TGRC (tan) x)
+#endif
+@@if-c tanh
+# define tanh(x) __builtin_tgmath (__NIJI_TGRC (tanh) x)
+#endif
+@@if-c fabs
+# define fabs(x) __builtin_tgmath (__NIJI_TGR (fabs) __NIJI_TGR (cabs) x)
+#endif
+/* C 7.25 p5: real functions only; a complex argument is an error. */
+@@if-c log10
+# define log10(x) __builtin_tgmath (__NIJI_TGR (log10) __NIJI_TGLOG10C x)
+#endif
+@@if-c atan2
+# define atan2(x, y) __builtin_tgmath (__NIJI_TGR (atan2) x, y)
+#endif
+@@if-c cbrt
+# define cbrt(x) __builtin_tgmath (__NIJI_TGR (cbrt) x)
+#endif
+@@if-c ceil
+# define ceil(x) __builtin_tgmath (__NIJI_TGR (ceil) x)
+#endif
+@@if-c copysign
+# define copysign(x, y) __builtin_tgmath (__NIJI_TGR (copysign) x, y)
+#endif
+@@if-c erf
+# define erf(x) __builtin_tgmath (__NIJI_TGR (erf) x)
+#endif
+@@if-c erfc
+# define erfc(x) __builtin_tgmath (__NIJI_TGR (erfc) x)
+#endif
+@@if-c exp2
+# define exp2(x) __builtin_tgmath (__NIJI_TGR (exp2) x)
+#endif
+@@if-c expm1
+# define expm1(x) __builtin_tgmath (__NIJI_TGR (expm1) x)
+#endif
+@@if-c fdim
+# define fdim(x, y) __builtin_tgmath (__NIJI_TGR (fdim) x, y)
+#endif
+@@if-c floor
+# define floor(x) __builtin_tgmath (__NIJI_TGR (floor) x)
+#endif
+@@if-c fma
+# define fma(x, y, z) __builtin_tgmath (__NIJI_TGR (fma) x, y, z)
+#endif
+@@if-c fmax
+# define fmax(x, y) __builtin_tgmath (__NIJI_TGR (fmax) x, y)
+#endif
+@@if-c fmin
+# define fmin(x, y) __builtin_tgmath (__NIJI_TGR (fmin) x, y)
+#endif
+@@if-c fmod
+# define fmod(x, y) __builtin_tgmath (__NIJI_TGR (fmod) x, y)
+#endif
+@@if-c frexp
+# define frexp(x, e) __builtin_tgmath (__NIJI_TGR (frexp) x, e)
+#endif
+@@if-c hypot
+# define hypot(x, y) __builtin_tgmath (__NIJI_TGR (hypot) x, y)
+#endif
+@@if-c ilogb
+# define ilogb(x) __builtin_tgmath (__NIJI_TGR (ilogb) x)
+#endif
+@@if-c ldexp
+# define ldexp(x, e) __builtin_tgmath (__NIJI_TGR (ldexp) x, e)
+#endif
+@@if-c lgamma
+# define lgamma(x) __builtin_tgmath (__NIJI_TGR (lgamma) x)
+#endif
+@@if-c llrint
+# define llrint(x) __builtin_tgmath (__NIJI_TGR (llrint) x)
+#endif
+@@if-c llround
+# define llround(x) __builtin_tgmath (__NIJI_TGR (llround) x)
+#endif
+@@if-c log1p
+# define log1p(x) __builtin_tgmath (__NIJI_TGR (log1p) x)
+#endif
+@@if-c log2
+# define log2(x) __builtin_tgmath (__NIJI_TGR (log2) x)
+#endif
+@@if-c logb
+# define logb(x) __builtin_tgmath (__NIJI_TGR (logb) x)
+#endif
+@@if-c lrint
+# define lrint(x) __builtin_tgmath (__NIJI_TGR (lrint) x)
+#endif
+@@if-c lround
+# define lround(x) __builtin_tgmath (__NIJI_TGR (lround) x)
+#endif
+@@if-c nearbyint
+# define nearbyint(x) __builtin_tgmath (__NIJI_TGR (nearbyint) x)
+#endif
+@@if-c nextafter
+# define nextafter(x, y) __builtin_tgmath (__NIJI_TGR (nextafter) x, y)
+#endif
+@@if-c remainder
+# define remainder(x, y) __builtin_tgmath (__NIJI_TGR (remainder) x, y)
+#endif
+@@if-c remquo
+# define remquo(x, y, q) __builtin_tgmath (__NIJI_TGR (remquo) x, y, q)
+#endif
+@@if-c rint
+# define rint(x) __builtin_tgmath (__NIJI_TGR (rint) x)
+#endif
+@@if-c round
+# define round(x) __builtin_tgmath (__NIJI_TGR (round) x)
+#endif
+@@if-c scalbln
+# define scalbln(x, n) __builtin_tgmath (__NIJI_TGR (scalbln) x, n)
+#endif
+@@if-c scalbn
+# define scalbn(x, n) __builtin_tgmath (__NIJI_TGR (scalbn) x, n)
+#endif
+@@if-c tgamma
+# define tgamma(x) __builtin_tgmath (__NIJI_TGR (tgamma) x)
+#endif
+@@if-c trunc
+# define trunc(x) __builtin_tgmath (__NIJI_TGR (trunc) x)
+#endif
+@@if-c exp10
+# define exp10(x) __builtin_tgmath (__NIJI_TGR (exp10) x)
+#endif
+@@if-c fmaximum
+# define fmaximum(x, y) __builtin_tgmath (__NIJI_TGR (fmaximum) x, y)
+#endif
+@@if-c fmaximum_mag
+# define fmaximum_mag(x, y) __builtin_tgmath (__NIJI_TGR (fmaximum_mag) x, y)
+#endif
+@@if-c fmaximum_mag_num
+# define fmaximum_mag_num(x, y) __builtin_tgmath (__NIJI_TGR (fmaximum_mag_num) x, y)
+#endif
+@@if-c fmaximum_num
+# define fmaximum_num(x, y) __builtin_tgmath (__NIJI_TGR (fmaximum_num) x, y)
+#endif
+@@if-c fminimum
+# define fminimum(x, y) __builtin_tgmath (__NIJI_TGR (fminimum) x, y)
+#endif
+@@if-c fminimum_mag
+# define fminimum_mag(x, y) __builtin_tgmath (__NIJI_TGR (fminimum_mag) x, y)
+#endif
+@@if-c fminimum_mag_num
+# define fminimum_mag_num(x, y) __builtin_tgmath (__NIJI_TGR (fminimum_mag_num) x, y)
+#endif
+@@if-c fminimum_num
+# define fminimum_num(x, y) __builtin_tgmath (__NIJI_TGR (fminimum_num) x, y)
+#endif
+@@if-c fromfp
+# define fromfp(x, r, w) __builtin_tgmath (__NIJI_TGR (fromfp) x, r, w)
+#endif
+@@if-c fromfpx
+# define fromfpx(x, r, w) __builtin_tgmath (__NIJI_TGR (fromfpx) x, r, w)
+#endif
+@@if-c llogb
+# define llogb(x) __builtin_tgmath (__NIJI_TGR (llogb) x)
+#endif
+@@if-c nextdown
+# define nextdown(x) __builtin_tgmath (__NIJI_TGR (nextdown) x)
+#endif
+@@if-c nextup
+# define nextup(x) __builtin_tgmath (__NIJI_TGR (nextup) x)
+#endif
+@@if-c roundeven
+# define roundeven(x) __builtin_tgmath (__NIJI_TGR (roundeven) x)
+#endif
+@@if-c ufromfp
+# define ufromfp(x, r, w) __builtin_tgmath (__NIJI_TGR (ufromfp) x, r, w)
+#endif
+@@if-c ufromfpx
+# define ufromfpx(x, r, w) __builtin_tgmath (__NIJI_TGR (ufromfpx) x, r, w)
+#endif
+@@if-c fmaxmag
+# define fmaxmag(x, y) __builtin_tgmath (__NIJI_TGR (fmaxmag) x, y)
+#endif
+@@if-c fminmag
+# define fminmag(x, y) __builtin_tgmath (__NIJI_TGR (fminmag) x, y)
+#endif
+/* nexttoward and scalb (XSI, obsolete) take float, double and long double only. */
+@@if-c nexttoward
+# define nexttoward(x, y) __builtin_tgmath (nexttowardf, nexttoward, nexttowardl, x, y)
+#endif
+@@if-c scalb
+# define scalb(x, n) __builtin_tgmath (scalbf, scalb, scalbl, x, n)
+#endif
+/* C 7.25 p6: complex functions only; a real argument is taken as complex. */
+@@if-c carg
+# define carg(x) __builtin_tgmath (__NIJI_TGR (carg) x)
+#endif
+@@if-c cimag
+# define cimag(x) __builtin_tgmath (__NIJI_TGR (cimag) x)
+#endif
+@@if-c conj
+# define conj(x) __builtin_tgmath (__NIJI_TGR (conj) x)
+#endif
+@@if-c cproj
+# define cproj(x) __builtin_tgmath (__NIJI_TGR (cproj) x)
+#endif
+@@if-c creal
+# define creal(x) __builtin_tgmath (__NIJI_TGR (creal) x)
+#endif
+/* C2X 7.25 p6 and TS 18661-3: the narrowing functions, which round their result once to the type in the name, so
+   every argument format that holds the argument exactly gives the same value. The builtin takes the function whose
+   parameter has the argument's own type, else the first listed one that holds its values: the order is the
+   reference's selection (spec/abi/typegeneric.tsv). The d and f64x forms call the widest function for every type. */
+@@if-c fadd
+# define fadd(x, y) __builtin_tgmath (fadd, faddl, x, y)
+#endif
+@@if-c dadd
+# define dadd(x, y) daddl (x, y)
+#endif
+@@if-c f32add
+# define f32add(x, y) __builtin_tgmath (f32addf64, f32addf32x, f32addf128, f32addf64x, x, y)
+#endif
+@@if-c f32xadd
+# define f32xadd(x, y) __builtin_tgmath (f32xaddf64x, f32xaddf64, f32xaddf128, x, y)
+#endif
+@@if-c f64add
+# define f64add(x, y) __builtin_tgmath (f64addf128, f64addf64x, x, y)
+#endif
+@@if-c f64xadd
+# define f64xadd(x, y) f64xaddf128 (x, y)
+#endif
+@@if-c fsub
+# define fsub(x, y) __builtin_tgmath (fsub, fsubl, x, y)
+#endif
+@@if-c dsub
+# define dsub(x, y) dsubl (x, y)
+#endif
+@@if-c f32sub
+# define f32sub(x, y) __builtin_tgmath (f32subf64, f32subf32x, f32subf128, f32subf64x, x, y)
+#endif
+@@if-c f32xsub
+# define f32xsub(x, y) __builtin_tgmath (f32xsubf64x, f32xsubf64, f32xsubf128, x, y)
+#endif
+@@if-c f64sub
+# define f64sub(x, y) __builtin_tgmath (f64subf128, f64subf64x, x, y)
+#endif
+@@if-c f64xsub
+# define f64xsub(x, y) f64xsubf128 (x, y)
+#endif
+@@if-c fmul
+# define fmul(x, y) __builtin_tgmath (fmul, fmull, x, y)
+#endif
+@@if-c dmul
+# define dmul(x, y) dmull (x, y)
+#endif
+@@if-c f32mul
+# define f32mul(x, y) __builtin_tgmath (f32mulf64, f32mulf32x, f32mulf128, f32mulf64x, x, y)
+#endif
+@@if-c f32xmul
+# define f32xmul(x, y) __builtin_tgmath (f32xmulf64x, f32xmulf64, f32xmulf128, x, y)
+#endif
+@@if-c f64mul
+# define f64mul(x, y) __builtin_tgmath (f64mulf128, f64mulf64x, x, y)
+#endif
+@@if-c f64xmul
+# define f64xmul(x, y) f64xmulf128 (x, y)
+#endif
+@@if-c fdiv
+# define fdiv(x, y) __builtin_tgmath (fdiv, fdivl, x, y)
+#endif
+@@if-c ddiv
+# define ddiv(x, y) ddivl (x, y)
+#endif
+@@if-c f32div
+# define f32div(x, y) __builtin_tgmath (f32divf64, f32divf32x, f32divf128, f32divf64x, x, y)
+#endif
+@@if-c f32xdiv
+# define f32xdiv(x, y) __builtin_tgmath (f32xdivf64x, f32xdivf64, f32xdivf128, x, y)
+#endif
+@@if-c f64div
+# define f64div(x, y) __builtin_tgmath (f64divf128, f64divf64x, x, y)
+#endif
+@@if-c f64xdiv
+# define f64xdiv(x, y) f64xdivf128 (x, y)
+#endif
+@@if-c fsqrt
+# define fsqrt(x) __builtin_tgmath (fsqrt, fsqrtl, x)
+#endif
+@@if-c dsqrt
+# define dsqrt(x) dsqrtl (x)
+#endif
+@@if-c f32sqrt
+# define f32sqrt(x) __builtin_tgmath (f32sqrtf64, f32sqrtf32x, f32sqrtf128, f32sqrtf64x, x)
+#endif
+@@if-c f32xsqrt
+# define f32xsqrt(x) __builtin_tgmath (f32xsqrtf64x, f32xsqrtf64, f32xsqrtf128, x)
+#endif
+@@if-c f64sqrt
+# define f64sqrt(x) __builtin_tgmath (f64sqrtf128, f64sqrtf64x, x)
+#endif
+@@if-c f64xsqrt
+# define f64xsqrt(x) f64xsqrtf128 (x)
+#endif
+@@if-c ffma
+# define ffma(x, y, z) __builtin_tgmath (ffma, ffmal, x, y, z)
+#endif
+@@if-c dfma
+# define dfma(x, y, z) dfmal (x, y, z)
+#endif
+@@if-c f32fma
+# define f32fma(x, y, z) __builtin_tgmath (f32fmaf64, f32fmaf32x, f32fmaf128, f32fmaf64x, x, y, z)
+#endif
+@@if-c f32xfma
+# define f32xfma(x, y, z) __builtin_tgmath (f32xfmaf64x, f32xfmaf64, f32xfmaf128, x, y, z)
+#endif
+@@if-c f64fma
+# define f64fma(x, y, z) __builtin_tgmath (f64fmaf128, f64fmaf64x, x, y, z)
+#endif
+@@if-c f64xfma
+# define f64xfma(x, y, z) f64xfmaf128 (x, y, z)
+#endif
+
+#endif

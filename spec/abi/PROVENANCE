@@ -60,3 +60,8 @@ configurations, 73462 rows) gave 35 rows for the three names this slice adds the
 visibility.tsv (25 `__locale_t` typedef rows, each with the configurations of the same header's `locale_t` row; 7
 `__CORRECT_ISO_CPP_STRING_H_PROTO` and 3 `__CORRECT_ISO_CPP_WCHAR_H_PROTO` macro rows, C++ configurations only). The
 typedefs.tsv row of `__locale_t` by type_probe.py --headers argp.h (8, 8, `__locale_struct*`).
+typegeneric.tsv (SL-HEADERS-COMPLEX-TGMATH): spec/tools/tgmath_probe.py on the reference system (ldd (Ubuntu GLIBC
+2.39-0ubuntu8.9) 2.39, GCC 13.3), eight configurations (C89, C99, C11, C2X strict, gnu17, _GNU_SOURCE, C++98 and
+gnu++17 through the C++ library's wrappers), 23474 rows: per tgmath.h macro and argument types the functions the call
+references, the result type and the form; per complex.h macro its type and whether it is a constant expression.
+Read back are only exit statuses and the symbols and object sizes of the probe's own objects.

@@ -1,4 +1,5 @@
-"""Slice 11 (plan/headers.md section 4: math): P1 of the math group of headers, and the P6 units of tgmath.h and ieee754.h.
+"""Slice 11 (plan/headers.md section 4: math): P1 of the math group of headers, P6 of ieee754.h, and P6 of complex.h and
+tgmath.h: the type-generic resolution against spec/abi/typegeneric.tsv (tgmath_probe.py).
 
 The slice table lists these headers with `p1` 0: this module does the table P1 itself, because the shared P1 knows
 neither floating macros nor unions, and a header the C++ standard library wraps (math.h, complex.h) must be asserted
@@ -13,7 +14,9 @@ import decimal
 import os
 import subprocess
 
-HEADERS = ["math.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
+HEADERS = ["math.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h", "complex.h", "tgmath.h"]
+# The headers whose C++11-and-later visibility rows are the C++ library's own (the wrapper takes <complex>, <cmath>).
+CXX_LIBRARY_ROWS = ("complex.h", "tgmath.h")
 
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
@@ -94,7 +97,13 @@ def p1(ctx):
             t = ctx.layouts[r["kind"] + " " + n]
             tests.append(f"sizeof({r['kind']} {n}) == {t['offset_or_size']}")
             tests.append(f"__alignof__({r['kind']} {n}) == {t['align']}")
-        for cid in expand(r["configs"], ctx.ids):
+        cids = expand(r["configs"], ctx.ids)
+        if h in CXX_LIBRARY_ROWS:
+            # Read in C++ only through the C++ library's wrapper: the C++11 and later rows are <complex> and <cmath>
+            # (xtask/src/headers/slices/s11.rs); the C header shows in every C++ configuration what C++98 shows.
+            cxx = [c["id"] for c in ctx.cfgs if c["language"] == "c++"]
+            cids = [c for c in cids if c not in cxx] + (cxx if "cxx98" in cids else [])
+        for cid in cids:
             out.setdefault((h, cid), []).extend(tests)
     units = []
     for (h, cid), tests in sorted(out.items()):
@@ -111,9 +120,27 @@ def p1(ctx):
 
 
 def units(ctx):
-    # complex.h and tgmath.h are not in this slice yet (their C++ rows and type-generic macros need the generator story,
-    # HEADERS-TABLES-COMPLETE): no P6 unit for tgmath.h.
     return p1(ctx)
+
+
+# The configurations the type-generic check runs in (of spec/tools/tgmath_probe.py's eight): C89 (the float and long
+# double functions undeclared, so most macros do not compile), C99 (the C99 macros only, _FloatN arguments rejected),
+# _GNU_SOURCE (every macro and every argument type, the _FloatN and narrowing functions) and C++98 (macros defined,
+# no use compiles). The other four repeat these selections; `tgmath_probe.py --check` runs all eight.
+TG_CONFIGS = ("c89", "c99", "gnu", "cxx98")
+
+
+def tgmath_problems(ctx):
+    """P6 of complex.h and tgmath.h: each macro use of spec/abi/typegeneric.tsv (the reference's) compiles with the
+    tree's headers to the same called functions, result type and form (constant or run-time), or fails as there."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tgmath_probe", os.path.join(ctx.root, "spec", "tools", "tgmath_probe.py"))
+    tp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tp)
+    expected = tp.read(os.path.join(ctx.root, "spec", "abi", "typegeneric.tsv"))
+    n, diffs = tp.check(tp.tree_compiler(ctx.inc), expected, min(16, os.cpu_count() or 2), only=TG_CONFIGS)
+    print(f"P6 complex.h/tgmath.h: {n} type-generic cases in {', '.join(TG_CONFIGS)}, {len(diffs)} differ")
+    return [f"P6 type-generic (header_checks/s11.py): {d}" for d in diffs]
 
 
 def problems(ctx):
@@ -126,6 +153,7 @@ def problems(ctx):
     src = os.path.join(ctx.root, "spec", "tools", "ieee754_fields.c")
     r = subprocess.run(["gcc", "-std=gnu17", "-O1", "-S", "-o", os.devnull, "-nostdinc", "-isystem", inc, "-isystem", gccinc,
                         "-Wall", "-Wextra", "-Werror", src], capture_output=True, text=True)
+    out = tgmath_problems(ctx)
     if r.returncode == 0:
-        return []
-    return ["P6 ieee754 fields (header_checks/s11.py problems): rc %d: %s" % (r.returncode, " | ".join(r.stderr.split("\n")[:4])[:400])]
+        return out
+    return out + ["P6 ieee754 fields (header_checks/s11.py problems): rc %d: %s" % (r.returncode, " | ".join(r.stderr.split("\n")[:4])[:400])]
