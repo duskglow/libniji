@@ -1,6 +1,17 @@
 # NL-LOCALE-NAME-ABI(-2,-3): _NL_LOCALE_NAME, static_assert, _STDIO_H, complete struct __locale_struct, sweep
 
-**State:** branch `task/nl-locale-name-abi-3` (continues `-2` and `-1`, from origin/next ecc8c95e3), role keke:~/w/r1.
+**State (run 4, merge only):** branch `task/nl-locale-name-abi-4` = `-3` plus a merge of origin/next 227f90c04
+(`e6515ebc7`) and regenerated headers (`10d6c9573`); role keke:~/w/n2. Conflicts kept both intents: one
+`static_assert` block in assert.h.in (both sides had the same condition); `_NL_LOCALE_NAME` stays a header_probe
+candidate (next's stage2_names already lists `static_assert`); s10 runs next's `gettext_units` and this branch's
+`locale_struct_units`; this branch's `static_assert_units` was dropped as a duplicate of next's s05 check (defined
+exactly where visibility.tsv shows it, usable). assert.h and stdio.h regenerated (git had text-merged stdio.h).
+Jobs: `nl-locale-name-abi-4-lint` (clippy + static, green), `nl-locale-name-abi-4-test2` (so, headers-gen, full
+header_check, s07_locale_symbols, xtask tests). The run-1 plants on `static_assert assert.h` name the dropped unit;
+next's s05 is the check now. Ruling #8664 (keep the non-NULL LC_ALL slot, add a differences row and a registered
+future compat flag) is NOT done in this merge-only run: it is the next step.
+
+**Earlier state:** branch `task/nl-locale-name-abi-3` (continues `-2` and `-1`, from origin/next ecc8c95e3), role keke:~/w/r1.
 Head: see `handoff/reports/NL-LOCALE-NAME-ABI-3.json`. Decisions: none new. `_STDIO_H` and `__locale_struct` are
 `headers/reserved.tsv` emit rows (owner rulings R-H2, R-H3); the rest follows reference probes and ISO C 7.2.
 No differences row, no compat option (one RULING NEEDED below).
@@ -37,8 +48,9 @@ No differences row, no compat option (one RULING NEEDED below).
   `SPACE` scsi/scsi.h. Run 3 adds: `struct __locale_struct` (completeness, not a macro) was the other build-breaker.
 
 ## Open
-* RULING NEEDED: LC_ALL slot of `__names` (keep libniji's non-NULL LC_CTYPE name; the reference's is unspecified and
-  can be NULL; recommend no differences row unless a reader turns up).
+* Ruling #8664 (resolved): keep the non-NULL LC_ALL slot of `__names`; add a docs/differences-from-glibc.md row
+  (slot 6 contents per construction path, from the run-3 names.c probe) and a registered future compat flag
+  (`ops reserve --story <story> COMPAT`). No code change. Owed: next run on this chain.
 * INFORMATIONAL: libniji's C++ `<complex.h>` shows no `locale_t` (the reference's reaches it through libstdc++).
 * Next step: the train (FULL: generated headers); then Yohane's stage-2 rebuild of the seven gnulib packages and
   liblocale-gettext-perl against the next snapshot.

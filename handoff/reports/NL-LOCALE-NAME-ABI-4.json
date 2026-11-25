@@ -1,0 +1,36 @@
+{
+ "task": "NL-LOCALE-NAME-ABI-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "merge only: origin/next merged into NL-LOCALE-NAME-ABI-3's work; assert.h.in, s10.py and header_probe.py conflicts resolved keeping both intents; assert.h and stdio.h regenerated",
+ "branch": "task/nl-locale-name-abi-4",
+ "head": null,
+ "gate": {
+  "affected": "FULL: the train's (generated headers); lint green; changed-crates job nl-locale-name-abi-4-test2 (so, headers-gen, full header_check, s07_locale_symbols, xtask tests)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "This branch's s10 static_assert_units was dropped in the merge: next's s05 checks the same rows (defined exactly where visibility.tsv shows static_assert, usable at file scope). The run-1 plants in handoff/NL-LOCALE-NAME-ABI-plants.txt name the dropped unit and are historical",
+  "git text-merged the generated libc-include/stdio.h cleanly but wrongly (a second #ifndef _STDIO_H block); only regeneration caught it. A merge driver that refuses text merges of @generated files would stop that class"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "lets NL-LOCALE-NAME-ABI(-2,-3) (_NL_LOCALE_NAME, complete struct __locale_struct) through the CI train: Yohane stage 2 perl XS modules and the seven gnulib localename packages",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "git auto-merged a generated header (stdio.h) without a conflict yet with wrong content; merge_only.py should regenerate every @generated file the merge touched, not only the conflicted ones",
+ "next_step": "ruling #8664: differences row for __names[LC_ALL] (slot 6 per construction path) plus a reserved future COMPAT id; no code change",
+ "report_file": "handoff/NL-LOCALE-NAME-ABI.md",
+ "jobs": [
+  "nl-locale-name-abi-4-lint",
+  "nl-locale-name-abi-4-test2"
+ ]
+}
