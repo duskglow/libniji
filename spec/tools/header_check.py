@@ -25,6 +25,8 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
           may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
           unit, and a unit titled "... must fail" passes only when it fails with libniji's "is not provided" #error);
 * P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
+* P9      each header that shows a typedef the compiler's <stddef.h> or <stdarg.h> defines, with those headers
+          before and after it (see `compiler_order_units`).
 
 Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
 """
@@ -161,6 +163,25 @@ def exact_units(ctx, header, names, types=None):
             lines += [f"typedef char niji_exact_{i}_{j}[({x}) ? 1 : -1];" for j, x in enumerate(tests)]
         out.append((cid, f"exact {header}", "\n".join(lines) + "\nint niji_exact_tu;\n"))
     return out
+
+
+COMPILER_TYPEDEFS = ("max_align_t", "size_t", "ptrdiff_t", "wchar_t", "wint_t", "nullptr_t", "va_list", "__gnuc_va_list")
+ORDER_CONFIGS = ("c89", "c11", "gnu2x", "cxx98", "cxx11", "cxx23")
+
+
+def compiler_order_units(ctx):
+    """P9 (HEADERS-STAGE2-GAPS-A; no spec clause: C 7.21 and 7.16 give <stddef.h> and <stdarg.h> to the compiler):
+    each header that shows a typedef the compiler's own <stddef.h> or <stdarg.h> also defines (visibility.tsv)
+    compiles with those two headers included before it and after it, in C89, C11, GNU C2X, C++98, C++11 and C++23.
+    A typedef the header spells itself as another type (an anonymous `max_align_t` structure is a type of its own)
+    conflicts in one order or both; a header that relies on the compiler's guard macros fails the order it does not
+    guard."""
+    heads = sorted({r["header"] for r in ctx.vis if r["kind"] == "typedef" and r["name"] in COMPILER_TYPEDEFS
+                    and r["header"] != "-"} & {r["header"] for r in ctx.slice_rows})
+    tail = "#include <stddef.h>\n#include <stdarg.h>\n"
+    return {cid: [(f"P9 {h} {o}", (tail + f"#include <{h}>\n" if o == "after" else f"#include <{h}>\n" + tail)
+                   + "int niji_p9_tu;\n") for h in heads for o in ("after", "before")]
+            for cid in ORDER_CONFIGS if cid in ctx.ids}
 
 
 def p1_units(ctx):
@@ -323,6 +344,8 @@ def main():
     ctx.p1_skip = {x for _, mod in mods for x in getattr(mod, "p1_skip", ())}
     must_fail = {x for _, mod in mods for x in getattr(mod, "must_fail", ())}
     p1s = p1_units(ctx)
+    for cid, us in compiler_order_units(ctx).items():
+        p1s.setdefault(cid, []).extend(us)
     for name, mod in mods:
         problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
