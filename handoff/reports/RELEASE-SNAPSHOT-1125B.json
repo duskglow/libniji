@@ -1,0 +1,83 @@
+{
+ "task": "RELEASE-SNAPSHOT-1125B",
+ "model": "opus",
+ "tokens": null,
+ "result": "apt snapshot-ready at 5a0acbb35: apt 3.0.4 builds on the system flavour (10 debs, aptTests pass), hp2 24/0 DIFF, hp 104/0, C++ socket program OK, 7 of 7 packages, sweeps 0 FAIL; stage-2: stddef/sys/un equal, langinfo equal except en_US.UTF-8 LC_IDENTIFICATION (7 items); perl 5.40.1 does not build (__priority_which_t, h_addr); everything else equals 25.1",
+ "branch": "task/release-snapshot-1125b",
+ "head": null,
+ "gate": {
+  "affected": "GATE bad=0 (release-snapshot-1125b-gate-1, direct tier)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "publish 5a0acbb35 as snapshot-2026-11-25.2 with perl-from-source and static busybox as stated limitations",
+   "recommendation": "publish: apt (the blocker) builds and passes; brief a perl header story (__priority_which_t, h_addr, ip_mreq_source) and re-check perl with ystage2.sh"
+  },
+  {
+   "item": "en_US.UTF-8 LC_IDENTIFICATION: title, source, address, email, language, revision, date differ from the reference 2.39 (C locale's differences are documented, D-7.22)",
+   "recommendation": "take the reference's values as D-31.30 (#7890) does for the other probed categories, or add a differences row if the metadata should name libniji"
+  }
+ ],
+ "informational": [
+  "perl 5.40.1 on libniji: <sys/resource.h> lacks __priority_which_t, <netdb.h> struct hostent lacks h_addr (build stops in pp_sys.c); <netinet/in.h> lacks struct ip_mreq_source (Configure d_ip_mreq_source undef); Configure also sets d_bsd (cause not found: BSD is undefined on both sides)",
+  "apt: libniji's <resolv.h> defines no __RES, so apt-pkg/contrib/srvrec.cc compiles its other branch (apt still builds and passes its tests)",
+  "static busybox now stops on <netinet/ip6.h> ip6_plen/ip6_nxt/ip6_vfc, IN_MULTICAST, TCP_NODELAY (net/if.h and sys/mtio.h gaps closed)",
+  "heap_meta_products find_over_200000_entries_bounds_its_address_space still red on next (38,464 KiB over 3 entries > 35,000; = 25.1)",
+  "libc.so.6 changed since 25.1 (c78ee370 vs ad64d0d4); start-up rows on Zen 1 and Skylake-SP unchanged"
+ ],
+ "evidence_jobs_rc_nonzero_by_finding": [
+  "release-snapshot-1125b-heapnode-1 (rc 101: #21 bound, = 25.1)",
+  "mei:release-snapshot-1125b-yhc-1 (rc 1: niji-cc rows, not shipped; 233 + 6 new headers)",
+  "mei:release-snapshot-1125b-ystage2-niji-1 (rc 1: perl does not build on libniji)",
+  "mei:release-snapshot-1125b-ystage2cmp-1 (rc 4: perl + the LC_IDENTIFICATION langinfo lines)",
+  "mei:release-snapshot-1125b-hp3-1 (rc 1: 22 DIFF, perl's header gaps)",
+  "mei:release-snapshot-1125b-li239-2 (rc 1: LC_IDENTIFICATION vs glibc 2.39)",
+  "mei:release-snapshot-1125b-dlcd-1, drp-1, y14-1, y14r-1 (rc 1 by design, as 25.1)"
+ ],
+ "superseded": [
+  "mei:release-snapshot-1125b-ystage2-stock-1 (stopped before start: sock.cc lacked <cstdlib>)",
+  "mei:release-snapshot-1125b-ystage2-stock-2 (probe defects: AF_UNIX without <sys/socket.h>, li.c read numeric items as strings)",
+  "mei:release-snapshot-1125b-li239-1 (probe defect: passed the locale in the environment; li.c takes argv[1])"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "apt 3.0.4 builds from source on the system flavour (Yohane stage 2 build roots): 10 debs, aptTests pass",
+   "before": 0,
+   "after": 10,
+   "unit": "apt debs built on libniji",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "apt-gap header probes (si_syscall/si_arch/si_call_addr, HEADER, C++ sockaddr arguments) differing from stock 2.39",
+   "before": 20,
+   "after": 0,
+   "unit": "probes differing of 24",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "start-up user instructions, 3 libraries, Zen 1",
+   "before": 241564,
+   "after": 241564,
+   "unit": "instr/start",
+   "measured": true
+  }
+ ],
+ "improvement": "ystage2.sh's stock side runs on trixie's libc (2.41), not the 2.39 the ABI targets; li239.sh-style host-2.39 runs should be part of the langinfo check from the start",
+ "next_step": "coordinator: publish 5a0acbb35 (apt unblocked) with perl-from-source and static busybox as stated limitations, or hold for a perl header story; rule on en_US LC_IDENTIFICATION",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1125B.md",
+ "jobs": [
+  "release-snapshot-1125b-smoke-keke-1", "release-snapshot-1125b-gate-1", "release-snapshot-1125b-debs-1",
+  "release-snapshot-1125b-plants-1", "release-snapshot-1125b-pkgdiff-1", "release-snapshot-1125b-stage-1",
+  "release-snapshot-1125b-install-1", "release-snapshot-1125b-gaimass-1", "release-snapshot-1125b-startup-keke-1",
+  "mei:release-snapshot-1125b-hp-1", "mei:release-snapshot-1125b-hp2-1", "mei:release-snapshot-1125b-yapt-1",
+  "mei:release-snapshot-1125b-ypk-1", "mei:release-snapshot-1125b-yh-1", "mei:release-snapshot-1125b-ystage2-stock-3",
+  "mei:release-snapshot-1125b-roots-1", "mei:release-snapshot-1125b-lint-1", "mei:release-snapshot-1125b-y23p-1",
+  "mei:release-snapshot-1125b-y21-1", "mei:release-snapshot-1125b-smoke-mei-1", "mei:release-snapshot-1125b-startup-mei-1"
+ ]
+}
