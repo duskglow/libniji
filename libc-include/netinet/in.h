@@ -1212,6 +1212,18 @@ enum { IPPROTO_UDPLITE = 136 };
 # define htons(x) __builtin_bswap16 (x)
 #endif
 
+/* The classes of an IPv4 address `a` in host byte order (RFC 791 section 3.2 classes A to C, RFC 1112 section 4
+   class D, the multicast range, and E, the experimental range), from its leading bits, each 1 or 0 as an int:
+   EXPERIMENTAL is any address with the three leading bits set (classes D and E), BADCLASS the four (class E). The
+   argument is converted to in_addr_t and evaluated once (black-box probe, HEADERS-NET-SYS-NAMES). */
+# define IN_CLASSA(a) ((((in_addr_t) (a)) & 0x80000000U) == 0)
+# define IN_CLASSB(a) ((((in_addr_t) (a)) & 0xc0000000U) == 0x80000000U)
+# define IN_CLASSC(a) ((((in_addr_t) (a)) & 0xe0000000U) == 0xc0000000U)
+# define IN_CLASSD(a) ((((in_addr_t) (a)) & 0xf0000000U) == 0xe0000000U)
+# define IN_MULTICAST(a) IN_CLASSD (a)
+# define IN_EXPERIMENTAL(a) ((((in_addr_t) (a)) & 0xe0000000U) == 0xe0000000U)
+# define IN_BADCLASS(a) ((((in_addr_t) (a)) & 0xf0000000U) == 0xf0000000U)
+
 /* RFC 3493 section 6.7: tests on an IPv6 address `a` (a pointer to struct in6_addr), by its 32-bit words. */
 # define IN6_IS_ADDR_UNSPECIFIED(a) (((const uint32_t *) (a))[0] == 0 && ((const uint32_t *) (a))[1] == 0 && ((const uint32_t *) (a))[2] == 0 && ((const uint32_t *) (a))[3] == 0)
 # define IN6_IS_ADDR_LOOPBACK(a) (((const uint32_t *) (a))[0] == 0 && ((const uint32_t *) (a))[1] == 0 && ((const uint32_t *) (a))[2] == 0 && ((const uint32_t *) (a))[3] == __builtin_bswap32 (1))

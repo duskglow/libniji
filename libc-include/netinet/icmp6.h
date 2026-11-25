@@ -996,6 +996,17 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 /* The fields of an ICMPv6 message (RFC 4443 section 2.1) by name: the 32-bit word after the checksum is struct
    icmp6_hdr's union, viewed as one 32-bit, two 16-bit or four 8-bit elements; each name is a macro for the element
    the message format puts it in (RFC 4443 for pptr, mtu, id and seq; RFC 2710 for the MLD maximum delay). */
+/* RFC 3542 section 3.2: the ICMPv6 type filter of the ICMP6_FILTER socket option, one bit per message type `type`
+   (bit type % 32 of word type / 32), set for a type the socket blocks. WILLPASS and WILLBLOCK are 1 or 0 (an int);
+   SETPASS and SETBLOCK change one bit and are expressions; SETPASSALL and SETBLOCKALL are a compound statement (black-box
+   probe, HEADERS-NET-SYS-NAMES: not an expression, and `if (c) ICMP6_FILTER_SETPASSALL (p) else ...` compiles). */
+# define ICMP6_FILTER_WILLPASS(type, filterp) ((((filterp)->icmp6_filt[(type) >> 5]) & (1U << ((type) & 31))) == 0)
+# define ICMP6_FILTER_WILLBLOCK(type, filterp) ((((filterp)->icmp6_filt[(type) >> 5]) & (1U << ((type) & 31))) != 0)
+# define ICMP6_FILTER_SETPASS(type, filterp) (((filterp)->icmp6_filt[(type) >> 5]) &= ~(1U << ((type) & 31)))
+# define ICMP6_FILTER_SETBLOCK(type, filterp) (((filterp)->icmp6_filt[(type) >> 5]) |= (1U << ((type) & 31)))
+# define ICMP6_FILTER_SETPASSALL(filterp) { __builtin_memset ((filterp), 0, sizeof (struct icmp6_filter)); }
+# define ICMP6_FILTER_SETBLOCKALL(filterp) { __builtin_memset ((filterp), 0xff, sizeof (struct icmp6_filter)); }
+
 #if 1
 # define icmp6_data32 icmp6_dataun.icmp6_un_data32
 # define icmp6_data16 icmp6_dataun.icmp6_un_data16
