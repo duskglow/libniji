@@ -7,3 +7,10 @@ static-assert-in-c23 | headers/assert.h.in | lit: && !(defined __STDC_VERSION__ 
 static-assert-in-cxx | headers/assert.h.in | lit: && !defined __cplusplus ==>  | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "static_assert assert.h"' | msg:FAIL static_assert assert.h
 static-assert-c99 | headers/assert.h.in | lit:__NIJI_ISOC >= 2011 ==> __NIJI_ISOC >= 1999 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "static_assert assert.h"' | msg:FAIL static_assert assert.h
 langinfo-name-index | crates/boundary/src/locale.rs | lit:    if index == 0xffff { ==>     if index == 0xfffe { | cargo test -p niji-boundary --test s07_locale_symbols | msg:sym_nl_langinfo.*(FAILED|panicked)
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# nl-locale-name-missing: CAUGHT, caught by no test the log names
+# nl-locale-name-long: CAUGHT, caught by no test the log names
+# static-assert-in-c23: CAUGHT, caught by no test the log names
+# static-assert-in-cxx: CAUGHT, caught by no test the log names
+# static-assert-c99: CAUGHT, caught by no test the log names
+# langinfo-name-index: CAUGHT, caught by s07_locale_symbols sym_nl_langinfo
