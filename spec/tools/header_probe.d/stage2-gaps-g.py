@@ -31,6 +31,8 @@ def stage2g_names():
         "HOST_MEMBERSHIP_QUERY", "HOST_MEMBERSHIP_REPORT", "HOST_NEW_MEMBERSHIP_REPORT", "HOST_LEAVE_MESSAGE")]
     out += ["FDDI_K_" + n for n in ("ALEN", "8022_HLEN", "SNAP_HLEN", "8022_ZLEN", "SNAP_ZLEN", "8022_DLEN",
                                     "SNAP_DLEN", "LLC_ZLEN", "LLC_LEN", "OUI_LEN")]
+    # inetutils ping (icmp.h) on n_time, with the network-order types beside it (RELEASE-SNAPSHOT-1126B).
+    out += ["n_short", "n_long", "n_time"]
     return out
 
 

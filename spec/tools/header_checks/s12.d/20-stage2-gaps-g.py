@@ -29,4 +29,27 @@ def units(ctx):
         body = [f"#define {t}(...) {x} (__VA_ARGS__)" for x, t in here] + ["#include <resolv.h>"]
         body += [f"void *niji_rn{i} = (void *) ({t});" for i, (_, t) in enumerate(here)]
         out.append((cid, "resolv.h renames after a program's macros", "\n".join(body) + "\n"))
+    out += ntypes(ctx)
+    return out
+
+
+def ntypes(ctx):
+    """No spec clause (black-box probe of the reference, RELEASE-SNAPSHOT-1126B: inetutils ping's icmp.h uses n_time):
+    <netinet/in_systm.h> declares n_short as uint16_t and n_long and n_time as uint32_t (the same types, not only the
+    same sizes), in each configuration visibility.tsv shows them, C and C++. Defects: a missing name, or a type of
+    another signedness or width (an icmp timestamp compared with a signed value)."""
+    vis = {r["name"]: r["configs"] for r in ctx.vis if r["header"] == "netinet/in_systm.h" and r["kind"] == "typedef"}
+    want = {"n_short": "uint16_t", "n_long": "uint32_t", "n_time": "uint32_t"}
+    out = []
+    for cid in ctx.ids:
+        here = [n for n in want if n in vis and cid in ctx.expand(vis[n])]
+        if not here:
+            continue
+        body = ["#include <netinet/in_systm.h>", "#include <stdint.h>", "#ifdef __cplusplus",
+                "template <class A, class B> struct niji_same { enum { v = 0 }; };",
+                "template <class A> struct niji_same<A, A> { enum { v = 1 }; };",
+                "# define NIJI_SAME(a, b) niji_same<a, b>::v", "#else",
+                "# define NIJI_SAME(a, b) __builtin_types_compatible_p (a, b)", "#endif"]
+        body += [f"typedef char niji_nt_{n}[NIJI_SAME ({n}, {want[n]}) ? 1 : -1];" for n in here]
+        out.append((cid, "netinet/in_systm.h n_short n_long n_time types", "\n".join(body) + "\n"))
     return out

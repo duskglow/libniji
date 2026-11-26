@@ -10,6 +10,20 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_n_long
+#  define __NIJI_D_n_long 1
+typedef unsigned int n_long;
+# endif
+# ifndef __NIJI_D_n_short
+#  define __NIJI_D_n_short 1
+typedef unsigned short n_short;
+# endif
+# ifndef __NIJI_D_n_time
+#  define __NIJI_D_n_time 1
+typedef unsigned int n_time;
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1

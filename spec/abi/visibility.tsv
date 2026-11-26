@@ -34753,6 +34753,9 @@ netinet/in_systm.h	key_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,
 netinet/in_systm.h	le64toh	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in_systm.h	loff_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in_systm.h	mode_t	typedef	!time64only
+netinet/in_systm.h	n_long	typedef	!time64only
+netinet/in_systm.h	n_short	typedef	!time64only
+netinet/in_systm.h	n_time	typedef	!time64only
 netinet/in_systm.h	nlink_t	typedef	!time64only
 netinet/in_systm.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in_systm.h	off_t	typedef	!time64only

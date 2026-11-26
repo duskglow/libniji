@@ -2726,6 +2726,9 @@ function	nextupf32x	complex.h			_Float32x (_Float32x)
 function	nextupf64	complex.h			_Float64 (_Float64)
 function	nextupf64x	complex.h			_Float64x (_Float64x)
 function	nextupl	complex.h			long double (long double)
+typedef	n_long	netinet/in_systm.h	4	4	unsigned int
+typedef	n_short	netinet/in_systm.h	2	2	unsigned short
+typedef	n_time	netinet/in_systm.h	4	4	unsigned int
 typedef	nfds_t	poll.h	8	8	unsigned long
 function	nftw	ftw.h			int (char const*, int (*)(char const*, stat const*, int, FTW*), int, int)
 function	nftw64	ftw.h			int (char const*, int (*)(char const*, stat64 const*, int, FTW*), int, int)
