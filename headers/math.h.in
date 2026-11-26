@@ -14,71 +14,9 @@
 
 __NIJI_BEGIN_C
 
-@@owns-macro isnan isinf fpclassify isfinite isnormal signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
 @@emit
 
-@@if fpclassify
-# define fpclassify(x) __builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x)
-#endif
-@@if isfinite
-# define isfinite(x) __builtin_isfinite (x)
-#endif
-@@if isnormal
-# define isnormal(x) __builtin_isnormal (x)
-#endif
-/* isnan and isinf are also the functions of their own name (BSD), declared by @@emit above where
-   visibility.tsv has them, before the macros: `&isinf` and `(isinf) (x)` reach the function. */
-@@when isnan
-# define isnan(x) __builtin_isnan (x)
-#endif
-@@when isinf
-/* C 7.12.3.3 asks for non-zero; the sign (-1 for -inf, +1 for +inf) is the documented extension of the builtin. */
-# define isinf(x) __builtin_isinf_sign (x)
-#endif
-@@if signbit
-# define signbit(x) __builtin_signbit (x)
-#endif
-@@if issignaling
-# define issignaling(x) __builtin_issignaling (x)
-#endif
-@@if iszero
-# define iszero(x) (__builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_ZERO)
-#endif
-@@if issubnormal
-# define issubnormal(x) (__builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_SUBNORMAL)
-#endif
-@@if __iscanonical
-/* Every encoding of float, double and binary128 is canonical. The x87 types (long double, _Float64x) have encodings
-   that are not (pseudo-denormals, unnormals, pseudo-infinities, pseudo-NaNs): the library tests those bits. */
-# define __iscanonical(x) (__builtin_types_compatible_p (__typeof (x), long double) \
-			   || __builtin_types_compatible_p (__typeof (x), _Float64x) \
-			   ? __iscanonicall ((long double) (x)) : ((void) (x), 1))
-#endif
-@@if iscanonical
-# define iscanonical(x) __iscanonical (x)
-#endif
-@@if iseqsig
-/* C2X 7.12.17.7: the relational operators raise "invalid" for a quiet NaN too, as the signaling comparison needs. */
-# define iseqsig(x, y) (((x) <= (y)) && ((x) >= (y)))
-#endif
-@@if isgreater
-# define isgreater(x, y) __builtin_isgreater (x, y)
-#endif
-@@if isgreaterequal
-# define isgreaterequal(x, y) __builtin_isgreaterequal (x, y)
-#endif
-@@if isless
-# define isless(x, y) __builtin_isless (x, y)
-#endif
-@@if islessequal
-# define islessequal(x, y) __builtin_islessequal (x, y)
-#endif
-@@if islessgreater
-# define islessgreater(x, y) __builtin_islessgreater (x, y)
-#endif
-@@if isunordered
-# define isunordered(x, y) __builtin_isunordered (x, y)
-#endif
+@@fragments
 
 __NIJI_END_C
 
