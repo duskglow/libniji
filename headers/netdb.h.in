@@ -9,7 +9,13 @@
 __NIJI_BEGIN_C
 
 @@owns-macro h_errno
+@@owns h_addr
 @@emit
+
+/* The first address of h_addr_list, by the name of the single address struct hostent once held (gethostbyname(3)). */
+@@if h_addr
+# define h_addr h_addr_list[0]
+#endif
 
 @@when h_errno
 # define h_errno (*__h_errno_location ())

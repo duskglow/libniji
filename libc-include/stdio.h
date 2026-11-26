@@ -401,7 +401,7 @@ extern FILE *tmpfile (void) __asm__ ("tmpfile64") __attribute__ ((__malloc__, __
 # endif
 # ifndef __NIJI_D_tmpnam
 #  define __NIJI_D_tmpnam 1
-extern char *tmpnam (char *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_ungetc
 #  define __NIJI_D_ungetc 1
@@ -579,7 +579,7 @@ extern void setlinebuf (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)))
 # endif
 # ifndef __NIJI_D_tmpnam_r
 #  define __NIJI_D_tmpnam_r 1
-extern char *tmpnam_r (char *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_vasprintf
 #  define __NIJI_D_vasprintf 1

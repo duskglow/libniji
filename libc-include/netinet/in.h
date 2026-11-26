@@ -207,6 +207,32 @@ struct in_addr {
   unsigned int s_addr;
 };
 # endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_ip_mreq_source
+#  define __NIJI_D_struct_ip_mreq_source 1
+struct ip_mreq_source {
+  struct in_addr imr_multiaddr;
+  struct in_addr imr_interface;
+  struct in_addr imr_sourceaddr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
 # ifndef __NIJI_D_struct_ip_mreqn
 #  define __NIJI_D_struct_ip_mreqn 1
 struct ip_mreqn {

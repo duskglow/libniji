@@ -2228,6 +2228,7 @@ struct	ip6_opt_tunnel	netinet/ip6.h	3	1	ip6_opt_tunnel
 struct	ip6_rthdr	netinet/ip6.h	4	1	ip6_rthdr
 struct	ip6_rthdr0	netinet/ip6.h	8	4	ip6_rthdr0
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
+struct	ip_mreq_source	arpa/inet.h	12	4	ip_mreq_source
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
 struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm

@@ -1048,17 +1048,33 @@ struct sockaddr_storage	ss_family	0		sa_family_t
 struct sockaddr_storage	__ss_padding	2		char[118]	
 struct sockaddr_storage	__ss_align	120		long unsigned int	
 __SOCKADDR_ARG		8	8		transparent_union restrict
-__SOCKADDR_ARG	__tu_sockaddr	0		struct sockaddr *	
-__SOCKADDR_ARG	__tu_sockaddr_in	0		struct sockaddr_in *	
-__SOCKADDR_ARG	__tu_sockaddr_in6	0		struct sockaddr_in6 *	
-__SOCKADDR_ARG	__tu_sockaddr_un	0		struct sockaddr_un *	
-__SOCKADDR_ARG	__tu_sockaddr_x25	0		struct sockaddr_x25 *	
+__SOCKADDR_ARG	__sockaddr__	0		struct sockaddr *	
+__SOCKADDR_ARG	__sockaddr_at__	0		struct sockaddr_at *	
+__SOCKADDR_ARG	__sockaddr_ax25__	0		struct sockaddr_ax25 *	
+__SOCKADDR_ARG	__sockaddr_dl__	0		struct sockaddr_dl *	
+__SOCKADDR_ARG	__sockaddr_eon__	0		struct sockaddr_eon *	
+__SOCKADDR_ARG	__sockaddr_in__	0		struct sockaddr_in *	
+__SOCKADDR_ARG	__sockaddr_in6__	0		struct sockaddr_in6 *	
+__SOCKADDR_ARG	__sockaddr_inarp__	0		struct sockaddr_inarp *	
+__SOCKADDR_ARG	__sockaddr_ipx__	0		struct sockaddr_ipx *	
+__SOCKADDR_ARG	__sockaddr_iso__	0		struct sockaddr_iso *	
+__SOCKADDR_ARG	__sockaddr_ns__	0		struct sockaddr_ns *	
+__SOCKADDR_ARG	__sockaddr_un__	0		struct sockaddr_un *	
+__SOCKADDR_ARG	__sockaddr_x25__	0		struct sockaddr_x25 *	
 __CONST_SOCKADDR_ARG		8	8		transparent_union
-__CONST_SOCKADDR_ARG	__tu_sockaddr	0		const struct sockaddr *	
-__CONST_SOCKADDR_ARG	__tu_sockaddr_in	0		const struct sockaddr_in *	
-__CONST_SOCKADDR_ARG	__tu_sockaddr_in6	0		const struct sockaddr_in6 *	
-__CONST_SOCKADDR_ARG	__tu_sockaddr_un	0		const struct sockaddr_un *	
-__CONST_SOCKADDR_ARG	__tu_sockaddr_x25	0		const struct sockaddr_x25 *	
+__CONST_SOCKADDR_ARG	__sockaddr__	0		const struct sockaddr *	
+__CONST_SOCKADDR_ARG	__sockaddr_at__	0		const struct sockaddr_at *	
+__CONST_SOCKADDR_ARG	__sockaddr_ax25__	0		const struct sockaddr_ax25 *	
+__CONST_SOCKADDR_ARG	__sockaddr_dl__	0		const struct sockaddr_dl *	
+__CONST_SOCKADDR_ARG	__sockaddr_eon__	0		const struct sockaddr_eon *	
+__CONST_SOCKADDR_ARG	__sockaddr_in__	0		const struct sockaddr_in *	
+__CONST_SOCKADDR_ARG	__sockaddr_in6__	0		const struct sockaddr_in6 *	
+__CONST_SOCKADDR_ARG	__sockaddr_inarp__	0		const struct sockaddr_inarp *	
+__CONST_SOCKADDR_ARG	__sockaddr_ipx__	0		const struct sockaddr_ipx *	
+__CONST_SOCKADDR_ARG	__sockaddr_iso__	0		const struct sockaddr_iso *	
+__CONST_SOCKADDR_ARG	__sockaddr_ns__	0		const struct sockaddr_ns *	
+__CONST_SOCKADDR_ARG	__sockaddr_un__	0		const struct sockaddr_un *	
+__CONST_SOCKADDR_ARG	__sockaddr_x25__	0		const struct sockaddr_x25 *	
 struct sockaddr_in		16	4		
 struct sockaddr_in	sin_family	0		sa_family_t	
 struct sockaddr_in	sin_port	2		in_port_t	
@@ -1933,6 +1949,13 @@ struct ip_mreqn	imr_multiaddr.s_addr	0		in_addr_t
 struct ip_mreqn	imr_address	4		struct in_addr	
 struct ip_mreqn	imr_address.s_addr	4		in_addr_t	
 struct ip_mreqn	imr_ifindex	8		int	
+struct ip_mreq_source		12	4		
+struct ip_mreq_source	imr_multiaddr	0		struct in_addr	
+struct ip_mreq_source	imr_multiaddr.s_addr	0		in_addr_t	
+struct ip_mreq_source	imr_interface	4		struct in_addr	
+struct ip_mreq_source	imr_interface.s_addr	4		in_addr_t	
+struct ip_mreq_source	imr_sourceaddr	8		struct in_addr	
+struct ip_mreq_source	imr_sourceaddr.s_addr	8		in_addr_t	
 struct ipv6_mreq		20	4		
 struct ipv6_mreq	ipv6mr_multiaddr	0		struct in6_addr	
 struct ipv6_mreq	ipv6mr_multiaddr.__in6_u	0		union <anon>	

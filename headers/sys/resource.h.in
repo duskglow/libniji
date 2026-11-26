@@ -8,6 +8,27 @@
 __NIJI_BEGIN_C
 
 @@enum __rlimit_resource
+@@enum __priority_which
+@@owns __priority_which_t getpriority setpriority
+
+/* The type of getpriority's and setpriority's first parameter: the enumeration in C under _GNU_SOURCE, int otherwise
+   and in C++ (probed: the same type as the reference's in each configuration, so a redeclaration of either function
+   with `__priority_which_t` compiles, as perl's pp_sys.c casts to it). */
+@@if __priority_which_t
+# if __NIJI_GNU && !defined __cplusplus
+typedef enum __priority_which __priority_which_t;
+# else
+typedef int __priority_which_t;
+# endif
+#endif
+
+/* Declared with the typedef, not the type it resolves to: in C under _GNU_SOURCE that is the enumeration, which
+   is not compatible with int. */
+@@if getpriority
+extern int getpriority (__priority_which_t, unsigned int) __NIJI_NOTHROW;
+extern int setpriority (__priority_which_t, unsigned int, int) __NIJI_NOTHROW;
+#endif
+
 @@emit
 
 

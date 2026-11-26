@@ -117,6 +117,20 @@ typedef int clockid_t;
 typedef void * timer_t;
 # endif
 #endif
+#if __NIJI_POSIX < 200112
+# ifndef __NIJI_D___daylight
+#  define __NIJI_D___daylight 1
+extern int __daylight;
+# endif
+# ifndef __NIJI_D___timezone
+#  define __NIJI_D___timezone 1
+extern long __timezone;
+# endif
+# ifndef __NIJI_D___tzname
+#  define __NIJI_D___tzname 1
+extern char * __tzname[2];
+# endif
+#endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
 # ifndef __NIJI_D_daylight
 #  define __NIJI_D_daylight 1

@@ -346,6 +346,14 @@ def package_names():
     # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
     out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
     out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
+    # HEADERS-STAGE2-GAPS-D (Yohane stage 2): perl's pp_sys.c casts to `__priority_which_t`, perl and heimdal read
+    # `struct hostent`'s `h_addr`; glib calls IN_MULTICAST, with the other address-class tests of RFC 791 / RFC 1112
+    # (class A to D, experimental, bad class); google-perftools waits with `__WALL` (wait(2) names __WALL, __WCLONE,
+    # __WNOTHREAD); icu reads `__timezone` (exported with `__daylight` and `__tzname`, versions.tsv). perl's Socket
+    # module defines its IN6ADDR_ANY / IN6ADDR_LOOPBACK constants where POSIX's IN6ADDR_ANY_INIT / IN6ADDR_LOOPBACK_INIT are.
+    out += ["__priority_which_t", "h_addr", "IN_CLASSA", "IN_CLASSB", "IN_CLASSC", "IN_CLASSD", "IN_MULTICAST",
+            "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname",
+            "IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT"]
     # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
     # the interpreter structure's layout with it. (`static_assert`, which perl.h also tests, is a stage2_names candidate.)
     out += ["_NL_LOCALE_NAME"]
@@ -764,6 +772,7 @@ def candidates():
     bb, bb_tags = busybox_names()
     names.update(bb)
     tags.update(bb_tags)
+    tags.add("ip_mreq_source")  # HEADERS-STAGE2-GAPS-D: perl's Configure (d_ip_mreq_source); ip(7) IP_ADD_SOURCE_MEMBERSHIP
     s2, s2_tags = stage2_names()
     names.update(s2)
     tags.update(s2_tags)

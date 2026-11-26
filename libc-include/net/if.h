@@ -139,7 +139,7 @@ extern void if_freenameindex (struct if_nameindex *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_if_indextoname
 #  define __NIJI_D_if_indextoname 1
-extern char *if_indextoname (unsigned int, char *) __NIJI_NOTHROW;
+extern char *if_indextoname (unsigned int, char [16]) __NIJI_NOTHROW;
 # endif
 struct if_nameindex;
 # ifndef __NIJI_D_if_nameindex

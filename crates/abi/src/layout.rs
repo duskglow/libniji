@@ -1840,21 +1840,37 @@ pub struct struct_sockaddr_storage {
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union __SOCKADDR_ARG {
-    pub __tu_sockaddr: usize,
-    pub __tu_sockaddr_in: usize,
-    pub __tu_sockaddr_in6: usize,
-    pub __tu_sockaddr_un: usize,
-    pub __tu_sockaddr_x25: usize,
+    pub __sockaddr__: usize,
+    pub __sockaddr_at__: usize,
+    pub __sockaddr_ax25__: usize,
+    pub __sockaddr_dl__: usize,
+    pub __sockaddr_eon__: usize,
+    pub __sockaddr_in__: usize,
+    pub __sockaddr_in6__: usize,
+    pub __sockaddr_inarp__: usize,
+    pub __sockaddr_ipx__: usize,
+    pub __sockaddr_iso__: usize,
+    pub __sockaddr_ns__: usize,
+    pub __sockaddr_un__: usize,
+    pub __sockaddr_x25__: usize,
 }
 
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union __CONST_SOCKADDR_ARG {
-    pub __tu_sockaddr: usize,
-    pub __tu_sockaddr_in: usize,
-    pub __tu_sockaddr_in6: usize,
-    pub __tu_sockaddr_un: usize,
-    pub __tu_sockaddr_x25: usize,
+    pub __sockaddr__: usize,
+    pub __sockaddr_at__: usize,
+    pub __sockaddr_ax25__: usize,
+    pub __sockaddr_dl__: usize,
+    pub __sockaddr_eon__: usize,
+    pub __sockaddr_in__: usize,
+    pub __sockaddr_in6__: usize,
+    pub __sockaddr_inarp__: usize,
+    pub __sockaddr_ipx__: usize,
+    pub __sockaddr_iso__: usize,
+    pub __sockaddr_ns__: usize,
+    pub __sockaddr_un__: usize,
+    pub __sockaddr_x25__: usize,
 }
 
 #[repr(C, align(4))]
@@ -3044,6 +3060,14 @@ pub struct struct_ip_mreqn {
     pub imr_multiaddr: struct_in_addr,
     pub imr_address: struct_in_addr,
     pub imr_ifindex: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ip_mreq_source {
+    pub imr_multiaddr: struct_in_addr,
+    pub imr_interface: struct_in_addr,
+    pub imr_sourceaddr: struct_in_addr,
 }
 
 #[repr(C, align(4))]

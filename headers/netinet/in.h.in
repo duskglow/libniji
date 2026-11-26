@@ -35,6 +35,8 @@ __NIJI_BEGIN_C
 #endif
 
 @@owns-macro htonl htons ntohl ntohs IP_RECVRETOPTS IP_RECVORIGDSTADDR IPV6_RECVORIGDSTADDR
+@@owns IN_CLASSA IN_CLASSB IN_CLASSC IN_CLASSD IN_MULTICAST IN_EXPERIMENTAL IN_BADCLASS
+@@owns IN6ADDR_ANY_INIT IN6ADDR_LOOPBACK_INIT
 @@emit
 
 /* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list

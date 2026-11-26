@@ -706,6 +706,11 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 # endif
 #endif
 
+/* The first address of h_addr_list, by the name of the single address struct hostent once held (gethostbyname(3)). */
+#if __NIJI_MISC
+# define h_addr h_addr_list[0]
+#endif
+
 #if __NIJI_MISC || __NIJI_POSIX < 200809
 # define h_errno (*__h_errno_location ())
 #endif

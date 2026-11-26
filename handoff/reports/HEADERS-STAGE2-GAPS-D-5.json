@@ -1,0 +1,33 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D-5",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "merge-only: merged origin/next (d1a9ed061) into the branch, kept both candidate-name blocks in spec/tools/header_probe.py (D's stage-2 names and next's _NL_LOCALE_NAME); gate, plants, clippy, static, precheck green",
+ "branch": "task/headers-stage2-gaps-d-5",
+ "head": "0f3902c15",
+ "gate": {
+  "affected": "Direct tier rc 0 (headers-stage2-gaps-d-5-gate); plants rc 0 (headers-stage2-gaps-d-5-plants); clippy, static rc 0; precheck GREEN",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "lets HEADERS-STAGE2-GAPS-D's header changes (perl, fakechroot, faketime, gdb, glib, gperftools, icu, heimdal gaps) land on next",
+   "before": null,
+   "after": null,
+   "unit": "story",
+   "measured": false
+  }
+ ],
+ "improvement": "none",
+ "next_step": "land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D.md",
+ "jobs": [
+  "mei:headers-stage2-gaps-d-5-gate",
+  "mei:headers-stage2-gaps-d-5-plants"
+ ]
+}

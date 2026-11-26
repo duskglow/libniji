@@ -9001,6 +9001,9 @@ __P_SIGN_POSN	langinfo.h	int	262157
 __RES	resolv.h	int	19991006
 __STDC_ISO_10646__	-	long	201706
 __THOUSANDS_SEP	langinfo.h	int	65537
+__WALL	sys/wait.h	int	1073741824
+__WCLONE	sys/wait.h	unsigned int	2147483648
+__WNOTHREAD	sys/wait.h	int	536870912
 __WORDSIZE_TIME64_COMPAT32	aio.h	int	1
 __YESEXPR	langinfo.h	int	327680
 __YESSTR	langinfo.h	int	327682
