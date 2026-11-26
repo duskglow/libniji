@@ -1,12 +1,14 @@
 # HEADERS-STAGE2-GAPS-F plants (cargo xtask plants): each breaks one thing this story adds (fragment, table, template or
 # generator) and must fail the check named in its msg. Each command regenerates libc-include, then runs only the
-# header_check units (or features.py forms, or the xtask rows test) that cover the change.
+# header_check units (or features.py forms, or the xtask rows test) that cover the change. The typedefs.tsv rows of the
+# fragment-owned names are checked for presence (s2f-inb-row-gone); their `cxx` spelling only feeds the rows test's own
+# declaration, so the header's real types are the port I/O and name tables units' job (s2f-outb-order).
 s2f-outb-order | headers/sys/io.h.d/010-port-io.frag | lit:outb (unsigned char __value, unsigned short int __port) ==> outb (unsigned short int __port, unsigned char __value) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "port I/O sys/io.h"' | msg:FAIL port I/O sys/io\.h
 s2f-inb-extern | headers/sys/io.h.d/010-port-io.frag | perl:s/static (__inline unsigned char\ninb \()/$1/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "port I/O sys/io.h"' | msg:FAIL port I/O sys/io\.h
 s2f-authtype-ok | headers/arpa/telnet.h.d/010-name-tables.frag | lit:#define AUTHTYPE_NAME_OK(x) ((unsigned int) (x) < AUTHTYPE_CNT) ==> #define AUTHTYPE_NAME_OK(x) ((unsigned int) (x) <= AUTHTYPE_CNT) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "name macros arpa/telnet.h"' | msg:FAIL name macros arpa/telnet\.h
 s2f-enctype-short | headers/arpa/telnet.h.d/010-name-tables.frag | lit:(char *) "DES_OFB64", 0 ==> 0 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "name tables arpa/telnet.h"' | msg:FAIL name tables arpa/telnet\.h
 s2f-int8-omitted | headers/reserved.tsv | perl:s/^__int8_t\temit\t[^\n]*\n//m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "exact sys/types.h"' | msg:FAIL exact sys/types\.h|__int8_t
-s2f-inb-row-type | spec/abi/typedefs.tsv | perl:s/^(function\tinb\tsys\/io\.h\t\t\t)unsigned char/${1}unsigned int/m | cargo test -p xtask every_table_row_is_emitted_and_matches_the_tables | msg:typedefs function inb
+s2f-inb-row-gone | spec/abi/typedefs.tsv | perl:s/^function\tinb\tsys\/io\.h\t[^\n]*\n//m | cargo test -p xtask every_table_row_is_emitted_and_matches_the_tables | msg:function inb: no table row|inb: no prototypes\.tsv or typedefs\.tsv function row
 s2f-guard-replaced | xtask/src/headers.rs | lit:let kept = !self.t.redefined(&self.header, &n); ==> let kept = false; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "guard forms"' | msg:FAIL guard forms
 s2f-fdset-kept | headers/sys/select.h.in | perl:s/(\x40\x40when FD_SET\n)# ifndef __NIJI_FD_BITS/$1# ifndef FD_SET/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/features.py --only "FEATURES forms sys/select.h"' | msg:FEATURES forms sys/select\.h
 s2f-broadaddr-replaced | headers/ifaddrs.h.in | perl:s/# ifndef ifa_broadaddr\n(#  define ifa_broadaddr [^\n]*\n)# endif\n/$1/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/features.py --only "FEATURES forms ifaddrs.h"' | msg:FEATURES forms ifaddrs\.h
