@@ -534,7 +534,7 @@ fn s16_2_c_2_5() {
     let text = std::fs::read_to_string("/proc/net/if_inet6").unwrap_or_default();
     let v6 = text.lines().any(|l| l.split_whitespace().next().is_some_and(|a| a != "00000000000000000000000000000001"));
     let addrs = niji::net::iface::addrs(&CSys).unwrap();
-    let v4 = addrs.iter().any(|a| a.family == 2 && a.own().is_some_and(|x| x != [127, 0, 0, 1]));
+    let v4 = addrs.iter().any(|a| a.family == 2 && a.own().is_some_and(|x| x.get(..4) != Some(&[127, 0, 0, 1][..])));
     let n = |node: &str, family: i32, flags: i32| gai(&fx, Some(node), Some("80"), hints(flags, family, 1, 0)).map(|v| v.len());
     let (unspec, inet, inet6) = (0, 2, 10);
     let why = format!("IPv4 configured: {v4}, IPv6: {v6}");

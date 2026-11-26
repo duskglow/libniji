@@ -371,7 +371,7 @@ fn configured<S: Sys>(sys: &S) -> Option<(bool, bool)> {
     for a in list.iter() {
         let Some(x) = a.own() else { continue };
         if u32::from(a.family) == AF_INET {
-            v4 |= x != [127, 0, 0, 1];
+            v4 |= x.get(..4) != Some(&[127, 0, 0, 1][..]);
         } else if u32::from(a.family) == AF_INET6 {
             v6 |= x != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
         }

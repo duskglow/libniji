@@ -858,7 +858,7 @@ s16_2_c_2_1	16.2	Contract	`AI_PASSIVE` (wildcard address for `bind`);
 s16_2_c_2_2	16.2	Contract	`AI_CANONNAME`;
 s16_2_c_2_3	16.2	Contract	`AI_NUMERICHOST`, `AI_NUMERICSERV`;
 s16_2_c_2_4	16.2	Contract	`AI_V4MAPPED`, `AI_ALL`;
-s16_2_c_2_5	16.2	Contract	`AI_ADDRCONFIG` (return only families configured on the host);
+s16_2_c_2_5	16.2	Contract	`AI_ADDRCONFIG` (return only families configured on the host: a family counts when an interface has an address of it other than `127.0.0.1` or `::1`);
 s16_2_c_2_6	16.2	Contract	`AI_IDN` (IDNA via `libidn2`, loaded with `dlopen`), `AI_CANONIDN`.
 s16_2_c_3	16.2	Contract	The result list is **sorted by RFC 3484/6724 destination address selection**. That needs the source address for each candidate, which glibc learns by `connect`ing a UDP socket and calling `getsockname`. The policy table comes from `/etc/gai.conf`.
 s16_2_c_4	16.2	Contract	**`getnameinfo(sa, len, host, hl, serv, sl, flags)`** does the reverse. Flags are `NI_NUMERICHOST`, `NI_NUMERICSERV`, `NI_NOFQDN`, `NI_NAMEREQD`, `NI_DGRAM` and `NI_IDN`.
