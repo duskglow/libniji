@@ -206,7 +206,7 @@ def expand(configs, ids):
 
 
 def BSD_PATHS(ctx):  # noqa: N802  (a constant spelled as a call: the list lives in header_probe)
-    return tuple(n for n in ctx.hp.stage2_names()[0] if n.startswith("_PATH_") and n not in UTMP_PATHS)
+    return tuple(n for n in ctx.hp.family("stage2-gaps-c").stage2_names()[0] if n.startswith("_PATH_") and n not in UTMP_PATHS)
 
 
 UTMP_HEADERS = ("paths.h", "utmp.h", "utmpx.h", "lastlog.h")
