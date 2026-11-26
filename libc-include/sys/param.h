@@ -25,7 +25,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #endif
 #if 1
 # ifndef CANBSIZ
-#  define CANBSIZ 255
+#  define CANBSIZ MAX_CANON
 # endif
 # ifndef DEV_BSIZE
 #  define DEV_BSIZE 512
@@ -40,7 +40,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define MAXHOSTNAMELEN 64
 # endif
 # ifndef MAXPATHLEN
-#  define MAXPATHLEN 4096
+#  define MAXPATHLEN PATH_MAX
 # endif
 # ifndef MAXSYMLINKS
 #  define MAXSYMLINKS 20
@@ -55,13 +55,13 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define NAME_MAX 255
 # endif
 # ifndef NBBY
-#  define NBBY 8
+#  define NBBY CHAR_BIT
 # endif
 # ifndef NCARGS
 #  define NCARGS 131072
 # endif
 # ifndef NGROUPS
-#  define NGROUPS 65536
+#  define NGROUPS NGROUPS_MAX
 # endif
 # ifndef NGROUPS_MAX
 #  define NGROUPS_MAX 65536

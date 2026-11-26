@@ -211,7 +211,7 @@ struct argp_state;
 extern void argp_usage (const struct argp_state *);
 # endif
 # ifndef ARGP_ERR_UNKNOWN
-#  define ARGP_ERR_UNKNOWN 7
+#  define ARGP_ERR_UNKNOWN E2BIG
 # endif
 # ifndef ARGP_HELP_BUG_ADDR
 #  define ARGP_HELP_BUG_ADDR 64

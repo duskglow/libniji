@@ -761,7 +761,7 @@ enum {
 #  define IPV6_ADDR_PREFERENCES 72
 # endif
 # ifndef IPV6_ADD_MEMBERSHIP
-#  define IPV6_ADD_MEMBERSHIP 20
+#  define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 # endif
 # ifndef IPV6_AUTHHDR
 #  define IPV6_AUTHHDR 10
@@ -776,7 +776,7 @@ enum {
 #  define IPV6_DONTFRAG 62
 # endif
 # ifndef IPV6_DROP_MEMBERSHIP
-#  define IPV6_DROP_MEMBERSHIP 21
+#  define IPV6_DROP_MEMBERSHIP IPV6_LEAVE_GROUP
 # endif
 # ifndef IPV6_DSTOPTS
 #  define IPV6_DSTOPTS 59
@@ -911,10 +911,10 @@ enum {
 #  define IPV6_RTHDR_TYPE_0 0
 # endif
 # ifndef IPV6_RXDSTOPTS
-#  define IPV6_RXDSTOPTS 59
+#  define IPV6_RXDSTOPTS IPV6_DSTOPTS
 # endif
 # ifndef IPV6_RXHOPOPTS
-#  define IPV6_RXHOPOPTS 54
+#  define IPV6_RXHOPOPTS IPV6_HOPOPTS
 # endif
 # ifndef IPV6_TCLASS
 #  define IPV6_TCLASS 67
@@ -1190,6 +1190,16 @@ enum {
 # define IN6_IS_ADDR_MC_SITELOCAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0x5)
 # define IN6_IS_ADDR_MC_ORGLOCAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0x8)
 # define IN6_IS_ADDR_MC_GLOBAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0xe)
+
+/* RFC 3493 section 3.8: initializers of a struct in6_addr for the unspecified address (::) and the loopback address
+   (::1), braced for the structure, its union and the union's first member (the 16 address bytes, network order). The
+   kernel's struct in6_addr (above) has the same shape. */
+#if 1
+# define IN6ADDR_ANY_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } } }
+#endif
+#if 1
+# define IN6ADDR_LOOPBACK_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } } }
+#endif
 
 __NIJI_END_C
 

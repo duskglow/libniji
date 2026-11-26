@@ -16,6 +16,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check  # noqa: E402
 
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import header_check as hc  # noqa: E402
+
 must_fail = ["regexp.h"]
 p1_skip = [("ftw.h", "statx"), ("ftw.h", "statx_timestamp")]
 
@@ -24,6 +30,22 @@ def units(ctx):
     levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
     out = [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n")
            for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
+    # Spec clause: gettext(3), ngettext(3) (HEADERS-STAGE2-GAPS-B: avahi's `printf (_("..."))` under
+    # -Werror=format-security). Each message argument the reference marks format_arg (black-box attribute probe,
+    # diagattrs.tsv `format_arg`) passes a literal's format checking through: a literal through any of them is a
+    # literal format, so -Wformat-security stays silent where the call has no other argument.
+    calls = {"gettext": '"x"', "dgettext": '"d", "x"', "dcgettext": '"d", "x", 5', "ngettext": '"x", "y", n',
+             "dngettext": '"d", "x", "y", n', "dcngettext": '"d", "x", "y", n, 5'}
+    fa = {}
+    for r in ctx.vis:
+        if r["header"] == "libintl.h" and r["kind"] == "function" and r["name"] in calls:
+            for cid in hc.expand(r["configs"], ctx.ids):
+                fa.setdefault(cid, []).append(r["name"])
+    for cid, fns in sorted(fa.items()):
+        body = ["#include <libintl.h>", '#pragma GCC diagnostic error "-Wformat"', '#pragma GCC diagnostic error "-Wformat-security"',
+                "extern int niji_pf (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));",
+                "void niji_fa (unsigned long n) { (void) n;"] + [f"  niji_pf ({f} ({calls[f]}));" for f in sorted(fns)] + ["}"]
+        out.append((cid, "format_arg libintl.h", "\n".join(body) + "\n"))
     # Spec clause: regex(3), the GNU interface (HEADERS-SNAPSHOT-GAPS): RE_TRANSLATE_TYPE is shown exactly where the
     # reference shows it and names the type of the pattern buffer's `translate` member (layouts.tsv), which busybox's
     # grep declares its table with.

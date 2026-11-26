@@ -533,154 +533,154 @@ enum {
 #  endif
 # endif
 # ifndef AF_ALG
-#  define AF_ALG 38
+#  define AF_ALG PF_ALG
 # endif
 # ifndef AF_APPLETALK
-#  define AF_APPLETALK 5
+#  define AF_APPLETALK PF_APPLETALK
 # endif
 # ifndef AF_ASH
-#  define AF_ASH 18
+#  define AF_ASH PF_ASH
 # endif
 # ifndef AF_ATMPVC
-#  define AF_ATMPVC 8
+#  define AF_ATMPVC PF_ATMPVC
 # endif
 # ifndef AF_ATMSVC
-#  define AF_ATMSVC 20
+#  define AF_ATMSVC PF_ATMSVC
 # endif
 # ifndef AF_AX25
-#  define AF_AX25 3
+#  define AF_AX25 PF_AX25
 # endif
 # ifndef AF_BLUETOOTH
-#  define AF_BLUETOOTH 31
+#  define AF_BLUETOOTH PF_BLUETOOTH
 # endif
 # ifndef AF_BRIDGE
-#  define AF_BRIDGE 7
+#  define AF_BRIDGE PF_BRIDGE
 # endif
 # ifndef AF_CAIF
-#  define AF_CAIF 37
+#  define AF_CAIF PF_CAIF
 # endif
 # ifndef AF_CAN
-#  define AF_CAN 29
+#  define AF_CAN PF_CAN
 # endif
 # ifndef AF_DECnet
-#  define AF_DECnet 12
+#  define AF_DECnet PF_DECnet
 # endif
 # ifndef AF_ECONET
-#  define AF_ECONET 19
+#  define AF_ECONET PF_ECONET
 # endif
 # ifndef AF_FILE
-#  define AF_FILE 1
+#  define AF_FILE PF_FILE
 # endif
 # ifndef AF_IB
-#  define AF_IB 27
+#  define AF_IB PF_IB
 # endif
 # ifndef AF_IEEE802154
-#  define AF_IEEE802154 36
+#  define AF_IEEE802154 PF_IEEE802154
 # endif
 # ifndef AF_INET
-#  define AF_INET 2
+#  define AF_INET PF_INET
 # endif
 # ifndef AF_INET6
-#  define AF_INET6 10
+#  define AF_INET6 PF_INET6
 # endif
 # ifndef AF_IPX
-#  define AF_IPX 4
+#  define AF_IPX PF_IPX
 # endif
 # ifndef AF_IRDA
-#  define AF_IRDA 23
+#  define AF_IRDA PF_IRDA
 # endif
 # ifndef AF_ISDN
-#  define AF_ISDN 34
+#  define AF_ISDN PF_ISDN
 # endif
 # ifndef AF_IUCV
-#  define AF_IUCV 32
+#  define AF_IUCV PF_IUCV
 # endif
 # ifndef AF_KCM
-#  define AF_KCM 41
+#  define AF_KCM PF_KCM
 # endif
 # ifndef AF_KEY
-#  define AF_KEY 15
+#  define AF_KEY PF_KEY
 # endif
 # ifndef AF_LLC
-#  define AF_LLC 26
+#  define AF_LLC PF_LLC
 # endif
 # ifndef AF_LOCAL
-#  define AF_LOCAL 1
+#  define AF_LOCAL PF_LOCAL
 # endif
 # ifndef AF_MAX
-#  define AF_MAX 46
+#  define AF_MAX PF_MAX
 # endif
 # ifndef AF_MCTP
-#  define AF_MCTP 45
+#  define AF_MCTP PF_MCTP
 # endif
 # ifndef AF_MPLS
-#  define AF_MPLS 28
+#  define AF_MPLS PF_MPLS
 # endif
 # ifndef AF_NETBEUI
-#  define AF_NETBEUI 13
+#  define AF_NETBEUI PF_NETBEUI
 # endif
 # ifndef AF_NETLINK
-#  define AF_NETLINK 16
+#  define AF_NETLINK PF_NETLINK
 # endif
 # ifndef AF_NETROM
-#  define AF_NETROM 6
+#  define AF_NETROM PF_NETROM
 # endif
 # ifndef AF_NFC
-#  define AF_NFC 39
+#  define AF_NFC PF_NFC
 # endif
 # ifndef AF_PACKET
-#  define AF_PACKET 17
+#  define AF_PACKET PF_PACKET
 # endif
 # ifndef AF_PHONET
-#  define AF_PHONET 35
+#  define AF_PHONET PF_PHONET
 # endif
 # ifndef AF_PPPOX
-#  define AF_PPPOX 24
+#  define AF_PPPOX PF_PPPOX
 # endif
 # ifndef AF_QIPCRTR
-#  define AF_QIPCRTR 42
+#  define AF_QIPCRTR PF_QIPCRTR
 # endif
 # ifndef AF_RDS
-#  define AF_RDS 21
+#  define AF_RDS PF_RDS
 # endif
 # ifndef AF_ROSE
-#  define AF_ROSE 11
+#  define AF_ROSE PF_ROSE
 # endif
 # ifndef AF_ROUTE
-#  define AF_ROUTE 16
+#  define AF_ROUTE PF_ROUTE
 # endif
 # ifndef AF_RXRPC
-#  define AF_RXRPC 33
+#  define AF_RXRPC PF_RXRPC
 # endif
 # ifndef AF_SECURITY
-#  define AF_SECURITY 14
+#  define AF_SECURITY PF_SECURITY
 # endif
 # ifndef AF_SMC
-#  define AF_SMC 43
+#  define AF_SMC PF_SMC
 # endif
 # ifndef AF_SNA
-#  define AF_SNA 22
+#  define AF_SNA PF_SNA
 # endif
 # ifndef AF_TIPC
-#  define AF_TIPC 30
+#  define AF_TIPC PF_TIPC
 # endif
 # ifndef AF_UNIX
-#  define AF_UNIX 1
+#  define AF_UNIX PF_UNIX
 # endif
 # ifndef AF_UNSPEC
-#  define AF_UNSPEC 0
+#  define AF_UNSPEC PF_UNSPEC
 # endif
 # ifndef AF_VSOCK
-#  define AF_VSOCK 40
+#  define AF_VSOCK PF_VSOCK
 # endif
 # ifndef AF_WANPIPE
-#  define AF_WANPIPE 25
+#  define AF_WANPIPE PF_WANPIPE
 # endif
 # ifndef AF_X25
-#  define AF_X25 9
+#  define AF_X25 PF_X25
 # endif
 # ifndef AF_XDP
-#  define AF_XDP 44
+#  define AF_XDP PF_XDP
 # endif
 # ifndef MSG_BATCH
 #  define MSG_BATCH MSG_BATCH
@@ -782,7 +782,7 @@ enum {
 #  define PF_ECONET 19
 # endif
 # ifndef PF_FILE
-#  define PF_FILE 1
+#  define PF_FILE PF_LOCAL
 # endif
 # ifndef PF_IB
 #  define PF_IB 27
@@ -860,7 +860,7 @@ enum {
 #  define PF_ROSE 11
 # endif
 # ifndef PF_ROUTE
-#  define PF_ROUTE 16
+#  define PF_ROUTE PF_NETLINK
 # endif
 # ifndef PF_RXRPC
 #  define PF_RXRPC 33
@@ -878,7 +878,7 @@ enum {
 #  define PF_TIPC 30
 # endif
 # ifndef PF_UNIX
-#  define PF_UNIX 1
+#  define PF_UNIX PF_LOCAL
 # endif
 # ifndef PF_UNSPEC
 #  define PF_UNSPEC 0
@@ -1052,7 +1052,11 @@ enum {
 #  define SO_RCVLOWAT 18
 # endif
 # ifndef SO_RCVTIMEO
-#  define SO_RCVTIMEO 20
+#  if __NIJI_MISC
+#   define SO_RCVTIMEO SO_RCVTIMEO_OLD
+#  else
+#   define SO_RCVTIMEO 20
+#  endif
 # endif
 # ifndef SO_REUSEADDR
 #  define SO_REUSEADDR 2
@@ -1064,16 +1068,32 @@ enum {
 #  define SO_SNDLOWAT 19
 # endif
 # ifndef SO_SNDTIMEO
-#  define SO_SNDTIMEO 21
+#  if __NIJI_MISC
+#   define SO_SNDTIMEO SO_SNDTIMEO_OLD
+#  else
+#   define SO_SNDTIMEO 21
+#  endif
 # endif
 # ifndef SO_TIMESTAMP
-#  define SO_TIMESTAMP 29
+#  if __NIJI_MISC
+#   define SO_TIMESTAMP SO_TIMESTAMP_OLD
+#  else
+#   define SO_TIMESTAMP 29
+#  endif
 # endif
 # ifndef SO_TIMESTAMPING
-#  define SO_TIMESTAMPING 37
+#  if __NIJI_MISC
+#   define SO_TIMESTAMPING SO_TIMESTAMPING_OLD
+#  else
+#   define SO_TIMESTAMPING 37
+#  endif
 # endif
 # ifndef SO_TIMESTAMPNS
-#  define SO_TIMESTAMPNS 35
+#  if __NIJI_MISC
+#   define SO_TIMESTAMPNS SO_TIMESTAMPNS_OLD
+#  else
+#   define SO_TIMESTAMPNS 35
+#  endif
 # endif
 # ifndef SO_TYPE
 #  define SO_TYPE 3
@@ -1087,7 +1107,7 @@ enum {
 #endif
 #if __NIJI_GNU
 # ifndef MSG_TRYHARD
-#  define MSG_TRYHARD MSG_TRYHARD
+#  define MSG_TRYHARD MSG_DONTROUTE
 # endif
 # ifndef SCM_CREDENTIALS
 #  define SCM_CREDENTIALS SCM_CREDENTIALS
@@ -1107,10 +1127,10 @@ enum {
 #  define FIOSETOWN 35073
 # endif
 # ifndef SCM_TIMESTAMP
-#  define SCM_TIMESTAMP 29
+#  define SCM_TIMESTAMP SO_TIMESTAMP
 # endif
 # ifndef SCM_TIMESTAMPING
-#  define SCM_TIMESTAMPING 37
+#  define SCM_TIMESTAMPING SO_TIMESTAMPING
 # endif
 # ifndef SCM_TIMESTAMPING_OPT_STATS
 #  define SCM_TIMESTAMPING_OPT_STATS 54
@@ -1119,13 +1139,13 @@ enum {
 #  define SCM_TIMESTAMPING_PKTINFO 58
 # endif
 # ifndef SCM_TIMESTAMPNS
-#  define SCM_TIMESTAMPNS 35
+#  define SCM_TIMESTAMPNS SO_TIMESTAMPNS
 # endif
 # ifndef SCM_TXTIME
-#  define SCM_TXTIME 61
+#  define SCM_TXTIME SO_TXTIME
 # endif
 # ifndef SCM_WIFI_STATUS
-#  define SCM_WIFI_STATUS 41
+#  define SCM_WIFI_STATUS SO_WIFI_STATUS
 # endif
 # ifndef SIOCATMARK
 #  define SIOCATMARK 35077
@@ -1182,7 +1202,7 @@ enum {
 #  define SO_COOKIE 57
 # endif
 # ifndef SO_DETACH_BPF
-#  define SO_DETACH_BPF 27
+#  define SO_DETACH_BPF SO_DETACH_FILTER
 # endif
 # ifndef SO_DETACH_FILTER
 #  define SO_DETACH_FILTER 27
@@ -1194,7 +1214,7 @@ enum {
 #  define SO_DOMAIN 39
 # endif
 # ifndef SO_GET_FILTER
-#  define SO_GET_FILTER 26
+#  define SO_GET_FILTER SO_ATTACH_FILTER
 # endif
 # ifndef SO_INCOMING_CPU
 #  define SO_INCOMING_CPU 49

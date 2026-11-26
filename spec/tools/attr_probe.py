@@ -42,7 +42,12 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `h.j` a non-variadic F with the unknown conversion "%y" for the `const char *` parameter j: -Wformat= (the
         `v*printf` and `v*scanf` forms take a `va_list`, which the nonliteral test cannot see).
 * `s.c` a variadic F with c null pointers appended: -Wformat= (a missing sentinel) tells the attribute and
-        its position (c - 1 is the position of the first that makes it quiet).
+        its position (c - 1 is the position of the first that makes it quiet). These tests are compiled in a unit
+        of their own with -fno-builtin: the compiler knows execl, execle and execlp as builtins with a sentinel of
+        its own, which a plain declaration would show; the table records the declaration's attribute only.
+* `fa.j` a non-variadic F returning a pointer to char, its result passed as the format of the probe's own printf-like
+        pf_fa: literals in every string parameter (`fa.0`), then the unknown string in string parameter j; in the
+        -fno-builtin unit (gettext, dgettext and dcgettext are builtins with a format_arg of the compiler's own).
 * `nr`  F(valid arguments); mk_nr(): the marker is dropped when F is noreturn.
 * `nz.k`, `nv.k` a void F as in `nr`, numeric parameter k set to 0 (`nz`) or to an opaque value (`nv`): when `nr`
         drops its marker and both of these keep theirs, F returns unless argument k is a nonzero constant
@@ -59,12 +64,13 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
         when __builtin_object_size(p, 0) is known to be 2^|S| (attribute alloc_size over S).
 
-diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma
+diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure format_arg`): nonnull is the comma
 list of the 1-based parameters marked nonnull; `table` runs the `n.k` tests again in the gnu configuration
 (`_FORTIFY_SOURCE` off) and fails, naming them, when a parameter is marked in one of the two only (the table cannot
 say so; none is, HEADERS-NONNULL-MATCH), format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
-parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
+parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const; format_arg the comma list of 1-based parameters
+(`fa.0` quiet and `fa.j` diagnosed: one attribute format_arg per parameter).
 """
 import argparse, csv, json, os, re, subprocess, sys, tempfile
 
@@ -250,6 +256,8 @@ def corpus(names, heads, pr, cfg="base", every=None):
     ext = 'extern "C" ' if cxx else ""
     L += [ext + "{ extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap; }" if cxx else
           "extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap;"]
+    # The probe's own printf-like function for the `fa` tests (format_arg).
+    L += ["extern int pf_fa (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));"]
     meta = {}
 
     def add(fmt, key):
@@ -322,8 +330,16 @@ def corpus(names, heads, pr, cfg="base", every=None):
                 if variadic and j == len(fixed) - 1:
                     add('void g_@N@(void) { %s(%s, "s"); }' % (n, args({j: '"%d"'})), (n, "g", j + 1))
         if variadic and n not in NO_SENTINEL:
-            for c in (1, 2):
+            for c in (0, 1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
+        # format_arg: F's result as the format of the probe's pf_fa, literals in every string parameter (`fa`, 0) and
+        # the unknown string in parameter j (`fa`, j + 1); only a result of type pointer to char can carry it.
+        rtype = re.sub(r"\b%s\s*$" % re.escape(n), "", ret).strip()
+        if not variadic and re.fullmatch(r"(const\s+)?char\s*\*", rtype) and "constchar" in fixed:
+            add("void fa0_@N@(void) { pf_fa (%s(%s)); }" % (n, args()), (n, "fa", 0))
+            for j, k in enumerate(fixed):
+                if k == "constchar":
+                    add("void fa_@N@(void) { pf_fa (%s(%s)); }" % (n, args({j: "nl"})), (n, "fa", j + 1))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
         if not has_result:
             for j in [j for j, k in enumerate(fixed) if k == "num"]:
@@ -420,8 +436,10 @@ def results(text, meta, inc, keep, tag, cfg="base"):
     redeclaration's pure into the one declaration of F for the whole unit, wherever the line is), the nonnull tests
     (`n.k`, `rn`, compiled with -fno-builtin, so that only the header's declaration speaks) and the rest."""
     lines = text.split("\n")
-    units = [("", lambda k: k not in NN_KINDS and k != "e", ()), ("-e", lambda k: k == "e", ()),
-             ("-nn", lambda k: k in NN_KINDS, ("-fno-builtin",))]
+    # The sentinel and format_arg tests: -fno-builtin, so that only the declaration's own attribute decides
+    # (module docstring, `s.c`).
+    units = [("", lambda k: k not in NN_KINDS and k not in ("e", "s", "fa"), ()), ("-e", lambda k: k == "e", ()),
+             ("-nn", lambda k: k in NN_KINDS, ("-fno-builtin",)), ("-s", lambda k: k in ("s", "fa"), ("-fno-builtin",))]
     res = {}
     for suffix, keep_kind, extra in units:
         mine = {ln for ln, key in meta.items() if keep_kind(key[1])}
@@ -476,6 +494,11 @@ ERRNO_VETO = ("the call may set errno (the reference's objects keep an errno che
               "declaration is not pure, and the compiler does not report a call whose result is unused (-Wunused-value)")
 ERRNO_INLINE = ("the reference's caller folds the errno check with no pure or const in the table: its header expands the "
                 "call inline; libniji's calls the library, which keeps the check (not slice 19's)")
+# Known difference the `s` test explains: its unit is -fno-builtin, where only a declaration's own format attribute
+# reports the null pointers it appends as extra arguments (-Wformat-extra-args); the sentinel (-Wformat=) agrees.
+SENTINEL_FORMAT = ("the sentinel test (-fno-builtin) agrees; libniji's declaration carries the format attribute, the "
+                   "reference's leaves format checking to the compiler's own knowledge of the function, so only "
+                   "libniji's reports -Wformat-extra-args without builtins (with builtins the f, g and h tests agree)")
 CTYPE_OPEN = re.compile(r"^is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)$")
 
 
@@ -514,8 +537,9 @@ BUILTIN_SIZE = {"strndup", "strdup"}
 
 def derive(res, pr, names):
     rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": "",
-                "returns_nonnull": ""} for n in names}
+                "returns_nonnull": "", "format_arg": ""} for n in names}
     fmt = {}
+    fa = {}  # name -> {0 (literals) or 1-based string parameter: the pf_fa call was diagnosed}
     conflict = set()
     kept = {}  # name -> {1-based numeric parameter: {"nz", "nv"} tests that kept their marker}
     for ln, (key, flags, err) in sorted(res.items()):
@@ -534,10 +558,13 @@ def derive(res, pr, names):
                 r["deprecated"] = "1"
             if "-Wunused-value" in flags:
                 r["pure"] = "1"
-            if "-Wformat=" in flags and pr[n].rstrip().endswith("...)"):
-                r["sentinel"] = "?"
         elif kind == "n" and "-Wnonnull" in flags:
             r["nonnull"].append(str(key[2]))
+        elif kind == "s" and key[2] == 0:
+            if "-Wformat=" in flags:
+                r["sentinel"] = "?"
+        elif kind == "fa":
+            fa.setdefault(n, {})[key[2]] = bool(flags & {"-Wformat-nonliteral", "-Wformat-security"})
         elif kind == "rn" and "marker" not in flags:
             r["returns_nonnull"] = "1"
         elif kind == "s" and r["sentinel"]:
@@ -579,6 +606,11 @@ def derive(res, pr, names):
     for n in CONST_BY_STANDARD & set(rows):
         if rows[n]["pure"]:
             rows[n]["pure"] = "const"
+    # format_arg: the all-literal call passes as a literal format, and the call with the unknown string in
+    # parameter j does not (several parameters may carry it: ngettext's singular and plural).
+    for n, by in fa.items():
+        if by.get(0) is False:
+            rows[n]["format_arg"] = ",".join(str(j) for j in sorted(by) if j and by[j])
     # The errno veto, last: a caller of F keeps an errno check after the call in the reference's objects.
     for n in errno_kept(res):
         if n in rows:
@@ -591,7 +623,7 @@ def errno_kept(res):
     return {key[0] for key, flags, err in res.values() if key[1] == "e" and not err and "marker" in flags}
 
 
-TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure")
+TABLE_COLUMNS = ("name", "nonnull", "wur", "noreturn", "format", "malloc", "alloc_size", "deprecated", "sentinel", "pure", "format_arg")
 
 
 def nn_sets(inc, pr, cfg, keep):
@@ -719,6 +751,8 @@ def main():
                     why = ERRNO_VETO
                 elif kind == "e" and "folded" in ref[ln][1] and "marker" in got[ln][1] and not table[n]["pure"]:
                     why = ERRNO_INLINE
+                elif kind == "s" and only == {"-Wformat-extra-args"} and table[n]["format"]:
+                    why = SENTINEL_FORMAT
             if why:
                 known[ref[ln][0][0]] = why
                 continue

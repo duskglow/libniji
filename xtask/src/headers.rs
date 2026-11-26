@@ -243,6 +243,9 @@ struct Tables {
     /// enum-macros.tsv (HEADERS-CXX-ENUM-TYPES): a macro that is an enumerator in the reference -> the enumerator it
     /// names (itself, or the enumerator of the same enumeration with its value), and the headers where it does not.
     enum_macros: BTreeMap<String, (String, BTreeSet<String>)>,
+    /// macro-aliases.tsv (HEADERS-STAGE2-GAPS-B): (header, macro) -> the macro name the reference's header defines it as
+    /// (`AF_INET` as `PF_INET`), from the black-box alias probe (spec/tools/header_checks/aliases.py).
+    macro_aliases: BTreeMap<(String, String), String>,
     /// `vis` by header and name.
     vis_index: VisIndex,
 }
@@ -426,9 +429,10 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let enum_macros = tsv(root, "spec/abi/enum-macros.tsv")?.into_iter().map(|r| (r["name"].clone(), (r["enumerator"].clone(), r["not_in"].split(',').filter(|h| !h.is_empty()).map(String::from).collect()))).collect();
+    let macro_aliases = tsv(root, "spec/abi/macro-aliases.tsv")?.into_iter().map(|r| ((r["header"].clone(), r["name"].clone()), r["alias"].clone())).collect();
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, arrayparams, enums, enum_of, enum_macros, macro_aliases, vis_index })
 }
 
 /// The scalar functions of the `libmvec.so.1` rows of versions.tsv (D-X.170). GCC's `simd ("notinbranch")` attribute
@@ -504,6 +508,10 @@ fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
     if !f.is_empty() {
         let p: Vec<&str> = f.split(':').collect();
         a.push(format!("__format__ (__{}__, {}, {})", p[0], p[1], p[2]));
+    }
+    // One format_arg per parameter (ngettext: the singular and the plural); a table without the column has none.
+    for j in r.get("format_arg").map(String::as_str).unwrap_or("").split(',').filter(|j| !j.is_empty()) {
+        a.push(format!("__format_arg__ ({j})"));
     }
     if !r["nonnull"].is_empty() {
         a.push(format!("__nonnull__ ({})", r["nonnull"].replace(',', ", ")));
@@ -673,8 +681,16 @@ impl Gen<'_> {
     fn item(&mut self, name: &str, kind: &str) {
         match kind {
             "macro" => {
-                // A macro that is an enumerator in the reference names it (enum-macros.tsv), where this header declares it.
-                let v = match self.enum_macro(name) {
+                // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
+                // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
+                // reference names it (enum-macros.tsv), where this header declares it, else its value.
+                // An alias the header shows in only some of the macro's configurations names it there only.
+                if let Some((a, Some(c))) = self.macro_alias(name) {
+                    let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
+                    self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+                    return;
+                }
+                let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
                     Some(e) => e,
                     None => self.value(name),
                 };
