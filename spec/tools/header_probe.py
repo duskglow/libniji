@@ -356,6 +356,9 @@ def package_names():
                                  "PPPOL2TP", "BLUETOOTH", "PNPIPE", "RDS", "IUCV", "CAIF", "ALG", "NFC", "KCM", "TLS",
                                  "XDP", "MPTCP", "MCTP", "SMC", "VSOCK", "SCTP", "AX25", "ROSE", "NETROM", "IPX",
                                  "ATALK", "HCI", "L2CAP", "SCO", "RFCOMM")]
+    # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
+    # the interpreter structure's layout with it. (`static_assert`, which perl.h also tests, is a stage2_names candidate.)
+    out += ["_NL_LOCALE_NAME"]
     # HEADERS-GETTEXT-CLANG (Yohane's stage 2 on snapshot 2026-11-25.2): the struct utmp compatibility member names
     # sysvinit and procps use (utmp(5): `ut_name`, `ut_time`, `ut_addr`; `ut_xtime` beside them) and the login
     # accounting file name macros of the same header; psutil's struct ifaddrs union member names (getifaddrs(3):
