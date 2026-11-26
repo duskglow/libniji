@@ -1,0 +1,11 @@
+{"task": "DOCS-CATCHUP-1126", "model": "sonnet", "tokens": null,
+ "result": "Added the secure-mode $ORIGIN differences row and the later-heap-segment sentence; the other owed items were already fixed on next",
+ "branch": "task/docs-catchup-1126", "head": "HEAD_SHA",
+ "gate": {"affected": "docs only; cargo xtask static green", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "secure-mode $ORIGIN row has no COMPAT option: the reference's trusted-directory case needs root to place a program and was not probed; a subdirectory of a default dir is untested on the reference", "recommendation": "accept no option (hardening, reference side unobserved) or reserve a COMPAT id and register one"}],
+ "informational": ["Dropped as already done on head: RELEASE-NOTES entries for #13, #6, getaddrinfo_a correction and DL-RUNPATH ($ORIGIN) are in docs/RELEASE-NOTES.md (11-21.7); docs/install-packages.md and the locales Description already describe the charmaps; the only 'placeholder' left is libc-l10n, which is still true", "heap sentence placed in docs/architecture.md heap paragraph (D-3.24)"],
+ "refused": [], "impact": [{"kind": "none", "what": "docs rows only", "before": null, "after": null, "unit": "", "measured": false}],
+ "improvement": "overdue-owe stories should be rechecked against head before dispatch: 3 of 4 items were already done",
+ "next_step": "land", "report_file": "handoff/reports/DOCS-CATCHUP-1126.json",
+ "jobs": ["shiki:docs-catchup-1126-static"]}
