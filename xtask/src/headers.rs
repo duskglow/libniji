@@ -17,7 +17,8 @@
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
-//! * `@@enum TAG`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros.
+//! * `@@enum TAG [plain]`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros
+//!   (`plain`: no macros, where the reference's header defines none).
 //! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is

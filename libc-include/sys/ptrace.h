@@ -101,7 +101,7 @@ enum __ptrace_request {
 #  define PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG
 # endif
 /* The PTRACE_SETOPTIONS option bits and the PTRACE_EVENT_* stop codes are enumerators, as the reference's header shows
-   them (black-box probe; R-H7: glib2.0). */
+   them, with no macro of their names (black-box probe; R-H7: glib2.0). */
 # ifndef __NIJI_D_enum___ptrace_setoptions
 #  define __NIJI_D_enum___ptrace_setoptions 1
 enum __ptrace_setoptions {
@@ -118,39 +118,6 @@ enum __ptrace_setoptions {
   PTRACE_O_MASK = 3145983,
 };
 # endif
-# ifndef PTRACE_O_EXITKILL
-#  define PTRACE_O_EXITKILL PTRACE_O_EXITKILL
-# endif
-# ifndef PTRACE_O_MASK
-#  define PTRACE_O_MASK PTRACE_O_MASK
-# endif
-# ifndef PTRACE_O_SUSPEND_SECCOMP
-#  define PTRACE_O_SUSPEND_SECCOMP PTRACE_O_SUSPEND_SECCOMP
-# endif
-# ifndef PTRACE_O_TRACECLONE
-#  define PTRACE_O_TRACECLONE PTRACE_O_TRACECLONE
-# endif
-# ifndef PTRACE_O_TRACEEXEC
-#  define PTRACE_O_TRACEEXEC PTRACE_O_TRACEEXEC
-# endif
-# ifndef PTRACE_O_TRACEEXIT
-#  define PTRACE_O_TRACEEXIT PTRACE_O_TRACEEXIT
-# endif
-# ifndef PTRACE_O_TRACEFORK
-#  define PTRACE_O_TRACEFORK PTRACE_O_TRACEFORK
-# endif
-# ifndef PTRACE_O_TRACESECCOMP
-#  define PTRACE_O_TRACESECCOMP PTRACE_O_TRACESECCOMP
-# endif
-# ifndef PTRACE_O_TRACESYSGOOD
-#  define PTRACE_O_TRACESYSGOOD PTRACE_O_TRACESYSGOOD
-# endif
-# ifndef PTRACE_O_TRACEVFORK
-#  define PTRACE_O_TRACEVFORK PTRACE_O_TRACEVFORK
-# endif
-# ifndef PTRACE_O_TRACEVFORKDONE
-#  define PTRACE_O_TRACEVFORKDONE PTRACE_O_TRACEVFORKDONE
-# endif
 # ifndef __NIJI_D_enum___ptrace_eventcodes
 #  define __NIJI_D_enum___ptrace_eventcodes 1
 enum __ptrace_eventcodes {
@@ -163,30 +130,6 @@ enum __ptrace_eventcodes {
   PTRACE_EVENT_SECCOMP = 7,
   PTRACE_EVENT_STOP = 128,
 };
-# endif
-# ifndef PTRACE_EVENT_CLONE
-#  define PTRACE_EVENT_CLONE PTRACE_EVENT_CLONE
-# endif
-# ifndef PTRACE_EVENT_EXEC
-#  define PTRACE_EVENT_EXEC PTRACE_EVENT_EXEC
-# endif
-# ifndef PTRACE_EVENT_EXIT
-#  define PTRACE_EVENT_EXIT PTRACE_EVENT_EXIT
-# endif
-# ifndef PTRACE_EVENT_FORK
-#  define PTRACE_EVENT_FORK PTRACE_EVENT_FORK
-# endif
-# ifndef PTRACE_EVENT_SECCOMP
-#  define PTRACE_EVENT_SECCOMP PTRACE_EVENT_SECCOMP
-# endif
-# ifndef PTRACE_EVENT_STOP
-#  define PTRACE_EVENT_STOP PTRACE_EVENT_STOP
-# endif
-# ifndef PTRACE_EVENT_VFORK
-#  define PTRACE_EVENT_VFORK PTRACE_EVENT_VFORK
-# endif
-# ifndef PTRACE_EVENT_VFORK_DONE
-#  define PTRACE_EVENT_VFORK_DONE PTRACE_EVENT_VFORK_DONE
 # endif
 #if 1
 # ifndef __NIJI_D___blkcnt64_t

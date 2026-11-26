@@ -177,9 +177,15 @@ impl Gen<'_> {
     /// visibility.tsv also a self-naming macro, so `#ifdef NAME` holds. The enumerators are then not emitted again: a
     /// prototype takes the enumeration (`ptrace (enum __ptrace_request, ...)`).
     pub(super) fn enumeration(&mut self, args: &[&str]) {
-        let [tag] = args else {
-            self.errors.push(format!("{}: @@enum takes one tag: {}", self.header, args.join(" ")));
-            return;
+        // `@@enum TAG plain`: the enumerators only, where the reference's header defines no macro of their names
+        // (sys/ptrace.h's PTRACE_O_* and PTRACE_EVENT_*: `#ifdef` is false there; black-box probe, HEADERS-STAGE2-GAPS-G).
+        let (tag, plain) = match args {
+            [tag] => (*tag, false),
+            [tag, "plain"] => (*tag, true),
+            _ => {
+                self.errors.push(format!("{}: @@enum takes one tag and an optional `plain`: {}", self.header, args.join(" ")));
+                return;
+            }
         };
         let key = format!("enum {tag}");
         let Some(members) = self.t.enums.get(&key) else {
@@ -190,7 +196,9 @@ impl Gen<'_> {
         names.sort();
         self.tag(tag, "enum");
         self.emitted.insert(key.clone());
-        let body: Vec<String> = names.iter().flat_map(|n| [format!("# ifndef {n}"), format!("#  define {n} {n}"), "# endif".into()]).collect();
-        self.out.extend(body);
+        if !plain {
+            let body: Vec<String> = names.iter().flat_map(|n| [format!("# ifndef {n}"), format!("#  define {n} {n}"), "# endif".into()]).collect();
+            self.out.extend(body);
+        }
     }
 }
