@@ -37,6 +37,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
@@ -161,6 +185,10 @@ typedef long off64_t;
 # endif
 #endif
 #if __NIJI_MISC
+# ifndef __NIJI_D___fd_mask
+#  define __NIJI_D___fd_mask 1
+typedef long __fd_mask;
+# endif
 # ifndef __NIJI_D_caddr_t
 #  define __NIJI_D_caddr_t 1
 typedef char * caddr_t;
@@ -168,6 +196,10 @@ typedef char * caddr_t;
 # ifndef __NIJI_D_daddr_t
 #  define __NIJI_D_daddr_t 1
 typedef int daddr_t;
+# endif
+# ifndef __NIJI_D_fd_mask
+#  define __NIJI_D_fd_mask 1
+typedef long fd_mask;
 # endif
 # ifndef __NIJI_D_fd_set
 #  define __NIJI_D_fd_set 1
@@ -442,6 +474,13 @@ struct timeval;
 #  define __NIJI_D_select 1
 extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
+#endif
+#if 1
+# ifndef __FD_SETSIZE
+#  define __FD_SETSIZE 1024
+# endif
+#endif
+#if __NIJI_MISC
 # ifndef BIG_ENDIAN
 #  define BIG_ENDIAN 4321
 # endif
@@ -460,6 +499,9 @@ extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # ifndef PDP_ENDIAN
 #  define PDP_ENDIAN 3412
 # endif
+# ifndef __NFDBITS
+#  define __NFDBITS 64
+# endif
 #endif
 
 /* The byte-order conversions are <endian.h>'s, where this header exposes them. */
@@ -469,13 +511,15 @@ extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 
 /* select(2): the bit of a descriptor in an fd_set. */
 #if __NIJI_MISC
+# ifndef FD_SET
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
-# define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-# define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-# define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-# define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
-# define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
+#  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
+# endif
 #endif
 
 __NIJI_END_C

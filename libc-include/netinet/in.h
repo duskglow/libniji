@@ -441,7 +441,7 @@ enum {
     || !defined IPPROTO_PUP || !defined IPPROTO_UDP || !defined IPPROTO_IDP || !defined IPPROTO_TP || !defined IPPROTO_DCCP || !defined IPPROTO_IPV6 \
     || !defined IPPROTO_RSVP || !defined IPPROTO_GRE || !defined IPPROTO_ESP || !defined IPPROTO_AH || !defined IPPROTO_MTP || !defined IPPROTO_BEETPH \
     || !defined IPPROTO_ENCAP || !defined IPPROTO_PIM || !defined IPPROTO_COMP || !defined IPPROTO_L2TP || !defined IPPROTO_SCTP || !defined IPPROTO_UDPLITE \
-    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP
+    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP || !defined IPPROTO_MAX
 enum {
 #  ifndef IPPROTO_IP
   IPPROTO_IP = 0,
@@ -526,6 +526,9 @@ enum {
 #  endif
 #  ifndef IPPROTO_MPTCP
   IPPROTO_MPTCP = 262,
+#  endif
+#  ifndef IPPROTO_MAX
+  IPPROTO_MAX = 263,
 #  endif
 };
 #  endif

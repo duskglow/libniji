@@ -8965,6 +8965,7 @@ __ALTMON_9	langinfo.h	int	131191
 __CURRENCY_SYMBOL	langinfo.h	int	262145
 __DECIMAL_POINT	langinfo.h	int	65536
 __ERA_YEAR	langinfo.h	int	131117
+__FD_SETSIZE	aio.h	int	1024
 __FMTMSG_H	fmtmsg.h	int	1
 __FRAC_DIGITS	langinfo.h	int	262152
 __GROUPING	langinfo.h	int	65538
@@ -8989,6 +8990,7 @@ __NETIUCV_IUCV_H	netiucv/iucv.h	int	1
 __NETPACKET_PACKET_H	netpacket/packet.h	int	1
 __NET_ETHERNET_H	net/ethernet.h	int	1
 __NET_IF_PPP_H	net/if_ppp.h	int	1
+__NFDBITS	aio.h	int	64
 __NOEXPR	langinfo.h	int	327681
 __NOSTR	langinfo.h	int	327683
 __N_CS_PRECEDES	langinfo.h	int	262155

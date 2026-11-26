@@ -406,6 +406,33 @@ def busybox_names():
     return out, tags
 
 
+def stage2e_names():
+    """Names stage 2 package builds against libniji's headers failed on (HEADERS-STAGE2-GAPS-E: libnftnl and
+    libnetfilter-conntrack, inetutils' tftpsubs.c, keyutils' dns.afsdb.c, libev's ev_select.c, libnsl, libcap-ng's
+    filecap.c), with their families: the IP protocol numbers of ip(7) and the kernel UAPI <linux/in.h>, with
+    `IPPROTO_MAX`; the `struct tftphdr` member names of RFC 1350 packets; the `ns_msg`/`ns_rr` accessors and the
+    byte-order macros of the BIND resolver interface (resolver(3)); `fd_mask` and `NFDBITS` of select(2); the
+    reserved scalar type names `__u_char` ... `__u_quad_t`; and the names another header's template writes itself
+    that the include sweep found shown by other headers (`S_ISDIR` through <ftw.h>, the timer macros of
+    <sys/time.h>, ...). A candidate is only a name to test: which header shows it, and its kind, are probed."""
+    out = [f"IPPROTO_{p}" for p in (
+        "IP", "ICMP", "IGMP", "IPIP", "TCP", "EGP", "PUP", "UDP", "IDP", "TP", "DCCP", "IPV6", "RSVP", "GRE", "ESP",
+        "AH", "MTP", "BEETPH", "ENCAP", "PIM", "COMP", "L2TP", "SCTP", "UDPLITE", "MPLS", "ETHERNET", "RAW", "MPTCP",
+        "SMC", "MAX", "HOPOPTS", "ROUTING", "FRAGMENT", "ICMPV6", "NONE", "DSTOPTS", "MH")]
+    out += ["th_opcode", "th_block", "th_code", "th_stuff", "th_data", "th_msg", "th_u", "th_padding"]
+    out += [f"ns_msg_{m}" for m in ("id", "base", "end", "size", "count", "getflag")]
+    out += [f"ns_rr_{m}" for m in ("name", "type", "class", "ttl", "rdlen", "rdata", "nsec")]
+    out += ["NS_GET16", "NS_GET32", "NS_PUT16", "NS_PUT32", "GETSHORT", "GETLONG", "PUTSHORT", "PUTLONG"]
+    out += ["fd_mask", "__fd_mask", "NFDBITS", "__NFDBITS", "FD_SETSIZE", "__FD_SETSIZE", "__FDELT", "__FDMASK"]
+    out += ["__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t", "u_char", "u_short", "u_int",
+            "u_long", "quad_t", "u_quad_t"]
+    out += ["S_ISBLK", "S_ISCHR", "S_ISDIR", "S_ISFIFO", "S_ISLNK", "S_ISREG", "S_ISSOCK", "S_TYPEISMQ",
+            "S_TYPEISSEM", "S_TYPEISSHM", "S_TYPEISTMO", "st_atime", "st_ctime", "st_mtime", "timeradd",
+            "timerclear", "timercmp", "timerisset", "timersub", "TCSETS2", "bswap_16", "bswap_32", "bswap_64",
+            "index", "rindex"]
+    return out
+
+
 # The ELF type names of the System V gABI and the GNU extensions (symbol versioning, compressed sections, RELR,
 # move and library entries, auxiliary vector), each in its 32- and 64-bit form (HEADERS-STAGE2-GAPS-B).
 ELF_TYPES = ("Half", "Word", "Sword", "Xword", "Sxword", "Addr", "Off", "Section", "Versym", "Ehdr", "Shdr", "Chdr",
@@ -772,6 +799,7 @@ def candidates():
     bb, bb_tags = busybox_names()
     names.update(bb)
     tags.update(bb_tags)
+    names.update(stage2e_names())
     tags.add("ip_mreq_source")  # HEADERS-STAGE2-GAPS-D: perl's Configure (d_ip_mreq_source); ip(7) IP_ADD_SOURCE_MEMBERSHIP
     s2, s2_tags = stage2_names()
     names.update(s2)
@@ -806,9 +834,11 @@ def candidates():
     return sorted(names), sorted(tags)
 
 
-def error_lines(lang, flags, path):
-    """(exit status, set of line numbers of errors located in `path`). Nothing else is read."""
-    cmd = [COMPILER[lang]] + flags.split() + BASE + ["-x", "c" if lang == "c" else "c++", path]
+def _compile(lang, flags, path):
+    """(exit status, line numbers of errors located in `path`, count of errors located elsewhere, command)."""
+    # Without macro-expansion tracking an error inside a macro's expansion is located at the line that uses the macro
+    # where the compiler can do so; errors outside macros are located as before.
+    cmd = [COMPILER[lang]] + flags.split() + BASE + ["-ftrack-macro-expansion=0", "-x", "c" if lang == "c" else "c++", path]
     p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     # Only the location prefix of error lines is matched; the message after it is never looked at.
     pat = re.compile(r"^(.+?):(\d+):\d+: (?:fatal )?error:")
@@ -819,9 +849,20 @@ def error_lines(lang, flags, path):
             lines.add(int(m.group(2)))
         elif m:
             elsewhere += 1
-    if p.returncode != 0 and (elsewhere or not lines):
+    return p.returncode, lines, elsewhere, cmd
+
+
+def _located(rc, lines, elsewhere):
+    """Whether a compile's outcome is known line by line: it passed, or every error is on a line of the unit."""
+    return rc == 0 or (lines and not elsewhere)
+
+
+def error_lines(lang, flags, path):
+    """(exit status, set of line numbers of errors located in `path`). Nothing else is read."""
+    rc, lines, elsewhere, cmd = _compile(lang, flags, path)
+    if not _located(rc, lines, elsewhere):
         raise RuntimeError(f"{os.path.basename(path)}: the unit failed outside its own test lines ({' '.join(cmd[:2])} ...)")
-    return p.returncode, lines
+    return rc, lines
 
 
 class Unit:
@@ -839,11 +880,40 @@ class Unit:
         self.lines.append(text)
         self.tests[len(self.lines)] = key
 
-    def run(self, lang, flags, path):
+    def _write(self, path, active):
+        """Write the unit with only the test lines in `active` (the others blank, so line numbers do not move)."""
         with open(path, "w") as f:
-            f.write("\n".join(self.lines) + "\n")
-        rc, errs = error_lines(lang, flags, path)
+            f.write("\n".join("" if i + 1 in self.tests and i + 1 not in active else t
+                              for i, t in enumerate(self.lines)) + "\n")
+
+    def run(self, lang, flags, path):
+        """(exit status, keys of the tests that fail to compile)."""
+        every = set(self.tests)
+        self._write(path, every)
+        rc, errs, elsewhere, cmd = _compile(lang, flags, path)
+        if not _located(rc, errs, elsewhere):
+            # An error located outside the unit (an object-like alias of a function-like macro, `GETLONG` for
+            # `NS_GET32`, used as a value is reported at the alias's definition in the header, whatever the
+            # tracking flag): halve the set of tests until each such failure is pinned to one test. A unit that
+            # fails with no test at all is the header's own failure, as before.
+            self._write(path, set())
+            if not _located(*_compile(lang, flags, path)[:3]):
+                raise RuntimeError(f"{os.path.basename(path)}: the unit failed outside its own test lines "
+                                   f"({' '.join(cmd[:2])} ...)")
+            errs = self._bisect(lang, flags, path, sorted(every))
+            rc = 1
         return rc, {key for line, key in self.tests.items() if line in errs}
+
+    def _bisect(self, lang, flags, path, active):
+        """The lines of the tests in `active` that fail, each test of an unlocated failure found by halving."""
+        self._write(path, set(active))
+        rc, errs, elsewhere, _ = _compile(lang, flags, path)
+        if _located(rc, errs, elsewhere):
+            return errs
+        if len(active) == 1:
+            return set(active)
+        half = len(active) // 2
+        return self._bisect(lang, flags, path, active[:half]) | self._bisect(lang, flags, path, active[half:])
 
 
 def keywords(lang, names, work):

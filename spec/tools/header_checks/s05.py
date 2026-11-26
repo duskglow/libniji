@@ -34,8 +34,9 @@ def units(ctx):
     # Spec clause: XBD <sys/types.h> and the BSD/System V names beside them (HEADERS-SNAPSHOT-GAPS): each shown exactly
     # where the reference shows it (tree's build used u_long in the default mode), with its size, alignment and C++
     # spelling, and free for the program elsewhere. sys/types.h has no table P1 (`p1` 0 in s05.tsv), so these are its
-    # rows.
-    out += ctx.exact("sys/types.h", SYS_TYPES_NAMES)
+    # rows. The reserved `__u_char` family (HEADERS-STAGE2-GAPS-E: libnsl and rpc/types.h name them) is shown in every
+    # configuration that accepts the header, strict ISO included.
+    out += ctx.exact("sys/types.h", SYS_TYPES_NAMES + U_CHAR_FAMILY)
     # Spec clause: C 7.2 p3 (C11, C17: <assert.h> defines `static_assert` as `_Static_assert`; C23 makes it a keyword,
     # and in C++ it is one) (HEADERS-STAGE2-GAPS-C, elogind): defined exactly where the reference defines it, and usable
     # at file scope there.
@@ -87,6 +88,9 @@ def guard_units(ctx):
                     lines.append(f"#ifdef {n}\n#error \"{n} defined\"\n#endif")
             out.append((cid, f"guards {h}", "\n".join(lines) + "\nint niji_guard_tu;\n"))
     return out
+
+
+U_CHAR_FAMILY = ("__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t")
 
 
 SYS_TYPES_NAMES = ("u_char", "u_short", "u_int", "u_long", "ushort", "uint", "ulong", "quad_t", "u_quad_t", "fsid_t",

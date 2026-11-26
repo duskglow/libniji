@@ -1,0 +1,11 @@
+{"task": "HEADERS-STAGE2-GAPS-E-5", "model": "sonnet", "tokens": null,
+ "result": "Merged origin/next (13 conflicted files, both intents kept; 7 generated headers regenerated); clippy, static, direct gate and 12 plants green",
+ "branch": "task/headers-stage2-gaps-e-5", "head": "ccde5a33f",
+ "gate": {"affected": "green (direct tier, --base origin/next)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": [], "refused": [],
+ "impact": [{"kind": "unblock", "what": "HEADERS-STAGE2-GAPS-E chain (IPPROTO_MAX, tftphdr names, fd_mask, __u_char family, ftw.h S_IS*) can merge with next", "before": null, "after": null, "unit": "n/a", "measured": false}],
+ "improvement": "Offer a mechanical keep-both resolver for sorted tables in the merge tooling; it was the bulk of the work.",
+ "next_step": "land",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-E-5.md",
+ "jobs": ["headers-stage2-gaps-e-5-gate2", "headers-stage2-gaps-e-5-plants3"]}

@@ -67,6 +67,17 @@ struct __attribute__ ((__packed__)) tftphdr {
 # endif
 #endif
 
+/* RFC 1350 packets: the fields after the opcode are named through the unions of struct tftphdr; each name is a macro
+   for the member the layout table records (the block number of DATA and ACK, the error code of ERROR, the file name
+   and mode of RRQ and WRQ, the data of DATA, the message of ERROR). */
+#if 1
+# define th_block th_u1.th_u2.th_u3.tu_block
+# define th_code th_u1.th_u2.th_u3.tu_code
+# define th_stuff th_u1.tu_stuff
+# define th_data th_u1.th_u2.tu_data
+# define th_msg th_u1.th_u2.tu_data
+#endif
+
 __NIJI_END_C
 
 #endif

@@ -62,6 +62,100 @@ def nameser_enum_units(ctx):
     return res
 
 
+NAMESER_ACCESSORS = ("ns_msg_id", "ns_msg_base", "ns_msg_end", "ns_msg_size", "ns_msg_count", "ns_rr_name", "ns_rr_type",
+                     "ns_rr_class", "ns_rr_ttl", "ns_rr_rdlen", "ns_rr_rdata", "NS_GET16", "NS_GET32", "NS_PUT16",
+                     "NS_PUT32", "GETSHORT", "GETLONG", "PUTSHORT", "PUTLONG")
+# Each accessor's type in the reference (black-box form probe, HEADERS-STAGE2-GAPS-E); every one is a prvalue there.
+NAMESER_FORMS = (("ns_msg_id (niji_h)", "int"), ("ns_msg_base (niji_h)", "const unsigned char *"),
+                 ("ns_msg_end (niji_h)", "const unsigned char *"), ("ns_msg_size (niji_h)", "long"),
+                 ("ns_msg_count (niji_h, ns_s_an)", "int"), ("ns_rr_name (niji_rr)", "const char * (C: char *)"),
+                 ("ns_rr_type (niji_rr)", "ns_type"), ("ns_rr_class (niji_rr)", "ns_class"),
+                 ("ns_rr_ttl (niji_rr)", "unsigned int"), ("ns_rr_rdlen (niji_rr)", "int"),
+                 ("ns_rr_rdata (niji_rr)", "const unsigned char *"))
+# C++14 on: the values, evaluated at compile time (each check returns its own number when it fails). The byte-order
+# macros read and write big-endian (RFC 1035 section 2.3.2), keep the low 16 or 32 bits and advance the pointer.
+NAMESER_VALUES = """constexpr int niji_ns_values () {
+  ns_msg h {}; ns_rr rr {};
+  unsigned char b[8] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0}, o[8] = {};
+  h._msg = b; h._eom = b + 6; h._id = 0x1234; h._counts[0] = 11; h._counts[2] = 33;
+  if (ns_msg_id (h) != 0x1234 || ns_msg_base (h) != b || ns_msg_end (h) != b + 6 || ns_msg_size (h) != 6) return 1;
+  if (ns_msg_count (h, ns_s_qd) != 11 || ns_msg_count (h, ns_s_ns) != 33 || ns_msg_count (h, 1 ? 2 : 0) != 33) return 2;
+  rr.type = 18; rr.rr_class = 1; rr.ttl = 300; rr.rdlength = 7; rr.rdata = b + 3;
+  if (ns_rr_type (rr) != ns_t_afsdb || ns_rr_class (rr) != ns_c_in || ns_rr_ttl (rr) != 300 || ns_rr_rdlen (rr) != 7
+      || ns_rr_rdata (rr) != b + 3) return 3;
+  if (ns_rr_name (rr)[0] != '.' || ns_rr_name (rr)[1] != 0) return 4;
+  rr.name[0] = 'a';
+  if (ns_rr_name (rr) != rr.name) return 5;
+  const unsigned char *cp = b; unsigned int s = 0; unsigned long l = 0;
+  NS_GET16 (s, cp); NS_GET32 (l, cp);
+  if (s != 0x1234 || l != 0x56789abcUL || cp != b + 6) return 6;
+  unsigned char *wp = o;
+  NS_PUT16 (0xa1b2c3, wp); NS_PUT32 (0x1122334455ULL, wp);
+  if (o[0] != 0xb2 || o[1] != 0xc3 || o[2] != 0x22 || o[3] != 0x33 || o[4] != 0x44 || o[5] != 0x55 || o[6] || wp != o + 6) return 7;
+  cp = b + 2; GETSHORT (s, cp); GETLONG (l, cp);
+  if (s != 0x5678 || l != 0x9abcdef0UL || cp != b + 8) return 8;
+  wp = o; PUTSHORT (0x0102, wp); PUTLONG (0x03040506, wp);
+  if (o[0] != 1 || o[1] != 2 || o[2] != 3 || o[5] != 6 || wp != o + 6) return 9;
+  return 0;
+}
+static_assert (niji_ns_values () == 0, "the arpa/nameser.h accessors' values");
+"""
+# Each byte-order macro is one statement: `if (c) M (...); else ...` compiles (a bare block would end the if).
+NAMESER_STATEMENTS = """void niji_ns_stmt (int c, const unsigned char *p, unsigned char *w, unsigned int *s, unsigned long *l) {
+  if (c) NS_GET16 (*s, p); else NS_GET32 (*l, p);
+  if (c) NS_PUT16 (*s, w); else NS_PUT32 (*l, w);
+  if (c) GETSHORT (*s, p); else GETLONG (*l, p);
+  if (c) PUTSHORT (*s, w); else PUTLONG (*l, w);
+}
+"""
+
+
+def nameser_accessor_units(ctx):
+    """resolver(3) and RFC 1035's message layout (no spec clause beyond them; HEADERS-STAGE2-GAPS-E: keyutils'
+    dns.afsdb.c counts answers with ns_msg_count): the ns_msg_*/ns_rr_* accessors and the byte-order macros of
+    <arpa/nameser.h> exactly where the reference shows them; where shown, each accessor has the reference's type as a
+    prvalue (C++11 on `decltype ((e))`: an lvalue would let `ns_msg_id (h) = 1` compile), the byte-order macros are
+    single statements, and (C++17) the values: section counts by index, the empty owner name read as ".", big-endian
+    reads and writes that keep the low bits and advance the pointer. Defects it catches: a missing accessor, an
+    accessor that is an lvalue or has another type, a byte-order macro that is a brace block or reads little-endian."""
+    out = ctx.exact("arpa/nameser.h", NAMESER_ACCESSORS)
+    row = next((r for r in ctx.vis if r["header"] == "arpa/nameser.h" and r["name"] == "ns_msg_id"), None)
+    if row is None:
+        return out + [(ctx.ids[0], "nameser accessors", "#error visibility.tsv does not show ns_msg_id\n")]
+    lang = {c["id"]: c["language"] for c in ctx.cfgs}
+    for cid in expand(row["configs"], ctx.ids):
+        cxx = lang[cid] == "c++"
+        body = "#include <arpa/nameser.h>\nextern ns_msg niji_h;\nextern ns_rr niji_rr;\n"
+        for i, (e, t) in enumerate(NAMESER_FORMS):
+            # The empty name's "." is a `char[2]` in C, so the C conditional is `char *` (C probe of the reference).
+            t = t.split(" (C: ")[0] if cxx else t.split(" (C: ")[-1].rstrip(")")
+            same = (f"__is_same (__typeof__ ({e}), {t})" if cid == "cxx98" else f"__is_same (decltype (({e})), {t})") if cxx \
+                else f"__builtin_types_compatible_p (__typeof__ ({e}), {t})"
+            body += f"typedef char niji_ns_form{i}[{same} ? 1 : -1];\n"
+        if cxx:
+            body += "extern \"C\" {\n" + NAMESER_STATEMENTS + "}\n"
+        else:
+            body += NAMESER_STATEMENTS
+        if cid == "cxx17":
+            body += NAMESER_VALUES
+        out.append((cid, "nameser accessors arpa/nameser.h", body))
+    return out
+
+
+def ipproto_max_units(ctx):
+    """RFC 5237's protocol number space and ip(7) (no spec clause beyond them; HEADERS-STAGE2-GAPS-E: libnftnl and
+    libnetfilter-conntrack size tables by IPPROTO_MAX): where visibility.tsv shows it, <netinet/in.h>'s IPPROTO_MAX is
+    an enumerator (the reference defines no macro of that name: `#ifdef IPPROTO_MAX` is false there) with its
+    enumerators.tsv value, usable as an array bound."""
+    val = next((r["value"] for r in ctx.rows("spec/abi/enumerators.tsv") if r["name"] == "IPPROTO_MAX"), None)
+    row = next((r for r in ctx.vis if r["header"] == "netinet/in.h" and r["name"] == "IPPROTO_MAX"), None)
+    if val is None or row is None or row["kind"] != "enumerator":
+        return [(ctx.ids[0], "IPPROTO_MAX netinet/in.h", "#error the tables do not show IPPROTO_MAX as an enumerator\n")]
+    body = ("#include <netinet/in.h>\n#ifdef IPPROTO_MAX\n#error IPPROTO_MAX is a macro\n#endif\n"
+            f"typedef char niji_ipm[IPPROTO_MAX == {val} ? 1 : -1];\nextern int niji_ipm_table[IPPROTO_MAX];\n")
+    return [(cid, "IPPROTO_MAX netinet/in.h", body) for cid in expand(row["configs"], ctx.ids)]
+
+
 def expand(configs, ids):
     if configs == "*":
         return set(ids)
@@ -103,7 +197,7 @@ def units(ctx):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             res.append((cid, f"P1 {h}", body))
-    res += member_names(ctx) + nameser_enum_units(ctx) + stage2_units(ctx)
+    res += member_names(ctx) + nameser_enum_units(ctx) + nameser_accessor_units(ctx) + ipproto_max_units(ctx) + stage2_units(ctx)
     res += initializers(ctx)
     # P8, libc-first only (ruling #6458: the kernel header first is not supported; slice 13 measures it): <netinet/in.h>
     # with linux/in6.h, once, with the shared tags used so a missing or doubled definition fails to compile. The other
@@ -336,10 +430,18 @@ MEMBER_MACROS = {
     "netinet/if_ether.h": _ARP,
     "netinet/ether.h": _ARP,
     "net/route.h": {"rt_mss": ("rtentry", "rt_mtu")},
+    # tftp(1)'s packet header, RFC 1350 section 5 (the opcode, then the block number or error code, then the data or
+    # message): the member names of struct tftphdr of <arpa/tftp.h>, each a macro for a member of the nested unions the
+    # layout table records (HEADERS-STAGE2-GAPS-E: inetutils' tftpsubs.c uses th_data; th_msg names the same member).
+    "arpa/tftp.h": {
+        "th_block": ("tftphdr", "th_u1.th_u2.th_u3.tu_block"),
+        "th_code": ("tftphdr", "th_u1.th_u2.th_u3.tu_code"),
+        "th_stuff": ("tftphdr", "th_u1.tu_stuff"),
+        "th_data": ("tftphdr", "th_u1.th_u2.tu_data"),
+        "th_msg": ("tftphdr", "th_u1.th_u2.tu_data"),
+    },
     "sys/msg.h": {"msg_cbytes": ("msqid_ds", "__msg_cbytes")},
 }
-
-
 def _fake(i, path, n):
     """`struct niji_mn<i>` with only `path`, whose leaf is `char[n]`, or for `p[k]` an array of k + 2 `char[n]`
     structures (so the element and the array differ in size)."""

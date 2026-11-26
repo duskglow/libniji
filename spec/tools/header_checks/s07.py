@@ -30,6 +30,34 @@ def units(ctx):
     # HEADERS-STAGE2-GAPS-C (bsd-mailx: _PATH_DEVNULL): paths.h's other path names, the BSD paths(3) set, the same way.
     for h in UTMP_HEADERS:
         out += ctx.exact(h, UTMP_PATHS + (BSD_PATHS(ctx) if h == "paths.h" else ()))
+    # Spec clause: select(2), the BSD fd_set word names (HEADERS-STAGE2-GAPS-E: libev's ev_select.c sizes its sets in
+    # fd_mask words of NFDBITS bits): each exactly where the reference shows it, fd_mask with its C++ spelling (long);
+    # the values and sizes are sys/select.h's table P1.
+    out += ctx.exact("sys/select.h", FD_WORD_NAMES)
+    # The reserved `__u_char` family through <sys/wait.h>'s includes (HEADERS-STAGE2-GAPS-E): the reference shows it in
+    # the strict modes too, where <sys/wait.h> does not bring in <signal.h> (a generator that counted <signal.h>'s names
+    # as supplied in every configuration left them out there).
+    for h in ("sys/wait.h", "wait.h"):
+        out += ctx.exact(h, WAIT_U_CHAR_FAMILY)
+    # Spec clause: select(2), FD_SET/FD_CLR/FD_ISSET/FD_ZERO; D-11.4 (the word index goes through __fdelt_chk). Every
+    # header that defines the fd_set macros itself spells them as <sys/types.h> does, so either include order gives one
+    # definition: each one included before and after <sys/types.h> compiles without a redefinition (-Wsystem-headers
+    # -Werror) and the macros expand on a set (HEADERS-STAGE2-GAPS-E: <utmp.h> includes <sys/time.h> first). The guards
+    # hide a drifted text from that, so in C++11 and later the expansion of FD_SET, FD_CLR and FD_ISSET, whichever
+    # header supplied it, must name __fdelt_chk (a constexpr search of the stringified expansion).
+    use = ("#ifdef FD_SET\nint niji_s07_fd (fd_set *s) { FD_ZERO (s); FD_SET (3, s); FD_CLR (3, s); "
+           "return FD_ISSET (3, s); }\n#endif\nint niji_s07_tu;\n")
+    checked = "".join(f"static_assert (niji_s07_has (NIJI_S07_STR ({m} (3, s)), \"__fdelt_chk\"), \"{m} skips __fdelt_chk\");\n"
+                      for m in ("FD_SET", "FD_CLR", "FD_ISSET"))
+    checked = ("#ifdef FD_SET\n#define NIJI_S07_STR2(x) #x\n#define NIJI_S07_STR(x) NIJI_S07_STR2 (x)\n"
+               "constexpr bool niji_s07_at (const char *h, const char *n) { return !*n || (*h == *n && niji_s07_at (h + 1, n + 1)); }\n"
+               "constexpr bool niji_s07_has (const char *h, const char *n) { return niji_s07_at (h, n) || (*h && niji_s07_has (h + 1, n)); }\n"
+               + checked + "#endif\n")
+    for h in FD_MACRO_HEADERS:
+        for first, second in ((h, "sys/types.h"), ("sys/types.h", h)):
+            body = f"#include <{first}>\n#include <{second}>\n" + use
+            out += [(cid, f"fd_set macros {first} then {second}", body + (checked if cid in FD_CHECK_CONFIGS else ""))
+                    for cid in ctx.ids]
     # Spec clause: paths(3) / FHS 3.0: the null device's path, from the documents rather than the tables.
     out += [(cid, "S07 _PATH_DEVNULL", "#include <paths.h>\ntypedef char niji_s07_null[__builtin_strcmp (_PATH_DEVNULL, "
              "\"/dev/null\") == 0 ? 1 : -1];\nint niji_s07_pn;\n") for cid in ("c89", "gnu17", "cxx17")]
@@ -102,6 +130,15 @@ def stage2_units(ctx):
                         f"typedef char niji_tn[{same('__typeof__ (__tzname)', 'char *[2]')} ? 1 : -1];\n"))
     return out
 
+
+FD_CHECK_CONFIGS = ("cxx11", "cxx14", "cxx17", "cxx20", "cxx23")
+
+
+FD_MACRO_HEADERS = ("sys/select.h", "sys/time.h", "stdlib.h", "utmp.h", "utmpx.h", "sys/procfs.h")
+
+
+FD_WORD_NAMES = ("fd_mask", "__fd_mask", "NFDBITS", "__NFDBITS", "FD_SETSIZE", "__FD_SETSIZE")
+WAIT_U_CHAR_FAMILY = ("__u_char", "__u_short", "__u_int", "__u_long", "__quad_t", "__u_quad_t", "__FD_SETSIZE")
 
 def array_param_units(ctx):
     """No spec clause (GCC's -Warray-parameter compares the form of a redeclared array parameter; faketime defines

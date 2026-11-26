@@ -1,0 +1,13 @@
+{"task": "HEADERS-STAGE2-GAPS-E-3", "model": "sonnet", "tokens": null,
+ "result": "No code change: reran xtask, plants and gate on the inherited head 04e96f476; all green (gencat transcript test needs the product built first)",
+ "branch": "task/headers-stage2-gaps-e-3", "head": "04e96f476",
+ "jobs": ["headers-stage2-gaps-e-3-xtask2","headers-stage2-gaps-e-3-plants","headers-stage2-gaps-e-3-gate2"],
+ "gate": {"affected": "gate2: all selected pass (after cargo xtask so)", "peak": "2.6G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [{"item": "xtask transcripts test the_committed_gencat_transcripts_hold fails (not skips) when target/niji-test/gencat exists but is stale/unrunnable (niji ...: No such file); first xtask and gate jobs of this run went red on it, cargo xtask so fixed it", "recommendation": "make the test skip or fail with a hint when the binary cannot run"}],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "Yohane R-H7 header names (nftables, inetutils, keyutils, libev, libnsl, libcap-ng) verified on final head", "before": null, "after": null, "unit": "stories", "measured": false}],
+ "improvement": "gate and test jobs on a role whose product is unbuilt go red on the gencat transcript test; build the product first",
+ "next_step": "dispatcher verifies; coordinator lands",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-E.md"}
