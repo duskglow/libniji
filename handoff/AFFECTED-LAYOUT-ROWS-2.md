@@ -40,9 +40,12 @@ as stale, job affected-layout-rows-2-proof-b4, SUPERSEDED). Scripts: `~/work/aff
 
 ## Gate
 
-affected-layout-rows-2-gate1 (94fbcfbb0, direct tier, mei): ok, 7 suites, 709 passed, 732 s, peak anon 2.85 GiB.
-Lint: affected-layout-rows-2-lint3 (clippy + static) green; unit: affected-layout-rows-2-unit4 (118 passed).
-Scratch worktrees removed.
+- fa24a00df: precheck's `role_skip` did not know the sync's new `.changed.abi` (#8697), so after any resync every
+  job read as "tested other content than this head (.changed.abi)"; now skipped like `.changed.xtask` (+ test).
+- Final: affected-layout-rows-2-gate2 (fa24a00df, direct tier, mei; result in the hand-back) and
+  affected-layout-rows-2-lint4 (clippy + static + the new precheck test) green.
+- SUPERSEDED: gate1 (94fbcfbb0: ok, 7 suites, 709 passed, 732 s), lint3, unit4 (118 passed): precheck red on
+  `.changed.abi` only. Scratch worktrees removed.
 
 ## Next step
 

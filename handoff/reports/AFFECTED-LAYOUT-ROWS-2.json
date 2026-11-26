@@ -1,23 +1,71 @@
-{"task": "AFFECTED-LAYOUT-ROWS-2", "model": "opus", "tokens": null,
- "result": "direct gates run their steps as a bounded run (memory and free CPUs; 2 steps in a 6-CPU gate): libm gate 445 -> 365 s, b-4 gate 789 -> 737 s; fixes a products race of the xtask unit tests; D-X.175 and D-X.176 recorded",
- "branch": "task/affected-layout-rows-2", "head": "94fbcfbb0 (gated; later commits report only)",
- "gate": {"affected": "affected-layout-rows-2-gate1 ok: 7 suites, 709 passed, 0 failed, 732 s", "peak": "2.85 GiB anon"},
+{
+ "task": "AFFECTED-LAYOUT-ROWS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "direct gates run their steps as a bounded run (memory and free CPUs; 2 steps in a 6-CPU gate): libm gate 445 -> 365 s, b-4 gate 789 -> 737 s; fixes a products race of the xtask unit tests; precheck no longer reads the sync's .changed.abi as content; D-X.175 and D-X.176 recorded",
+ "branch": "task/affected-layout-rows-2",
+ "head": "fa24a00df (gated; later commits report only)",
+ "gate": {
+  "affected": "affected-layout-rows-2-gate2: pending at write time, see the handoff",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
   "#8697 confirmed: a role synced from the b-4 tree had a 276-line .changed.abi and selected 5 of 328 targets, 0 of 155 programs with no hand-written file",
   "the gate's 6-CPU allotment holds a bounded run to two steps (STEP_CPUS 12); b-4 gains little because its xtask tests (506 s) already ran beside the products build; more steps need a larger CPU share per gate (ops' gate wrapper; not measured)",
   "so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint read a half-written target/niji beside the products build; the D-X.142 pair on next has the same race (timing-dependent); fixed here by running the 9 unit tests that read products after the build",
-  "~/bin/gate clears the environment: a variable set before it does not reach the command"
+  "~/bin/gate clears the environment: a variable set before it does not reach the command",
+  "proof jobs (evidence, other trees by design, not final-head jobs): mei:affected-layout-rows-2-proof-libm (libm tree, after = 93f2de0ad), mei:affected-layout-rows-2-proof-b4-3 (b-4 tree, after = 9cbe6b2ff); superseded: affected-layout-rows-2-proof-b4 (wrong xtask for the b-4 tree), -proof-b4-2 (found the products race), -gate1/-lint3/-unit4 (precheck read .changed.abi as content; fixed in fa24a00df)"
  ],
  "refused": [],
  "impact": [
-  {"kind": "tooling", "what": "direct gate wall, libm change (12 targets), mei, gate 16 GiB/6 CPUs", "before": 445, "after": 365, "unit": "s", "measured": true},
-  {"kind": "tooling", "what": "direct gate wall, headers-stage2-gaps-b-4 (5 targets + xtask tests), mei, gate 16 GiB/6 CPUs", "before": 789, "after": 737, "unit": "s", "measured": true},
-  {"kind": "correctness", "what": "xtask unit test reading target/niji beside the products build failed on a half-written set (gate flake)", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "coverage", "what": "unit tests added or extended (steps order, test groups, first-pass split, thread share, slot bound, host CPUs, product unit tests)", "before": 0, "after": 7, "unit": "tests", "measured": true}
+  {
+   "kind": "tooling",
+   "what": "direct gate wall, libm change (12 targets), mei, gate 16 GiB/6 CPUs",
+   "before": 445,
+   "after": 365,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "direct gate wall, headers-stage2-gaps-b-4 (5 targets + xtask tests), mei, gate 16 GiB/6 CPUs",
+   "before": 789,
+   "after": 737,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "xtask unit test reading target/niji beside the products build failed on a half-written set (gate flake)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "unit tests added or extended (steps order, test groups, first-pass split, thread share, slot bound, host CPUs, product unit tests)",
+   "before": 0,
+   "after": 8,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "precheck read the sync-written .changed.abi as role content: every job of a role looked stale after the next sync",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
  ],
  "improvement": "a proof of an xtask change on another story's tree needs that tree's own xtask with the changed file swapped in; a binary from the story branch regenerates the other tree's files differently (one proof job lost)",
  "next_step": "land; consider a larger CPU share per gate so a bounded run can take more than two steps (measure first)",
  "report_file": "handoff/AFFECTED-LAYOUT-ROWS-2.md",
- "jobs": ["mei:affected-layout-rows-2-gate1", "mei:affected-layout-rows-2-proof-b4-3", "mei:affected-layout-rows-2-proof-libm", "mei:affected-layout-rows-2-unit4", "mei:affected-layout-rows-2-lint3"]}
+ "jobs": [
+  "mei:affected-layout-rows-2-gate2",
+  "mei:affected-layout-rows-2-lint4"
+ ]
+}
