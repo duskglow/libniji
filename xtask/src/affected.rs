@@ -4554,12 +4554,6 @@ fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
     (beside, after, units_after)
 }
 
-/// AFFECTED-LAYOUT-ROWS-2: the names of the xtask unit tests (functions under `xtask/src` with the test attribute)
-/// that may read products: the text from one test attribute to the next (or the file's end, so a helper after the
-/// last test counts for it) joins a products path (a `join` of `target/niji…` or of `niji`; this doc spells neither
-/// as code, since the scan reads this file too). Beside the products build such a test sees
-/// a half-written set (the manifest lint test saw `libc.so.6` and no locale sources). A test that reaches the
-/// products only through a helper elsewhere is not seen; the rule reads text, like [`names_products`].
 /// PLANTS-PRODUCTS-ONCE: may the unit tests of package `krate` that libtest's `filters` select (none: all; `exact`:
 /// whole names) read the products, by the rules the gate orders its steps with? xtask: a test of
 /// [`product_unit_tests`] is selected. Another package: a source under its `src/` names them ([`first_pass_split`]'s
@@ -4576,6 +4570,12 @@ pub fn unit_tests_may_read_products(root: &Path, repo: &Repo, krate: Option<&str
     }
 }
 
+/// AFFECTED-LAYOUT-ROWS-2: the names of the xtask unit tests (functions under `xtask/src` with the test attribute)
+/// that may read products: the text from one test attribute to the next (or the file's end, so a helper after the
+/// last test counts for it) joins a products path (a `join` of `target/niji…` or of `niji`; this doc spells neither
+/// as code, since the scan reads this file too). Beside the products build such a test sees
+/// a half-written set (the manifest lint test saw `libc.so.6` and no locale sources). A test that reaches the
+/// products only through a helper elsewhere is not seen; the rule reads text, like [`names_products`].
 fn product_unit_tests(root: &Path) -> Vec<String> {
     let mut files = Vec::new();
     files_under(&root.join("xtask").join("src"), &["rs"], &mut files);
@@ -7876,5 +7876,39 @@ fn plain() {}", &aliases);
         assert!(builds_products(&root(), r, &s, false), "the xtask targets that run products get them");
         let (r, none) = sel(&["handoff/AFFECTED-COVERAGE.md"]);
         assert!(!none.xtask_tests && !builds_products(&root(), r, &none, false), "docs: no products");
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): whether the unit tests a plant's `cargo test` selects may read the
+    // products: xtask's by the per-test rule and libtest's filters, another package's by its sources, an unknown or
+    // unnamed package always
+    #[test]
+    fn unit_tests_may_read_products_follows_the_unit_rule() {
+        let t = std::env::temp_dir().join(format!("affected-unit-reads.{}", std::process::id()));
+        let _ = fs::remove_dir_all(&t);
+        for d in ["xtask/src", "crates/pure/src", "crates/reads/src", "crates/empty"] {
+            fs::create_dir_all(t.join(d)).unwrap();
+        }
+        fs::write(t.join("Cargo.toml"), "[workspace]\nmembers = [\"crates/pure\", \"crates/reads\", \"crates/empty\"]\n").unwrap();
+        for c in ["pure", "reads", "empty"] {
+            fs::write(t.join(format!("crates/{c}/Cargo.toml")), format!("[package]\nname = \"{c}\"\n")).unwrap();
+        }
+        fs::write(t.join("crates/pure/src/lib.rs"), "pub fn f() {}\n").unwrap();
+        fs::write(t.join("crates/reads/src/lib.rs"), "const P: &str = \"libc.a\";\n").unwrap();
+        // Built at run time: this file's own text must not name the products (the scan reads it too).
+        let reads = format!("#[test]\nfn reads_them() {{ let p = root.{}(\"target/{}/lib\"); }}\n#[test]\nfn pure_one() {{}}\n", "join", "niji");
+        fs::write(t.join("xtask/src/a.rs"), reads).unwrap();
+        let repo = Repo::load(&t);
+        let f = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let may = |k: Option<&str>, filters: &[String], exact: bool| unit_tests_may_read_products(&t, &repo, k, filters, exact);
+        assert!(may(Some("xtask"), &[], false), "all of xtask's unit tests");
+        assert!(may(Some("xtask"), &f(&["reads"]), false));
+        assert!(may(Some("xtask"), &f(&["pure_one", "reads_them"]), true));
+        assert!(!may(Some("xtask"), &f(&["pure"]), false));
+        assert!(!may(Some("xtask"), &f(&["reads"]), true), "--exact: a whole name");
+        assert!(!may(Some("pure"), &[], false));
+        assert!(may(Some("reads"), &f(&["anything"]), false));
+        assert!(may(Some("empty"), &[], false), "no sources: unsure");
+        assert!(may(Some("unknown"), &[], false) && may(None, &[], false));
+        let _ = fs::remove_dir_all(&t);
     }
 }

@@ -370,7 +370,7 @@ pub fn simple_commands(cmd: &str) -> Option<Vec<Vec<String>>> {
     let src = inner.unwrap_or(t);
     let (mut cmds, mut cur, mut word, mut in_word) = (Vec::new(), Vec::<String>::new(), String::new(), false);
     let mut chars = src.chars().peekable();
-    let mut end_cmd = |cur: &mut Vec<String>, cmds: &mut Vec<Vec<String>>| -> Option<()> {
+    let end_cmd = |cur: &mut Vec<String>, cmds: &mut Vec<Vec<String>>| -> Option<()> {
         if cur.is_empty() {
             return None;
         }
@@ -901,18 +901,6 @@ fn missing_in(copy: &Path, paths: &[String]) -> Vec<String> {
     paths.iter().filter(|p| fs::symlink_metadata(copy.join(p)).is_err()).cloned().collect()
 }
 
-/// PLANTS-COPIES: the plants each of `copies` tree copies runs, as indices into the plants file, dealt in turn (plant `i`
-/// to copy `i % copies`) so that each copy gets a share of every stretch of the file. At least one copy, and no copy
-/// without a plant.
-pub fn distribute(plants: usize, copies: usize) -> Vec<Vec<usize>> {
-    let copies = copies.clamp(1, plants.max(1));
-    let mut shares = vec![Vec::new(); copies];
-    for i in 0..plants {
-        shares[i % copies].push(i);
-    }
-    shares
-}
-
 /// PLANTS-COPIES: the peak RAM one plants copy needs, in bytes: its tree and target directories on the RAM file system plus
 /// the build and the tests. Measured per copy on the current head (docs/plants.md, "Copies"); the larger host's figure,
 /// rounded up.
@@ -1185,9 +1173,9 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         let need = needs[i];
         let products = need.mutant;
         let mut build = if need.reads { format!("the baseline products (layout {}), not rebuilt", layout_name(held)) } else { "none (its command reads no products)".to_string() };
-        let restore = if need.reads { !products && (products_hold_mutant || held != layout) } else { products_hold_mutant };
-        // A command that reads no products: ungrouped is enough.
-        let restore_layout = if need.reads { layout } else { Layout::Ungrouped };
+        // A command that reads no products needs none here, as in a copy that builds none ([`assign`]).
+        let restore = need.reads && !products && (products_hold_mutant || held != layout);
+        let restore_layout = layout;
         if restore {
             let log = logs.join(format!("{}.so-restore.log", p.id));
             let start = Instant::now();
@@ -1310,25 +1298,30 @@ mod tests {
 
     // no spec clause (XTASK-PLANTS-PRODUCTS-REBUILD): a plant seen only through the products is CAUGHT (the baseline
     // products alone would let it survive); a command that does not use them reuses the build, which is first rebuilt
-    // unmutated when the plant before left its mutant in it
+    // unmutated when the plant before left its mutant in it and the command reads them (PLANTS-PRODUCTS-ONCE: one that
+    // reads none is not rebuilt for)
     #[test]
     fn a_products_command_gets_the_products_rebuilt_with_the_mutant() {
         let (src, dir) = toy("products");
         let plants = format!(
             "u1 | src/value.txt | perl:s/(answer=42\\n)other=7/$1other=8/ | {CHECK} | equivalent:other= is not read\n\
              pr | src/value.txt | lit:answer=42 ==> answer=43 | {PRODUCT_CHECK} | msg:WRONG-PRODUCT\n\
+             u3 | src/value.txt | perl:s/answer=42/answer=46/ | {CHECK} | msg:WRONG-ANSWER\n\
              u2 | src/value.txt | perl:s/answer=42/answer=44/ | {CHECK} | msg:WRONG-ANSWER\n"
         );
         let mut cfg = config(&src, &dir, &plants);
         cfg.prepare = sh(BUILD);
         cfg.uses_products = |_, ps| ps.iter().map(|p| p.cmd.contains("product.txt")).collect();
+        // `u2`'s command reads the products (as a unit test may) without using its plant's.
+        cfg.reads_products = |_, ps| ps.iter().map(|p| p.id == "u2").collect();
         let out = run(&cfg);
-        assert_eq!(out.verdicts, vec![("u1".into(), Verdict::Equivalent), ("pr".into(), Verdict::Caught), ("u2".into(), Verdict::Caught)]);
+        assert_eq!(out.verdicts, vec![("u1".into(), Verdict::Equivalent), ("pr".into(), Verdict::Caught), ("u3".into(), Verdict::Caught), ("u2".into(), Verdict::Caught)]);
         assert_eq!(out.code, EXIT_OK);
-        // The baseline, `pr` with its mutant, the unmutated rebuild before `u2`; none for `u1`.
+        // The baseline, `pr` with its mutant, the unmutated rebuild before `u2`; none for `u1` or `u3`.
         assert_eq!(fs::read_to_string(dir.join("src/builds.txt")).unwrap().lines().count(), 3);
         assert!(dir.join("logs/pr.so.log").is_file() && dir.join("logs/u2.so-restore.log").is_file());
         assert!(!dir.join("logs/u1.so.log").exists() && !dir.join("logs/u1.so-restore.log").exists());
+        assert!(!dir.join("logs/u3.so.log").exists() && !dir.join("logs/u3.so-restore.log").exists());
         assert_eq!(fs::read_to_string(dir.join("src/product.txt")).unwrap(), "answer=42\nother=7\nother=7\n");
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
@@ -1609,6 +1602,8 @@ mod tests {
         let dir2 = dir.with_file_name("run2");
         let mut cfg = config(&src, &dir2, &format!("b1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:X\n"));
         cfg.prepare = sh("echo the products are missing; exit 1");
+        // A plant whose command reads the products: the copy builds them first.
+        cfg.reads_products = |_, ps| vec![true; ps.len()];
         assert_eq!(run(&cfg).code, EXIT_BASELINE);
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
@@ -1748,6 +1743,7 @@ mod tests {
         let mut cfg = config(&src, &dir, "q1 | src/value.txt | lit:answer=42 ==> answer=43 | true | msg:x\n");
         cfg.prepare = sh("sleep 30");
         cfg.prepare_timeout = 1;
+        cfg.reads_products = |_, ps| vec![true; ps.len()];
         let out = run(&cfg);
         assert_eq!(out.code, EXIT_BASELINE);
         assert!(out.verdicts.is_empty());
@@ -1804,13 +1800,127 @@ mod tests {
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 
-    // no spec clause (PLANTS-COPIES): plants are dealt to the copies in turn, every plant once, no copy without a plant
+    const MUT: Need = Need { reads: true, mutant: true };
+    const READ: Need = Need { reads: true, mutant: false };
+    const NONE: Need = Need { reads: false, mutant: false };
+
+    // no spec clause (PLANTS-COPIES, PLANTS-PRODUCTS-ONCE): plants that rebuild the products are dealt to the copies in
+    // turn, every plant once, no copy without a plant
     #[test]
     fn plants_are_dealt_to_the_copies_in_turn() {
-        assert_eq!(distribute(5, 2), vec![vec![0, 2, 4], vec![1, 3]]);
-        assert_eq!(distribute(3, 1), vec![vec![0, 1, 2]]);
-        assert_eq!(distribute(2, 4), vec![vec![0], vec![1]]);
-        assert_eq!(distribute(0, 2), vec![Vec::<usize>::new()]);
+        assert_eq!(assign(&[MUT; 5], 2), vec![vec![0, 2, 4], vec![1, 3]]);
+        assert_eq!(assign(&[MUT; 3], 1), vec![vec![0, 1, 2]]);
+        assert_eq!(assign(&[MUT; 2], 4), vec![vec![0], vec![1]]);
+        assert_eq!(assign(&[NONE; 5], 2), vec![vec![0, 2, 4], vec![1, 3]]);
+        assert_eq!(assign(&[], 2), vec![Vec::<usize>::new()]);
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): the products are built in as few copies as the plants allow: one per plant
+    // that rebuilds them (up to the copies), one for plants that only read them, none for plants that read none; a
+    // plant that only reads joins a building copy, one that reads none fills a copy that builds nothing
+    #[test]
+    fn the_products_are_built_in_as_few_copies_as_possible() {
+        let building = |needs: &[Need], shares: &[Vec<usize>]| shares.iter().filter(|s| s.iter().any(|&i| needs[i].reads)).count();
+        let cases: &[(&[Need], usize, usize)] = &[
+            (&[NONE, NONE, NONE, NONE], 2, 0),
+            (&[READ, NONE, READ, NONE], 2, 1),
+            (&[NONE, MUT, NONE, READ, NONE], 2, 1),
+            (&[MUT, READ, MUT, NONE], 2, 2),
+            (&[MUT, MUT, MUT, READ, NONE], 2, 2),
+            (&[READ, READ, READ], 3, 1),
+            (&[MUT, READ, READ, READ], 1, 1),
+        ];
+        for &(needs, copies, builders) in cases {
+            let shares = assign(needs, copies);
+            let mut all: Vec<usize> = shares.iter().flatten().copied().collect();
+            all.sort_unstable();
+            assert_eq!(all, (0..needs.len()).collect::<Vec<_>>(), "every plant once: {needs:?} {shares:?}");
+            assert!(shares.len() <= copies && shares.iter().all(|s| !s.is_empty() && s.windows(2).all(|w| w[0] < w[1])), "{needs:?} {shares:?}");
+            assert_eq!(building(needs, &shares), builders, "copies that build: {needs:?} {shares:?}");
+        }
+        // Plants that read none go to the copy that builds nothing; with every copy building, they are spread.
+        assert_eq!(assign(&[NONE, MUT, NONE, READ, NONE], 2), vec![vec![1, 3], vec![0, 2, 4]]);
+        assert_eq!(assign(&[MUT, NONE, MUT, NONE], 2), vec![vec![0, 1], vec![2, 3]]);
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): only a plant whose file may change the products and whose command uses
+    // them (or measures the layout) gets them rebuilt with its mutant; reading is any of the three
+    #[test]
+    fn what_each_plant_needs_from_the_products() {
+        let plant = |path: &str| parse_plants(&format!("x | {path} | lit:a ==> b | true | msg:X\n")).unwrap().remove(0);
+        let ps = [plant("crates/a/src/lib.rs"), plant("crates/a/tests/t.rs"), plant("crates/a/src/lib.rs"), plant("crates/a/src/lib.rs"), plant("crates/a/tests/t.rs"), plant("crates/a/src/lib.rs")];
+        let uses = [true, true, false, false, false, false];
+        let reads = [false, false, true, false, false, false];
+        let traced = [false, false, false, false, true, true];
+        assert_eq!(needs(&ps, &uses, &reads, &traced), vec![MUT, READ, READ, NONE, READ, MUT]);
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): a file under a crate's tests/, benches/ or examples/ or under xtask/tests/
+    // cannot change the products; anything else (a source, a header, xtask's own source, an odd path) may
+    #[test]
+    fn which_files_may_change_the_products() {
+        for p in ["crates/niji/src/lib.rs", "crates/x/src/tests/a.rs", "csys/src/machine/x.S", "headers/stdio.h.in", "xtask/src/so.rs", "crates/x/build.rs", "crates/tests/src/a.rs", "crates/x/tests", "/crates/x/tests/a.rs", "crates/x/tests/../src/a.rs", "crates//x/tests/a.rs", "tests/oracle/a.c", ""] {
+            assert!(may_change_products(p), "{p}");
+        }
+        for p in ["crates/niji/tests/stdio.rs", "crates/x/tests/support/mod.rs", "crates/x/benches/b.rs", "crates/x/examples/e.rs", "xtask/tests/plain.rs"] {
+            assert!(!may_change_products(p), "{p}");
+        }
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): a list of simple commands is split into words; any other shell syntax is
+    // not read (None: the caller treats it as using the products)
+    #[test]
+    fn simple_commands_split_a_list_and_refuse_other_syntax() {
+        let w = |v: &[&[&str]]| Some(v.iter().map(|c| c.iter().map(|s| s.to_string()).collect()).collect::<Vec<Vec<String>>>());
+        assert_eq!(simple_commands("cargo test -p a"), w(&[&["cargo", "test", "-p", "a"]]));
+        assert_eq!(simple_commands("sh -c 'a b && c \"d e\"; f || g'"), w(&[&["a", "b"], &["c", "d e"], &["f"], &["g"]]));
+        assert_eq!(simple_commands("bash -c 'x'"), w(&[&["x"]]));
+        assert_eq!(simple_commands("a 'b c'd"), w(&[&["a", "b cd"]]));
+        for bad in ["a | b", "a > f", "a < f", "a & b", "a $X", "a \"$X\"", "a `b`", "a \\ b", "(a)", "a *", "a ?", "a [b]", "a {b}", "~/a", "a # c", "a\nb", "X=1 a", "a && sh x", "a; env b", "eval a", "exec a", "a &&", "&& a", "a ;; b", "'a", "sh -c 'a' 'b'", "a 2>&1"] {
+            assert_eq!(simple_commands(bad), None, "{bad}");
+        }
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): a header story's commands (the generator, then the header checks) read no
+    // products unless an argument names them; anything else in the list still decides
+    #[test]
+    fn header_checks_read_no_products() {
+        let lookup = |_: Option<&str>, t: &str| (t == "plain").then_some(false);
+        let units = |_: Option<&str>, f: &[String], _: bool| f.iter().any(|f| f == "reads_them");
+        for (cmd, want) in [
+            ("sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only stdio'", false),
+            ("cargo xtask headers-gen", false),
+            ("python3 spec/tools/header_checks/slice_12.py", false),
+            ("sh -c 'cargo xtask headers-gen && cargo test -p xtask --test plain'", false),
+            ("sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --include target/niji/include'", true),
+            ("sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/../x.py'", true),
+            ("python3 spec/tools/header_checks/sub/x.py", true),
+            ("python3 spec/tools/other.py", true),
+            ("sh -c 'cargo xtask headers-gen && cargo xtask so'", true),
+            ("sh -c 'cargo xtask headers-gen | tee x'", true),
+            ("sh -c 'cargo xtask headers-gen && make check'", true),
+        ] {
+            assert_eq!(cmd_uses_products(cmd, lookup), want, "uses: {cmd}");
+            assert_eq!(cmd_reads_products(cmd, lookup, units), want, "reads: {cmd}");
+        }
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): unit tests do not use the products (their plants reuse the baseline) but
+    // may read them: as the package's unit-test rule says, given the libtest filters
+    #[test]
+    fn unit_tests_read_the_products_by_the_unit_rule() {
+        let lookup = |_: Option<&str>, _: &str| None;
+        let units = |k: Option<&str>, f: &[String], exact: bool| k == Some("xtask") && f.iter().any(|f| f == "reads_them") && !exact;
+        for (cmd, reads) in [
+            ("cargo test -p xtask --bin xtask reads_them", true),
+            ("cargo test -p xtask --bins -- reads_them --test-threads 1", true),
+            ("cargo test -p xtask --bin xtask reads_them -- --exact", false),
+            ("cargo test -p xtask --bin xtask other", false),
+            ("cargo test -p xtask --lib -- --skip reads_them", false),
+        ] {
+            assert!(!cmd_uses_products(cmd, lookup), "uses: {cmd}");
+            assert_eq!(cmd_reads_products(cmd, lookup, units), reads, "reads: {cmd}");
+        }
     }
 
     // no spec clause (PLANTS-COPIES): auto runs two copies only when the job's RAM holds two at the measured peak
@@ -1872,9 +1982,12 @@ mod tests {
             let out = run(&cfg);
             outs.push((out.code, out.verdicts, fs::read_to_string(dir.join("results.txt")).unwrap()));
             if copies == 2 {
-                // s2 and p4 ran in the second copy, with its own tree, logs and products.
-                assert!(dir.join("logs-2/s2.log").is_file() && dir.join("logs-2/p4.so.log").is_file() && dir.join("logs/c1.log").is_file());
-                assert!(!dir.join("logs/s2.log").exists() && !dir.join("logs-2/c1.log").exists());
+                // PLANTS-PRODUCTS-ONCE: p4, the one plant that reads the products, ran in the first copy, which built
+                // them (baseline, mutant); the others ran in the second copy, with its own tree and logs and no build.
+                assert!(dir.join("logs/p4.so.log").is_file() && dir.join("logs/so.log").is_file() && dir.join("logs-2/c1.log").is_file() && dir.join("logs-2/s2.log").is_file());
+                assert!(!dir.join("logs/c1.log").exists() && !dir.join("logs-2/p4.log").exists());
+                assert_eq!(fs::read_to_string(dir.join("src/builds.txt")).unwrap().lines().count(), 2);
+                assert!(!dir.join("src-2/builds.txt").exists() && !dir.join("logs-2/so.log").exists(), "a copy whose plants read no products built them");
                 assert_eq!(fs::read_to_string(dir.join("src-2/src/value.txt")).unwrap(), "answer=42\nother=7\nother=7\n");
             }
             let _ = fs::remove_dir_all(src.parent().unwrap());
