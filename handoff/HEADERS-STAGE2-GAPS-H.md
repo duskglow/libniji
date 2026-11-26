@@ -32,8 +32,14 @@ ybuild/); keke `~/work/headers-stage2-gaps-h/` (same scripts; stock*.tsv = refer
 ## Jobs started at the end of leg 1 (keke)
 * headers-stage2-gaps-h-plants1: `cargo xtask plants handoff/HEADERS-STAGE2-GAPS-H-plants.txt --dir
   /dev/shm/claude/headers-stage2-gaps-h/plants-1` (6 plants).
-* headers-stage2-gaps-h-pkg1: `sh ~/work/headers-stage2-gaps-h/pkg.sh` (system-flavour debs from ~/w/n1, then
-  inetutils in a trixie chroot, stock then libniji; RELEASE-SNAPSHOT-1126C's method). Must run alone on the role.
+* headers-stage2-gaps-h-pkg2: `sh ~/work/headers-stage2-gaps-h/pkg.sh` (system-flavour debs from ~/w/n1 as commit
+  e08c44279, then inetutils in a trixie chroot, stock then libniji; RELEASE-SNAPSHOT-1126C's method). Must run alone
+  on the role (it builds the products there): do not start a role build until it ends. Result line: `=== PKG
+  inetutils stock rc=.. libniji rc=..`; on a libniji failure the `ybuild: niji inetutils error:` lines name the next
+  gap (report header, name, unit; do not chase). SUPERSEDED: headers-stage2-gaps-h-pkg1 (failed at once:
+  NIJI_DEB_COMMIT / SOURCE_DATE_EPOCH unset; pkg.sh now sets them).
+* headers-stage2-gaps-h-test1 (rc 0, head 730f215ea, same code as e08c44279): the proof listed above.
+* clippy and static have NOT been run yet: run them on the final head (after item 3), then precheck.
 
 ## Next leg: item 3 (coordinator note 2026-11-26T23:08Z, owner ruling on #8766 option A)
 Declare `struct sched_attr`, `sched_setattr`, `sched_getattr` in `<sched.h>` with the form, layout (offsetof/sizeof
