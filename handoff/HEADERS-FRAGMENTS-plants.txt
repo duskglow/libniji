@@ -13,7 +13,7 @@ key-sorted-off | xtask/src/table_keys.rs | lit:    if d.sorted { ==>     if fals
 key-block-off | xtask/src/table_keys.rs | lit:if d.block && recs.last() ==> if false && recs.last() | cargo test -p xtask --bin xtask table_keys | msg:a_block_may_repeat_inside_but_not_start_again.*FAILED|panicked
 key-undeclared-off | xtask/src/table_keys.rs | lit:tables.iter().filter(|t| !decls.iter() ==> tables.iter().filter(|t| decls.iter() | cargo test -p xtask --bin xtask table_keys | msg:a_table_without_a_declaration_fails.*FAILED|panicked
 # Template fragments (xtask/src/headers.rs template_text): dropped, or out of file-name order.
-frag-dropped | xtask/src/headers.rs | lit:            out.push_str(&body); ==>             out.push_str(""); | cargo xtask headers-gen --check | msg:headers-gen: stale under libc-include/
+frag-dropped | xtask/src/headers.rs | lit:            out.push_str(&body); ==>             out.push_str(""); | cargo xtask headers-gen --check | msg:headers-gen: utmp\.h: ut_name has no macros\.tsv value
 frag-order | xtask/src/headers.rs | lit:    frags.sort(); ==>     frags.sort_by(|a, b| b.cmp(a)); | cargo xtask headers-gen --check | msg:headers-gen: stale under libc-include/
 # Check fragments (header_check.slice_checks): a slice's .d fragments not loaded.
 checks-d-skipped | spec/tools/header_check.py | lit:            load(f"{name}.d/{os.path.basename(frag)[:-3]}", frag) ==>             pass | python3 spec/tools/header_check.py --only 'enum arpa/nameser.h' | msg:FAIL --only enum arpa/nameser.h: no unit selected
