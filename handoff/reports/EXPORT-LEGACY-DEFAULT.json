@@ -1,6 +1,6 @@
 {"task": "EXPORT-LEGACY-DEFAULT", "model": "opus", "tokens": null,
  "result": "bindresvport and __libc_sa_len exported at GLIBC_2.2.5 (default) in libc.so.6 and libc.a, as stock 2.39; link test vs stock",
- "branch": "task/export-legacy-default", "head": "0a312d554",
+ "branch": "task/export-legacy-default", "head": "a1e785b28 + TESTS line commit",
  "gate": {"affected": "497 passed / 0 failed (6 suites, direct tier)", "peak": "4.0G"},
  "accepted_first_attempt": null,
  "rulings": [],
