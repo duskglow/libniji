@@ -1,3 +1,16 @@
+# HEADERS-FEATURES-FORMS (handoff, end of run 4, HEADERS-FEATURES-FORMS-4)
+
+## Run 4 (merge-only): branch `task/headers-features-forms-4`
+* Merged origin/next again. Conflicts: `spec/abi/visibility.tsv` (next added netax25/netrom/netrose/udp rows; both sides
+  kept) and 20 generated `libc-include/` headers (regenerated with `cargo xtask headers-gen`, never hand-merged).
+* One fix: the forms check (`spec/tools/header_checks/features.py`) flagged 9 headers for `_PATHS_H_` and
+  `_SYS_TTYDEFAULTS_H_`, which the merged tables now list; they are include guards (trailing underscore), so GUARD accepts `_H_`.
+  `header_check.py`: 0 failed of 21751.
+* Jobs (shiki:~/w/sh1): precheck GREEN, clippy and static clean, plants `headers-features-forms-4-plants2`
+  (the run-3 plants file). Superseded: `headers-features-forms-4-plants` (baseline red on the guards, fixed above).
+* Next step: land.
+
+# (run 3 follows)
 # HEADERS-FEATURES-FORMS (handoff, end of run 3, HEADERS-FEATURES-FORMS-3)
 
 **State:** branch `task/headers-features-forms-3` (run 2's branch plus run 3's merge of origin/next 8828f0ce8), role

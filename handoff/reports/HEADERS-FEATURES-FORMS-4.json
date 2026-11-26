@@ -1,0 +1,22 @@
+{
+ "task": "HEADERS-FEATURES-FORMS-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "CI conflict resolved: origin/next merged (visibility.tsv rows of both sides, 20 generated headers regenerated), forms check accepts _H_ include guards; precheck green, 9/9 plants CAUGHT",
+ "branch": "task/headers-features-forms-4",
+ "head": "see handoff/HEADERS-FEATURES-FORMS.md",
+ "gate": {"affected": "0 of 328 test targets selected (bounded; FULL is the train's); header_check.py 0 failed of 21751", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The plants run's baseline output shows only 'header_check: 9 failed of 21760' with the FAIL lines not in the job log; the failing names had to be found by re-running header_check.py by hand"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "task/headers-features-forms-3's CI conflict (visibility.tsv, 20 generated headers) resolved, so the __USE_* family, outright macro forms, F_OWNER_*, TIMESPEC_*, SUN_LEN, SOL_* can land", "before": null, "after": null, "unit": "story", "measured": false}
+ ],
+ "improvement": "A plants baseline failure should print the failing command's FAIL lines, not only its last summary line",
+ "next_step": "Land (CI train runs the FULL gate)",
+ "jobs": ["headers-features-forms-4-plants2"],
+ "report_file": "handoff/HEADERS-FEATURES-FORMS.md"
+}
