@@ -786,6 +786,38 @@ FTSENT	fts_flags	100		short unsigned int
 FTSENT	fts_instr	102		short unsigned int	
 FTSENT	fts_statp	104		struct stat *	
 FTSENT	fts_name	112		char[1]	
+FTS64		72	8		
+FTS64	fts_cur	0		struct _ftsent64 *	
+FTS64	fts_child	8		struct _ftsent64 *	
+FTS64	fts_array	16		struct _ftsent64 * *	
+FTS64	fts_dev	24		dev_t	
+FTS64	fts_path	32		char *	
+FTS64	fts_rfd	40		int	
+FTS64	fts_pathlen	44		int	
+FTS64	fts_nitems	48		int	
+FTS64	fts_compar	56		fn(...) *	
+FTS64	fts_options	64		int	
+FTSENT64		120	8		
+FTSENT64	fts_cycle	0		struct _ftsent64 *	
+FTSENT64	fts_parent	8		struct _ftsent64 *	
+FTSENT64	fts_link	16		struct _ftsent64 *	
+FTSENT64	fts_number	24		long int	
+FTSENT64	fts_pointer	32		void *	
+FTSENT64	fts_accpath	40		char *	
+FTSENT64	fts_path	48		char *	
+FTSENT64	fts_errno	56		int	
+FTSENT64	fts_symfd	60		int	
+FTSENT64	fts_pathlen	64		short unsigned int	
+FTSENT64	fts_namelen	66		short unsigned int	
+FTSENT64	fts_ino	72		ino64_t	
+FTSENT64	fts_dev	80		dev_t	
+FTSENT64	fts_nlink	88		nlink_t	
+FTSENT64	fts_level	96		short int	
+FTSENT64	fts_info	98		short unsigned int	
+FTSENT64	fts_flags	100		short unsigned int	
+FTSENT64	fts_instr	102		short unsigned int	
+FTSENT64	fts_statp	104		struct stat64 *	
+FTSENT64	fts_name	112		char[1]	
 struct FTW		8	4		
 struct FTW	base	0		int	
 struct FTW	level	4		int	
