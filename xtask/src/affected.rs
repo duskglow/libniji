@@ -2470,11 +2470,11 @@ fn entry_change(diff: &str, file: &str, text: &str) -> Option<BTreeSet<String>> 
             continue;
         } else if let Some(body) = l.strip_prefix('-') {
             hunks.last_mut()?.2.push(body);
-        } else if let Some(body) = l.strip_prefix('+') {
-            hunks.last_mut()?.3.push(body);
         } else {
-            // `new file`, `deleted file`, `rename`, `copy`, `Binary`, a mode line, or a line no -U0 hunk has.
-            return None;
+            // Anything but an added line (`new file`, `deleted file`, `rename`, `copy`, `Binary`, a mode line, a line
+            // no -U0 hunk has) is not a plain modification: None.
+            let body = l.strip_prefix('+')?;
+            hunks.last_mut()?.3.push(body);
         }
     }
     if hunks.is_empty() {
