@@ -104,7 +104,6 @@ p	__libc_res_hnok	libc.so.6	private	GLIBC_PRIVATE	so	out of scope
 p	__libc_res_nameinquery	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	__libc_res_queriesmatch	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	__libc_rpc_getport	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
-e	__libc_sa_len	libc.so.6	default	GLIBC_2.2.5	so+a	phase 15	29
 p	__libc_scratch_buffer_grow	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	__libc_scratch_buffer_grow_preserve	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	__libc_scratch_buffer_set_array_size	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
@@ -357,7 +356,6 @@ p	_thread_db_sizeof_td_thr_events_t	libc.so.6	private	GLIBC_PRIVATE	so	out of sc
 p	_thread_db_td_eventbuf_t_eventdata	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	_thread_db_td_eventbuf_t_eventnum	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
 p	_thread_db_td_thr_events_t_event_bits	libc.so.6	private	GLIBC_PRIVATE	so	out of scope	
-e	bindresvport	libc.so.6	default	GLIBC_2.2.5	so+a	phase 15	29
 b	callrpc	libc.so.6	compat	GLIBC_2.2.5	so	phase 15	29
 b	clnt_broadcast	libc.so.6	compat	GLIBC_2.2.5	so	phase 15	29
 b	clnt_create	libc.so.6	compat	GLIBC_2.2.5	so	phase 15	29
