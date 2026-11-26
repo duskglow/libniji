@@ -4560,6 +4560,22 @@ fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
 /// as code, since the scan reads this file too). Beside the products build such a test sees
 /// a half-written set (the manifest lint test saw `libc.so.6` and no locale sources). A test that reaches the
 /// products only through a helper elsewhere is not seen; the rule reads text, like [`names_products`].
+/// PLANTS-PRODUCTS-ONCE: may the unit tests of package `krate` that libtest's `filters` select (none: all; `exact`:
+/// whole names) read the products, by the rules the gate orders its steps with? xtask: a test of
+/// [`product_unit_tests`] is selected. Another package: a source under its `src/` names them ([`first_pass_split`]'s
+/// rule). An unknown or unnamed package: may.
+pub fn unit_tests_may_read_products(root: &Path, repo: &Repo, krate: Option<&str>, filters: &[String], exact: bool) -> bool {
+    match krate {
+        Some("xtask") => product_unit_tests(root).iter().any(|t| filters.is_empty() || filters.iter().any(|f| if exact { t == f } else { t.contains(f.as_str()) })),
+        Some(c) => repo.crates.iter().find(|k| k.name == c).is_none_or(|k| {
+            let mut all = Vec::new();
+            files_under(&root.join(&k.dir).join("src"), &["rs"], &mut all);
+            all.is_empty() || all.iter().any(|f| names_products(&read(f)))
+        }),
+        None => true,
+    }
+}
+
 fn product_unit_tests(root: &Path) -> Vec<String> {
     let mut files = Vec::new();
     files_under(&root.join("xtask").join("src"), &["rs"], &mut files);
