@@ -98,10 +98,12 @@ build from source yet.
 3. LC_IDENTIFICATION en_US ruling (from 1125B) still open: ystage2cmp-1's only bad item.
 
 ## Jobs (all on cd31515dc's build)
-keke: gate-1, plants-1, smoke-keke-1, heapnode-1, debs-1, pkgdiff-1, stage-1, install-1, gaimass-1, hdrdiff-1,
-startup-keke-1, startup215-keke-1, kstart-keke-1, rstart-keke-1. mei: hp-1, hp2-1, hp3-1, hp4-2, fp-1,
-ystage2-niji-1, ystage2cmp-1, yapt-1, ypk-1, yh-1, yhc-1, ybuild-1, yb6-1, gai6-1, the root checks (roots, lint, ...;
-cmp11's lists). SUPERSEDED: hp4-1 (`__int8_t` mis-filed, syslog probe without stddef.h), hp4-ref252-1/-2 (baseline
+JOBS (rc 0): keke: gate-1, plants-1, smoke-keke-1, debs-1, pkgdiff-1, stage-1, install-1, gaimass-1, startup-keke-1,
+startup215-keke-1, kstart-keke-1, rstart-keke-1, precheck-1 (GREEN, 34 checks, on 31366d40d). mei: hp-1, hp2-1, hp3-1,
+ystage2-niji-1, yapt-1, ypk-1, yh-1, gai6-1, smoke-mei-1, roots-1, lint-1, startup/startup215/kstart/rstart-mei-1, and
+the other root checks of cmp11's lists. EVIDENCE (rc != 0 by finding, not in JOBS; the json's
+`evidence_jobs_rc_nonzero_by_finding` gives each reason): keke hdrdiff-1, heapnode-1 (#21 as 25.2); mei hp4-2,
+hp4-ref252-3, fp-1, fp-ref252-1, yb6-1, ybuild-1, ybuild-ref252-1, yhc-1, ystage2cmp-1. SUPERSEDED: hp4-1 (`__int8_t` mis-filed, syslog probe without stddef.h), hp4-ref252-1/-2 (baseline
 reruns; -3 is the one used).
 
 ## Not to redo / next step

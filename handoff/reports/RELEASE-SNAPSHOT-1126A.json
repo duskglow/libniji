@@ -34,14 +34,138 @@
  ],
  "refused": [],
  "impact": [
-  {"kind": "unblock", "what": "Yohane stage 2: perl 5.40.1, npth, gnupg2, libev, keyutils and static busybox build on the snapshot (25.2: none of them)", "before": 0, "after": 6, "unit": "packages building", "measured": true},
-  {"kind": "correctness", "what": "hp4 report-item probes differing from stock 2.39 (25.2 baseline vs this head)", "before": 498, "after": 46, "unit": "differing probes (the 46 are non-report rows)", "measured": true},
-  {"kind": "correctness", "what": "__USE_* feature-macro rows differing from stock", "before": 1488, "after": 0, "unit": "lines", "measured": true},
-  {"kind": "size", "what": "libc6-dev / niji6-dev Installed-Size vs 25.2", "before": null, "after": -165, "unit": "KiB delta", "measured": true},
-  {"kind": "perf", "what": "start-up empty main, user instructions per start (Zen 1)", "before": 156289, "after": 156289, "unit": "instr", "measured": true}
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2: perl 5.40.1, npth, gnupg2, libev, keyutils and static busybox build on the snapshot (25.2: none of them)",
+   "before": 0,
+   "after": 6,
+   "unit": "packages building",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "hp4 report-item probes differing from stock 2.39 (25.2 baseline vs this head)",
+   "before": 498,
+   "after": 46,
+   "unit": "differing probes (the 46 are non-report rows)",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "__USE_* feature-macro rows differing from stock",
+   "before": 1488,
+   "after": 0,
+   "unit": "lines",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "libc6-dev / niji6-dev Installed-Size vs 25.2",
+   "before": null,
+   "after": -165,
+   "unit": "KiB delta",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "start-up empty main, user instructions per start (Zen 1)",
+   "before": 156289,
+   "after": 156289,
+   "unit": "instr",
+   "measured": true
+  }
  ],
  "improvement": "perl's Debian build runs its two test harnesses into one interleaved log; a per-run TEST output file (or -j1 for the checked pass) would make per-file test comparison exact instead of inferred",
  "next_step": "coordinator cuts snapshot 2026-11-26.1 from keke's staging dir; brief header rows <sys/io.h> port I/O and <arpa/telnet.h> name macros",
  "report_file": "handoff/RELEASE-SNAPSHOT-1126A.md",
- "jobs": ["release-snapshot-1126a-gate-1", "release-snapshot-1126a-plants-1", "release-snapshot-1126a-smoke-keke-1", "release-snapshot-1126a-heapnode-1", "release-snapshot-1126a-debs-1", "release-snapshot-1126a-pkgdiff-1", "release-snapshot-1126a-stage-1", "release-snapshot-1126a-install-1", "release-snapshot-1126a-gaimass-1", "release-snapshot-1126a-hdrdiff-1", "release-snapshot-1126a-startup-keke-1", "release-snapshot-1126a-startup215-keke-1", "release-snapshot-1126a-kstart-keke-1", "release-snapshot-1126a-rstart-keke-1", "mei:release-snapshot-1126a-hp-1", "mei:release-snapshot-1126a-hp2-1", "mei:release-snapshot-1126a-hp3-1", "mei:release-snapshot-1126a-hp4-2", "mei:release-snapshot-1126a-hp4-ref252-3", "mei:release-snapshot-1126a-fp-1", "mei:release-snapshot-1126a-fp-ref252-1", "mei:release-snapshot-1126a-ystage2-niji-1", "mei:release-snapshot-1126a-ystage2cmp-1", "mei:release-snapshot-1126a-yapt-1", "mei:release-snapshot-1126a-ypk-1", "mei:release-snapshot-1126a-yh-1", "mei:release-snapshot-1126a-yhc-1", "mei:release-snapshot-1126a-ybuild-1", "mei:release-snapshot-1126a-ybuild-ref252-1", "mei:release-snapshot-1126a-yb6-1", "mei:release-snapshot-1126a-gai6-1", "mei:release-snapshot-1126a-smoke-mei-1", "mei:release-snapshot-1126a-roots-1", "mei:release-snapshot-1126a-lint-1", "mei:release-snapshot-1126a-startup-mei-1", "mei:release-snapshot-1126a-startup215-mei-1", "mei:release-snapshot-1126a-kstart-mei-1", "mei:release-snapshot-1126a-rstart-mei-1"]
+ "jobs": [
+  "release-snapshot-1126a-gate-1",
+  "release-snapshot-1126a-plants-1",
+  "release-snapshot-1126a-smoke-keke-1",
+  "release-snapshot-1126a-debs-1",
+  "release-snapshot-1126a-pkgdiff-1",
+  "release-snapshot-1126a-stage-1",
+  "release-snapshot-1126a-install-1",
+  "release-snapshot-1126a-gaimass-1",
+  "release-snapshot-1126a-startup-keke-1",
+  "release-snapshot-1126a-startup215-keke-1",
+  "release-snapshot-1126a-kstart-keke-1",
+  "release-snapshot-1126a-rstart-keke-1",
+  "mei:release-snapshot-1126a-hp-1",
+  "mei:release-snapshot-1126a-hp2-1",
+  "mei:release-snapshot-1126a-hp3-1",
+  "mei:release-snapshot-1126a-ystage2-niji-1",
+  "mei:release-snapshot-1126a-yapt-1",
+  "mei:release-snapshot-1126a-ypk-1",
+  "mei:release-snapshot-1126a-yh-1",
+  "mei:release-snapshot-1126a-gai6-1",
+  "mei:release-snapshot-1126a-smoke-mei-1",
+  "mei:release-snapshot-1126a-roots-1",
+  "mei:release-snapshot-1126a-lint-1",
+  "mei:release-snapshot-1126a-startup-mei-1",
+  "mei:release-snapshot-1126a-startup215-mei-1",
+  "mei:release-snapshot-1126a-kstart-mei-1",
+  "mei:release-snapshot-1126a-rstart-mei-1",
+  "release-snapshot-1126a-precheck-1"
+ ],
+ "evidence_jobs_rc_nonzero_by_finding": [
+  {
+   "job": "release-snapshot-1126a-hdrdiff-1",
+   "why": "rc 1 = public-name removals found (S_TYPEISTMO only, moves toward stock)"
+  },
+  {
+   "job": "release-snapshot-1126a-heapnode-1",
+   "why": "rc 101 = #21 find_over_200000_entries_bounds_its_address_space, as 25.2 (every needs line identical)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-fp-1",
+   "why": "rc 1 = forms differences found (use set 0 differing lines)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-fp-ref252-1",
+   "why": "rc 1 = 25.2 baseline differences"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-hp4-2",
+   "why": "rc 1 = 46 non-report DIFF rows (syslog-names-alone, intN family); every report item SAME"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-hp4-ref252-3",
+   "why": "rc 1 = 25.2 baseline (498 DIFF)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-yb6-1",
+   "why": "rc 1 = confirms util-linux/inetutils header gaps (84 DIFF)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-ybuild-1",
+   "why": "rc 1 = util-linux and inetutils still fail (non-blocking step 6), 4 of 6 build"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-ybuild-ref252-1",
+   "why": "rc 1 = 25.2 baseline (0 of 6)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-yhc-1",
+   "why": "rc 1 by design as 25.2 (niji-cc rows not shipped)"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-ystage2cmp-1",
+   "why": "rc 1 = the 8 langinfo files (LC_IDENTIFICATION en_US ruling from 1125B)"
+  }
+ ],
+ "superseded": [
+  {
+   "job": "mei:release-snapshot-1126a-hp4-1",
+   "why": "__int8_t mis-filed, syslog probe without stddef.h; hp4-2 replaces it"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-hp4-ref252-1",
+   "why": "baseline rerun; -3 used"
+  },
+  {
+   "job": "mei:release-snapshot-1126a-hp4-ref252-2",
+   "why": "baseline rerun; -3 used"
+  }
+ ]
 }
