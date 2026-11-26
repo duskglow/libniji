@@ -704,10 +704,11 @@ static void keys_do_not_leak(void)
     check("idna-after-the-cache", !strcmp(i.answer, "192.0.2.50 canon=b\xc3\xbc" "cher.test") && !strcmp(j.answer, "eai=-105") && !strcmp(k.answer, "192.0.2.50") && k.hits == 1,
           "[%s] [%s] [%s]", i.answer, j.answer, k.answer);
     /* AI_ADDRCONFIG runs after the cache: an IPv4-only interface drops the IPv6 address of a
-     * cached answer, in the same process and in another. */
+     * cached answer, in the same process and in another. The interface gets no IPv6 link-local
+     * address (addrgenmode none): a link-local address counts as configured IPv6 (D-16.2). */
     char x[512], y[512], z[512];
     look("gaicfg", "both", x, sizeof x);
-    if (system("ip link add nsc0 type dummy && ip addr add 10.9.9.9/24 dev nsc0 && ip link set nsc0 up") == 0) {
+    if (system("ip link add nsc0 type dummy && ip link set nsc0 addrgenmode none && ip addr add 10.9.9.9/24 dev nsc0 && ip link set nsc0 up") == 0) {
         unsigned long long h0 = st().hits;
         look("gaicfg", "both", y, sizeof y);
         look("gai", "both", z, sizeof z);
