@@ -26,10 +26,10 @@ is a compatibility version, so new programs cannot link against it), else `defau
 | (a) dynamic linking / ld.so | 113 | `ld-linux-x86-64.so.2` (3 default, 25 private, 1 placeholder); `libc.so.6` §27 (11: `dlopen` family, `_dl_mcount*`); `libthread_db.so.1` (40 `td_*`); `libc_malloc_debug.so.0` (28, compat); the version-node placeholders of `libpthread`, `libdl`, `librt`, `libutil`, `libanl` (5) | Phase 14 |
 | (b) compat-only, in a library libniji ships | 176 | `libc.so.6` 128, `libm.so.6` 37, `libresolv.so.2` 11 (compatibility versions only: new programs cannot link against them) | Phase 15 |
 | (c) library libniji does not replace yet | 127 | `libnsl.so.1` (121 compat, 6 private) | Phase 15 (§29.2) |
-| (e) legacy tier, default version | 2 | `libc.so.6`: `__libc_sa_len`, `bindresvport` (the 86 other `_IO_*`, profiling and §29 names of 2026-10-22 are defined now) | Phase 15 |
+| (e) legacy tier, default version | 0 | none left: `__libc_sa_len` and `bindresvport` are exported at `GLIBC_2.2.5` since EXPORT-LEGACY-DEFAULT (2026-11-26); the 86 other `_IO_*`, profiling and §29 names of 2026-10-22 were defined before | Phase 15 |
 | **milestone 5 (libm)** (m) | **0** | none left: the 18 complex `_Float128` members of 2026-10-24 are defined now (Track M milestone 5 closed by MATH-M5-CLOSE, 2026-11-04) | Track M milestone 5 (plan/06-phases/04-track-m-parallel-from-p2.md) |
 | (p) GLIBC_PRIVATE | 280 | `libc.so.6` 278, `libresolv.so.2` 2: interfaces between glibc's own libraries, not linkable by programs | Out of scope (ruling #822; see Notes) |
-| **Total** | **698** | | |
+| **Total** | **696** | | |
 
 The (m) row was why the README qualified "Phases 1 to 13 implemented": those `libm` names (105 on 2026-10-22, 18 on 2026-10-24, 0 on 2026-11-04) are part of the math
 library's claimed scope; all are implemented now and the qualifier is removed. Their `float`, `double` and `long double` (`l`, `f64x`)
