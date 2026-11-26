@@ -6,8 +6,7 @@
 * One fix: the forms check (`spec/tools/header_checks/features.py`) flagged 9 headers for `_PATHS_H_` and
   `_SYS_TTYDEFAULTS_H_`, which the merged tables now list; they are include guards (trailing underscore), so GUARD accepts `_H_`.
   `header_check.py`: 0 failed of 21751.
-* Jobs (shiki:~/w/sh1): precheck GREEN, clippy and static clean, plants `headers-features-forms-4-plants2`
-  (the run-3 plants file). Superseded: `headers-features-forms-4-plants` (baseline red on the guards, fixed above).
+* Jobs (shiki:~/w/sh1): precheck GREEN, clippy and static clean, plants `headers-features-forms-4-plants3` (the run-3 plants file, 9/9 CAUGHT, on the head after a second merge of origin/next: header_probe.py kept both lists, stdlib.h/time.h regenerated). Superseded: `-plants` (baseline red on the guards, fixed above), `-plants2` (head before the second merge).
 * Next step: land.
 
 # (run 3 follows)

@@ -17,6 +17,6 @@
  ],
  "improvement": "A plants baseline failure should print the failing command's FAIL lines, not only its last summary line",
  "next_step": "Land (CI train runs the FULL gate)",
- "jobs": ["headers-features-forms-4-plants2"],
+ "jobs": ["headers-features-forms-4-plants3"],
  "report_file": "handoff/HEADERS-FEATURES-FORMS.md"
 }
