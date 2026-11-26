@@ -1,6 +1,6 @@
 {"task": "HEADERS-STAGE2-GAPS-F", "model": "opus", "tokens": null,
  "result": "<sys/io.h> port I/O (static inline, x86), <arpa/telnet.h> AUTHTYPE/ENCTYPE/ENCRYPT/TELCMD/SLC name macros and tables, <sys/types.h> __int8_t..__uint64_t family, and the FEATURES-FORMS guard/FD_SET/ifaddrs/_PATH_RESCONF forms matched to stock; util-linux hwclock and inetutils telnet units compile",
- "branch": "task/headers-stage2-gaps-f", "head": null,
+ "branch": "task/headers-stage2-gaps-f", "head": "915c71c97",
  "gate": {"affected": "FULL escalated (header generator inputs; the train's). test1: cargo test -p xtask 726 passed / 0 failed; header_check 0 failed of 24160; features forms 0 of 209 headers differ; headers-gen --check ok", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
