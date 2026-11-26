@@ -1,0 +1,19 @@
+{"task": "PLANTS-PRODUCTS-ONCE", "model": "opus", "tokens": null,
+ "result": "cargo xtask plants builds the products only in copies whose plants read them (decided from what each command runs), mutant rebuilds unchanged; header and xtask-only plants jobs 70-78% less wall, libm all-readers job +3.7% wall / -24% CPU; verdicts identical in all three pairs",
+ "branch": "task/plants-products-once", "head": null,
+ "gate": {"affected": "718 passed / 0 failed (direct tier, 7 suites)", "peak": "3.6G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "All-readers plants files: concentrating readers in one building copy saves a build (-24% CPU) but costs wall (+3.7% on LIBM-PARTIAL-WRITE-CHECK)", "recommendation": "land as is (host load is the trend alert's main cause); follow-up story copies the built products into the other copies so readers spread without a second build"}],
+ "informational": ["The leg-2 libm proof file libm-special-fast-tier-6-plants.txt names the old liella-* crates; its baselines would fail, so LIBM-PARTIAL-WRITE-CHECK was used instead", "The unit rule reads text: xtask tests that join target/niji under a temp root count as product readers (partial_write), so such plants still build"],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "plants job wall, AFFECTED-LAYOUT-ROWS (xtask only), Zen 1 host, 2 copies", "before": 624.5, "after": 204.4, "unit": "s", "measured": true},
+  {"kind": "tooling", "what": "plants job wall, HEADERS-STAGE2-GAPS-D (header, 20 plants), Zen 1 host, 2 copies", "before": 1871.7, "after": 416.0, "unit": "s", "measured": true},
+  {"kind": "cost", "what": "plants job wall, LIBM-PARTIAL-WRITE-CHECK (all plants read products), Zen 1 host, 2 copies; fix-forward: copy built products into other copies", "before": 1012.6, "after": 1050.5, "unit": "s", "measured": true},
+  {"kind": "tooling", "what": "plants job CPU, LIBM-PARTIAL-WRITE-CHECK", "before": 3641, "after": 2779, "unit": "cpu-s", "measured": true},
+  {"kind": "coverage", "what": "plants added (handoff/PLANTS-PRODUCTS-ONCE-plants.txt), all CAUGHT", "before": 0, "after": 12, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a proof pair picked by an earlier leg should be checked for still-applying crate names before the wave is queued (one wave nearly wasted)",
+ "next_step": "follow-up: share one products build across copies by copying target/niji for read-only plants",
+ "report_file": "handoff/PLANTS-PRODUCTS-ONCE.md",
+ "jobs": ["mei:plants-products-once-gate2", "mei:plants-products-once-plants", "mei:plants-products-once-unit3", "mei:plants-products-once-alr-after", "mei:plants-products-once-hdr-after", "mei:plants-products-once-libm-after"]}
