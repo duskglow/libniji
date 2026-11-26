@@ -1,0 +1,23 @@
+{
+ "task": "HEADERS-FEATURES-FORMS-5",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "CI conflict resolved: origin/next merged (3 sources both-sides, generated headers regenerated), three forms-rule interactions with next's alias/stat/kernel-spelled changes fixed; header_check 0 failed of 23694",
+ "branch": "task/headers-features-forms-5",
+ "head": "see handoff/HEADERS-FEATURES-FORMS.md",
+ "gate": {"affected": "711 passed / 0 failed (headers-features-forms-5-gate3)", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "The gate's failing step prints only 'header_check.py []:' (stdout empty, FAIL lines on stderr/stdout of a different stream); the failing names had to be found by running header_check.py by hand on the host"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "task/headers-features-forms-4's CI conflict against next (62 files) resolved so the __USE_* family, outright macro forms, F_OWNER_*, TIMESPEC_*, SUN_LEN, SOL_* can land (Yohane stage 2: gnupg2, gcc-14, python3.13, util-linux, openssl, fstrm, less)", "measured": false},
+  {"kind": "correctness", "what": "st_atime/st_mtime/st_ctime and _XOPEN_IOV_MAX now replace a program's earlier definition as the reference does (0 forms differ of 209 headers)", "measured": true}
+ ],
+ "improvement": "A merge-resolution script must read the file before opening it for write (open(p,'w') truncated header_probe.py); a conflict-marker lint in precheck for empty files would catch it",
+ "next_step": "Land (CI train runs the FULL gate)",
+ "jobs": ["headers-features-forms-5-gate3", "headers-features-forms-5-plants"],
+ "report_file": "handoff/HEADERS-FEATURES-FORMS.md"
+}

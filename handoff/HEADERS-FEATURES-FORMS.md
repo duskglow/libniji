@@ -1,3 +1,21 @@
+# HEADERS-FEATURES-FORMS (handoff, end of run 5, HEADERS-FEATURES-FORMS-5)
+
+## Run 5 (merge-only): branch `task/headers-features-forms-5`
+* Merged origin/next (62 conflicts: 3 sources, the rest generated headers regenerated with `cargo xtask headers-gen`).
+  Sources kept both sides: `headers/sys/time.h.in` (one `@@owns-macro` line: TIMESPEC_TO_TIMEVAL, TIMEVAL_TO_TIMESPEC and
+  the timer* macros), `spec/tools/header_probe.py` (both candidate lists), `xtask/src/headers.rs` (`macro_aliases` plus
+  `guarded`/`kernel_spelled` in `Tables`).
+* Three interactions between next's stories and the forms rule, found by `header_check.py` (forms and kernel-first):
+  (1) the conditional macro-alias form (`_XOPEN_IOV_MAX`) was always under `#ifndef`: now outright when `redefined()`;
+  (2) `st_atime/st_mtime/st_ctime` in fcntl.h, sys/file.h, sys/pidfd.h, sys/stat.h templates were guarded: now outright
+  as the reference does; (3) `spec/abi/kernel-spelled.tsv` regenerated (`python3 spec/tools/kernel_spelled.py` after
+  `cargo xtask so`): IPV6_ADD_MEMBERSHIP is now spelled by alias in netinet/in.h, so it stays under `#ifndef`.
+* header_check.py: 0 failed of 23694. Gate `headers-features-forms-5-gate3` 711 passed / 0 failed; plants
+  `headers-features-forms-5-plants` (run-3 plants file). Superseded: `-gate` (empty header_probe.py in my first merge
+  commit: my resolver truncated it), `-gate2` (forms check red on the three items above).
+* Next step: land.
+
+# (run 4 follows)
 # HEADERS-FEATURES-FORMS (handoff, end of run 4, HEADERS-FEATURES-FORMS-4)
 
 ## Run 4 (merge-only): branch `task/headers-features-forms-4`
