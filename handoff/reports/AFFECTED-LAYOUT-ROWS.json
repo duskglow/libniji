@@ -1,0 +1,28 @@
+{"task": "AFFECTED-LAYOUT-ROWS", "model": "opus", "tokens": null,
+ "result": "direct tier: an entries-only layout.rs diff selects by its changed entries (header branches 225 targets/103 programs -> 5/0); xtask tests that run products now get them; step 3 (overlap) not done",
+ "branch": "task/affected-layout-rows", "head": "5a1a0bf58 (gated; later commits handoff only)",
+ "gate": {"affected": "affected-layout-rows-gate4 ok (products, xtask tests, transcripts on fresh products, static), 561 s", "peak": "4.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "sync_role.sh writes no .changed.abi, so role gates keep the wide selection until it does", "recommendation": "add after the .changed.xtask line: git -C \"$wt\" diff -U0 \"$mb\" -- crates/abi/ | \"${VSSH[@]}\" \"cat > ~/w/$role/.changed.abi\" (plus the rsync exclude and cleanup exception, as for .changed.xtask)"},
+  {"item": "D-NEW: direct tier, an entries-only diff of a generated entry table selects by its changed entries", "recommendation": "reserve a D-X id and record it"}
+ ],
+ "informational": [
+  "step 1: crates/abi/src/layout.rs drove 44,773 s of crate-step time over 46 header gates of 11-24/25 (55-60% of each gate); next file 406 s",
+  "plants time: the plants tool builds the products in every copy (cargo xtask so, 346-469 s per copy on mei) whenever a plant's test names products; it does not use the affected selection unless a plant's command is cargo xtask affected --run",
+  "step 3 not done: after step 2 a header gate's crate steps are about 1 min; its critical path is products beside the xtask tests (selected by the stories' own xtask/src/headers*.rs changes)",
+  "gate and gate2 red on xtask transcripts (ENOENT: products cleared on the role, xtask-only selection built none); fixed in this branch (builds_products)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "header-branch direct gate selection (b-4, d-4, d-3)", "before": 225, "after": 5, "unit": "test targets", "measured": true},
+  {"kind": "tooling", "what": "header-branch direct gate selection (b-4, d-4, d-3)", "before": 103, "after": 0, "unit": "conformance programs", "measured": true},
+  {"kind": "tooling", "what": "headers-stage2-gaps-b-4 direct gate on mei, summary time", "before": 1595, "after": 821, "unit": "s", "measured": true},
+  {"kind": "correctness", "what": "xtask-only gates on a role with cleared products ran the transcripts without products (ENOENT)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "unit tests and plants added", "before": 0, "after": 10, "unit": "3 tests + 7 plants", "measured": true},
+  {"kind": "unblock", "what": "needs the sync_role.sh .changed.abi line to take effect on role gates", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "plants on xtask-only code build the products twice (one per copy, ~350-470 s each) because the xtask test text names products; a plant whose command runs only the xtask bin unit tests needs none",
+ "next_step": "land; add the .changed.abi line to sync_role.sh; step 3 (overlap the crate steps) as its own story",
+ "report_file": "handoff/AFFECTED-LAYOUT-ROWS.md",
+ "jobs": ["mei:affected-layout-rows-gate4", "mei:affected-layout-rows-plants3"]}

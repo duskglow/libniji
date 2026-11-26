@@ -686,7 +686,7 @@ fn read_ignores(root: &Path, dir: &str, into: &mut Ignores) {
 /// the paths below its own directory, as git reads them: `fuzz/.gitignore`'s `target/` is `fuzz/**/target`).
 fn role_skip(rel: &str, ignores: &Ignores) -> bool {
     let first = rel.split('/').next().unwrap_or("");
-    if matches!(first, "target" | ".git" | ".synced" | ".released" | ".changed" | ".changed.hdr" | ".changed.xtask") {
+    if matches!(first, "target" | ".git" | ".synced" | ".released" | ".changed" | ".changed.hdr" | ".changed.xtask" | ".changed.abi") {
         return true;
     }
     ignores.iter().any(|(dir, pats)| {
@@ -908,6 +908,18 @@ fn clippy_verdict(root: &Path) -> Verdict {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn the_sync_files_are_not_role_content() {
+        // no spec clause: AFFECTED-LAYOUT-ROWS-2. Every sync writes `.changed.abi` (#8697) beside `.changed.xtask`;
+        // read as content, it made every job look like it tested an older tree once the next sync rewrote it.
+        for f in [".synced", ".released", ".changed", ".changed.hdr", ".changed.xtask", ".changed.abi", "target/debug/x"] {
+            assert!(role_skip(f, &Vec::new()), "{f}");
+        }
+        for f in ["crates/abi/src/layout.rs", ".changed.abi.rs", "xtask/.changed.abi"] {
+            assert!(!role_skip(f, &Vec::new()), "{f}");
+        }
+    }
 
     #[test]
     fn slice_contract_names_a_slice_change_to_the_shared_generator() {
