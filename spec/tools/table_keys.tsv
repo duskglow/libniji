@@ -1,0 +1,78 @@
+# The key of every hand-edited table under headers/ and spec/abi/ (HEADERS-FRAGMENTS), one line per table.
+# `cargo xtask static` (table-keys, xtask/src/table_keys.rs) checks every table against its line and fails when two
+# rows have the same key, when a table there has no line here, or a line names no table. Merge tooling reads this
+# file to merge a table row by row: two stories adding different rows never conflict in meaning.
+#
+# The tables: lines starting with `#` and blank lines are comments; the first other line is the header, naming
+# the columns; every later line is a row (a cell past the row's end is empty).
+#
+# Columns of this file (tab-separated, header line below):
+#   path  the table, relative to the repository root.
+#   key   the header names of the key columns, comma-separated, in order.
+#   sort  `key`: rows are in strictly ascending byte order of the key (a new row goes in its place, not at the
+#         end); `-`: no order (a new row goes where its story puts it; merge tooling appends).
+#   unit  `row`: each row is one record, and no two rows have the same key. `block`: the rows with one key are one
+#         record, contiguous (a flattened tree, e.g. a struct's members and their anonymous members, where rows
+#         repeat); a key may not start a second block. A block is merged, kept in order, as a whole.
+path	key	sort	unit
+headers/arrayparams.tsv	function,param	-	row
+headers/fnmembers.tsv	type,member	-	row
+headers/fortify.tsv	name	key	row
+headers/iso10646.tsv	unicode	-	row
+headers/levels.tsv	id	-	row
+headers/providers.tsv	name	-	row
+headers/reserved.tsv	name	-	row
+headers/rows-exceptions.tsv	table,name	-	row
+headers/slices/s05.tsv	header	-	row
+headers/slices/s06.tsv	header	-	row
+headers/slices/s07.tsv	header	-	row
+headers/slices/s08.tsv	header	-	row
+headers/slices/s09.tsv	header	-	row
+headers/slices/s10.tsv	header	-	row
+headers/slices/s11.tsv	header	-	row
+headers/slices/s12.tsv	header	-	row
+headers/slices/s13.tsv	header	-	row
+headers/slices/s14.tsv	header	-	row
+headers/slices/s15.tsv	header	-	row
+headers/slices/s16.tsv	header	-	row
+headers/slices/s17.tsv	header	-	row
+spec/abi/callsites.tsv	name,header,mode,configs	-	row
+spec/abi/chk-prototypes.tsv	name	key	row
+spec/abi/compat-missing-libm.tsv	symbol	key	row
+spec/abi/compat-missing.tsv	symbol	key	row
+spec/abi/compat-plan.tsv	library,symbol,version	key	row
+spec/abi/constants.tsv	macro	key	row
+spec/abi/diagattrs.tsv	name	key	row
+spec/abi/empty-versions.tsv	library,version	-	row
+spec/abi/enum-macros.tsv	name	key	row
+spec/abi/enumerators.tsv	tag,name	-	row
+spec/abi/errmsgs.tsv	errno	-	row
+spec/abi/exports-diff-aarch64.tsv	library,symbol	key	row
+spec/abi/ftm-configs.tsv	id	-	row
+spec/abi/getconf.tsv	name	-	row
+spec/abi/initializers-aarch64.tsv	type,initializer	-	row
+spec/abi/initializers.tsv	type,initializer	-	row
+spec/abi/kernel-spelled.tsv	name	key	row
+spec/abi/langinfo.tsv	category,index	-	row
+spec/abi/layouts-aarch64.tsv	type	-	block
+spec/abi/layouts.tsv	type	-	block
+spec/abi/libm-ulps.tsv	function,type	-	row
+spec/abi/macro-aliases.tsv	header,name	key	row
+spec/abi/macro-forms.tsv	header,name	key	row
+spec/abi/macros.tsv	name	key	row
+spec/abi/native.tsv	kind,name	-	row
+spec/abi/noexcept.tsv	name	key	row
+spec/abi/prototypes-additions.tsv	name	-	row
+spec/abi/prototypes.tsv	name	key	row
+spec/abi/sigmsgs.tsv	signal	-	row
+spec/abi/stubs.tsv	function	key	row
+spec/abi/syscalls.tsv	name	-	row
+spec/abi/sysconf.tsv	kind,name	-	row
+spec/abi/typedefs.tsv	kind,name	-	row
+spec/abi/typegeneric.tsv	header,config,expr	-	row
+spec/abi/use-macros.tsv	config,name	-	row
+spec/abi/versions-aarch64.tsv	library,symbol,version	-	row
+spec/abi/versions-additions.tsv	arch,library,symbol,version	-	row
+spec/abi/versions.tsv	library,symbol,version	-	row
+spec/abi/visibility.tsv	header,name,kind	-	row
+spec/abi/x86-features.tsv	name	-	row
