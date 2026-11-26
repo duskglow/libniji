@@ -155,7 +155,6 @@ Delivered blocks, not here.
 | `getaddrinfo` when every source is unavailable, or the hosts file is missing | `EAI_FAIL`; `EAI_SYSTEM` with `errno` (h_errno `NO_RECOVERY`) for an unreadable file. | `EAI_SYSTEM` with `EBUSY`; not found. | D-16.2 | `s16_2_f_0`, `s16_1_c_2` |
 | `gethostbyname("0x7f.1")` | Resolves, with the grammar `getaddrinfo` already uses. | Not found. | D-16.2 | `s16_3_c_0`, `s15_3_c_3` |
 | `gethostbyaddr`/`gethostbyname2` with a bad family or length | `NETDB_INTERNAL` with `EAFNOSUPPORT`/`EINVAL`. | `HOST_NOT_FOUND`. | D-16.2 | `s16_3_f_0` |
-| `AI_ADDRCONFIG` | Loopback and link-local IPv6 do not count as configured; with no family configured nothing is dropped. | Different on hosts with only `lo`. | D-16.2 | `s16_2_c_2_5` |
 | `getnameinfo` on `AF_UNIX` | `EAI_FAMILY`. | The node name and the path. | D-16.2 | `s16_2_c_4`, `s16_2_f_0` |
 | `__nss_configure_lookup` with an unknown database or unparsable text | -1 with `EINVAL`. | 0 for an unclosed `[`, `errno` unchanged. | D-16.1 | `s16_1_c_2` |
 | `res_search` succeeding after trying another name | `h_errno` unchanged. | Left at `HOST_NOT_FOUND`. | D-16.3 | `s16_4_c_2`, `s16_4_f_0` |

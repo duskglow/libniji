@@ -36,12 +36,12 @@
 //! when there is no IPv6 address, or always with `AI_ALL`. The canonical name is the host's
 //! official name (the text itself for a numeric node), on the first entry only.
 //!
-//! **`AI_ADDRCONFIG`** (D-16.2): a family is configured when an interface has an address of it
-//! other than a loopback address (and, for IPv6, other than a link-local one, which every IPv6
-//! interface has: `getaddrinfo(3)`'s purpose of the flag). Results of a family that is not
-//! configured are dropped, unless no family is configured at all (a host with loopback only
-//! still resolves its loopback names; the reference does the same for `AF_UNSPEC` but drops
-//! everything for `AF_INET6`). Nothing left is `EAI_NONAME`.
+//! **`AI_ADDRCONFIG`** (D-16.2, as the reference behaves when probed): a family is configured
+//! when an interface, up or down, has an address of it other than `127.0.0.1` or `::1`
+//! (link-local addresses count). The flag narrows the request before the node is read: with
+//! one family configured, `AF_UNSPEC` asks for that family only and a request for the other is
+//! `EAI_NONAME`; with neither, `AF_UNSPEC` is left as it is and `AF_INET` or `AF_INET6` is
+//! `EAI_NONAME`. So a host with `::1` and link-local IPv6 resolves `::1` for `AF_INET6`.
 //!
 //! **Order.** The addresses are sorted by RFC 6724 (`niji::names::sort`) with the policy of
 //! `gai.conf`; the source of each destination is the kernel's route to it (a netlink route
@@ -361,22 +361,47 @@ fn fam(af: u32) -> i32 {
     i32::try_from(af).unwrap_or(0)
 }
 
-/// The configured families (IPv4, IPv6) for `AI_ADDRCONFIG`; `None` when the interfaces cannot
-/// be read (nothing is then dropped).
+/// The configured families (IPv4, IPv6) for `AI_ADDRCONFIG` (D-16.2): a family is configured
+/// when some interface, up or down, has an address of it other than `127.0.0.1` or `::1`
+/// (observed: other `127/8` addresses, link-local addresses and any address on `lo` count).
+/// `None` when the interfaces cannot be read (the request is then left as it is).
 fn configured<S: Sys>(sys: &S) -> Option<(bool, bool)> {
     let list = iface::addrs(sys).ok()?;
     let (mut v4, mut v6) = (false, false);
     for a in list.iter() {
         let Some(x) = a.own() else { continue };
         if u32::from(a.family) == AF_INET {
-            v4 |= x.first() != Some(&127);
+            v4 |= x != [127, 0, 0, 1];
         } else if u32::from(a.family) == AF_INET6 {
-            let loopback = x == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-            let link_local = matches!(x, [0xfe, b, ..] if b & 0xc0 == 0x80);
-            v6 |= !loopback && !link_local;
+            v6 |= x != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
         }
     }
     Some((v4, v6))
+}
+
+/// `AI_ADDRCONFIG` narrows the request before anything is looked up (D-16.2): with one family
+/// configured, `AF_UNSPEC` becomes that family and a request for the other is `EAI_NONAME`;
+/// with neither, `AF_UNSPEC` is left as it is and `AF_INET` or `AF_INET6` is `EAI_NONAME`.
+/// Returns the hints and the families still asked for.
+fn addrconfig<S: Sys>(sys: &S, mut h: Hints, v4ok: bool, v6ok: bool) -> R<(Hints, bool, bool)> {
+    let Some((c4, c6)) = configured(sys) else { return Ok((h, v4ok, v6ok)) };
+    let (n4, n6) = addrconfig_families((c4, c6), (v4ok, v6ok)).ok_or(GaiError::Code(EAI_NONAME))?;
+    if (n4, n6) != (v4ok, v6ok) {
+        h.family = fam(if n4 { AF_INET } else { AF_INET6 });
+    }
+    Ok((h, n4, n6))
+}
+
+/// The families (IPv4, IPv6) `AI_ADDRCONFIG` leaves asked for, given the configured families and
+/// the families asked for (both for `AF_UNSPEC`); `None` is `EAI_NONAME` (see [`addrconfig`]).
+pub fn addrconfig_families(configured: (bool, bool), asked: (bool, bool)) -> Option<(bool, bool)> {
+    let (c4, c6) = configured;
+    let (v4, v6) = asked;
+    if v4 && v6 {
+        // AF_UNSPEC: the one configured family alone, else unchanged.
+        return Some(if c4 != c6 { (c4, c6) } else { asked });
+    }
+    ((v4 && c4) || (v6 && c6)).then_some(asked)
 }
 
 /// A table's inline entries in [`GaiConf`]'s buffer.
@@ -585,6 +610,7 @@ pub fn getaddrinfo<S: Sys>(ctx: &Ctx<'_, S>, node: Option<&[u8]>, service: Optio
         f if f == fam(AF_INET6) => (false, true),
         _ => return Err(GaiError::Code(EAI_FAMILY)),
     };
+    let (h, v4ok, v6ok) = if h.flags & AI_ADDRCONFIG != 0 { addrconfig(ctx.sys, h, v4ok, v6ok)? } else { (h, v4ok, v6ok) };
     let socks = sockets(ctx, &h, service)?;
     let mut addrs: TryVec<Addr> = TryVec::new();
     let mut canon = None;
@@ -659,24 +685,6 @@ pub fn getaddrinfo<S: Sys>(ctx: &Ctx<'_, S>, node: Option<&[u8]>, service: Optio
                 }
             }
         },
-    }
-    if h.flags & AI_ADDRCONFIG != 0 {
-        if let Some((c4, c6)) = configured(ctx.sys) {
-            if c4 || c6 {
-                let keep = |a: &Addr| match a.ip {
-                    Ip::V4(_) => c4,
-                    Ip::V6(v) => if Ip::unmapped(&v).is_some() { c4 } else { c6 },
-                };
-                let mut kept = TryVec::new();
-                for a in addrs.iter().filter(|a| keep(a)) {
-                    kept.push(*a)?;
-                }
-                addrs = kept;
-                if addrs.is_empty() {
-                    return Err(GaiError::Code(EAI_NONAME));
-                }
-            }
-        }
     }
     if !passive_wildcard {
         sort_addrs(ctx, addrs.as_mut_slice());
