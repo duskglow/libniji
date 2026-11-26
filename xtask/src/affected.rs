@@ -4304,7 +4304,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         // and before this a test bug that shows only in a libniji process sat on next unseen by the direct tier.
         let second = |c: &str, ts: &[&str]| second_pass(interpose, c, ts);
         // The native pass runs on the products.
-        let products = needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts));
+        let products = builds_products(root, repo, sel, per.iter().any(|(c, ts)| second(c, ts)));
         let mut products_cmd = Command::new(&cargo);
         products_cmd.args(["xtask", "so"]);
         if sel.xtask_tests && products {
@@ -4595,6 +4595,14 @@ fn pass_filter(pass: usize, nextest: bool, c: &str, ts: &[&str]) -> Vec<String> 
     } else {
         Vec::new()
     }
+}
+
+/// Whether a run builds the products: the selection needs them ([`needs_products`]), a selected crate runs its native
+/// pass (`second`), or the selection runs the xtask tests and an xtask target runs products ([`xtask_test_split`]).
+/// AFFECTED-LAYOUT-ROWS: an xtask-only change ran `xtask/tests/transcripts.rs` without them; on a role whose products
+/// were cleared, its programs' loader was gone and every transcript failed with ENOENT (the AFFECTED-COVERAGE gap).
+fn builds_products(root: &Path, repo: &Repo, sel: &Selection, second: bool) -> bool {
+    needs_products(repo, sel) || second || (sel.xtask_tests && !xtask_test_split(root).1.is_empty())
 }
 
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
@@ -7404,5 +7412,16 @@ fn plain() {}", &aliases);
         // A test file of the crate selects its own target, not the dependents' unit tests.
         let t = tier(&["crates/abi/tests/appendix_c_layouts.rs"], Tier::Direct);
         assert!(t.libs.keys().all(|k| k == "niji-abi"), "{:?}", t.libs);
+    }
+
+    #[test]
+    fn an_xtask_only_change_builds_the_products_its_tests_run() {
+        // no spec clause: AFFECTED-LAYOUT-ROWS (its gate on a role with cleared products: the transcripts ran no
+        // program). This module alone selects the xtask tests and nothing that needs products; the transcripts do.
+        let (r, s) = sel(&["xtask/src/affected.rs"]);
+        assert!(s.xtask_tests && !needs_products(r, &s), "{s:?}");
+        assert!(builds_products(&root(), r, &s, false), "the xtask targets that run products get them");
+        let (r, none) = sel(&["handoff/AFFECTED-COVERAGE.md"]);
+        assert!(!none.xtask_tests && !builds_products(&root(), r, &none, false), "docs: no products");
     }
 }
