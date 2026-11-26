@@ -29,6 +29,8 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
 * P9      each header that shows a typedef the compiler's <stddef.h> or <stdarg.h> defines, with those headers
           before and after it (see `compiler_order_units`).
+* P1G     the include guards headers/reserved.tsv emits: defined with their value where visibility.tsv shows them in
+          a `p1` 1 header, not defined where it does not (see `guard_units`).
 
 Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed. `--only REGEX` runs
 only the units whose title matches (no slice-module problems, no P8; a plant's command); selecting none fails.
@@ -239,6 +241,29 @@ def p1_units(ctx):
     return units
 
 
+def guard_units(ctx):
+    """P1G (no spec clause: owner ruling R-H2, the reserved include guards that other software tests): for every
+    include guard `headers/reserved.tsv` emits and every header with `p1` 1 that visibility.tsv shows it in, one unit
+    per configuration. Where shown, the guard is defined with its macros.tsv value, usable in #if (perl's nostdio.h
+    and the kernel's linux/libc-compat.h test it with #if); where not shown, it is not defined, since it states that
+    its header was included. P1 leaves the reserved names out (they are emitted only where reserved.tsv says)."""
+    emit = {r["name"] for r in ctx.rows("headers/reserved.tsv") if r["policy"] == "emit"}
+    guards = {n for n in emit if n.startswith("_") and not n.startswith("__") and n.rstrip("_").endswith("_H")}
+    p1 = {r["header"] for r in ctx.slice_rows if r["p1"] == "1"}
+    units = {}
+    for r in ctx.vis:
+        n, h = r["name"], r["header"]
+        if n not in guards or h not in p1 or r["kind"] != "macro":
+            continue
+        shown = expand(r["configs"], ctx.ids)
+        v = ctx.macros[n]["value"]
+        for cid in ctx.ids:
+            test = (f"#if !defined {n} || {n} != {v}\n#error \"{n} is not {v}\"\n#endif\n" if cid in shown
+                    else f"#ifdef {n}\n#error \"{n} defined\"\n#endif\n")
+            units.setdefault(cid, []).append((f"P1G {h} {n}", f"#include <{h}>\n{test}int niji_p1g_tu;\n"))
+    return units
+
+
 def uapi_flags():
     """`-isystem` for the kernel UAPI directories (linux-libc-dev) some headers include: $NIJI_UAPI (the tree
     `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include
@@ -405,6 +430,8 @@ def main():
     ctx.must_fail = must_fail
     p1s = p1_units(ctx)
     for cid, us in compiler_order_units(ctx).items():
+        p1s.setdefault(cid, []).extend(us)
+    for cid, us in guard_units(ctx).items():
         p1s.setdefault(cid, []).extend(us)
     for name, mod in mods:
         if not only:

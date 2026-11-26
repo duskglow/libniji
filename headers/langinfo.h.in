@@ -11,11 +11,19 @@ __NIJI_BEGIN_C
    and its category and index. Black-box probes of the reference settle the form: _NL_ITEM is usable in #if and its
    type follows its arguments; the other two convert their argument to int first, so they are not usable in #if,
    their type is int, a category above 32767 reads back negative and an index is the low 16 bits. */
-@@owns-macro _NL_ITEM _NL_ITEM_CATEGORY _NL_ITEM_INDEX
+@@owns-macro _NL_ITEM _NL_ITEM_CATEGORY _NL_ITEM_INDEX _NL_LOCALE_NAME
 @@if _NL_ITEM
 # define _NL_ITEM(category, index) (((category) << 16) | (index))
 # define _NL_ITEM_CATEGORY(item) ((int) (item) >> 16)
 # define _NL_ITEM_INDEX(item) ((int) (item) & 0xffff)
+#endif
+
+/* The item whose nl_langinfo answer is the name of CATEGORY's locale, as setlocale (CATEGORY, NULL) would name it
+   ("" for LC_ALL): index 0xffff of the category. Its form, from black-box probes of the reference: the value is
+   _NL_ITEM (category, 0xffff), its type follows its argument, and it is not usable in #if (perl's perl.h tests only
+   whether it is defined, and that choice changes the layout of perl's interpreter structure). */
+@@if _NL_LOCALE_NAME
+# define _NL_LOCALE_NAME(category) _NL_ITEM ((category), _NL_ITEM_INDEX (-1))
 #endif
 
 @@emit

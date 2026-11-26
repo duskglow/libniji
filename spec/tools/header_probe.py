@@ -354,6 +354,9 @@ def package_names():
     out += ["__priority_which_t", "h_addr", "IN_CLASSA", "IN_CLASSB", "IN_CLASSC", "IN_CLASSD", "IN_MULTICAST",
             "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname",
             "IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT"]
+    # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
+    # the interpreter structure's layout with it. (`static_assert`, which perl.h also tests, is a stage2_names candidate.)
+    out += ["_NL_LOCALE_NAME"]
     # HEADERS-GETTEXT-CLANG (Yohane's stage 2 on snapshot 2026-11-25.2): the struct utmp compatibility member names
     # sysvinit and procps use (utmp(5): `ut_name`, `ut_time`, `ut_addr`; `ut_xtime` beside them) and the login
     # accounting file name macros of the same header; psutil's struct ifaddrs union member names (getifaddrs(3):

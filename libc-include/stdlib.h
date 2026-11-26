@@ -9,6 +9,18 @@
 
 __NIJI_BEGIN_C
 
+#if __NIJI_GNU
+# ifndef __NIJI_D_struct___locale_struct
+#  define __NIJI_D_struct___locale_struct 1
+struct __locale_struct {
+  struct __locale_data * __locales[13];
+  const unsigned short * __ctype_b;
+  const int * __ctype_tolower;
+  const int * __ctype_toupper;
+  const char * __names[13];
+};
+# endif
+#endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_struct_drand48_data
 #  define __NIJI_D_struct_drand48_data 1
