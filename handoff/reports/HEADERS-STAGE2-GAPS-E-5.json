@@ -8,4 +8,4 @@
  "improvement": "Offer a mechanical keep-both resolver for sorted tables in the merge tooling; it was the bulk of the work.",
  "next_step": "land",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-E-5.md",
- "jobs": ["headers-stage2-gaps-e-5-gate", "headers-stage2-gaps-e-5-plants2"]}
+ "jobs": ["headers-stage2-gaps-e-5-gate2", "headers-stage2-gaps-e-5-plants3"]}
