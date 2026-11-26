@@ -709,7 +709,12 @@ impl Gen<'_> {
                 // An alias the header shows in only some of the macro's configurations names it there only.
                 if let Some((a, Some(c))) = self.macro_alias(name) {
                     let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
-                    self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+                    if self.t.redefined(&self.header, name) {
+                        // As below: the reference's definition replaces a program's earlier one.
+                        self.out.extend([format!("# if {c}"), format!("#  define {name} {a}"), "# else".into(), format!("#  define {name} {v}"), "# endif".into()]);
+                    } else {
+                        self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+                    }
                     return;
                 }
                 let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
