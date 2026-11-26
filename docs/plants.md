@@ -37,8 +37,9 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
    plant does not change exactly one site of its file in the current tree. It warns (`WARN-NOT-RAM`) when `--dir` is
    not on tmpfs or zram.
 2. It copies the tree to `<dir>/src` with `rsync -a --exclude /target --exclude /fuzz/target` (the source only).
-3. In the copy it runs `cargo xtask so` (the products), then each distinct plant command once on the unmutated copy.
-   If one of them fails, it prints the last lines of its log and exits 2 before any plant is applied.
+3. In the copy it runs `cargo xtask so` (the products) when one of the copy's plants reads them (below), then each
+   distinct plant command once on the unmutated copy. If one of them fails, it prints the last lines of its log and
+   exits 2 before any plant is applied.
 4. For each plant: it writes the mutated file (a fresh mtime, so cargo rebuilds), runs the command with `sh -c` in the
    copy (under `timeout`, default 600 s, the project's per-plant limit), then restores the file by writing it again (again a fresh mtime).
    Every command it runs in the copy (the product build, the baseline commands, each plant's command) has
@@ -60,10 +61,28 @@ uses the products by the rule `cargo xtask affected` builds them for (its source
 `conformance`; xtask's own test targets, which `affected` does not list, by the same text rule, and unsure
 when the file names a directory of `xtask/tests/`). Such a plant reuses the baseline build; anything
 else (shell syntax, `cargo xtask affected`, all targets of a package, an unknown target or option) rebuilds.
-After a plant that rebuilt the products, the next plant that does not use them first rebuilds them unmutated
+A list of simple commands (`a && b`, `a; b`, `a || b`, bare or as `sh -c '...'`, words plainly quoted) is judged
+command by command; a pipe, redirection, expansion, glob, subshell, variable assignment or nested shell counts as
+shell syntax. Besides `cargo test`, `cargo xtask headers-gen`, `python3 spec/tools/header_check.py` and
+`python3 spec/tools/header_checks/<file>` are known not to use the products (unless an argument names them).
+A plant on a file no product build reads (under a crate's `tests/`, `benches/` or `examples/`, or `xtask/tests/`:
+the build tag check fails a build that reads one) reuses the baseline build even when its command uses the products.
+After a plant that rebuilt the products, the next plant whose command reads them first rebuilds them unmutated
 (`<id>.so-restore.log`), so no command sees an earlier plant's mutant. The verdict line names the build
-used and its layout (`build: the baseline products (layout ungrouped), not rebuilt`, or `rebuilt with the mutant,
-layout ungrouped, in <n>s`).
+used and its layout (`build: the baseline products (layout ungrouped), not rebuilt`, `rebuilt with the mutant,
+layout ungrouped, in <n>s`, or `none (its command reads no products)`).
+
+**Which copies build the products** (PLANTS-PRODUCTS-ONCE). A command *reads* the products when it may use them
+(above), measures the layout, or is a `cargo test` of unit tests (`--lib`, `--bin`, `--bins`) that may read them by
+the rule `cargo xtask affected` orders the gate's steps with (an xtask unit test whose text joins a products path,
+matched against libtest's name filters over the whole test path; another package's when a source under its `src/`
+names them). A copy builds the products only when one of its plants reads them, so plants are dealt to copies by
+need: plants that rebuild with their mutant in turn over as many copies as there are such plants (at most
+`--copies`); plants that only read the unmutated build join those copies (one copy when none rebuilds); plants that
+read nothing fill the copies that build nothing, or are spread over all when every copy builds. The run prints
+`products: <r> of <n> plants read them, <m> rebuilt with their mutant; built in <b> of <c> copies`. A plant that
+reads nothing runs in a copy that may hold no products at all: a command that fails without them fails its
+baseline there (exit 2), so such a wrong "reads nothing" shows before any plant is applied.
 
 **The layout of each build** (PLANTS-UNGROUPED-MUTANTS). A mutant's behaviour does not depend on the start-up layout,
 and a traced product build costs minutes per mutant, so the tool builds the products of an ordinary plant (and its
