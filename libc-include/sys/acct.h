@@ -25,6 +25,11 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define __NIJI_D_acct 1
 extern int acct (const char *) __NIJI_NOTHROW;
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 
 __NIJI_END_C

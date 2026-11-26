@@ -91,6 +91,13 @@ struct timespec;
 extern int sem_clockwait (sem_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 3)));
 # endif
 #endif
+#if __NIJI_POSIX >= 200112
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
+#endif
 
 #if 1
 # define SEM_FAILED ((sem_t *) ((sem_t *) 0L))

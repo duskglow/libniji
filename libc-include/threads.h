@@ -202,6 +202,11 @@ enum {
 #  endif
 # endif
 # define TSS_DTOR_ITERATIONS 4
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 
 #if 1

@@ -792,6 +792,11 @@ enum {
 # define SOL_ICMPV6 58
 # define SOL_IP 0
 # define SOL_IPV6 41
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if defined __USE_MISC
 # define MCAST_BLOCK_SOURCE 43
@@ -803,6 +808,33 @@ enum {
 # define MCAST_LEAVE_SOURCE_GROUP 47
 # define MCAST_MSFILTER 48
 # define MCAST_UNBLOCK_SOURCE 44
+#endif
+
+/* __bswap_16, __bswap_32, __bswap_64: the bytes of x in reverse order, as static inline functions of the 16-, 32- and
+   64-bit unsigned types (__uint16_t, __uint32_t, __uint64_t), with no library symbol (black-box probe of their type
+   and linkage; R-H7: eudev). Each header that shows them carries this definition; the first one included defines
+   them. */
+#if 1
+# ifndef __NIJI_D_bswap
+#  define __NIJI_D_bswap 1
+static __inline unsigned short int
+__bswap_16 (unsigned short int __x)
+{
+  return __builtin_bswap16 (__x);
+}
+
+static __inline unsigned int
+__bswap_32 (unsigned int __x)
+{
+  return __builtin_bswap32 (__x);
+}
+
+static __inline unsigned long int
+__bswap_64 (unsigned long int __x)
+{
+  return __builtin_bswap64 (__x);
+}
+# endif
 #endif
 
 /* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list

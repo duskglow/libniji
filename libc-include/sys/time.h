@@ -442,6 +442,13 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # define __FD_SETSIZE 1024
 # define __NFDBITS 64
 #endif
+#if __NIJI_POSIX >= 200112
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
+#endif
 #if defined __USE_MISC
 # define NFDBITS 64
 #endif

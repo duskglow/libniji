@@ -457,7 +457,12 @@ extern unsigned long wctype_l (const char *, locale_t) __NIJI_NOTHROW;
 # ifndef _WINT_T
 #  define _WINT_T 1
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
 # define __FD_SETSIZE 1024
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 
 __NIJI_END_C

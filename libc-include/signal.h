@@ -3318,6 +3318,8 @@ enum {
 #  define _NSIG 65
 # endif
 # define __FD_SETSIZE 1024
+# define __SIGRTMAX 64
+# define __SIGRTMIN 32
 #endif
 #if __NIJI_DYNSTACK
 # ifndef F_LOCK
@@ -3757,6 +3759,11 @@ enum {
 # ifndef SIGEV_THREAD_ID
 #  define SIGEV_THREAD_ID SIGEV_THREAD_ID
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
 # ifndef SI_ASYNCIO

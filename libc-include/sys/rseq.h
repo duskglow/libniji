@@ -42,6 +42,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 #endif
 #if 1
 # define RSEQ_SIG 1392848979
+# define __LITTLE_ENDIAN 1234
 #endif
 
 #if 1

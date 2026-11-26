@@ -6,9 +6,12 @@
 #include <features.h>
 #include <sys/types.h>
 #include <stdint.h>
+/* The FDDI_K_* sizes and struct fddihdr are the kernel's (R-H7: net-tools). */
+#include <linux/if_fddi.h>
 
 __NIJI_BEGIN_C
 
+@@owns fddi_8022_1_hdr fddi_8022_2_hdr fddi_snap_hdr fddihdr
 @@emit
 
 __NIJI_END_C

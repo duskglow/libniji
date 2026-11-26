@@ -119,7 +119,7 @@ extern char *strtok_r (char *, const char *, char **) __NIJI_NOTHROW __attribute
 # ifndef __NIJI_D_strerror_r
 #  define __NIJI_D_strerror_r 1
 #  if __NIJI_POSIX >= 200112 && !defined __USE_GNU
-extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern int strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r") __attribute__ ((__nonnull__ (2)));
 #  elif defined __USE_GNU
 extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #  endif

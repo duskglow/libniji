@@ -1535,10 +1535,42 @@ extern void srandom (unsigned int) __NIJI_NOTHROW;
 # define LITTLE_ENDIAN 1234
 # define NFDBITS 64
 # define PDP_ENDIAN 3412
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
 # define __NFDBITS 64
+# define __PDP_ENDIAN 3412
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 450
 # define __FD_SETSIZE 1024
+#endif
+
+/* __bswap_16, __bswap_32, __bswap_64: the bytes of x in reverse order, as static inline functions of the 16-, 32- and
+   64-bit unsigned types (__uint16_t, __uint32_t, __uint64_t), with no library symbol (black-box probe of their type
+   and linkage; R-H7: eudev). Each header that shows them carries this definition; the first one included defines
+   them. */
+#if defined __USE_MISC
+# ifndef __NIJI_D_bswap
+#  define __NIJI_D_bswap 1
+static __inline unsigned short int
+__bswap_16 (unsigned short int __x)
+{
+  return __builtin_bswap16 (__x);
+}
+
+static __inline unsigned int
+__bswap_32 (unsigned int __x)
+{
+  return __builtin_bswap32 (__x);
+}
+
+static __inline unsigned long int
+__bswap_64 (unsigned long int __x)
+{
+  return __builtin_bswap64 (__x);
+}
+# endif
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS

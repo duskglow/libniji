@@ -1013,8 +1013,23 @@ extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_
 # endif
 #endif
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400
+# ifndef __BIG_ENDIAN
+#  define __BIG_ENDIAN 4321
+# endif
+# ifndef __BYTE_ORDER
+#  define __BYTE_ORDER 1234
+# endif
 # ifndef __FD_SETSIZE
 #  define __FD_SETSIZE 1024
+# endif
+# ifndef __FLOAT_WORD_ORDER
+#  define __FLOAT_WORD_ORDER 1234
+# endif
+# ifndef __LITTLE_ENDIAN
+#  define __LITTLE_ENDIAN 1234
+# endif
+# ifndef __PDP_ENDIAN
+#  define __PDP_ENDIAN 3412
 # endif
 #endif
 #if __NIJI_FORTIFY > 0
@@ -1094,9 +1109,15 @@ typedef struct _IO_FILE __FILE;
 struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
 #if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_fwprintf
 #  define __NIJI_F_fwprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___fwprintf_chk
 #   define __NIJI_D___fwprintf_chk 1
 extern int __fwprintf_chk (__FILE *, int, const wchar_t *, ...);
@@ -1105,6 +1126,13 @@ __NIJI_FORTIFY_FN int fwprintf (__FILE *__p0, const wchar_t *__p1, ...)
 {
   return __fwprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___fwprintf_chk
+#    define __NIJI_D___fwprintf_chk 1
+extern int __fwprintf_chk (__FILE *, int, const wchar_t *, ...);
+#   endif
+#   define fwprintf(__p0, ...) __fwprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
@@ -1142,6 +1170,7 @@ __NIJI_FORTIFY_FN unsigned long mbsrtowcs (wchar_t *__p0, const char **__p1, uns
 #if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_swprintf
 #  define __NIJI_F_swprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___swprintf_chk
 #   define __NIJI_D___swprintf_chk 1
 extern int __swprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW;
@@ -1153,6 +1182,13 @@ __NIJI_FORTIFY_FN int swprintf (wchar_t *__p0, unsigned long __p1, const wchar_t
     return __niji_plain_swprintf (__p0, __p1, __p2, __builtin_va_arg_pack ());
   return __swprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)), __p2, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___swprintf_chk
+#    define __NIJI_D___swprintf_chk 1
+extern int __swprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW;
+#   endif
+#   define swprintf(__p0, __p1, ...) __swprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)), __VA_ARGS__)
+#  endif
 # endif
 #endif
 # ifndef __NIJI_D___FILE
@@ -1450,6 +1486,7 @@ __NIJI_FORTIFY_FN wchar_t *wmemset (wchar_t *__p0, wchar_t __p1, unsigned long _
 #if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_wprintf
 #  define __NIJI_F_wprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___wprintf_chk
 #   define __NIJI_D___wprintf_chk 1
 extern int __wprintf_chk (int, const wchar_t *, ...);
@@ -1458,6 +1495,13 @@ __NIJI_FORTIFY_FN int wprintf (const wchar_t *__p0, ...)
 {
   return __wprintf_chk (__NIJI_FORTIFY_FLAG, __p0, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___wprintf_chk
+#    define __NIJI_D___wprintf_chk 1
+extern int __wprintf_chk (int, const wchar_t *, ...);
+#   endif
+#   define wprintf(...) __wprintf_chk (__NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 

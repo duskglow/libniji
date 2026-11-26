@@ -828,6 +828,11 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 # define UTIME_NOW 1073741823L
 # define UTIME_OMIT 1073741822L
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
 # define SEEK_CUR 1

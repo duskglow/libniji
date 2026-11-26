@@ -12,6 +12,8 @@ __NIJI_BEGIN_C
 @@owns-macro _tolower _toupper isalnum isalnum_l isalpha isalpha_l isascii isblank isblank_l iscntrl iscntrl_l isdigit isdigit_l isgraph isgraph_l islower islower_l isprint isprint_l ispunct ispunct_l isspace isspace_l isupper isupper_l isxdigit isxdigit_l toascii tolower tolower_l toupper toupper_l
 @@emit
 
+@@fragments
+
 /* The class masks the macros below name: an enumeration of twelve constants. The visibility probes see macros only, so the
    generated part above holds the two the reference also defines as macros; the other ten are listed here (values: the
    little-endian bit order of the table, Appendix C.9; each settled by compiling a program against the reference). */

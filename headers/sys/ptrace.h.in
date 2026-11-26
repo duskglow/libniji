@@ -8,6 +8,10 @@
 __NIJI_BEGIN_C
 
 @@enum __ptrace_request
+/* The PTRACE_SETOPTIONS option bits and the PTRACE_EVENT_* stop codes are enumerators, as the reference's header shows
+   them (black-box probe; R-H7: glib2.0). */
+@@enum __ptrace_setoptions
+@@enum __ptrace_eventcodes
 @@emit
 
 __NIJI_END_C

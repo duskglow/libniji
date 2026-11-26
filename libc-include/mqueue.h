@@ -202,6 +202,13 @@ struct timespec;
 extern int mq_timedsend (int, const char *, unsigned long, unsigned int, const struct timespec *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
+#if 1
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
+#endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
 # define __NIJI_FORTIFY_DEFS 1
@@ -220,6 +227,7 @@ extern int mq_timedsend (int, const char *, unsigned long, unsigned int, const s
 #if (1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_mq_open
 #  define __NIJI_F_mq_open 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___mq_open_2
 #   define __NIJI_D___mq_open_2 1
 extern int __mq_open_2 (const char *, int) __NIJI_NOTHROW;
@@ -246,6 +254,7 @@ __NIJI_FORTIFY_FN int mq_open (const char *__p0, int __p1, ...) __NIJI_NOTHROW
     }
   return __niji_plain_mq_open (__p0, __p1, __builtin_va_arg_pack ());
 }
+#  endif
 # endif
 #endif
 

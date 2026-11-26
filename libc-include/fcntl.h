@@ -737,6 +737,11 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 # define UTIME_NOW 1073741823L
 # define UTIME_OMIT 1073741822L
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
 # define SEEK_CUR 1
@@ -1026,6 +1031,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 #if (1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_open
 #  define __NIJI_F_open 1
+#  if !defined __clang__
 #  if __NIJI_FOB64
 #  ifndef __NIJI_D___open64_2
 #   define __NIJI_D___open64_2 1
@@ -1081,11 +1087,13 @@ __NIJI_FORTIFY_FN int open (const char *__p0, int __p1, ...)
   return __niji_plain_open (__p0, __p1, __builtin_va_arg_pack ());
 }
 #  endif
+#  endif
 # endif
 #endif
 #if (__NIJI_LFS64) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_open64
 #  define __NIJI_F_open64 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___open64_2
 #   define __NIJI_D___open64_2 1
 extern int __open64_2 (const char *, int);
@@ -1112,11 +1120,13 @@ __NIJI_FORTIFY_FN int open64 (const char *__p0, int __p1, ...)
     }
   return __niji_plain_open64 (__p0, __p1, __builtin_va_arg_pack ());
 }
+#  endif
 # endif
 #endif
 #if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_openat
 #  define __NIJI_F_openat 1
+#  if !defined __clang__
 #  if __NIJI_FOB64
 #  ifndef __NIJI_D___openat64_2
 #   define __NIJI_D___openat64_2 1
@@ -1172,11 +1182,13 @@ __NIJI_FORTIFY_FN int openat (int __p0, const char *__p1, int __p2, ...)
   return __niji_plain_openat (__p0, __p1, __p2, __builtin_va_arg_pack ());
 }
 #  endif
+#  endif
 # endif
 #endif
 #if (__NIJI_LFS64) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_openat64
 #  define __NIJI_F_openat64 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___openat64_2
 #   define __NIJI_D___openat64_2 1
 extern int __openat64_2 (int, const char *, int);
@@ -1203,6 +1215,7 @@ __NIJI_FORTIFY_FN int openat64 (int __p0, const char *__p1, int __p2, ...)
     }
   return __niji_plain_openat64 (__p0, __p1, __p2, __builtin_va_arg_pack ());
 }
+#  endif
 # endif
 #endif
 

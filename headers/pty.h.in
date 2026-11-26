@@ -12,6 +12,8 @@ __NIJI_BEGIN_C
 @@owns TCSETS2
 @@emit
 
+@@fragments
+
 __NIJI_END_C
 
 #endif

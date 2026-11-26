@@ -363,6 +363,14 @@ extern int isblank (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D___tolower_l
+#  define __NIJI_D___tolower_l 1
+extern int __tolower_l (int, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___toupper_l
+#  define __NIJI_D___toupper_l 1
+extern int __toupper_l (int, locale_t) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D_isalnum_l
 #  define __NIJI_D_isalnum_l 1
 extern int isalnum_l (int, locale_t) __NIJI_NOTHROW;
@@ -458,7 +466,19 @@ enum {
 };
 #  endif
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
 # define __FD_SETSIZE 1024
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
+#endif
+
+/* __tolower_l and __toupper_l: declared functions (the exports tolower_l and toupper_l call under _FORTIFY_SOURCE;
+   R-H7: postgresql-17), and under _FORTIFY_SOURCE also macros that call them, as the reference's header shows them. */
+#if __NIJI_FORTIFY >= 1
+# define __tolower_l(c, l) __tolower_l ((c), (l))
+# define __toupper_l(c, l) __toupper_l ((c), (l))
 #endif
 
 /* The class masks the macros below name: an enumeration of twelve constants. The visibility probes see macros only, so the

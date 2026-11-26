@@ -37,6 +37,14 @@ struct _ftsent {
   char fts_name[1];
 };
 # endif
+#endif
+#if __NIJI_LFS64
+# ifndef __NIJI_D_struct__ftsent64
+#  define __NIJI_D_struct__ftsent64 1
+struct _ftsent64 { char __niji_opaque[120] __attribute__ ((__aligned__ (8))); };
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_FTS
 #  define __NIJI_D_FTS 1
 typedef struct {

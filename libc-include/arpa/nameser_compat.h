@@ -156,6 +156,11 @@ typedef struct {
 # define T_X25 19
 # define YXDOMAIN 6
 # define YXRRSET 7
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 
 __NIJI_END_C

@@ -640,7 +640,12 @@ extern int unshare (int) __NIJI_NOTHROW;
 # ifndef _BITS_TYPES_STRUCT_SCHED_PARAM
 #  define _BITS_TYPES_STRUCT_SCHED_PARAM 1
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
 # define __FD_SETSIZE 1024
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
 # ifndef TIME_UTC

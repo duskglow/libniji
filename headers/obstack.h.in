@@ -42,6 +42,8 @@ __NIJI_BEGIN_C
 # define obstack_free(__h, __obj) obstack_free ((__h), (__obj))
 #endif
 
+@@fragments
+
 __NIJI_END_C
 
 #endif

@@ -7,6 +7,9 @@
 #include <features.h>
 #include <sys/types.h>
 #include <stdint.h>
+/* struct ethhdr and the ETH_* sizes and ETH_P_* protocol numbers are the kernel's; <netinet/if_ether.h> has them
+   through this header (R-H7: iptables). */
+#include <linux/if_ether.h>
 
 __NIJI_BEGIN_C
 

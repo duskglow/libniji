@@ -93,6 +93,11 @@ enum {
 # ifndef TFD_TIMER_CANCEL_ON_SET
 #  define TFD_TIMER_CANCEL_ON_SET TFD_TIMER_CANCEL_ON_SET
 # endif
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 
 __NIJI_END_C

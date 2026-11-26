@@ -667,6 +667,11 @@ extern long timegm (struct tm *) __NIJI_NOTHROW;
 #endif
 #if __NIJI_ISOC >= 2011
 # define TIME_UTC 1
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if __NIJI_POSIX >= 199309
 # define CLOCK_BOOTTIME 7

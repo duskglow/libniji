@@ -682,6 +682,11 @@ extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHR
 #if __NIJI_POSIX >= 200809
 # define UTIME_NOW 1073741823L
 # define UTIME_OMIT 1073741822L
+# define __BIG_ENDIAN 4321
+# define __BYTE_ORDER 1234
+# define __FLOAT_WORD_ORDER 1234
+# define __LITTLE_ENDIAN 1234
+# define __PDP_ENDIAN 3412
 #endif
 #if defined __USE_GNU
 # ifndef STATX_ALL

@@ -12,6 +12,8 @@ __NIJI_BEGIN_C
 struct sgttyb;
 @@emit
 
+@@fragments
+
 __NIJI_END_C
 
 #endif
