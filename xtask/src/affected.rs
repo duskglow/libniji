@@ -124,6 +124,11 @@
 //! the xtask unit tests and every xtask target that runs no products (`names_products`) BESIDE the products build when
 //! the memory limit holds `SIDE_BY_SIDE_BYTES` (else the products first, then those tests), then the xtask targets that
 //! run products, on the fresh products. Each step keeps its own console lines and log; any red step makes the run red.
+//! AFFECTED-LAYOUT-ROWS-2 (D-X.176) widens that pair to a bounded run (`run_steps`): the products build, the xtask
+//! tests and every crate's test passes are steps; a step starts when the steps it needs have ended (a crate's passes
+//! in order, a step that runs products after the products build), up to `step_slots` at a time (one per
+//! `STEP_BYTES` of the memory limit and per `STEP_CPUS` free CPUs, at least two; one below `SIDE_BY_SIDE_BYTES`,
+//! which is exactly the old order); steps holding a nextest test group never overlap. Output stays in step order.
 //! `--replay <records>` checks that the failures of past gates fall inside a tier (`replay`).
 //!
 //! `--reverse` (XTASK-AFFECTED-REVERSE, attribution for a train gate): given the failed tests (`--failed <id>...` as
@@ -4309,7 +4314,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         // bounded run (`run_steps`): a step starts when the steps it needs have ended, up to `step_slots` at a time
         // (memory and free CPUs); each step's output is printed and logged in one piece, in this order.
         let cpus = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
-        let (slots, why) = step_slots(memory_room(), cpus, load_average());
+        let host = host_free_cpus(&read(Path::new("/proc/stat")), &read(Path::new("/proc/loadavg")));
+        let (slots, why) = step_slots(memory_room(), cpus, host);
         let overlap = slots > 1;
         println!("note: {why}");
         // The native pass's runner, made once by the first native step (`pass2::prepare`); `Err` once it failed. The
@@ -4577,24 +4583,28 @@ const STEP_LOGS: &str = "affected-steps";
 
 /// How many steps of a run go at a time (GATE-BOUNDED-PARALLEL, AFFECTED-LAYOUT-ROWS-2), and why, for the run's
 /// note: one when `room` (bytes) is below [`SIDE_BY_SIDE_BYTES`] or unknown; else as many [`STEP_BYTES`] as fit
-/// in `room`, and no more than one per [`STEP_CPUS`] of the `cpus` not taken by the `load` (one-minute load
-/// average; unknown: none free), but at least two (the products build beside the xtask tests, as before).
-fn step_slots(room: Option<u64>, cpus: usize, load: Option<f64>) -> (usize, String) {
+/// in `room`, and no more than one per [`STEP_CPUS`] free CPUs, but at least two (the products build beside the
+/// xtask tests, as before). Free: the run's own `cpus` (its affinity or quota), at most the `host`'s free CPUs
+/// ([`host_free_cpus`]: online CPUs minus the one-minute load, which counts the whole host; unknown: none free).
+fn step_slots(room: Option<u64>, cpus: usize, host: Option<usize>) -> (usize, String) {
     let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
     match room {
         Some(r) if r >= SIDE_BY_SIDE_BYTES => {
-            let free = load.map_or(0, |l| cpus.saturating_sub(l.max(0.0).ceil() as usize));
+            let free = host.map_or(0, |h| h.min(cpus));
             let n = ((r / STEP_BYTES) as usize).min((free / STEP_CPUS).max(2));
-            (n, format!("up to {n} steps at a time ({} of memory, {} a step; {free} of {cpus} CPUs free, {STEP_CPUS} a step, at least two)", gib(r), gib(STEP_BYTES)))
+            (n, format!("up to {n} steps at a time ({} of memory, {} a step; {free} of the run's {cpus} CPUs free on the host, {STEP_CPUS} a step, at least two)", gib(r), gib(STEP_BYTES)))
         }
         Some(r) => (1, format!("one step at a time ({} of memory, two side by side need {})", gib(r), gib(SIDE_BY_SIDE_BYTES))),
         None => (1, "one step at a time (the memory limit cannot be read)".into()),
     }
 }
 
-/// The one-minute load average of the host (`/proc/loadavg`).
-fn load_average() -> Option<f64> {
-    read(Path::new("/proc/loadavg")).split_whitespace().next()?.parse().ok()
+/// The host's CPUs not taken by its load: the `cpuN` lines of `/proc/stat` text `stat` (online CPUs) minus the
+/// one-minute load average of `/proc/loadavg` text `loadavg`, rounded up. `None` when either cannot be read.
+fn host_free_cpus(stat: &str, loadavg: &str) -> Option<usize> {
+    let online = stat.lines().filter(|l| l.strip_prefix("cpu").is_some_and(|n| n.starts_with(|c: char| c.is_ascii_digit()))).count();
+    let load: f64 = loadavg.split_whitespace().next()?.parse().ok()?;
+    (online > 0 && load.is_finite()).then(|| online.saturating_sub(load.max(0.0).ceil() as usize))
 }
 
 /// The binaries of the nextest test groups (`.config/nextest.toml` text `config`): the names of every
@@ -5591,16 +5601,27 @@ mod tests {
         assert_eq!(cgroup_limit("0::a/b\n", &nested), None);
         assert_eq!(cgroup_limit("1:memory:/a\n", &nested), None);
         // AFFECTED-LAYOUT-ROWS-2: steps at a time: memory first (one below the measured pair), then one per
-        // STEP_CPUS free CPUs (load taken off; unknown load: none free), never fewer than the pair.
-        let slots = |room: Option<u64>, cpus: usize, load: Option<f64>| step_slots(room, cpus, load).0;
-        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES), 96, Some(0.0)), 2);
-        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES - 1), 96, Some(0.0)), 1);
-        assert_eq!(slots(None, 96, Some(0.0)), 1);
-        assert_eq!(slots(Some(16 << 30), 48, Some(1.0)), 3);
-        assert_eq!(slots(Some(16 << 30), 96, Some(0.0)), 5);
-        assert_eq!(slots(Some(16 << 30), 12, Some(0.0)), 2);
-        assert_eq!(slots(Some(16 << 30), 48, Some(47.5)), 2);
+        // STEP_CPUS free CPUs (the run's own, at most the host's free ones; unknown: none free), never fewer than the
+        // pair.
+        let slots = |room: Option<u64>, cpus: usize, host: Option<usize>| step_slots(room, cpus, host).0;
+        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES), 96, Some(96)), 2);
+        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES - 1), 96, Some(96)), 1);
+        assert_eq!(slots(None, 96, Some(96)), 1);
+        assert_eq!(slots(Some(16 << 30), 48, Some(47)), 3);
+        assert_eq!(slots(Some(16 << 30), 96, Some(96)), 5);
+        assert_eq!(slots(Some(16 << 30), 12, Some(12)), 2);
+        assert_eq!(slots(Some(16 << 30), 48, Some(0)), 2);
         assert_eq!(slots(Some(16 << 30), 48, None), 2);
+        // A run held to 36 CPUs on a host with 43 free: the run's 36 count (3 steps), not 43 or 36 minus the load.
+        assert_eq!(slots(Some(16 << 30), 36, Some(43)), 3);
+        assert_eq!(slots(Some(16 << 30), 36, Some(30)), 2);
+        // The host's free CPUs: online `cpuN` lines (not the `cpu` total) minus the load, rounded up.
+        let stat = "cpu  1 2 3\ncpu0 1 2 3\ncpu1 1 2 3\ncpu2 1 2 3\ncpu3 1 2 3\nintr 5\n";
+        assert_eq!(host_free_cpus(stat, "0.00 0.1 0.2 1/100 7\n"), Some(4));
+        assert_eq!(host_free_cpus(stat, "1.2 0.1 0.2 1/100 7\n"), Some(2));
+        assert_eq!(host_free_cpus(stat, "9.0 0.1 0.2 1/100 7\n"), Some(0));
+        assert_eq!(host_free_cpus(stat, ""), None);
+        assert_eq!(host_free_cpus("intr 5\n", "0.5 0 0 1/1 1\n"), None);
     }
 
     /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `NIJI_AFFECTED_FAIL_FIXTURE` is set; with it
