@@ -86,11 +86,14 @@ products twice (~350 s each) because the xtask test text names products: a candi
 
 ## Results (mei, role s2)
 
-- affected-layout-rows-gate3 (head 36fc32010, this branch's own direct gate): ok, summary 575 s, peak 4.1G
-  (products beside the xtask tests, transcripts on the fresh products, static).
-- affected-layout-rows-plants2 (same head): 7 plants, 7 CAUGHT, 0 SURVIVED, 0 WARN.
+- affected-layout-rows-gate4 (final head 5a1a0bf58, this branch's own direct gate): ok, summary 561 s, peak
+  4.0G (products beside the xtask tests, transcripts on the fresh products, static).
+- affected-layout-rows-plants3 (same head): 7 plants, 7 CAUGHT, 0 SURVIVED, 0 WARN.
+- affected-layout-rows-hdrb4-after: the b-4 measurement above (evidence, not a job on this head).
 - affected-layout-rows-unit: 112 passed (first code head). affected-layout-rows-lint2: clippy + static ok.
-- SUPERSEDED: affected-layout-rows-gate, -gate2 (red: `the_committed_gencat_transcripts_hold`, ENOENT running
+- SUPERSEDED: affected-layout-rows-gate3 and -plants2 (green, same code; precheck counted them against the b-4
+  tree synced to the role afterwards for the measurement, so both were rerun as gate4/plants3);
+  affected-layout-rows-gate, -gate2 (red: `the_committed_gencat_transcripts_hold`, ENOENT running
   target/niji-test/gencat: the role's products were cleared and an xtask-only selection built none; fixed by
   `builds_products`, commit 36fc32010); affected-layout-rows-plants (6 plants, 6 CAUGHT, before the 7th plant);
   affected-layout-rows-lint (clippy question_mark, fixed).

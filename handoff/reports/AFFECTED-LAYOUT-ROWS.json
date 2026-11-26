@@ -1,7 +1,7 @@
 {"task": "AFFECTED-LAYOUT-ROWS", "model": "opus", "tokens": null,
  "result": "direct tier: an entries-only layout.rs diff selects by its changed entries (header branches 225 targets/103 programs -> 5/0); xtask tests that run products now get them; step 3 (overlap) not done",
- "branch": "task/affected-layout-rows", "head": "36fc32010 (code; later commits handoff only)",
- "gate": {"affected": "affected-layout-rows-gate3 ok (products, xtask tests, transcripts on fresh products, static), 575 s", "peak": "4.1G"},
+ "branch": "task/affected-layout-rows", "head": "5a1a0bf58 (gated; later commits handoff only)",
+ "gate": {"affected": "affected-layout-rows-gate4 ok (products, xtask tests, transcripts on fresh products, static), 561 s", "peak": "4.0G"},
  "accepted_first_attempt": null,
  "rulings": [
   {"item": "sync_role.sh writes no .changed.abi, so role gates keep the wide selection until it does", "recommendation": "add after the .changed.xtask line: git -C \"$wt\" diff -U0 \"$mb\" -- crates/abi/ | \"${VSSH[@]}\" \"cat > ~/w/$role/.changed.abi\" (plus the rsync exclude and cleanup exception, as for .changed.xtask)"},
@@ -25,4 +25,4 @@
  "improvement": "plants on xtask-only code build the products twice (one per copy, ~350-470 s each) because the xtask test text names products; a plant whose command runs only the xtask bin unit tests needs none",
  "next_step": "land; add the .changed.abi line to sync_role.sh; step 3 (overlap the crate steps) as its own story",
  "report_file": "handoff/AFFECTED-LAYOUT-ROWS.md",
- "jobs": ["mei:affected-layout-rows-gate3", "mei:affected-layout-rows-plants2"]}
+ "jobs": ["mei:affected-layout-rows-gate4", "mei:affected-layout-rows-plants3"]}
