@@ -4,10 +4,10 @@
  "tokens": null,
  "result": "getaddrinfo AI_ADDRCONFIG now matches the reference's probed rule (a family counts as configured when some interface has an address other than exactly 127.0.0.1 / ::1; AF_UNSPEC is narrowed before lookup): in 21 namespace scenarios, no AI_ADDRCONFIG row differs from stock except where the same query without the flag differs too; the differences row (no compat option) is removed",
  "branch": "task/gai-addrconfig-loopback",
- "head": null,
+ "head": "6ce8eef8f",
  "gate": {
-  "affected": "see gate2 (final head); gate1 on 7d75c2a7c: 1572 passed / 1 failed (nscache_products fixture, fixed; nscache3 1/1 passed)",
-  "peak": "4.9G (gate1)"
+  "affected": "1573 passed / 0 failed (gate2, direct tier, final content)",
+  "peak": "3.8G"
  },
  "accepted_first_attempt": null,
  "rulings": [],
@@ -15,7 +15,8 @@
   "ip6-localhost AF_INET: stock 127.0.0.1, libniji EAI_NONAME (the gethostent ::1 row of D-16.2); also seen without AI_ADDRCONFIG",
   "passive AF_UNSPEC wildcard when no interface has any address: stock ':: 0.0.0.0', libniji '0.0.0.0 ::'; also seen without AI_ADDRCONFIG",
   "AF_INET6 AI_V4MAPPED|AI_ALL result order (destination address selection): with IPv4 and only link-local or no IPv6, stock puts ::ffff:192.0.2.7 before 2001:db8::7 and libniji the reverse (4 scenarios); with 127.0.0.1 on a dummy interface only, localhost gives stock '::ffff:127.0.0.1 ::1' and libniji the reverse; a follow-up story candidate",
-  "the previous leg edited plan/07-decisions/s16-name-services.md (train-owned); moved to records/decisions/D-16/D-16.2.toml and the stale AI_ADDRCONFIG sentence there replaced with a pointer"
+  "the previous leg edited plan/07-decisions/s16-name-services.md (train-owned); moved to records/decisions/D-16/D-16.2.toml and the stale AI_ADDRCONFIG sentence there replaced with a pointer",
+  "plants2: 4 CAUGHT; one WARN-DEV-SHM line (plants dir under /dev/shm; no plant relies on posixipc_products)"
  ],
  "refused": [],
  "impact": [
