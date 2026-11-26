@@ -510,8 +510,16 @@ function	__ilogbf64x	complex.h			int (_Float64x)
 function	__ilogbl	complex.h			int (long double)
 typedef	__ino64_t	aio.h	8	8	unsigned long
 typedef	__ino_t	aio.h	8	8	unsigned long
+typedef	__int16_t	aio.h	2	2	short
 typedef	__int32_t	aio.h	4	4	int
+typedef	__int64_t	aio.h	8	8	long
+typedef	__int8_t	aio.h	1	1	signed char
+typedef	__int_least16_t	aio.h	2	2	short
+typedef	__int_least32_t	aio.h	4	4	int
+typedef	__int_least64_t	aio.h	8	8	long
+typedef	__int_least8_t	aio.h	1	1	signed char
 typedef	__intmax_t	aio.h	8	8	long
+typedef	__intptr_t	aio.h	8	8	long
 function	__iscanonicall	complex.h			int (long double)
 function	__iseqsig	complex.h			int (double, double)
 function	__iseqsigf	complex.h			int (float, float)
@@ -614,6 +622,7 @@ function	__loc_aton	resolv.h			int (char const*, unsigned char*)
 function	__loc_ntoa	resolv.h			char const* (unsigned char const*, char*)
 struct	__locale_struct	argp.h	232	8	__locale_struct
 typedef	__locale_t	argp.h	8	8	__locale_struct*
+typedef	__loff_t	aio.h	8	8	long
 function	__log	complex.h			double (double)
 function	__log10	complex.h			double (double)
 function	__log10f	complex.h			float (float)
@@ -779,6 +788,8 @@ function	__putshort	resolv.h			void (unsigned short, unsigned char*)
 typedef	__quad_t	aio.h	8	8	long
 typedef	__re_long_size_t	re_comp.h	8	8	unsigned long
 typedef	__re_size_t	re_comp.h	4	4	unsigned int
+typedef	__rlim64_t	aio.h	8	8	unsigned long
+typedef	__rlim_t	aio.h	8	8	unsigned long
 function	__remainder	complex.h			double (double, double)
 function	__remainderf	complex.h			float (float, float)
 function	__remainderf128	complex.h			_Float128 (_Float128, _Float128)
@@ -838,6 +849,7 @@ object	__rseq_size	sys/rseq.h	4	4	unsigned int const
 typedef	__rusage_who_t	sys/resource.h	4	4	int
 typedef	__s32	ftw.h	4	4	int
 typedef	__s64	ftw.h	8	8	long long
+typedef	__sig_atomic_t	aio.h	4	4	int
 function	__scalb	complex.h			double (double, double)
 function	__scalbf	complex.h			float (float, float)
 function	__scalbl	complex.h			long double (long double, long double)
@@ -906,6 +918,7 @@ function	__sqrtf64	complex.h			_Float64 (_Float64)
 function	__sqrtf64x	complex.h			_Float64x (_Float64x)
 function	__sqrtl	complex.h			long double (long double)
 typedef	__ssize_t	aio.h	8	8	long
+typedef	__suseconds64_t	aio.h	8	8	long
 function	__stpcpy	argz.h			char* (char*, char const*)
 function	__stpncpy	argz.h			char* (char*, char const*, unsigned long)
 function	__strtok_r	argz.h			char* (char*, char const*, char**)
@@ -942,6 +955,7 @@ function	__tgammaf64	complex.h			_Float64 (_Float64)
 function	__tgammaf64x	complex.h			_Float64x (_Float64x)
 function	__tgammal	complex.h			long double (long double)
 typedef	__time_t	aio.h	8	8	long
+typedef	__timer_t	aio.h	8	8	void*
 object	__timezone	pthread.h	8	8	long
 function	__tolower_l	argp.h			int (int, __locale_struct*)
 function	__toupper_l	argp.h			int (int, __locale_struct*)
@@ -983,6 +997,11 @@ typedef	__uid_t	aio.h	4	4	unsigned int
 typedef	__uint16_t	aio.h	2	2	unsigned short
 typedef	__uint32_t	aio.h	4	4	unsigned int
 typedef	__uint64_t	aio.h	8	8	unsigned long
+typedef	__uint8_t	aio.h	1	1	unsigned char
+typedef	__uint_least16_t	aio.h	2	2	unsigned short
+typedef	__uint_least32_t	aio.h	4	4	unsigned int
+typedef	__uint_least64_t	aio.h	8	8	unsigned long
+typedef	__uint_least8_t	aio.h	1	1	unsigned char
 typedef	__uintmax_t	aio.h	8	8	unsigned long
 typedef	__useconds_t	aio.h	4	4	unsigned int
 enum	__vlimit_resource	sys/vlimit.h	4	4	__vlimit_resource
