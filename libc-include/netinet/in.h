@@ -1124,16 +1124,6 @@ enum {
 # endif
 #endif
 
-/* POSIX <netinet/in.h>: initializers of a struct in6_addr for :: and ::1 (the values of in6addr_any and
-   in6addr_loopback), braced for the structure, its union and the union's first member, the 16 bytes in network
-   order, so that one initializes this header's struct in6_addr and the kernel's alike without a warning. */
-#if 1
-# define IN6ADDR_ANY_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } } }
-#endif
-#if 1
-# define IN6ADDR_LOOPBACK_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } } }
-#endif
-
 /* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list
    token for token, so C 6.10.3p2 allows the redefinition in either include order. */
 #ifndef IP_RECVRETOPTS
