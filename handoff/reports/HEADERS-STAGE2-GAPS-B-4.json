@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "Merged origin/next (conflicts in appendix_c_layouts.rs, resolv.h, soundcard.h, header_probe.py): both intents kept, generated files regenerated; a duplicate stage2_names in header_probe.py (ours vs the -C story's) renamed stage2_gaps_b_names; direct gate green, 3/3 plants caught",
  "branch": "task/headers-stage2-gaps-b-4",
- "head": "HEAD_PLACEHOLDER",
+ "head": "d85f18528",
  "gate": {"affected": "gate6 rc 0 (direct tier); gate5 was red only on xtask header_p2_fixed_rows (the duplicate stage2_names), fixed; clippy and static clean", "peak": "11G"},
  "accepted_first_attempt": null,
  "rulings": [],
