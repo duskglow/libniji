@@ -2,18 +2,18 @@
 Current tables, counted from spec/abi by `cargo xtask records-gen` (no count here is written by hand):
 layouts.tsv: 3116 rows, 358 types
 initializers.tsv: 10 rows
-enumerators.tsv: 1202 rows, 102 tags
+enumerators.tsv: 1203 rows, 102 tags
 enum-macros.tsv: 924 rows
 prototypes.tsv: 3798 rows, 159 headers
 chk-prototypes.tsv: 76 rows
 constants.tsv: 7573 rows
-macros.tsv: 9029 rows, 181 headers
-typedefs.tsv: 4083 rows, 146 headers
+macros.tsv: 9031 rows, 181 headers
+typedefs.tsv: 4090 rows, 146 headers
 versions.tsv: 4818 versioned symbol rows, 14 libraries, 40 version nodes
 empty-versions.tsv: 3 version definitions no exported symbol carries
 libm-ulps.tsv: 284 rows, 73 functions
 ftm-configs.tsv: 40 configurations
-visibility.tsv: 77475 rows, 240 headers, 14140 names
+visibility.tsv: 78707 rows, 240 headers, 14176 names
 callsites.tsv: 7923 call-site rows, 3799 functions
 noexcept.tsv: 3798 rows
 diagattrs.tsv: 1023 functions
