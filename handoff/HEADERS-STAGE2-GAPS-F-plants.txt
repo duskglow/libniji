@@ -12,3 +12,13 @@ s2f-inb-row-gone | spec/abi/typedefs.tsv | perl:s/^function\tinb\tsys\/io\.h\t[^
 s2f-guard-replaced | xtask/src/headers.rs | lit:let kept = !self.t.redefined(&self.header, &n); ==> let kept = false; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "guard forms"' | msg:FAIL guard forms
 s2f-fdset-kept | headers/sys/select.h.in | perl:s/(\x40\x40when FD_SET\n)# ifndef __NIJI_FD_BITS/$1# ifndef FD_SET/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/features.py --only "FEATURES forms sys/select.h"' | msg:FEATURES forms sys/select\.h
 s2f-broadaddr-replaced | headers/ifaddrs.h.in | perl:s/# ifndef ifa_broadaddr\n(#  define ifa_broadaddr [^\n]*\n)# endif\n/$1/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/features.py --only "FEATURES forms ifaddrs.h"' | msg:FEATURES forms ifaddrs\.h
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s2f-outb-order: CAUGHT, caught by no test the log names
+# s2f-inb-extern: CAUGHT, caught by no test the log names
+# s2f-authtype-ok: CAUGHT, caught by no test the log names
+# s2f-enctype-short: CAUGHT, caught by no test the log names
+# s2f-int8-omitted: CAUGHT, caught by no test the log names
+# s2f-inb-row-gone: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables
+# s2f-guard-replaced: CAUGHT, caught by no test the log names
+# s2f-fdset-kept: CAUGHT, caught by no test the log names
+# s2f-broadaddr-replaced: CAUGHT, caught by no test the log names
