@@ -55,3 +55,6 @@ file; nothing in perl reads d_bsd.
 
 ## D-4 (merge-only)
 Merged origin/next 227f90c04: s07.py keeps next BSD paths/DTTOIF/utimbuf units plus stage2_units and array_param_units; header_probe.py keeps the ip_mreq_source tag plus next name sets; appendix_c_layouts.rs regenerated (cargo xtask abi-gen). Gate (direct tier), clippy, static, precheck green. Nothing else changed.
+
+## D-6 (merge-only)
+Merged origin/next (ebb0159b9): reserved.tsv keeps D's stage-2 names and next's __RES; s12.py keeps stage2_units and next's initializers (both called from units); appendix_c_layouts.rs regenerated (abi-gen, 368 items). Both sides had added the same IN6ADDR_*_INIT block to headers/netinet/in.h.in: next's kept, D's duplicate dropped (the plants s2d-in6-* now anchor on one site), libc-include/netinet/in.h regenerated with headers-gen. Gate, plants rerun on the merged head (headers-stage2-gaps-d-6-gate3, headers-stage2-gaps-d-6-plants3 on keke).
