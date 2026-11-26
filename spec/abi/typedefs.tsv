@@ -788,8 +788,6 @@ function	__putshort	resolv.h			void (unsigned short, unsigned char*)
 typedef	__quad_t	aio.h	8	8	long
 typedef	__re_long_size_t	re_comp.h	8	8	unsigned long
 typedef	__re_size_t	re_comp.h	4	4	unsigned int
-typedef	__rlim64_t	aio.h	8	8	unsigned long
-typedef	__rlim_t	aio.h	8	8	unsigned long
 function	__remainder	complex.h			double (double, double)
 function	__remainderf	complex.h			float (float, float)
 function	__remainderf128	complex.h			_Float128 (_Float128, _Float128)
@@ -825,6 +823,8 @@ function	__rintf32x	complex.h			_Float32x (_Float32x)
 function	__rintf64	complex.h			_Float64 (_Float64)
 function	__rintf64x	complex.h			_Float64x (_Float64x)
 function	__rintl	complex.h			long double (long double)
+typedef	__rlim64_t	aio.h	8	8	unsigned long
+typedef	__rlim_t	aio.h	8	8	unsigned long
 enum	__rlimit_resource	sys/resource.h	4	4	__rlimit_resource
 typedef	__rlimit_resource_t	sys/resource.h	4	4	int
 function	__round	complex.h			double (double)
@@ -849,7 +849,6 @@ object	__rseq_size	sys/rseq.h	4	4	unsigned int const
 typedef	__rusage_who_t	sys/resource.h	4	4	int
 typedef	__s32	ftw.h	4	4	int
 typedef	__s64	ftw.h	8	8	long long
-typedef	__sig_atomic_t	aio.h	4	4	int
 function	__scalb	complex.h			double (double, double)
 function	__scalbf	complex.h			float (float, float)
 function	__scalbl	complex.h			long double (long double, long double)
@@ -872,6 +871,7 @@ function	__scalbnl	complex.h			long double (long double, int)
 function	__sched_cpualloc	complex.h			cpu_set_t* (unsigned long)
 function	__sched_cpucount	complex.h			int (unsigned long, cpu_set_t const*)
 function	__sched_cpufree	complex.h			void (cpu_set_t*)
+typedef	__sig_atomic_t	aio.h	4	4	int
 typedef	__sighandler_t	arpa/nameser.h	8	8	void (*)(int)
 function	__signbit	complex.h			int (double)
 function	__signbitf	complex.h			int (float)
@@ -918,10 +918,10 @@ function	__sqrtf64	complex.h			_Float64 (_Float64)
 function	__sqrtf64x	complex.h			_Float64x (_Float64x)
 function	__sqrtl	complex.h			long double (long double)
 typedef	__ssize_t	aio.h	8	8	long
-typedef	__suseconds64_t	aio.h	8	8	long
 function	__stpcpy	argz.h			char* (char*, char const*)
 function	__stpncpy	argz.h			char* (char*, char const*, unsigned long)
 function	__strtok_r	argz.h			char* (char*, char const*, char**)
+typedef	__suseconds64_t	aio.h	8	8	long
 typedef	__suseconds_t	aio.h	8	8	long
 function	__sym_ntop	resolv.h			char const* (res_sym const*, int, int*)
 function	__sym_ntos	resolv.h			char const* (res_sym const*, int, int*)
