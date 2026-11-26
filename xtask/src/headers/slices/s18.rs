@@ -97,7 +97,15 @@ fn fortify(g: &mut Gen<'_>, _args: &[&str]) {
             defs = true;
         }
         let c = g.cond(name, Some("function"));
+        // A wrapper that passes variable arguments on needs GCC's `__builtin_va_arg_pack`, which clang does not have.
+        // Under clang the reference's headers (black-box probe, clang 19, levels 1 to 3, HEADERS-STAGE2-GAPS-G) make
+        // the printf family in C a function-like macro calling the `_chk` route at the levels GCC's wrapper starts
+        // at, and leave the plain declaration in C++ and for the open family's optional mode.
+        let va = r["args"].contains("$V") || r["form"].starts_with("mode");
         let mut body = Vec::new();
+        if va {
+            body.push("#  if !defined __clang__".into());
+        }
         for (head, sym, fob) in &branches {
             body.extend(head.map(String::from));
             body.extend(wrapper(g, r, sym, &chk, *fob));
@@ -105,11 +113,69 @@ fn fortify(g: &mut Gen<'_>, _args: &[&str]) {
         if branches.len() > 1 {
             body.push("#  endif".into());
         }
+        if va && r["args"].contains("$V") {
+            let [(None, sym, _)] = branches.as_slice() else {
+                g.errors.push(format!("{}: {name}: a variadic wrapper with two _chk symbols has no clang macro rule", g.header));
+                continue;
+            };
+            body.push("#  elif !defined __cplusplus".into());
+            body.extend(clang_macro(g, r, sym, &chk));
+        }
+        if va {
+            body.push("#  endif".into());
+        }
         g.out.push(format!("#if ({c}){gnu} && __NIJI_FORTIFY >= {lmin}"));
         g.out.extend([format!("# ifndef __NIJI_F_{name}"), format!("#  define __NIJI_F_{name} 1")]);
         g.out.extend(body);
         g.out.extend(["# endif".to_string(), "#endif".to_string()]);
     }
+}
+
+/// The clang form of a variadic row (`$V` in `args`): `#define name(__p0, ..., __pK-1, ...)` whose body is the row's
+/// call with its trailing run `$K, ..., $N-1, $V` (the format and what follows it) passed as `__VA_ARGS__`, so a call
+/// with no variable argument still has one comma less, never a dangling one. Each parameter is used once outside
+/// `__builtin_object_size` and `sizeof`, as the function call would evaluate it.
+fn clang_macro(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTreeMap<String, String>) -> Vec<String> {
+    let name = r["name"].as_str();
+    let (args, ost) = (r["args"].as_str(), r["ost"].as_str());
+    let Some(at) = args.find(", $V").or_else(|| args.find("$V")) else { return Vec::new() };
+    let head = &args[..at];
+    // The trailing run of plain `$j` tokens, contiguous and ascending, that ends at `$V`.
+    let (mut k, mut last) = (None, None);
+    for t in head.rsplit(", ") {
+        let Some(j) = t.strip_prefix('$').and_then(|d| d.parse::<usize>().ok()) else { break };
+        if k.is_some_and(|n| j + 1 != n) {
+            break;
+        }
+        k = Some(j);
+        last = last.or(Some(j));
+    }
+    let (Some(k), Some(last)) = (k, last) else {
+        g.errors.push(format!("{}: {TABLE}: {name}: no format argument before $V for the clang macro", g.header));
+        return Vec::new();
+    };
+    let run_text = (k..=last).map(|j| format!("${j}")).collect::<Vec<_>>().join(", ");
+    let prefix = head.strip_suffix(&run_text).unwrap_or(head);
+    let refs = |j: usize| [format!("${j},"), format!("${j})"), format!("$S{j}"), format!("$E{j}")].iter().any(|p| prefix.contains(p.as_str()));
+    if (k..=last).any(refs) || (0..k).any(|j| !refs(j)) {
+        g.errors.push(format!("{}: {TABLE}: {name}: the clang macro would drop or repeat a fixed argument", g.header));
+        return Vec::new();
+    }
+    let call = expand(&format!("{prefix}__VA_ARGS__{}", &args[at + if args[at..].starts_with(", ") { 4 } else { 2 }..]), ost);
+    let call = if r["form"] == "builtin" { call } else { format!("{sym} ({call})") };
+    let mut out = Vec::new();
+    if r["form"] != "builtin" {
+        let Some(proto) = chk.get(sym) else {
+            g.errors.push(format!("{}: {name}: {sym} has no row in spec/abi/chk-prototypes.tsv", g.header));
+            return Vec::new();
+        };
+        let nt = if g.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
+        let d = spell(g, proto, sym);
+        out.extend([format!("#   ifndef __NIJI_D_{sym}"), format!("#    define __NIJI_D_{sym} 1"), format!("extern {d}{nt};"), "#   endif".to_string()]);
+    }
+    let params: Vec<String> = (0..k).map(|j| format!("__p{j}")).chain(std::iter::once("...".to_string())).collect();
+    out.push(format!("#   define {name}({}) {call}", params.join(", ")));
+    out
 }
 
 /// The fortify levels of a callsites.tsv call row's configurations. The call probes run in their own configurations

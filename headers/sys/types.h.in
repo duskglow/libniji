@@ -11,6 +11,8 @@ __NIJI_BEGIN_C
 @@owns-macro be16toh le64toh
 @@emit
 
+@@fragments
+
 /* The byte-order conversions are <endian.h>'s, where this header exposes them. */
 @@when be16toh
 # include <endian.h>

@@ -57,6 +57,9 @@ insw	none	defined static inline by <sys/io.h> itself (headers/sys/io.h.d/010-por
 outsw	none	defined static inline by <sys/io.h> itself (headers/sys/io.h.d/010-port-io.frag), no export; probe: the reference's header defines it, every configuration and optimisation level, with no library symbol
 insl	none	defined static inline by <sys/io.h> itself (headers/sys/io.h.d/010-port-io.frag), no export; probe: the reference's header defines it, every configuration and optimisation level, with no library symbol
 outsl	none	defined static inline by <sys/io.h> itself (headers/sys/io.h.d/010-port-io.frag), no export; probe: the reference's header defines it, every configuration and optimisation level, with no library symbol
+__bswap_16	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
+__bswap_32	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
+__bswap_64	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
 fpclassify	generic	ISO C++ [c.math]: <cmath> declares std::fpclassify as overloaded functions; probe: using std::fpclassify compiles
 isfinite	generic	ISO C++ [c.math]: <cmath> declares std::isfinite as overloaded functions; probe: using std::isfinite compiles
 isgreater	generic	ISO C++ [c.math]: <cmath> declares std::isgreater as overloaded functions; probe: using std::isgreater compiles

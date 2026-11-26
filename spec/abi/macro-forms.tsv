@@ -21,6 +21,7 @@ aio.h	_SYS_SELECT_H	kept
 aio.h	_SYS_TYPES_H	kept
 aio.h	_THREAD_MUTEX_INTERNAL_H	kept
 aio.h	_THREAD_SHARED_TYPES_H	kept
+aio.h	__FLOAT_WORD_ORDER	kept
 aliases.h	NFDBITS	replaced-form
 aliases.h	_ALIASES_H	kept
 aliases.h	_BITS_BYTESWAP_H	kept
@@ -42,6 +43,7 @@ aliases.h	_SYS_SELECT_H	kept
 aliases.h	_SYS_TYPES_H	kept
 aliases.h	_THREAD_MUTEX_INTERNAL_H	kept
 aliases.h	_THREAD_SHARED_TYPES_H	kept
+aliases.h	__FLOAT_WORD_ORDER	kept
 alloca.h	_ALLOCA_H	kept
 alloca.h	_FEATURES_H	kept
 alloca.h	_SYS_CDEFS_H	kept
@@ -95,6 +97,7 @@ argp.h	_LIBC_LIMITS_H_	kept
 argp.h	_STDIO_H	kept
 argp.h	_SYS_CDEFS_H	kept
 argp.h	_XOPEN_LIM_H	kept
+argp.h	__FLOAT_WORD_ORDER	kept
 argp.h	errno	replaced-form
 argz.h	ENOTSUP	kept
 argz.h	NULL	replaced-form
@@ -145,6 +148,7 @@ arpa/inet.h	_SYS_SOCKET_H	kept
 arpa/inet.h	_SYS_TYPES_H	kept
 arpa/inet.h	_THREAD_MUTEX_INTERNAL_H	kept
 arpa/inet.h	_THREAD_SHARED_TYPES_H	kept
+arpa/inet.h	__FLOAT_WORD_ORDER	kept
 arpa/nameser.h	BC_BASE_MAX	kept
 arpa/nameser.h	BC_DIM_MAX	kept
 arpa/nameser.h	BC_SCALE_MAX	kept
@@ -234,6 +238,7 @@ arpa/nameser.h	_THREAD_MUTEX_INTERNAL_H	kept
 arpa/nameser.h	_THREAD_SHARED_TYPES_H	kept
 arpa/nameser.h	_UNISTD_H	kept
 arpa/nameser.h	_XOPEN_LIM_H	kept
+arpa/nameser.h	__FLOAT_WORD_ORDER	kept
 arpa/nameser.h	si_arch	replaced-form
 arpa/nameser.h	si_call_addr	replaced-form
 arpa/nameser.h	si_lower	replaced-form
@@ -252,6 +257,7 @@ arpa/nameser_compat.h	_BITS_UINTN_IDENTITY_H	kept
 arpa/nameser_compat.h	_ENDIAN_H	kept
 arpa/nameser_compat.h	_FEATURES_H	kept
 arpa/nameser_compat.h	_SYS_CDEFS_H	kept
+arpa/nameser_compat.h	__FLOAT_WORD_ORDER	kept
 assert.h	_FEATURES_H	kept
 assert.h	_SYS_CDEFS_H	kept
 byteswap.h	_BITS_BYTESWAP_H	kept
@@ -275,6 +281,7 @@ ctype.h	_BITS_TYPES___LOCALE_T_H	kept
 ctype.h	_CTYPE_H	kept
 ctype.h	_FEATURES_H	kept
 ctype.h	_SYS_CDEFS_H	kept
+ctype.h	__FLOAT_WORD_ORDER	kept
 dirent.h	MAXNAMLEN	kept
 dirent.h	PTHREAD_STACK_MIN	kept
 dirent.h	SSIZE_MAX	kept
@@ -312,6 +319,7 @@ endian.h	_BITS_UINTN_IDENTITY_H	kept
 endian.h	_ENDIAN_H	kept
 endian.h	_FEATURES_H	kept
 endian.h	_SYS_CDEFS_H	kept
+endian.h	__FLOAT_WORD_ORDER	kept
 envz.h	ENOTSUP	kept
 envz.h	NULL	replaced-form
 envz.h	_ARGZ_H	kept
@@ -365,6 +373,7 @@ fcntl.h	_FCNTL_H	kept
 fcntl.h	_FEATURES_H	kept
 fcntl.h	_STRUCT_TIMESPEC	kept
 fcntl.h	_SYS_CDEFS_H	kept
+fcntl.h	__FLOAT_WORD_ORDER	kept
 features.h	_FEATURES_H	kept
 features.h	_SYS_CDEFS_H	kept
 fenv.h	FE_DFL_ENV	replaced-form
@@ -408,6 +417,7 @@ fts.h	_SYS_SELECT_H	kept
 fts.h	_SYS_TYPES_H	kept
 fts.h	_THREAD_MUTEX_INTERNAL_H	kept
 fts.h	_THREAD_SHARED_TYPES_H	kept
+fts.h	__FLOAT_WORD_ORDER	kept
 ftw.h	NFDBITS	replaced-form
 ftw.h	_BITS_BYTESWAP_H	kept
 ftw.h	_BITS_ENDIANNESS_H	kept
@@ -432,6 +442,7 @@ ftw.h	_SYS_STAT_H	kept
 ftw.h	_SYS_TYPES_H	kept
 ftw.h	_THREAD_MUTEX_INTERNAL_H	kept
 ftw.h	_THREAD_SHARED_TYPES_H	kept
+ftw.h	__FLOAT_WORD_ORDER	kept
 gconv.h	_FEATURES_H	kept
 gconv.h	_SYS_CDEFS_H	kept
 gconv.h	_WINT_T	kept
@@ -474,6 +485,7 @@ ieee754.h	_BITS_ENDIANNESS_H	kept
 ieee754.h	_BITS_ENDIAN_H	kept
 ieee754.h	_FEATURES_H	kept
 ieee754.h	_SYS_CDEFS_H	kept
+ieee754.h	__FLOAT_WORD_ORDER	kept
 ifaddrs.h	NFDBITS	replaced-form
 ifaddrs.h	SO_PASSCRED	kept
 ifaddrs.h	_BITS_BYTESWAP_H	kept
@@ -499,6 +511,7 @@ ifaddrs.h	_SYS_SOCKET_H	kept
 ifaddrs.h	_SYS_TYPES_H	kept
 ifaddrs.h	_THREAD_MUTEX_INTERNAL_H	kept
 ifaddrs.h	_THREAD_SHARED_TYPES_H	kept
+ifaddrs.h	__FLOAT_WORD_ORDER	kept
 ifaddrs.h	ifa_broadaddr	kept
 ifaddrs.h	ifa_dstaddr	kept
 inttypes.h	PRIX16	replaced-form
@@ -710,6 +723,7 @@ lastlog.h	_SYS_TYPES_H	kept
 lastlog.h	_THREAD_MUTEX_INTERNAL_H	kept
 lastlog.h	_THREAD_SHARED_TYPES_H	kept
 lastlog.h	_UTMP_H	kept
+lastlog.h	__FLOAT_WORD_ORDER	kept
 libgen.h	_FEATURES_H	kept
 libgen.h	_LIBGEN_H	kept
 libgen.h	_SYS_CDEFS_H	kept
@@ -776,6 +790,7 @@ link.h	_SYS_SELECT_H	kept
 link.h	_SYS_TYPES_H	kept
 link.h	_THREAD_MUTEX_INTERNAL_H	kept
 link.h	_THREAD_SHARED_TYPES_H	kept
+link.h	__FLOAT_WORD_ORDER	kept
 locale.h	NULL	replaced-form
 locale.h	_BITS_LOCALE_H	kept
 locale.h	_BITS_TYPES_LOCALE_T_H	kept
@@ -1004,6 +1019,7 @@ mqueue.h	_SYS_SELECT_H	kept
 mqueue.h	_SYS_TYPES_H	kept
 mqueue.h	_THREAD_MUTEX_INTERNAL_H	kept
 mqueue.h	_THREAD_SHARED_TYPES_H	kept
+mqueue.h	__FLOAT_WORD_ORDER	kept
 net/ethernet.h	NFDBITS	replaced-form
 net/ethernet.h	WCHAR_MIN	kept
 net/ethernet.h	_BITS_BYTESWAP_H	kept
@@ -1029,6 +1045,7 @@ net/ethernet.h	_SYS_SELECT_H	kept
 net/ethernet.h	_SYS_TYPES_H	kept
 net/ethernet.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/ethernet.h	_THREAD_SHARED_TYPES_H	kept
+net/ethernet.h	__FLOAT_WORD_ORDER	kept
 net/if.h	NFDBITS	replaced-form
 net/if.h	SO_PASSCRED	kept
 net/if.h	_BITS_BYTESWAP_H	kept
@@ -1054,6 +1071,7 @@ net/if.h	_SYS_SOCKET_H	kept
 net/if.h	_SYS_TYPES_H	kept
 net/if.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/if.h	_THREAD_SHARED_TYPES_H	kept
+net/if.h	__FLOAT_WORD_ORDER	kept
 net/if.h	ifc_buf	replaced-form
 net/if.h	ifc_req	replaced-form
 net/if.h	ifr_addr	replaced-form
@@ -1102,6 +1120,7 @@ net/if_arp.h	_SYS_SOCKET_H	kept
 net/if_arp.h	_SYS_TYPES_H	kept
 net/if_arp.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/if_arp.h	_THREAD_SHARED_TYPES_H	kept
+net/if_arp.h	__FLOAT_WORD_ORDER	kept
 net/if_packet.h	_BITS_SOCKADDR_H	kept
 net/if_packet.h	_FEATURES_H	kept
 net/if_packet.h	_SYS_CDEFS_H	kept
@@ -1151,6 +1170,7 @@ net/if_ppp.h	_SYS_SOCKET_H	kept
 net/if_ppp.h	_SYS_TYPES_H	kept
 net/if_ppp.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/if_ppp.h	_THREAD_SHARED_TYPES_H	kept
+net/if_ppp.h	__FLOAT_WORD_ORDER	kept
 net/if_ppp.h	ifc_buf	replaced-form
 net/if_ppp.h	ifc_req	replaced-form
 net/if_ppp.h	ifr_addr	replaced-form
@@ -1215,6 +1235,7 @@ net/if_shaper.h	_SYS_SOCKET_H	kept
 net/if_shaper.h	_SYS_TYPES_H	kept
 net/if_shaper.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/if_shaper.h	_THREAD_SHARED_TYPES_H	kept
+net/if_shaper.h	__FLOAT_WORD_ORDER	kept
 net/if_shaper.h	ifc_buf	replaced-form
 net/if_shaper.h	ifc_req	replaced-form
 net/if_shaper.h	ifr_addr	replaced-form
@@ -1274,6 +1295,7 @@ net/route.h	_SYS_SOCKET_H	kept
 net/route.h	_SYS_TYPES_H	kept
 net/route.h	_THREAD_MUTEX_INTERNAL_H	kept
 net/route.h	_THREAD_SHARED_TYPES_H	kept
+net/route.h	__FLOAT_WORD_ORDER	kept
 netash/ash.h	_BITS_SOCKADDR_H	kept
 netash/ash.h	_FEATURES_H	kept
 netash/ash.h	_SYS_CDEFS_H	kept
@@ -1301,6 +1323,7 @@ netatalk/at.h	_SYS_SOCKET_H	kept
 netatalk/at.h	_SYS_TYPES_H	kept
 netatalk/at.h	_THREAD_MUTEX_INTERNAL_H	kept
 netatalk/at.h	_THREAD_SHARED_TYPES_H	kept
+netatalk/at.h	__FLOAT_WORD_ORDER	kept
 netax25/ax25.h	_BITS_SOCKADDR_H	kept
 netax25/ax25.h	_FEATURES_H	kept
 netax25/ax25.h	_SYS_CDEFS_H	kept
@@ -1347,6 +1370,7 @@ netdb.h	_SYS_SOCKET_H	kept
 netdb.h	_SYS_TYPES_H	kept
 netdb.h	_THREAD_MUTEX_INTERNAL_H	kept
 netdb.h	_THREAD_SHARED_TYPES_H	kept
+netdb.h	__FLOAT_WORD_ORDER	kept
 netdb.h	h_errno	replaced-form
 neteconet/ec.h	_BITS_SOCKADDR_H	kept
 neteconet/ec.h	_FEATURES_H	kept
@@ -1382,6 +1406,7 @@ netinet/ether.h	_SYS_SOCKET_H	kept
 netinet/ether.h	_SYS_TYPES_H	kept
 netinet/ether.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/ether.h	_THREAD_SHARED_TYPES_H	kept
+netinet/ether.h	__FLOAT_WORD_ORDER	kept
 netinet/ether.h	arp_hln	replaced-form
 netinet/ether.h	arp_hrd	replaced-form
 netinet/ether.h	arp_op	replaced-form
@@ -1587,6 +1612,7 @@ netinet/icmp6.h	_SYS_SOCKET_H	kept
 netinet/icmp6.h	_SYS_TYPES_H	kept
 netinet/icmp6.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/icmp6.h	_THREAD_SHARED_TYPES_H	kept
+netinet/icmp6.h	__FLOAT_WORD_ORDER	kept
 netinet/icmp6.h	icmp6_data16	replaced-form
 netinet/icmp6.h	icmp6_data32	replaced-form
 netinet/icmp6.h	icmp6_data8	replaced-form
@@ -1656,6 +1682,7 @@ netinet/if_ether.h	_SYS_SOCKET_H	kept
 netinet/if_ether.h	_SYS_TYPES_H	kept
 netinet/if_ether.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/if_ether.h	_THREAD_SHARED_TYPES_H	kept
+netinet/if_ether.h	__FLOAT_WORD_ORDER	kept
 netinet/if_ether.h	arp_hln	replaced-form
 netinet/if_ether.h	arp_hrd	replaced-form
 netinet/if_ether.h	arp_op	replaced-form
@@ -1686,6 +1713,7 @@ netinet/if_fddi.h	_SYS_SELECT_H	kept
 netinet/if_fddi.h	_SYS_TYPES_H	kept
 netinet/if_fddi.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/if_fddi.h	_THREAD_SHARED_TYPES_H	kept
+netinet/if_fddi.h	__FLOAT_WORD_ORDER	kept
 netinet/if_tr.h	NFDBITS	replaced-form
 netinet/if_tr.h	WCHAR_MIN	kept
 netinet/if_tr.h	_BITS_BYTESWAP_H	kept
@@ -1711,6 +1739,7 @@ netinet/if_tr.h	_SYS_SELECT_H	kept
 netinet/if_tr.h	_SYS_TYPES_H	kept
 netinet/if_tr.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/if_tr.h	_THREAD_SHARED_TYPES_H	kept
+netinet/if_tr.h	__FLOAT_WORD_ORDER	kept
 netinet/igmp.h	INADDR_ALLHOSTS_GROUP	replaced-form
 netinet/igmp.h	INADDR_ALLRTRS_GROUP	replaced-form
 netinet/igmp.h	INADDR_ALLSNOOPERS_GROUP	replaced-form
@@ -1747,6 +1776,7 @@ netinet/igmp.h	_SYS_SOCKET_H	kept
 netinet/igmp.h	_SYS_TYPES_H	kept
 netinet/igmp.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/igmp.h	_THREAD_SHARED_TYPES_H	kept
+netinet/igmp.h	__FLOAT_WORD_ORDER	kept
 netinet/in.h	INADDR_ALLHOSTS_GROUP	replaced-form
 netinet/in.h	INADDR_ALLRTRS_GROUP	replaced-form
 netinet/in.h	INADDR_ALLSNOOPERS_GROUP	replaced-form
@@ -1783,6 +1813,7 @@ netinet/in.h	_SYS_SOCKET_H	kept
 netinet/in.h	_SYS_TYPES_H	kept
 netinet/in.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/in.h	_THREAD_SHARED_TYPES_H	kept
+netinet/in.h	__FLOAT_WORD_ORDER	kept
 netinet/in_systm.h	NFDBITS	replaced-form
 netinet/in_systm.h	WCHAR_MIN	kept
 netinet/in_systm.h	_BITS_BYTESWAP_H	kept
@@ -1808,6 +1839,7 @@ netinet/in_systm.h	_SYS_SELECT_H	kept
 netinet/in_systm.h	_SYS_TYPES_H	kept
 netinet/in_systm.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/in_systm.h	_THREAD_SHARED_TYPES_H	kept
+netinet/in_systm.h	__FLOAT_WORD_ORDER	kept
 netinet/ip.h	INADDR_ALLHOSTS_GROUP	replaced-form
 netinet/ip.h	INADDR_ALLRTRS_GROUP	replaced-form
 netinet/ip.h	INADDR_ALLSNOOPERS_GROUP	replaced-form
@@ -1844,6 +1876,7 @@ netinet/ip.h	_SYS_SOCKET_H	kept
 netinet/ip.h	_SYS_TYPES_H	kept
 netinet/ip.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/ip.h	_THREAD_SHARED_TYPES_H	kept
+netinet/ip.h	__FLOAT_WORD_ORDER	kept
 netinet/ip6.h	INADDR_ALLHOSTS_GROUP	replaced-form
 netinet/ip6.h	INADDR_ALLRTRS_GROUP	replaced-form
 netinet/ip6.h	INADDR_ALLSNOOPERS_GROUP	replaced-form
@@ -2039,6 +2072,7 @@ netinet/ip6.h	_SYS_SOCKET_H	kept
 netinet/ip6.h	_SYS_TYPES_H	kept
 netinet/ip6.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/ip6.h	_THREAD_SHARED_TYPES_H	kept
+netinet/ip6.h	__FLOAT_WORD_ORDER	kept
 netinet/ip6.h	ip6_flow	replaced-form
 netinet/ip6.h	ip6_hlim	replaced-form
 netinet/ip6.h	ip6_hops	replaced-form
@@ -2086,6 +2120,7 @@ netinet/ip_icmp.h	_SYS_SOCKET_H	kept
 netinet/ip_icmp.h	_SYS_TYPES_H	kept
 netinet/ip_icmp.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/ip_icmp.h	_THREAD_SHARED_TYPES_H	kept
+netinet/ip_icmp.h	__FLOAT_WORD_ORDER	kept
 netinet/ip_icmp.h	icmp_data	replaced-form
 netinet/ip_icmp.h	icmp_gwaddr	replaced-form
 netinet/ip_icmp.h	icmp_id	replaced-form
@@ -2132,6 +2167,7 @@ netinet/tcp.h	_SYS_SOCKET_H	kept
 netinet/tcp.h	_SYS_TYPES_H	kept
 netinet/tcp.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/tcp.h	_THREAD_SHARED_TYPES_H	kept
+netinet/tcp.h	__FLOAT_WORD_ORDER	kept
 netinet/udp.h	NFDBITS	replaced-form
 netinet/udp.h	WCHAR_MIN	kept
 netinet/udp.h	_BITS_BYTESWAP_H	kept
@@ -2157,6 +2193,7 @@ netinet/udp.h	_SYS_SELECT_H	kept
 netinet/udp.h	_SYS_TYPES_H	kept
 netinet/udp.h	_THREAD_MUTEX_INTERNAL_H	kept
 netinet/udp.h	_THREAD_SHARED_TYPES_H	kept
+netinet/udp.h	__FLOAT_WORD_ORDER	kept
 netipx/ipx.h	NFDBITS	replaced-form
 netipx/ipx.h	WCHAR_MIN	kept
 netipx/ipx.h	_BITS_BYTESWAP_H	kept
@@ -2183,6 +2220,7 @@ netipx/ipx.h	_SYS_SELECT_H	kept
 netipx/ipx.h	_SYS_TYPES_H	kept
 netipx/ipx.h	_THREAD_MUTEX_INTERNAL_H	kept
 netipx/ipx.h	_THREAD_SHARED_TYPES_H	kept
+netipx/ipx.h	__FLOAT_WORD_ORDER	kept
 netiucv/iucv.h	_BITS_SOCKADDR_H	kept
 netiucv/iucv.h	_FEATURES_H	kept
 netiucv/iucv.h	_SYS_CDEFS_H	kept
@@ -2213,6 +2251,7 @@ netrose/rose.h	_SYS_SOCKET_H	kept
 netrose/rose.h	_SYS_TYPES_H	kept
 netrose/rose.h	_THREAD_MUTEX_INTERNAL_H	kept
 netrose/rose.h	_THREAD_SHARED_TYPES_H	kept
+netrose/rose.h	__FLOAT_WORD_ORDER	kept
 nl_types.h	_FEATURES_H	kept
 nl_types.h	_NL_TYPES_H	kept
 nl_types.h	_SYS_CDEFS_H	kept
@@ -2243,6 +2282,7 @@ nss.h	_SYS_SELECT_H	kept
 nss.h	_SYS_TYPES_H	kept
 nss.h	_THREAD_MUTEX_INTERNAL_H	kept
 nss.h	_THREAD_SHARED_TYPES_H	kept
+nss.h	__FLOAT_WORD_ORDER	kept
 obstack.h	NULL	replaced-form
 obstack.h	_BITS_TYPES_LOCALE_T_H	kept
 obstack.h	_BITS_TYPES___LOCALE_T_H	kept
@@ -2273,6 +2313,7 @@ poll.h	_SIGSET_NWORDS	replaced-form
 poll.h	_STRUCT_TIMESPEC	kept
 poll.h	_SYS_CDEFS_H	kept
 poll.h	_SYS_POLL_H	kept
+poll.h	__FLOAT_WORD_ORDER	kept
 printf.h	_FEATURES_H	kept
 printf.h	_PRINTF_H	kept
 printf.h	_SYS_CDEFS_H	kept
@@ -2300,6 +2341,7 @@ proc_service.h	_SYS_TYPES_H	kept
 proc_service.h	_SYS_USER_H	kept
 proc_service.h	_THREAD_MUTEX_INTERNAL_H	kept
 proc_service.h	_THREAD_SHARED_TYPES_H	kept
+proc_service.h	__FLOAT_WORD_ORDER	kept
 protocols/routed.h	NFDBITS	replaced-form
 protocols/routed.h	SO_PASSCRED	kept
 protocols/routed.h	_BITS_BYTESWAP_H	kept
@@ -2324,6 +2366,7 @@ protocols/routed.h	_SYS_SOCKET_H	kept
 protocols/routed.h	_SYS_TYPES_H	kept
 protocols/routed.h	_THREAD_MUTEX_INTERNAL_H	kept
 protocols/routed.h	_THREAD_SHARED_TYPES_H	kept
+protocols/routed.h	__FLOAT_WORD_ORDER	kept
 protocols/rwhod.h	NFDBITS	replaced-form
 protocols/rwhod.h	_BITS_BYTESWAP_H	kept
 protocols/rwhod.h	_BITS_ENDIANNESS_H	kept
@@ -2356,6 +2399,7 @@ protocols/rwhod.h	_SYS_SELECT_H	kept
 protocols/rwhod.h	_SYS_TYPES_H	kept
 protocols/rwhod.h	_THREAD_MUTEX_INTERNAL_H	kept
 protocols/rwhod.h	_THREAD_SHARED_TYPES_H	kept
+protocols/rwhod.h	__FLOAT_WORD_ORDER	kept
 protocols/talkd.h	NFDBITS	replaced-form
 protocols/talkd.h	SO_PASSCRED	kept
 protocols/talkd.h	WCHAR_MIN	kept
@@ -2385,6 +2429,7 @@ protocols/talkd.h	_SYS_SOCKET_H	kept
 protocols/talkd.h	_SYS_TYPES_H	kept
 protocols/talkd.h	_THREAD_MUTEX_INTERNAL_H	kept
 protocols/talkd.h	_THREAD_SHARED_TYPES_H	kept
+protocols/talkd.h	__FLOAT_WORD_ORDER	kept
 protocols/timed.h	NFDBITS	replaced-form
 protocols/timed.h	_BITS_BYTESWAP_H	kept
 protocols/timed.h	_BITS_ENDIANNESS_H	kept
@@ -2406,6 +2451,7 @@ protocols/timed.h	_SYS_TIME_H	kept
 protocols/timed.h	_SYS_TYPES_H	kept
 protocols/timed.h	_THREAD_MUTEX_INTERNAL_H	kept
 protocols/timed.h	_THREAD_SHARED_TYPES_H	kept
+protocols/timed.h	__FLOAT_WORD_ORDER	kept
 pthread.h	CLOCKS_PER_SEC	replaced-form
 pthread.h	NULL	replaced-form
 pthread.h	PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	replaced-form
@@ -2441,6 +2487,7 @@ pthread.h	_SYS_CDEFS_H	kept
 pthread.h	_THREAD_MUTEX_INTERNAL_H	kept
 pthread.h	_THREAD_SHARED_TYPES_H	kept
 pthread.h	_TIME_H	kept
+pthread.h	__FLOAT_WORD_ORDER	kept
 pty.h	FIOQSIZE	kept
 pty.h	TCSETS2	replaced-form
 pty.h	TIOCGDEV	replaced-form
@@ -2532,6 +2579,7 @@ re_comp.h	_SYS_SELECT_H	kept
 re_comp.h	_SYS_TYPES_H	kept
 re_comp.h	_THREAD_MUTEX_INTERNAL_H	kept
 re_comp.h	_THREAD_SHARED_TYPES_H	kept
+re_comp.h	__FLOAT_WORD_ORDER	kept
 regex.h	NFDBITS	replaced-form
 regex.h	RE_BACKSLASH_ESCAPE_IN_LISTS	replaced-form
 regex.h	RE_BK_PLUS_QM	replaced-form
@@ -2594,6 +2642,7 @@ regex.h	_SYS_SELECT_H	kept
 regex.h	_SYS_TYPES_H	kept
 regex.h	_THREAD_MUTEX_INTERNAL_H	kept
 regex.h	_THREAD_SHARED_TYPES_H	kept
+regex.h	__FLOAT_WORD_ORDER	kept
 resolv.h	BC_BASE_MAX	kept
 resolv.h	BC_DIM_MAX	kept
 resolv.h	BC_SCALE_MAX	kept
@@ -2707,6 +2756,7 @@ resolv.h	_THREAD_MUTEX_INTERNAL_H	kept
 resolv.h	_THREAD_SHARED_TYPES_H	kept
 resolv.h	_UNISTD_H	kept
 resolv.h	_XOPEN_LIM_H	kept
+resolv.h	__FLOAT_WORD_ORDER	kept
 resolv.h	_res	replaced-form
 resolv.h	si_arch	replaced-form
 resolv.h	si_call_addr	replaced-form
@@ -2732,6 +2782,7 @@ sched.h	_FEATURES_H	kept
 sched.h	_SCHED_H	kept
 sched.h	_STRUCT_TIMESPEC	kept
 sched.h	_SYS_CDEFS_H	kept
+sched.h	__FLOAT_WORD_ORDER	kept
 scsi/scsi.h	_FEATURES_H	kept
 scsi/scsi.h	_SYS_CDEFS_H	kept
 scsi/sg.h	_FEATURES_H	kept
@@ -2761,6 +2812,7 @@ semaphore.h	_SYS_SELECT_H	kept
 semaphore.h	_SYS_TYPES_H	kept
 semaphore.h	_THREAD_MUTEX_INTERNAL_H	kept
 semaphore.h	_THREAD_SHARED_TYPES_H	kept
+semaphore.h	__FLOAT_WORD_ORDER	kept
 setjmp.h	_BITS_SETJMP_H	kept
 setjmp.h	_FEATURES_H	kept
 setjmp.h	_SETJMP_H	kept
@@ -2839,6 +2891,7 @@ signal.h	_SYS_UCONTEXT_H	kept
 signal.h	_THREAD_MUTEX_INTERNAL_H	kept
 signal.h	_THREAD_SHARED_TYPES_H	kept
 signal.h	_UNISTD_H	kept
+signal.h	__FLOAT_WORD_ORDER	kept
 signal.h	si_arch	replaced-form
 signal.h	si_call_addr	replaced-form
 signal.h	si_lower	replaced-form
@@ -2873,6 +2926,7 @@ spawn.h	_SYS_SELECT_H	kept
 spawn.h	_SYS_TYPES_H	kept
 spawn.h	_THREAD_MUTEX_INTERNAL_H	kept
 spawn.h	_THREAD_SHARED_TYPES_H	kept
+spawn.h	__FLOAT_WORD_ORDER	kept
 stdbit.h	_BITS_ENDIANNESS_H	kept
 stdbit.h	_BITS_ENDIAN_H	kept
 stdbit.h	_BITS_STDINT_INTN_H	kept
@@ -2884,6 +2938,7 @@ stdbit.h	_BITS_TYPES_H	kept
 stdbit.h	_FEATURES_H	kept
 stdbit.h	_STDBIT_H	kept
 stdbit.h	_SYS_CDEFS_H	kept
+stdbit.h	__FLOAT_WORD_ORDER	kept
 stdint.h	WCHAR_MIN	kept
 stdint.h	_BITS_STDINT_INTN_H	kept
 stdint.h	_BITS_STDINT_LEAST_H	kept
@@ -2940,6 +2995,7 @@ stdlib.h	_SYS_SELECT_H	kept
 stdlib.h	_SYS_TYPES_H	kept
 stdlib.h	_THREAD_MUTEX_INTERNAL_H	kept
 stdlib.h	_THREAD_SHARED_TYPES_H	kept
+stdlib.h	__FLOAT_WORD_ORDER	kept
 string.h	NULL	replaced-form
 string.h	_BITS_TYPES_LOCALE_T_H	kept
 string.h	_BITS_TYPES___LOCALE_T_H	kept
@@ -2977,6 +3033,7 @@ sys/acct.h	_SYS_SELECT_H	kept
 sys/acct.h	_SYS_TYPES_H	kept
 sys/acct.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/acct.h	_THREAD_SHARED_TYPES_H	kept
+sys/acct.h	__FLOAT_WORD_ORDER	kept
 sys/auxv.h	WCHAR_MIN	kept
 sys/auxv.h	_BITS_STDINT_INTN_H	kept
 sys/auxv.h	_BITS_STDINT_LEAST_H	kept
@@ -3010,6 +3067,7 @@ sys/bitypes.h	_SYS_SELECT_H	kept
 sys/bitypes.h	_SYS_TYPES_H	kept
 sys/bitypes.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/bitypes.h	_THREAD_SHARED_TYPES_H	kept
+sys/bitypes.h	__FLOAT_WORD_ORDER	kept
 sys/cdefs.h	_FEATURES_H	kept
 sys/cdefs.h	_SYS_CDEFS_H	kept
 sys/dir.h	MAXNAMLEN	kept
@@ -3048,6 +3106,7 @@ sys/epoll.h	_SYS_SELECT_H	kept
 sys/epoll.h	_SYS_TYPES_H	kept
 sys/epoll.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/epoll.h	_THREAD_SHARED_TYPES_H	kept
+sys/epoll.h	__FLOAT_WORD_ORDER	kept
 sys/errno.h	ENOTSUP	kept
 sys/errno.h	_BITS_ERRNO_H	kept
 sys/errno.h	_ERRNO_H	kept
@@ -3104,6 +3163,7 @@ sys/fcntl.h	_FCNTL_H	kept
 sys/fcntl.h	_FEATURES_H	kept
 sys/fcntl.h	_STRUCT_TIMESPEC	kept
 sys/fcntl.h	_SYS_CDEFS_H	kept
+sys/fcntl.h	__FLOAT_WORD_ORDER	kept
 sys/file.h	F_EXLCK	kept
 sys/file.h	F_GETLK	kept
 sys/file.h	F_LOCK	kept
@@ -3131,6 +3191,7 @@ sys/file.h	_FEATURES_H	kept
 sys/file.h	_STRUCT_TIMESPEC	kept
 sys/file.h	_SYS_CDEFS_H	kept
 sys/file.h	_SYS_FILE_H	kept
+sys/file.h	__FLOAT_WORD_ORDER	kept
 sys/fsuid.h	NFDBITS	replaced-form
 sys/fsuid.h	_BITS_BYTESWAP_H	kept
 sys/fsuid.h	_BITS_ENDIANNESS_H	kept
@@ -3152,6 +3213,7 @@ sys/fsuid.h	_SYS_SELECT_H	kept
 sys/fsuid.h	_SYS_TYPES_H	kept
 sys/fsuid.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/fsuid.h	_THREAD_SHARED_TYPES_H	kept
+sys/fsuid.h	__FLOAT_WORD_ORDER	kept
 sys/gmon.h	NFDBITS	replaced-form
 sys/gmon.h	_BITS_BYTESWAP_H	kept
 sys/gmon.h	_BITS_ENDIANNESS_H	kept
@@ -3173,6 +3235,7 @@ sys/gmon.h	_SYS_SELECT_H	kept
 sys/gmon.h	_SYS_TYPES_H	kept
 sys/gmon.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/gmon.h	_THREAD_SHARED_TYPES_H	kept
+sys/gmon.h	__FLOAT_WORD_ORDER	kept
 sys/gmon_out.h	_FEATURES_H	kept
 sys/gmon_out.h	_SYS_CDEFS_H	kept
 sys/inotify.h	WCHAR_MIN	kept
@@ -3283,6 +3346,7 @@ sys/mount.h	_STRUCT_TIMESPEC	kept
 sys/mount.h	_SYS_CDEFS_H	kept
 sys/mount.h	_SYS_IOCTL_H	kept
 sys/mount.h	_SYS_MOUNT_H	kept
+sys/mount.h	__FLOAT_WORD_ORDER	kept
 sys/msg.h	IPC_PRIVATE	replaced-form
 sys/msg.h	_BITS_IPCTYPES_H	kept
 sys/msg.h	_BITS_TIME64_H	kept
@@ -3334,6 +3398,7 @@ sys/mtio.h	_SYS_SELECT_H	kept
 sys/mtio.h	_SYS_TYPES_H	kept
 sys/mtio.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/mtio.h	_THREAD_SHARED_TYPES_H	kept
+sys/mtio.h	__FLOAT_WORD_ORDER	kept
 sys/param.h	BC_BASE_MAX	kept
 sys/param.h	BC_DIM_MAX	kept
 sys/param.h	BC_SCALE_MAX	kept
@@ -3418,6 +3483,7 @@ sys/param.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/param.h	_THREAD_SHARED_TYPES_H	kept
 sys/param.h	_UNISTD_H	kept
 sys/param.h	_XOPEN_LIM_H	kept
+sys/param.h	__FLOAT_WORD_ORDER	kept
 sys/param.h	si_arch	replaced-form
 sys/param.h	si_call_addr	replaced-form
 sys/param.h	si_lower	replaced-form
@@ -3457,6 +3523,7 @@ sys/pidfd.h	_FCNTL_H	kept
 sys/pidfd.h	_FEATURES_H	kept
 sys/pidfd.h	_STRUCT_TIMESPEC	kept
 sys/pidfd.h	_SYS_CDEFS_H	kept
+sys/pidfd.h	__FLOAT_WORD_ORDER	kept
 sys/pidfd.h	si_arch	replaced-form
 sys/pidfd.h	si_call_addr	replaced-form
 sys/pidfd.h	si_lower	replaced-form
@@ -3477,6 +3544,7 @@ sys/poll.h	_SIGSET_NWORDS	replaced-form
 sys/poll.h	_STRUCT_TIMESPEC	kept
 sys/poll.h	_SYS_CDEFS_H	kept
 sys/poll.h	_SYS_POLL_H	kept
+sys/poll.h	__FLOAT_WORD_ORDER	kept
 sys/prctl.h	PR_SET_PTRACER_ANY	replaced-form
 sys/prctl.h	_FEATURES_H	kept
 sys/prctl.h	_SYS_CDEFS_H	kept
@@ -3505,6 +3573,7 @@ sys/procfs.h	_SYS_TYPES_H	kept
 sys/procfs.h	_SYS_USER_H	kept
 sys/procfs.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/procfs.h	_THREAD_SHARED_TYPES_H	kept
+sys/procfs.h	__FLOAT_WORD_ORDER	kept
 sys/profil.h	NFDBITS	replaced-form
 sys/profil.h	_BITS_BYTESWAP_H	kept
 sys/profil.h	_BITS_ENDIANNESS_H	kept
@@ -3527,6 +3596,7 @@ sys/profil.h	_SYS_TIME_H	kept
 sys/profil.h	_SYS_TYPES_H	kept
 sys/profil.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/profil.h	_THREAD_SHARED_TYPES_H	kept
+sys/profil.h	__FLOAT_WORD_ORDER	kept
 sys/ptrace.h	_BITS_TIME64_H	kept
 sys/ptrace.h	_BITS_TYPESIZES_H	kept
 sys/ptrace.h	_BITS_TYPES_H	kept
@@ -3554,6 +3624,7 @@ sys/quota.h	_SYS_SELECT_H	kept
 sys/quota.h	_SYS_TYPES_H	kept
 sys/quota.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/quota.h	_THREAD_SHARED_TYPES_H	kept
+sys/quota.h	__FLOAT_WORD_ORDER	kept
 sys/random.h	NFDBITS	replaced-form
 sys/random.h	_BITS_BYTESWAP_H	kept
 sys/random.h	_BITS_ENDIANNESS_H	kept
@@ -3575,6 +3646,7 @@ sys/random.h	_SYS_SELECT_H	kept
 sys/random.h	_SYS_TYPES_H	kept
 sys/random.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/random.h	_THREAD_SHARED_TYPES_H	kept
+sys/random.h	__FLOAT_WORD_ORDER	kept
 sys/raw.h	FIOQSIZE	kept
 sys/raw.h	TCSETS2	replaced-form
 sys/raw.h	TIOCGDEV	replaced-form
@@ -3624,6 +3696,7 @@ sys/rseq.h	_FEATURES_H	kept
 sys/rseq.h	_STDINT_H	kept
 sys/rseq.h	_SYS_CDEFS_H	kept
 sys/rseq.h	_SYS_RSEQ_H	kept
+sys/rseq.h	__LITTLE_ENDIAN	kept
 sys/select.h	NFDBITS	replaced-form
 sys/select.h	_BITS_ENDIANNESS_H	kept
 sys/select.h	_BITS_ENDIAN_H	kept
@@ -3635,6 +3708,7 @@ sys/select.h	_SIGSET_NWORDS	replaced-form
 sys/select.h	_STRUCT_TIMESPEC	kept
 sys/select.h	_SYS_CDEFS_H	kept
 sys/select.h	_SYS_SELECT_H	kept
+sys/select.h	__FLOAT_WORD_ORDER	kept
 sys/sem.h	IPC_PRIVATE	replaced-form
 sys/sem.h	NFDBITS	replaced-form
 sys/sem.h	_BITS_BYTESWAP_H	kept
@@ -3659,6 +3733,7 @@ sys/sem.h	_SYS_SEM_H	kept
 sys/sem.h	_SYS_TYPES_H	kept
 sys/sem.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/sem.h	_THREAD_SHARED_TYPES_H	kept
+sys/sem.h	__FLOAT_WORD_ORDER	kept
 sys/sendfile.h	NFDBITS	replaced-form
 sys/sendfile.h	_BITS_BYTESWAP_H	kept
 sys/sendfile.h	_BITS_ENDIANNESS_H	kept
@@ -3680,6 +3755,7 @@ sys/sendfile.h	_SYS_SENDFILE_H	kept
 sys/sendfile.h	_SYS_TYPES_H	kept
 sys/sendfile.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/sendfile.h	_THREAD_SHARED_TYPES_H	kept
+sys/sendfile.h	__FLOAT_WORD_ORDER	kept
 sys/shm.h	IPC_PRIVATE	replaced-form
 sys/shm.h	SHMLBA	replaced-form
 sys/shm.h	_BITS_IPCTYPES_H	kept
@@ -3730,6 +3806,7 @@ sys/signal.h	_SYS_UCONTEXT_H	kept
 sys/signal.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/signal.h	_THREAD_SHARED_TYPES_H	kept
 sys/signal.h	_UNISTD_H	kept
+sys/signal.h	__FLOAT_WORD_ORDER	kept
 sys/signal.h	si_arch	replaced-form
 sys/signal.h	si_call_addr	replaced-form
 sys/signal.h	si_lower	replaced-form
@@ -3777,6 +3854,7 @@ sys/socket.h	_SYS_SOCKET_H	kept
 sys/socket.h	_SYS_TYPES_H	kept
 sys/socket.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/socket.h	_THREAD_SHARED_TYPES_H	kept
+sys/socket.h	__FLOAT_WORD_ORDER	kept
 sys/socketvar.h	NFDBITS	replaced-form
 sys/socketvar.h	SO_PASSCRED	kept
 sys/socketvar.h	_BITS_BYTESWAP_H	kept
@@ -3801,6 +3879,7 @@ sys/socketvar.h	_SYS_SOCKET_H	kept
 sys/socketvar.h	_SYS_TYPES_H	kept
 sys/socketvar.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/socketvar.h	_THREAD_SHARED_TYPES_H	kept
+sys/socketvar.h	__FLOAT_WORD_ORDER	kept
 sys/soundcard.h	_BITS_BYTESWAP_H	kept
 sys/soundcard.h	_BITS_ENDIANNESS_H	kept
 sys/soundcard.h	_BITS_ENDIAN_H	kept
@@ -3816,6 +3895,7 @@ sys/soundcard.h	_IOC_READ	kept
 sys/soundcard.h	_IOC_SIZEBITS	kept
 sys/soundcard.h	_IOC_WRITE	kept
 sys/soundcard.h	_SYS_CDEFS_H	kept
+sys/soundcard.h	__FLOAT_WORD_ORDER	kept
 sys/stat.h	_BITS_ENDIANNESS_H	kept
 sys/stat.h	_BITS_ENDIAN_H	kept
 sys/stat.h	_BITS_STAT_H	kept
@@ -3827,6 +3907,7 @@ sys/stat.h	_FEATURES_H	kept
 sys/stat.h	_STRUCT_TIMESPEC	kept
 sys/stat.h	_SYS_CDEFS_H	kept
 sys/stat.h	_SYS_STAT_H	kept
+sys/stat.h	__FLOAT_WORD_ORDER	kept
 sys/statfs.h	_BITS_TIME64_H	kept
 sys/statfs.h	_BITS_TYPESIZES_H	kept
 sys/statfs.h	_BITS_TYPES_H	kept
@@ -3875,6 +3956,7 @@ sys/time.h	_STRUCT_TIMESPEC	kept
 sys/time.h	_SYS_CDEFS_H	kept
 sys/time.h	_SYS_SELECT_H	kept
 sys/time.h	_SYS_TIME_H	kept
+sys/time.h	__FLOAT_WORD_ORDER	kept
 sys/timeb.h	_BITS_TIME64_H	kept
 sys/timeb.h	_BITS_TYPESIZES_H	kept
 sys/timeb.h	_BITS_TYPES_H	kept
@@ -3897,6 +3979,7 @@ sys/timerfd.h	_STRUCT_TIMESPEC	kept
 sys/timerfd.h	_SYS_CDEFS_H	kept
 sys/timerfd.h	_SYS_TIMERFD_H	kept
 sys/timerfd.h	_TIME_H	kept
+sys/timerfd.h	__FLOAT_WORD_ORDER	kept
 sys/times.h	_BITS_TIME64_H	kept
 sys/times.h	_BITS_TYPESIZES_H	kept
 sys/times.h	_BITS_TYPES_H	kept
@@ -3917,6 +4000,7 @@ sys/timex.h	_SYS_CDEFS_H	kept
 sys/timex.h	_SYS_SELECT_H	kept
 sys/timex.h	_SYS_TIMEX_H	kept
 sys/timex.h	_SYS_TIME_H	kept
+sys/timex.h	__FLOAT_WORD_ORDER	kept
 sys/types.h	NFDBITS	replaced-form
 sys/types.h	_BITS_BYTESWAP_H	kept
 sys/types.h	_BITS_ENDIANNESS_H	kept
@@ -3937,6 +4021,7 @@ sys/types.h	_SYS_SELECT_H	kept
 sys/types.h	_SYS_TYPES_H	kept
 sys/types.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/types.h	_THREAD_SHARED_TYPES_H	kept
+sys/types.h	__FLOAT_WORD_ORDER	kept
 sys/ucontext.h	_BITS_TIME64_H	kept
 sys/ucontext.h	_BITS_TYPESIZES_H	kept
 sys/ucontext.h	_BITS_TYPES_H	kept
@@ -3967,6 +4052,7 @@ sys/uio.h	_SYS_TYPES_H	kept
 sys/uio.h	_SYS_UIO_H	kept
 sys/uio.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/uio.h	_THREAD_SHARED_TYPES_H	kept
+sys/uio.h	__FLOAT_WORD_ORDER	kept
 sys/un.h	NULL	replaced-form
 sys/un.h	_BITS_SOCKADDR_H	kept
 sys/un.h	_BITS_TYPES_LOCALE_T_H	kept
@@ -4047,6 +4133,7 @@ sys/wait.h	_SYS_WAIT_H	kept
 sys/wait.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/wait.h	_THREAD_SHARED_TYPES_H	kept
 sys/wait.h	_UNISTD_H	kept
+sys/wait.h	__FLOAT_WORD_ORDER	kept
 sys/wait.h	si_arch	replaced-form
 sys/wait.h	si_call_addr	replaced-form
 sys/wait.h	si_lower	replaced-form
@@ -4076,6 +4163,7 @@ sys/xattr.h	_SYS_TYPES_H	kept
 sys/xattr.h	_SYS_XATTR_H	kept
 sys/xattr.h	_THREAD_MUTEX_INTERNAL_H	kept
 sys/xattr.h	_THREAD_SHARED_TYPES_H	kept
+sys/xattr.h	__FLOAT_WORD_ORDER	kept
 syslog.h	_BITS_SYSLOG_PATH_H	kept
 syslog.h	_FEATURES_H	kept
 syslog.h	_PATH_LOG	replaced-form
@@ -4178,6 +4266,7 @@ thread_db.h	_THREAD_DB_H	kept
 thread_db.h	_THREAD_MUTEX_INTERNAL_H	kept
 thread_db.h	_THREAD_SHARED_TYPES_H	kept
 thread_db.h	_TIME_H	kept
+thread_db.h	__FLOAT_WORD_ORDER	kept
 threads.h	CLOCKS_PER_SEC	replaced-form
 threads.h	NULL	replaced-form
 threads.h	ONCE_FLAG_INIT	replaced-form
@@ -4198,6 +4287,7 @@ threads.h	_THREADS_H	kept
 threads.h	_THREAD_MUTEX_INTERNAL_H	kept
 threads.h	_THREAD_SHARED_TYPES_H	kept
 threads.h	_TIME_H	kept
+threads.h	__FLOAT_WORD_ORDER	kept
 time.h	CLOCKS_PER_SEC	replaced-form
 time.h	NULL	replaced-form
 time.h	_BITS_ENDIANNESS_H	kept
@@ -4213,6 +4303,7 @@ time.h	_FEATURES_H	kept
 time.h	_STRUCT_TIMESPEC	kept
 time.h	_SYS_CDEFS_H	kept
 time.h	_TIME_H	kept
+time.h	__FLOAT_WORD_ORDER	kept
 ttyent.h	_FEATURES_H	kept
 ttyent.h	_PATH_TTYS	replaced-form
 ttyent.h	_SYS_CDEFS_H	kept
@@ -4287,6 +4378,7 @@ utmp.h	_SYS_TYPES_H	kept
 utmp.h	_THREAD_MUTEX_INTERNAL_H	kept
 utmp.h	_THREAD_SHARED_TYPES_H	kept
 utmp.h	_UTMP_H	kept
+utmp.h	__FLOAT_WORD_ORDER	kept
 utmpx.h	NFDBITS	replaced-form
 utmpx.h	UTMPX_FILE	replaced-form
 utmpx.h	WTMPX_FILE	replaced-form
@@ -4316,6 +4408,7 @@ utmpx.h	_SYS_CDEFS_H	kept
 utmpx.h	_SYS_SELECT_H	kept
 utmpx.h	_SYS_TIME_H	kept
 utmpx.h	_UTMPX_H	kept
+utmpx.h	__FLOAT_WORD_ORDER	kept
 values.h	BC_BASE_MAX	kept
 values.h	BC_DIM_MAX	kept
 values.h	BC_SCALE_MAX	kept
@@ -4391,6 +4484,7 @@ wait.h	_SYS_WAIT_H	kept
 wait.h	_THREAD_MUTEX_INTERNAL_H	kept
 wait.h	_THREAD_SHARED_TYPES_H	kept
 wait.h	_UNISTD_H	kept
+wait.h	__FLOAT_WORD_ORDER	kept
 wait.h	si_arch	replaced-form
 wait.h	si_call_addr	replaced-form
 wait.h	si_lower	replaced-form
@@ -4422,6 +4516,7 @@ wctype.h	_FEATURES_H	kept
 wctype.h	_SYS_CDEFS_H	kept
 wctype.h	_WCTYPE_H	kept
 wctype.h	_WINT_T	kept
+wctype.h	__FLOAT_WORD_ORDER	kept
 wordexp.h	_FEATURES_H	kept
 wordexp.h	_SYS_CDEFS_H	kept
 wordexp.h	_WORDEXP_H	kept

@@ -100,6 +100,37 @@ enum __ptrace_request {
 # ifndef PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG
 #  define PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG
 # endif
+/* The PTRACE_SETOPTIONS option bits and the PTRACE_EVENT_* stop codes are enumerators, as the reference's header shows
+   them, with no macro of their names (black-box probe; R-H7: glib2.0). */
+# ifndef __NIJI_D_enum___ptrace_setoptions
+#  define __NIJI_D_enum___ptrace_setoptions 1
+enum __ptrace_setoptions {
+  PTRACE_O_TRACESYSGOOD = 1,
+  PTRACE_O_TRACEFORK = 2,
+  PTRACE_O_TRACEVFORK = 4,
+  PTRACE_O_TRACECLONE = 8,
+  PTRACE_O_TRACEEXEC = 16,
+  PTRACE_O_TRACEVFORKDONE = 32,
+  PTRACE_O_TRACEEXIT = 64,
+  PTRACE_O_TRACESECCOMP = 128,
+  PTRACE_O_EXITKILL = 1048576,
+  PTRACE_O_SUSPEND_SECCOMP = 2097152,
+  PTRACE_O_MASK = 3145983,
+};
+# endif
+# ifndef __NIJI_D_enum___ptrace_eventcodes
+#  define __NIJI_D_enum___ptrace_eventcodes 1
+enum __ptrace_eventcodes {
+  PTRACE_EVENT_FORK = 1,
+  PTRACE_EVENT_VFORK = 2,
+  PTRACE_EVENT_CLONE = 3,
+  PTRACE_EVENT_EXEC = 4,
+  PTRACE_EVENT_VFORK_DONE = 5,
+  PTRACE_EVENT_EXIT = 6,
+  PTRACE_EVENT_SECCOMP = 7,
+  PTRACE_EVENT_STOP = 128,
+};
+# endif
 #if 1
 # ifndef __NIJI_D___blkcnt64_t
 #  define __NIJI_D___blkcnt64_t 1

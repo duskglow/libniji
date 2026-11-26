@@ -17,7 +17,8 @@
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
-//! * `@@enum TAG`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros.
+//! * `@@enum TAG [plain]`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros
+//!   (`plain`: no macros, where the reference's header defines none).
 //! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
@@ -582,7 +583,7 @@ pub(crate) fn guard_candidates(header: &str) -> Vec<String> {
 
 pub(crate) fn omitted(reserved: &BTreeMap<String, String>, name: &str) -> bool {
     match reserved.get(name).map(String::as_str) {
-        Some("emit") => false,
+        Some("emit" | "emit-once") => false,
         Some(_) => true,
         None => name.starts_with("__") || (name.starts_with('_') && (name.ends_with("_H") || name.ends_with("_H_"))),
     }
@@ -603,6 +604,22 @@ struct Gen<'a> {
     owned_macros: BTreeSet<String>,
     /// `@@hidden-member`: member name to the names of its scalar members where its structure tag is not visible.
     hidden_members: BTreeMap<String, Vec<String>>,
+    /// The `__x` targets of the template's `#define x __x` renames (`rename_targets`): their declarators are
+    /// parenthesized, so a program's earlier function-like macro of that name leaves the declaration alone.
+    renamed: BTreeSet<String>,
+}
+
+/// The targets `__x` of the object-like renames `#define x __x` in a template's text (resolv.h's b64_ntop and
+/// res_ninit family). The reference declares the `__x` name whatever function-like `__x` macro a program defined
+/// before the include (openssh's openbsd-compat/base64.h defines `__b64_ntop(a,b,c,d)`; black-box probe,
+/// HEADERS-STAGE2-GAPS-G); a plain `__x (` declarator would be expanded by such a macro.
+fn rename_targets(text: &str) -> BTreeSet<String> {
+    text.lines()
+        .filter_map(|l| {
+            let w: Vec<&str> = l.trim_start().strip_prefix('#')?.split_whitespace().collect();
+            (w.len() == 3 && w[0] == "define" && w[2].strip_prefix("__") == Some(w[1])).then(|| w[2].to_string())
+        })
+        .collect()
 }
 
 impl Gen<'_> {
@@ -710,35 +727,49 @@ impl Gen<'_> {
         }
     }
 
+    /// The definition of macro `name` in this header's form ([`Gen::item`]).
+    fn macro_def(&mut self, name: &str) {
+        // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
+        // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
+        // reference names it (enum-macros.tsv), where this header declares it, else its value.
+        // An alias the header shows in only some of the macro's configurations names it there only.
+        if let Some((a, Some(c))) = self.macro_alias(name) {
+            let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
+            if self.t.redefined(&self.header, name) {
+                // As below: the reference's definition replaces a program's earlier one.
+                self.out.extend([format!("# if {c}"), format!("#  define {name} {a}"), "# else".into(), format!("#  define {name} {v}"), "# endif".into()]);
+            } else {
+                self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+            }
+            return;
+        }
+        let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
+            Some(e) => e,
+            None => self.value(name),
+        };
+        // The reference's form (macro-forms.tsv): a definition that replaces a program's earlier one is emitted
+        // unconditionally, so the program's spelling (flex's `SIZE_MAX (~(size_t)0)`) is not the one in force.
+        if self.t.redefined(&self.header, name) {
+            self.out.push(format!("# define {name} {v}"));
+        } else {
+            self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+        }
+    }
+
     /// The declaration of one table name of a visibility.tsv kind: every placement (`@@emit`, the rows test of
     /// [`rows`]) goes through here to the emitter of its construct.
     fn item(&mut self, name: &str, kind: &str) {
         match kind {
             "macro" => {
-                // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
-                // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
-                // reference names it (enum-macros.tsv), where this header declares it, else its value.
-                // An alias the header shows in only some of the macro's configurations names it there only.
-                if let Some((a, Some(c))) = self.macro_alias(name) {
-                    let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
-                    if self.t.redefined(&self.header, name) {
-                        // As below: the reference's definition replaces a program's earlier one.
-                        self.out.extend([format!("# if {c}"), format!("#  define {name} {a}"), "# else".into(), format!("#  define {name} {v}"), "# endif".into()]);
-                    } else {
-                        self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
-                    }
-                    return;
-                }
-                let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
-                    Some(e) => e,
-                    None => self.value(name),
-                };
-                // The reference's form (macro-forms.tsv): a definition that replaces a program's earlier one is emitted
-                // unconditionally, so the program's spelling (flex's `SIZE_MAX (~(size_t)0)`) is not the one in force.
-                if self.t.redefined(&self.header, name) {
-                    self.out.push(format!("# define {name} {v}"));
-                } else {
-                    self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+                let at = self.out.len();
+                self.macro_def(name);
+                // reserved.tsv `emit-once`: a name the reference defines in one internal header that each of its
+                // headers reaches. Each libniji header that shows it carries the definition under one guard, so the
+                // first one included defines it, in the form above, and no header defines it again
+                // (spec/tools/header_checks/dup.py).
+                if self.t.reserved.get(name).is_some_and(|p| p == "emit-once") {
+                    let body = self.out.split_off(at);
+                    self.guard(&format!("m_{name}"), body);
                 }
             }
             "enumerator" => {
@@ -1026,7 +1057,8 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros, hidden_members };
+        let renamed = rename_targets(&text);
+        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros, hidden_members, renamed };
         let guards = g.guards();
         owned.extend(guards.iter().map(|(n, _)| n.clone()));
         let mut guard_at = None;
@@ -1535,7 +1567,7 @@ mod tests {
         let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
         let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
         t.layouts.insert(key.into(), made);
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         let a = g.aggregate(key).expect("the synthetic rows make an aggregate");
         let lines: Vec<&str> = a.lines.iter().map(|l| l.trim()).collect();
         assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
@@ -1553,7 +1585,7 @@ mod tests {
         t.lfs.insert("niji_test_f".into(), "niji_test_f64".into());
         t.exported.insert("niji_test_f64".into());
         t.lfs.insert("niji_test_g".into(), "niji_test_g64".into());
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         let d = "int niji_test_f (int)";
         let l = g.extern_lines("niji_test_f", d, "", "niji_test_f", "#  ", false);
         assert_eq!(l, ["#  if __NIJI_FOB64", "extern int niji_test_f (int) __asm__ (\"niji_test_f64\");", "#  else", "extern int niji_test_f (int);", "#  endif"]);
@@ -1572,7 +1604,7 @@ mod tests {
             let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
             t.layouts.insert(key.into(), made);
         }
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         assert_eq!(g.aggregate("struct niji_test_bytes").expect("aggregate").attrs, "");
         assert!(g.aggregate("struct niji_test_pk").expect("aggregate").attrs.contains("__packed__"), "a misaligned int member keeps the mark");
     }

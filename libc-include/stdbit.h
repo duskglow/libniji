@@ -337,7 +337,29 @@ typedef unsigned long uint_least64_t;
 #  define __NIJI_D_uint_least8_t 1
 typedef unsigned char uint_least8_t;
 # endif
+# ifndef __NIJI_D_m___BIG_ENDIAN
+#  define __NIJI_D_m___BIG_ENDIAN 1
+# define __BIG_ENDIAN 4321
+# endif
+# ifndef __NIJI_D_m___BYTE_ORDER
+#  define __NIJI_D_m___BYTE_ORDER 1
+# define __BYTE_ORDER 1234
+# endif
 # define __FD_SETSIZE 1024
+# ifndef __NIJI_D_m___FLOAT_WORD_ORDER
+#  define __NIJI_D_m___FLOAT_WORD_ORDER 1
+# ifndef __FLOAT_WORD_ORDER
+#  define __FLOAT_WORD_ORDER 1234
+# endif
+# endif
+# ifndef __NIJI_D_m___LITTLE_ENDIAN
+#  define __NIJI_D_m___LITTLE_ENDIAN 1
+# define __LITTLE_ENDIAN 1234
+# endif
+# ifndef __NIJI_D_m___PDP_ENDIAN
+#  define __NIJI_D_m___PDP_ENDIAN 1
+# define __PDP_ENDIAN 3412
+# endif
 #endif
 
 #define __STDC_ENDIAN_LITTLE__ __ORDER_LITTLE_ENDIAN__

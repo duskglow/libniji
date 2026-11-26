@@ -1,0 +1,31 @@
+{
+  "task": "HEADERS-STAGE2-GAPS-G",
+  "model": "opus",
+  "tokens": null,
+  "result": "Yohane 26.1 stage-2 header gaps 1-7 plus the coordinator's CTRL/n_time note: XSI strerror_r, byte-order and bswap internals, resolv.h renames, kernel UAPI includes, FTS64, clang fortify, 14 names; the 15 named failing package units compile against libniji's headers",
+  "branch": "task/headers-stage2-gaps-g",
+  "head": "da637ab15",
+  "gate": {"affected": "FULL: the train's (generator inputs); xtask 692 passed / 0 failed, niji-abi appendix_c_layouts 3 passed, header_check 0 failed of 25922 (test-2); test-4 on the final head: see JOBS", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "TTYDEF_SPEED is B9600 in termios.h and 13 in sys/ioctl.h / sys/ttydefaults.h: including both families conflicts under -Werror; termios.h before the kernel's asm/ioctls.h also conflicts in header_check's UAPI tree",
+    "147 functions carry warn_unused_result on stock only under fortify, on libniji always (diagattrs.tsv from the fortify=3 base); nothrow/leaf absent in C: a per-configuration wur column and __NIJI_WUR is a follow-up story",
+    "__asprintf is a clang macro on stock and undeclared on libniji; obstack_empty_p's C++ type not verified; a program's 0-argument __res_init() macro: stock errors, libniji compiles",
+    "Item 1 sweep: gnu C getitimer/setitimer/getrlimit/setrlimit(64) take enum types on stock; getumask, bindresvport6, _argp_input, _option_is_short undeclared on libniji",
+    "Item 4 sweep: stock-only kernel include closures beyond the three fixed (errno.h -> linux/errno.h in 19 headers, linux/limits.h, falloc, close_range, sockios, param, ppp, if_slip, stat, quota, prctl, sysinfo, rseq, atalk): listed, not changed",
+    "feature_probe's forms probe had no kernel UAPI tree on next, so forms results for kernel-including headers were vacuous (every name read replaced); with the UAPI tree the whole forms check is clean (210 headers), and features.py KNOWN_KEPT may now be removable (not tried)",
+    "Package-unit limits: no dev libraries, meson, cmake or root on the build host: configure ran against the stock toolchain and only the unit compile switched to libniji's headers; systemd, elogind, libssh and glib2.0 units are the failing header or code block with the unit's flags; fakechroot's fts.c is GNU C Library code and was compiled as a black box, not read"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "unblock", "what": "Yohane stage-2 units: systemd, elogind, eudev, openssh, liburing, iptables, fakechroot, libssh, glib2.0, llvm-toolchain-19 (libunwind with clang), inetutils ping (n_time)", "before": null, "after": 15, "unit": "failing units compiling (of 15 reconstructed)", "measured": true},
+    {"kind": "correctness", "what": "strerror_r without _GNU_SOURCE: XSI int form (was char *)", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "plants for this story", "before": 0, "after": 23, "unit": "plants", "measured": true},
+    {"kind": "tooling", "what": "feature_probe forms check now compiles headers that include kernel UAPI headers (was vacuous); rows test handles redirected functions; reserved.tsv emit-once policy", "before": null, "after": null, "unit": null, "measured": true}
+  ],
+  "jobs": ["keke:headers-stage2-gaps-g-test-4", "keke:headers-stage2-gaps-g-plants-4", "keke:headers-stage2-gaps-g-units-5"],
+  "improvement": "The first full test of a header story should run before plants: test-1 found 4 classes of failure (DUP, forms, rows, abi-gen) that --only header_check runs cannot see; a `headers-quick` precheck (dup.py, features forms, headers-gen --rows) takes minutes and would have caught them in leg 2",
+  "next_step": "Land; follow-ups: per-configuration warn_unused_result (__NIJI_WUR), the item-4 kernel include closure sweep",
+  "report_file": "handoff/HEADERS-STAGE2-GAPS-G.md"
+}

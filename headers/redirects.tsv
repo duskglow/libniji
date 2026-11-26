@@ -1,0 +1,8 @@
+# The declaration a function has where callsites.tsv binds its calls to another symbol and the reference's declaration
+# there differs from prototypes.tsv's (xtask/src/headers/functions.rs `redirect_line`). Black-box probes of the
+# reference (HEADERS-STAGE2-GAPS-G): the type (`__builtin_types_compatible_p`) and the attributes
+# (`__builtin_has_attribute`) of the name in each configuration that binds it to `symbol`, C and C++.
+# declaration: spelled with the symbol's name, typedefs resolved. nonnull: the parameters (1-based). wur: 1 when the
+# declaration has warn_unused_result in those configurations, else empty.
+symbol	declaration	nonnull	wur	evidence
+__xpg_strerror_r	int __xpg_strerror_r (int, char *, unsigned long)	2		strerror_r without _GNU_SOURCE (POSIX.1-2001 and later, X/Open 600 and 700, _DEFAULT_SOURCE, gnu17, fortify): int, nonnull (2), no warn_unused_result at any fortify level (libssh, libbpf, nghttp2, ocaml, bind9, hiredis)

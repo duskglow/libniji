@@ -10,6 +10,8 @@ __NIJI_BEGIN_C
 @@owns be16toh le64toh
 @@emit
 
+@@fragments
+
 /* endian(3): host to and from big- and little-endian order (the levels that show the conversion macros). */
 @@when be16toh
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__

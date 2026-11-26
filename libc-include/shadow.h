@@ -103,6 +103,7 @@ extern int sgetspent_r (const char *, struct spwd *, char *, unsigned long, stru
 # endif
 #endif
 #if 1
+# define SHADOW "/etc/shadow"
 # define _PATH_BSHELL "/bin/sh"
 # define _PATH_CONSOLE "/dev/console"
 # define _PATH_CSHELL "/bin/csh"

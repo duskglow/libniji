@@ -89,6 +89,7 @@ extern void vsyslog (int, const char *, __builtin_va_list) __attribute__ ((__for
 #if (1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_syslog
 #  define __NIJI_F_syslog 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___syslog_chk
 #   define __NIJI_D___syslog_chk 1
 extern void __syslog_chk (int, int, const char *, ...);
@@ -97,6 +98,13 @@ __NIJI_FORTIFY_FN void syslog (int __p0, const char *__p1, ...)
 {
   __syslog_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___syslog_chk
+#    define __NIJI_D___syslog_chk 1
+extern void __syslog_chk (int, int, const char *, ...);
+#   endif
+#   define syslog(__p0, ...) __syslog_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (defined __USE_MISC) && __NIJI_FORTIFY >= 1

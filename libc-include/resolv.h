@@ -118,23 +118,23 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D___b64_ntop
 #  define __NIJI_D___b64_ntop 1
-extern int __b64_ntop (const unsigned char *, unsigned long, char *, unsigned long) __NIJI_NOTHROW;
+extern int (__b64_ntop) (const unsigned char *, unsigned long, char *, unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___b64_pton
 #  define __NIJI_D___b64_pton 1
-extern int __b64_pton (const char *, unsigned char *, unsigned long) __NIJI_NOTHROW;
+extern int (__b64_pton) (const char *, unsigned char *, unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___res_init
 #  define __NIJI_D___res_init 1
-extern int __res_init (void) __NIJI_NOTHROW;
+extern int (__res_init) (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___res_nclose
 #  define __NIJI_D___res_nclose 1
-extern void __res_nclose (res_state) __NIJI_NOTHROW;
+extern void (__res_nclose) (res_state) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___res_ninit
 #  define __NIJI_D___res_ninit 1
-extern int __res_ninit (res_state) __NIJI_NOTHROW;
+extern int (__res_ninit) (res_state) __NIJI_NOTHROW;
 # endif
 struct __res_state;
 # ifndef __NIJI_D___res_state

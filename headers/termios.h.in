@@ -9,6 +9,8 @@ __NIJI_BEGIN_C
 
 @@emit
 
+@@fragments
+
 __NIJI_END_C
 
 #endif

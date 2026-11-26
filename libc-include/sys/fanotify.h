@@ -8,6 +8,8 @@
 
 #include <features.h>
 #include <stdint.h>
+/* The event records, response structure and FAN_* values are the kernel's (R-H7: liburing). */
+#include <linux/fanotify.h>
 
 __NIJI_BEGIN_C
 

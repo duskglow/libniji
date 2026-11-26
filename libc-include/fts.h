@@ -37,6 +37,35 @@ struct _ftsent {
   char fts_name[1];
 };
 # endif
+#endif
+#if __NIJI_LFS64
+# ifndef __NIJI_D_struct__ftsent64
+#  define __NIJI_D_struct__ftsent64 1
+struct _ftsent64 {
+  struct _ftsent64 * fts_cycle;
+  struct _ftsent64 * fts_parent;
+  struct _ftsent64 * fts_link;
+  long fts_number;
+  void * fts_pointer;
+  char * fts_accpath;
+  char * fts_path;
+  int fts_errno;
+  int fts_symfd;
+  unsigned short fts_pathlen;
+  unsigned short fts_namelen;
+  unsigned long fts_ino;
+  unsigned long fts_dev;
+  unsigned long fts_nlink;
+  short fts_level;
+  unsigned short fts_info;
+  unsigned short fts_flags;
+  unsigned short fts_instr;
+  struct stat64 * fts_statp;
+  char fts_name[1];
+};
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_FTS
 #  define __NIJI_D_FTS 1
 typedef struct {
@@ -86,11 +115,44 @@ typedef struct _ftsent FTSENT;
 #if __NIJI_LFS64
 # ifndef __NIJI_D_FTS64
 #  define __NIJI_D_FTS64 1
-typedef struct { char __niji_opaque[72] __attribute__ ((__aligned__ (8))); } FTS64;
+typedef struct {
+  struct _ftsent64 * fts_cur;
+  struct _ftsent64 * fts_child;
+  struct _ftsent64 * * fts_array;
+  unsigned long fts_dev;
+  char * fts_path;
+  int fts_rfd;
+  int fts_pathlen;
+  int fts_nitems;
+  void (*fts_compar) (void);
+  int fts_options;
+  int : 32;
+} FTS64;
 # endif
 # ifndef __NIJI_D_struct__ftsent64
 #  define __NIJI_D_struct__ftsent64 1
-struct _ftsent64 { char __niji_opaque[120] __attribute__ ((__aligned__ (8))); };
+struct _ftsent64 {
+  struct _ftsent64 * fts_cycle;
+  struct _ftsent64 * fts_parent;
+  struct _ftsent64 * fts_link;
+  long fts_number;
+  void * fts_pointer;
+  char * fts_accpath;
+  char * fts_path;
+  int fts_errno;
+  int fts_symfd;
+  unsigned short fts_pathlen;
+  unsigned short fts_namelen;
+  unsigned long fts_ino;
+  unsigned long fts_dev;
+  unsigned long fts_nlink;
+  short fts_level;
+  unsigned short fts_info;
+  unsigned short fts_flags;
+  unsigned short fts_instr;
+  struct stat64 * fts_statp;
+  char fts_name[1];
+};
 # endif
 # ifndef __NIJI_D_FTSENT64
 #  define __NIJI_D_FTSENT64 1

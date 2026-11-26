@@ -1123,6 +1123,7 @@ __NIJI_INLINE_FN ssize_t getline (char **__lineptr, size_t *__n, FILE *__stream)
 #if (defined __USE_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_asprintf
 #  define __NIJI_F_asprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___asprintf_chk
 #   define __NIJI_D___asprintf_chk 1
 extern int __asprintf_chk (char **, int, const char *, ...) __NIJI_NOTHROW;
@@ -1131,11 +1132,19 @@ __NIJI_FORTIFY_FN int asprintf (char **__p0, const char *__p1, ...) __NIJI_NOTHR
 {
   return __asprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___asprintf_chk
+#    define __NIJI_D___asprintf_chk 1
+extern int __asprintf_chk (char **, int, const char *, ...) __NIJI_NOTHROW;
+#   endif
+#   define asprintf(__p0, ...) __asprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_dprintf
 #  define __NIJI_F_dprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___dprintf_chk
 #   define __NIJI_D___dprintf_chk 1
 extern int __dprintf_chk (int, int, const char *, ...);
@@ -1144,6 +1153,13 @@ __NIJI_FORTIFY_FN int dprintf (int __p0, const char *__p1, ...)
 {
   return __dprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___dprintf_chk
+#    define __NIJI_D___dprintf_chk 1
+extern int __dprintf_chk (int, int, const char *, ...);
+#   endif
+#   define dprintf(__p0, ...) __dprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (1) && __NIJI_FORTIFY >= 1
@@ -1181,6 +1197,7 @@ __NIJI_FORTIFY_FN char *fgets_unlocked (char *__p0, int __p1, FILE *__p2)
 #if (1) && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_fprintf
 #  define __NIJI_F_fprintf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___fprintf_chk
 #   define __NIJI_D___fprintf_chk 1
 extern int __fprintf_chk (FILE *, int, const char *, ...);
@@ -1189,6 +1206,13 @@ __NIJI_FORTIFY_FN int fprintf (FILE *__p0, const char *__p1, ...)
 {
   return __fprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___fprintf_chk
+#    define __NIJI_D___fprintf_chk 1
+extern int __fprintf_chk (FILE *, int, const char *, ...);
+#   endif
+#   define fprintf(__p0, ...) __fprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (1) && __NIJI_FORTIFY >= 1
@@ -1227,6 +1251,7 @@ struct obstack;
 #if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_obstack_printf
 #  define __NIJI_F_obstack_printf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___obstack_printf_chk
 #   define __NIJI_D___obstack_printf_chk 1
 extern int __obstack_printf_chk (struct obstack *, int, const char *, ...) __NIJI_NOTHROW;
@@ -1235,6 +1260,13 @@ __NIJI_FORTIFY_FN int obstack_printf (struct obstack *__p0, const char *__p1, ..
 {
   return __obstack_printf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___obstack_printf_chk
+#    define __NIJI_D___obstack_printf_chk 1
+extern int __obstack_printf_chk (struct obstack *, int, const char *, ...) __NIJI_NOTHROW;
+#   endif
+#   define obstack_printf(__p0, ...) __obstack_printf_chk (__p0, __NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 struct obstack;
@@ -1254,6 +1286,7 @@ __NIJI_FORTIFY_FN int obstack_vprintf (struct obstack *__p0, const char *__p1, _
 #if (1) && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_printf
 #  define __NIJI_F_printf 1
+#  if !defined __clang__
 #  ifndef __NIJI_D___printf_chk
 #   define __NIJI_D___printf_chk 1
 extern int __printf_chk (int, const char *, ...);
@@ -1262,24 +1295,39 @@ __NIJI_FORTIFY_FN int printf (const char *__p0, ...)
 {
   return __printf_chk (__NIJI_FORTIFY_FLAG, __p0, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   ifndef __NIJI_D___printf_chk
+#    define __NIJI_D___printf_chk 1
+extern int __printf_chk (int, const char *, ...);
+#   endif
+#   define printf(...) __printf_chk (__NIJI_FORTIFY_FLAG, __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_snprintf
 #  define __NIJI_F_snprintf 1
+#  if !defined __clang__
 __NIJI_FORTIFY_FN int snprintf (char *__p0, unsigned long __p1, const char *__p2, ...) __NIJI_NOTHROW
 {
   return __builtin___snprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)), __p2, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   define snprintf(__p0, __p1, ...) __builtin___snprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)), __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (1) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_sprintf
 #  define __NIJI_F_sprintf 1
+#  if !defined __clang__
 __NIJI_FORTIFY_FN int sprintf (char *__p0, const char *__p1, ...) __NIJI_NOTHROW
 {
   return __builtin___sprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)), __p1, __builtin_va_arg_pack ());
 }
+#  elif !defined __cplusplus
+#   define sprintf(__p0, ...) __builtin___sprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)), __VA_ARGS__)
+#  endif
 # endif
 #endif
 #if (defined __USE_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2

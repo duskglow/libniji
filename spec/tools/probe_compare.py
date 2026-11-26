@@ -23,7 +23,7 @@ def reserved_omitted():
     except those headers/reserved.tsv emits. They are not part of the comparison."""
     with open(os.path.join(ROOT, "headers", "reserved.tsv"), newline="") as f:
         rows = list(csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t"))
-    emit = {r["name"] for r in rows if r["policy"] == "emit"}
+    emit = {r["name"] for r in rows if r["policy"] in ("emit", "emit-once")}
     omit = {r["name"] for r in rows if r["policy"] == "omit"}
     def omitted(n):
         return n in omit or (n not in emit and (n.startswith("__") or (n.startswith("_") and n.rstrip("_").endswith("_H"))))

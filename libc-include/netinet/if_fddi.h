@@ -7,6 +7,8 @@
 #include <features.h>
 #include <sys/types.h>
 #include <stdint.h>
+/* The FDDI_K_* sizes and struct fddihdr are the kernel's (R-H7: net-tools). */
+#include <linux/if_fddi.h>
 
 __NIJI_BEGIN_C
 
@@ -19,6 +21,18 @@ union pthread_attr_t {
 };
 typedef union pthread_attr_t pthread_attr_t;
 # endif
+#endif
+#if 1
+# define FDDI_K_8022_DLEN 4475
+# define FDDI_K_8022_HLEN 16
+# define FDDI_K_8022_ZLEN 16
+# define FDDI_K_ALEN 6
+# define FDDI_K_LLC_LEN 4491
+# define FDDI_K_LLC_ZLEN 13
+# define FDDI_K_OUI_LEN 3
+# define FDDI_K_SNAP_DLEN 4470
+# define FDDI_K_SNAP_HLEN 21
+# define FDDI_K_SNAP_ZLEN 21
 #endif
 
 __NIJI_END_C

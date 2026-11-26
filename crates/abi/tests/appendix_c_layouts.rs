@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (368 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (370 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1105,6 +1105,46 @@ fn abi_ftsent() {
     expect_member("FTSENT", "fts_instr", offset_of!(FTSENT, fts_instr));
     expect_member("FTSENT", "fts_statp", offset_of!(FTSENT, fts_statp));
     expect_member("FTSENT", "fts_name", offset_of!(FTSENT, fts_name));
+}
+
+#[test]
+fn abi_fts64() {
+    expect_type("FTS64", size_of::<FTS64>(), align_of::<FTS64>());
+    expect_member("FTS64", "fts_cur", offset_of!(FTS64, fts_cur));
+    expect_member("FTS64", "fts_child", offset_of!(FTS64, fts_child));
+    expect_member("FTS64", "fts_array", offset_of!(FTS64, fts_array));
+    expect_member("FTS64", "fts_dev", offset_of!(FTS64, fts_dev));
+    expect_member("FTS64", "fts_path", offset_of!(FTS64, fts_path));
+    expect_member("FTS64", "fts_rfd", offset_of!(FTS64, fts_rfd));
+    expect_member("FTS64", "fts_pathlen", offset_of!(FTS64, fts_pathlen));
+    expect_member("FTS64", "fts_nitems", offset_of!(FTS64, fts_nitems));
+    expect_member("FTS64", "fts_compar", offset_of!(FTS64, fts_compar));
+    expect_member("FTS64", "fts_options", offset_of!(FTS64, fts_options));
+}
+
+#[test]
+fn abi_ftsent64() {
+    expect_type("FTSENT64", size_of::<FTSENT64>(), align_of::<FTSENT64>());
+    expect_member("FTSENT64", "fts_cycle", offset_of!(FTSENT64, fts_cycle));
+    expect_member("FTSENT64", "fts_parent", offset_of!(FTSENT64, fts_parent));
+    expect_member("FTSENT64", "fts_link", offset_of!(FTSENT64, fts_link));
+    expect_member("FTSENT64", "fts_number", offset_of!(FTSENT64, fts_number));
+    expect_member("FTSENT64", "fts_pointer", offset_of!(FTSENT64, fts_pointer));
+    expect_member("FTSENT64", "fts_accpath", offset_of!(FTSENT64, fts_accpath));
+    expect_member("FTSENT64", "fts_path", offset_of!(FTSENT64, fts_path));
+    expect_member("FTSENT64", "fts_errno", offset_of!(FTSENT64, fts_errno));
+    expect_member("FTSENT64", "fts_symfd", offset_of!(FTSENT64, fts_symfd));
+    expect_member("FTSENT64", "fts_pathlen", offset_of!(FTSENT64, fts_pathlen));
+    expect_member("FTSENT64", "fts_namelen", offset_of!(FTSENT64, fts_namelen));
+    expect_member("FTSENT64", "fts_ino", offset_of!(FTSENT64, fts_ino));
+    expect_member("FTSENT64", "fts_dev", offset_of!(FTSENT64, fts_dev));
+    expect_member("FTSENT64", "fts_nlink", offset_of!(FTSENT64, fts_nlink));
+    expect_member("FTSENT64", "fts_level", offset_of!(FTSENT64, fts_level));
+    expect_member("FTSENT64", "fts_info", offset_of!(FTSENT64, fts_info));
+    expect_member("FTSENT64", "fts_flags", offset_of!(FTSENT64, fts_flags));
+    expect_member("FTSENT64", "fts_instr", offset_of!(FTSENT64, fts_instr));
+    expect_member("FTSENT64", "fts_statp", offset_of!(FTSENT64, fts_statp));
+    expect_member("FTSENT64", "fts_name", offset_of!(FTSENT64, fts_name));
 }
 
 #[test]

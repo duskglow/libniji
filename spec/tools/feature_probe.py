@@ -80,7 +80,9 @@ def compiler(lang, include):
     flags = [cc] + header_probe.BASE
     if include:
         own = subprocess.run([cc, "-print-file-name=include"], capture_output=True, text=True).stdout.strip()
-        flags += ["-nostdinc", "-isystem", include, "-isystem", own]
+        # The kernel UAPI directories after libniji's tree (header_probe.uapi_flags), as header_check.py's own units:
+        # a header that includes <linux/if_ether.h> compiles here as it does in a program.
+        flags += ["-nostdinc", "-isystem", include, "-isystem", own, *header_probe.uapi_flags()]
     return flags
 
 

@@ -93,6 +93,28 @@ enum {
 # ifndef TFD_TIMER_CANCEL_ON_SET
 #  define TFD_TIMER_CANCEL_ON_SET TFD_TIMER_CANCEL_ON_SET
 # endif
+# ifndef __NIJI_D_m___BIG_ENDIAN
+#  define __NIJI_D_m___BIG_ENDIAN 1
+# define __BIG_ENDIAN 4321
+# endif
+# ifndef __NIJI_D_m___BYTE_ORDER
+#  define __NIJI_D_m___BYTE_ORDER 1
+# define __BYTE_ORDER 1234
+# endif
+# ifndef __NIJI_D_m___FLOAT_WORD_ORDER
+#  define __NIJI_D_m___FLOAT_WORD_ORDER 1
+# ifndef __FLOAT_WORD_ORDER
+#  define __FLOAT_WORD_ORDER 1234
+# endif
+# endif
+# ifndef __NIJI_D_m___LITTLE_ENDIAN
+#  define __NIJI_D_m___LITTLE_ENDIAN 1
+# define __LITTLE_ENDIAN 1234
+# endif
+# ifndef __NIJI_D_m___PDP_ENDIAN
+#  define __NIJI_D_m___PDP_ENDIAN 1
+# define __PDP_ENDIAN 3412
+# endif
 #endif
 
 __NIJI_END_C

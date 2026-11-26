@@ -14,6 +14,12 @@
 
 __NIJI_BEGIN_C
 
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_igmp
+#  define __NIJI_D_struct_igmp 1
+struct igmp { char __niji_opaque[8] __attribute__ ((__aligned__ (4))); };
+# endif
+#endif
 #if __NIJI_LFS64 || __NIJI_FOB64
 # ifndef __NIJI_D_blkcnt64_t
 #  define __NIJI_D_blkcnt64_t 1
@@ -45,6 +51,31 @@ union pthread_attr_t {
 };
 typedef union pthread_attr_t pthread_attr_t;
 # endif
+#endif
+#if defined __USE_MISC
+# define IGMP_AWAKENING_MEMBER 5
+# define IGMP_DELAYING_MEMBER 1
+# define IGMP_DVMRP 19
+# define IGMP_HOST_LEAVE_MESSAGE 23
+# define IGMP_HOST_MEMBERSHIP_QUERY 17
+# define IGMP_HOST_MEMBERSHIP_REPORT 18
+# define IGMP_HOST_NEW_MEMBERSHIP_REPORT 22
+# define IGMP_IDLE_MEMBER 2
+# define IGMP_LAZY_MEMBER 3
+# define IGMP_MAX_HOST_REPORT_DELAY 10
+# define IGMP_MEMBERSHIP_QUERY 17
+# define IGMP_MINLEN 8
+# define IGMP_MTRACE 31
+# define IGMP_MTRACE_RESP 30
+# define IGMP_PIM 20
+# define IGMP_SLEEPING_MEMBER 4
+# define IGMP_TIMER_SCALE 10
+# define IGMP_TRACE 21
+# define IGMP_V1_MEMBERSHIP_REPORT 18
+# define IGMP_V2_LEAVE_GROUP 23
+# define IGMP_V2_MEMBERSHIP_REPORT 22
+# define IGMP_v1_ROUTER 1
+# define IGMP_v2_ROUTER 2
 #endif
 
 __NIJI_END_C
