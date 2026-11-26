@@ -8,12 +8,12 @@ prototypes.tsv: 3798 rows, 159 headers
 chk-prototypes.tsv: 76 rows
 constants.tsv: 7573 rows
 macros.tsv: 9032 rows, 181 headers
-typedefs.tsv: 4090 rows, 146 headers
+typedefs.tsv: 4132 rows, 147 headers
 versions.tsv: 4818 versioned symbol rows, 14 libraries, 40 version nodes
 empty-versions.tsv: 3 version definitions no exported symbol carries
 libm-ulps.tsv: 284 rows, 73 functions
 ftm-configs.tsv: 40 configurations
-visibility.tsv: 78753 rows, 240 headers, 14184 names
+visibility.tsv: 81429 rows, 240 headers, 14238 names
 callsites.tsv: 7923 call-site rows, 3799 functions
 noexcept.tsv: 3798 rows
 diagattrs.tsv: 1023 functions
