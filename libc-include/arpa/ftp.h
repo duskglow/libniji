@@ -9,84 +9,32 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef BLK_BYTECOUNT
-#  define BLK_BYTECOUNT 2
-# endif
-# ifndef BLK_EOF
-#  define BLK_EOF 64
-# endif
-# ifndef BLK_EOR
-#  define BLK_EOR 128
-# endif
-# ifndef BLK_ERRORS
-#  define BLK_ERRORS 32
-# endif
-# ifndef BLK_RESTART
-#  define BLK_RESTART 16
-# endif
-# ifndef COMPLETE
-#  define COMPLETE 2
-# endif
-# ifndef CONTINUE
-#  define CONTINUE 3
-# endif
-# ifndef ERROR
-#  define ERROR 5
-# endif
-# ifndef FORM_C
-#  define FORM_C 3
-# endif
-# ifndef FORM_N
-#  define FORM_N 1
-# endif
-# ifndef FORM_T
-#  define FORM_T 2
-# endif
-# ifndef MODE_B
-#  define MODE_B 2
-# endif
-# ifndef MODE_C
-#  define MODE_C 3
-# endif
-# ifndef MODE_S
-#  define MODE_S 1
-# endif
-# ifndef PRELIM
-#  define PRELIM 1
-# endif
-# ifndef REC_EOF
-#  define REC_EOF '\002'
-# endif
-# ifndef REC_EOR
-#  define REC_EOR '\001'
-# endif
-# ifndef REC_ESC
-#  define REC_ESC '\377'
-# endif
-# ifndef STRU_F
-#  define STRU_F 1
-# endif
-# ifndef STRU_P
-#  define STRU_P 3
-# endif
-# ifndef STRU_R
-#  define STRU_R 2
-# endif
-# ifndef TRANSIENT
-#  define TRANSIENT 4
-# endif
-# ifndef TYPE_A
-#  define TYPE_A 1
-# endif
-# ifndef TYPE_E
-#  define TYPE_E 2
-# endif
-# ifndef TYPE_I
-#  define TYPE_I 3
-# endif
-# ifndef TYPE_L
-#  define TYPE_L 4
-# endif
+# define BLK_BYTECOUNT 2
+# define BLK_EOF 64
+# define BLK_EOR 128
+# define BLK_ERRORS 32
+# define BLK_RESTART 16
+# define COMPLETE 2
+# define CONTINUE 3
+# define ERROR 5
+# define FORM_C 3
+# define FORM_N 1
+# define FORM_T 2
+# define MODE_B 2
+# define MODE_C 3
+# define MODE_S 1
+# define PRELIM 1
+# define REC_EOF '\002'
+# define REC_EOR '\001'
+# define REC_ESC '\377'
+# define STRU_F 1
+# define STRU_P 3
+# define STRU_R 2
+# define TRANSIENT 4
+# define TYPE_A 1
+# define TYPE_E 2
+# define TYPE_I 3
+# define TYPE_L 4
 #endif
 
 __NIJI_END_C

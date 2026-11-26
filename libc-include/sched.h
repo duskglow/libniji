@@ -241,36 +241,6 @@ extern int sched_setscheduler (int, int, const struct sched_param *) __NIJI_NOTH
 extern int sched_yield (void) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_clone
-#  define __NIJI_D_clone 1
-extern int clone (int (*) (void *), void *, int, void *, ...) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getcpu
-#  define __NIJI_D_getcpu 1
-extern int getcpu (unsigned int *, unsigned int *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_getaffinity
-#  define __NIJI_D_sched_getaffinity 1
-extern int sched_getaffinity (int, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_getcpu
-#  define __NIJI_D_sched_getcpu 1
-extern int sched_getcpu (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_sched_setaffinity
-#  define __NIJI_D_sched_setaffinity 1
-extern int sched_setaffinity (int, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_setns
-#  define __NIJI_D_setns 1
-extern int setns (int, int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_unshare
-#  define __NIJI_D_unshare 1
-extern int unshare (int) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
 struct timespec;
 # ifndef __NIJI_D_timespec_get
@@ -413,24 +383,94 @@ struct itimerspec;
 extern int timer_settime (void *, int, const struct itimerspec *, struct itimerspec *) __NIJI_NOTHROW;
 # endif
 #endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_clone
+#  define __NIJI_D_clone 1
+extern int clone (int (*) (void *), void *, int, void *, ...) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getcpu
+#  define __NIJI_D_getcpu 1
+extern int getcpu (unsigned int *, unsigned int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_sched_getaffinity
+#  define __NIJI_D_sched_getaffinity 1
+extern int sched_getaffinity (int, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_sched_getcpu
+#  define __NIJI_D_sched_getcpu 1
+extern int sched_getcpu (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_sched_setaffinity
+#  define __NIJI_D_sched_setaffinity 1
+extern int sched_setaffinity (int, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_setns
+#  define __NIJI_D_setns 1
+extern int setns (int, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_unshare
+#  define __NIJI_D_unshare 1
+extern int unshare (int) __NIJI_NOTHROW;
+# endif
+#endif
 #if 1
-# ifndef SCHED_FIFO
-#  define SCHED_FIFO 1
-# endif
-# ifndef SCHED_OTHER
-#  define SCHED_OTHER 0
-# endif
-# ifndef SCHED_RR
-#  define SCHED_RR 2
-# endif
+# define SCHED_FIFO 1
+# define SCHED_OTHER 0
+# define SCHED_RR 2
 # ifndef _BITS_TYPES_STRUCT_SCHED_PARAM
 #  define _BITS_TYPES_STRUCT_SCHED_PARAM 1
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
+# define __FD_SETSIZE 1024
+#endif
+#if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
+# ifndef TIME_UTC
+#  define TIME_UTC 1
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX < 200112
+# ifndef CLOCKS_PER_SEC
+#  define CLOCKS_PER_SEC 1000000L
+# endif
+#endif
+#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
+# ifndef CLOCK_BOOTTIME
+#  define CLOCK_BOOTTIME 7
+# endif
+# ifndef CLOCK_BOOTTIME_ALARM
+#  define CLOCK_BOOTTIME_ALARM 9
+# endif
+# ifndef CLOCK_MONOTONIC
+#  define CLOCK_MONOTONIC 1
+# endif
+# ifndef CLOCK_MONOTONIC_COARSE
+#  define CLOCK_MONOTONIC_COARSE 6
+# endif
+# ifndef CLOCK_MONOTONIC_RAW
+#  define CLOCK_MONOTONIC_RAW 4
+# endif
+# ifndef CLOCK_PROCESS_CPUTIME_ID
+#  define CLOCK_PROCESS_CPUTIME_ID 2
+# endif
+# ifndef CLOCK_REALTIME
+#  define CLOCK_REALTIME 0
+# endif
+# ifndef CLOCK_REALTIME_ALARM
+#  define CLOCK_REALTIME_ALARM 8
+# endif
+# ifndef CLOCK_REALTIME_COARSE
+#  define CLOCK_REALTIME_COARSE 5
+# endif
+# ifndef CLOCK_TAI
+#  define CLOCK_TAI 11
+# endif
+# ifndef CLOCK_THREAD_CPUTIME_ID
+#  define CLOCK_THREAD_CPUTIME_ID 3
+# endif
+# ifndef TIMER_ABSTIME
+#  define TIMER_ABSTIME 1
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef CLONE_CHILD_CLEARTID
 #  define CLONE_CHILD_CLEARTID 2097152
 # endif
@@ -506,74 +546,16 @@ extern int timer_settime (void *, int, const struct itimerspec *, struct itimers
 # ifndef CLONE_VM
 #  define CLONE_VM 256
 # endif
-# ifndef CPU_SETSIZE
-#  define CPU_SETSIZE 1024
-# endif
+# define CPU_SETSIZE 1024
 # ifndef CSIGNAL
 #  define CSIGNAL 255
 # endif
-# ifndef SCHED_BATCH
-#  define SCHED_BATCH 3
-# endif
-# ifndef SCHED_DEADLINE
-#  define SCHED_DEADLINE 6
-# endif
-# ifndef SCHED_IDLE
-#  define SCHED_IDLE 5
-# endif
-# ifndef SCHED_ISO
-#  define SCHED_ISO 4
-# endif
+# define SCHED_BATCH 3
+# define SCHED_DEADLINE 6
+# define SCHED_IDLE 5
+# define SCHED_ISO 4
 # ifndef SCHED_RESET_ON_FORK
 #  define SCHED_RESET_ON_FORK 1073741824
-# endif
-#endif
-#if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
-# ifndef TIME_UTC
-#  define TIME_UTC 1
-# endif
-#endif
-#if __NIJI_POSIX < 200112
-# ifndef CLOCKS_PER_SEC
-#  define CLOCKS_PER_SEC 1000000L
-# endif
-#endif
-#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
-# ifndef CLOCK_BOOTTIME
-#  define CLOCK_BOOTTIME 7
-# endif
-# ifndef CLOCK_BOOTTIME_ALARM
-#  define CLOCK_BOOTTIME_ALARM 9
-# endif
-# ifndef CLOCK_MONOTONIC
-#  define CLOCK_MONOTONIC 1
-# endif
-# ifndef CLOCK_MONOTONIC_COARSE
-#  define CLOCK_MONOTONIC_COARSE 6
-# endif
-# ifndef CLOCK_MONOTONIC_RAW
-#  define CLOCK_MONOTONIC_RAW 4
-# endif
-# ifndef CLOCK_PROCESS_CPUTIME_ID
-#  define CLOCK_PROCESS_CPUTIME_ID 2
-# endif
-# ifndef CLOCK_REALTIME
-#  define CLOCK_REALTIME 0
-# endif
-# ifndef CLOCK_REALTIME_ALARM
-#  define CLOCK_REALTIME_ALARM 8
-# endif
-# ifndef CLOCK_REALTIME_COARSE
-#  define CLOCK_REALTIME_COARSE 5
-# endif
-# ifndef CLOCK_TAI
-#  define CLOCK_TAI 11
-# endif
-# ifndef CLOCK_THREAD_CPUTIME_ID
-#  define CLOCK_THREAD_CPUTIME_ID 3
-# endif
-# ifndef TIMER_ABSTIME
-#  define TIMER_ABSTIME 1
 # endif
 #endif
 
@@ -588,7 +570,7 @@ extern int timer_settime (void *, int, const struct itimerspec *, struct itimers
 #endif
 
 /* CPU_SET(3). A set is an array of unsigned long words; the _S forms take its size in bytes. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define __NIJI_CPU_BITS (8 * sizeof (unsigned long))
 # define __NIJI_CPU_WORD(cpu) ((cpu) / __NIJI_CPU_BITS)
 # define __NIJI_CPU_MASK(cpu) (1UL << ((cpu) % __NIJI_CPU_BITS))

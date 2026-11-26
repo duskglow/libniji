@@ -17,7 +17,7 @@ struct pollfd {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -32,7 +32,7 @@ struct timespec {
 typedef unsigned long nfds_t;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
@@ -81,7 +81,7 @@ struct pollfd;
 extern int poll (struct pollfd *, unsigned long, int);
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
 typedef struct {
@@ -115,20 +115,6 @@ extern int ppoll (struct pollfd *, unsigned long, const struct timespec *, const
 #  define POLLPRI 2
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef POLLMSG
-#  define POLLMSG 1024
-# endif
-# ifndef POLLRDHUP
-#  define POLLRDHUP 8192
-# endif
-# ifndef POLLREMOVE
-#  define POLLREMOVE 4096
-# endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
-#endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
 # ifndef POLLRDBAND
 #  define POLLRDBAND 128
@@ -142,6 +128,18 @@ extern int ppoll (struct pollfd *, unsigned long, const struct timespec *, const
 # ifndef POLLWRNORM
 #  define POLLWRNORM 256
 # endif
+#endif
+#if defined __USE_GNU
+# ifndef POLLMSG
+#  define POLLMSG 1024
+# endif
+# ifndef POLLRDHUP
+#  define POLLRDHUP 8192
+# endif
+# ifndef POLLREMOVE
+#  define POLLREMOVE 4096
+# endif
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -189,7 +187,7 @@ typedef struct {
   unsigned long __val[16];
 } __sigset_t;
 # endif
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_ppoll
 #  define __NIJI_F_ppoll 1
 #  ifndef __NIJI_D___ppoll_chk

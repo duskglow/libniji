@@ -1285,18 +1285,18 @@ enum { _NL_W_DATE_FMT = 131181 };
     || !defined ABMON_9 || !defined ABMON_10 || !defined ABMON_11 || !defined ABMON_12 || !defined MON_1 || !defined MON_2 \
     || !defined MON_3 || !defined MON_4 || !defined MON_5 || !defined MON_6 || !defined MON_7 || !defined MON_8 \
     || !defined MON_9 || !defined MON_10 || !defined MON_11 || !defined MON_12 || !defined AM_STR || !defined PM_STR \
-    || !defined D_T_FMT || !defined D_FMT || !defined T_FMT || !defined T_FMT_AMPM || !defined ERA || ((__NIJI_GNU) && !defined __niji_ERA_YEAR) \
+    || !defined D_T_FMT || !defined D_FMT || !defined T_FMT || !defined T_FMT_AMPM || !defined ERA || ((defined __USE_GNU) && !defined __niji_ERA_YEAR) \
     || !defined ERA_D_FMT || !defined ALT_DIGITS || !defined ERA_D_T_FMT || !defined ERA_T_FMT || !defined _NL_TIME_ERA_NUM_ENTRIES || !defined _NL_TIME_WEEK_1STDAY \
-    || !defined _DATE_FMT || ((__NIJI_GNU) && !defined __niji_ALTMON_1) || ((__NIJI_GNU) && !defined __niji_ALTMON_2) || ((__NIJI_GNU) && !defined __niji_ALTMON_3) || ((__NIJI_GNU) && !defined __niji_ALTMON_4) || ((__NIJI_GNU) && !defined __niji_ALTMON_5) \
-    || ((__NIJI_GNU) && !defined __niji_ALTMON_6) || ((__NIJI_GNU) && !defined __niji_ALTMON_7) || ((__NIJI_GNU) && !defined __niji_ALTMON_8) || ((__NIJI_GNU) && !defined __niji_ALTMON_9) || ((__NIJI_GNU) && !defined __niji_ALTMON_10) || ((__NIJI_GNU) && !defined __niji_ALTMON_11) \
-    || ((__NIJI_GNU) && !defined __niji_ALTMON_12) || !defined _NL_COLLATE_NRULES || !defined _NL_COLLATE_RULESETS || !defined _NL_COLLATE_TABLEMB || !defined _NL_COLLATE_WEIGHTMB || !defined _NL_COLLATE_EXTRAMB \
+    || !defined _DATE_FMT || ((defined __USE_GNU) && !defined __niji_ALTMON_1) || ((defined __USE_GNU) && !defined __niji_ALTMON_2) || ((defined __USE_GNU) && !defined __niji_ALTMON_3) || ((defined __USE_GNU) && !defined __niji_ALTMON_4) || ((defined __USE_GNU) && !defined __niji_ALTMON_5) \
+    || ((defined __USE_GNU) && !defined __niji_ALTMON_6) || ((defined __USE_GNU) && !defined __niji_ALTMON_7) || ((defined __USE_GNU) && !defined __niji_ALTMON_8) || ((defined __USE_GNU) && !defined __niji_ALTMON_9) || ((defined __USE_GNU) && !defined __niji_ALTMON_10) || ((defined __USE_GNU) && !defined __niji_ALTMON_11) \
+    || ((defined __USE_GNU) && !defined __niji_ALTMON_12) || !defined _NL_COLLATE_NRULES || !defined _NL_COLLATE_RULESETS || !defined _NL_COLLATE_TABLEMB || !defined _NL_COLLATE_WEIGHTMB || !defined _NL_COLLATE_EXTRAMB \
     || !defined _NL_COLLATE_INDIRECTMB || !defined _NL_COLLATE_TABLEWC || !defined _NL_COLLATE_WEIGHTWC || !defined _NL_COLLATE_EXTRAWC || !defined _NL_COLLATE_INDIRECTWC || !defined _NL_COLLATE_SYMB_HASH_SIZEMB \
-    || !defined _NL_COLLATE_COLLSEQMB || !defined _NL_COLLATE_COLLSEQWC || !defined __INT_CURR_SYMBOL || ((__NIJI_GNU) && !defined __niji_CURRENCY_SYMBOL) || ((__NIJI_GNU) && !defined __niji_MON_DECIMAL_POINT) || ((__NIJI_GNU) && !defined __niji_MON_THOUSANDS_SEP) \
-    || ((__NIJI_GNU) && !defined __niji_MON_GROUPING) || ((__NIJI_GNU) && !defined __niji_POSITIVE_SIGN) || ((__NIJI_GNU) && !defined __niji_NEGATIVE_SIGN) || !defined __INT_FRAC_DIGITS || ((__NIJI_GNU) && !defined __niji_FRAC_DIGITS) || ((__NIJI_GNU) && !defined __niji_P_CS_PRECEDES) \
-    || ((__NIJI_GNU) && !defined __niji_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_N_SIGN_POSN) || !defined __niji_CRNCYSTR \
-    || ((__NIJI_GNU) && !defined __niji_INT_P_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_P_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_N_CS_PRECEDES) || ((__NIJI_GNU) && !defined __niji_INT_N_SEP_BY_SPACE) || ((__NIJI_GNU) && !defined __niji_INT_P_SIGN_POSN) || ((__NIJI_GNU) && !defined __niji_INT_N_SIGN_POSN) \
+    || !defined _NL_COLLATE_COLLSEQMB || !defined _NL_COLLATE_COLLSEQWC || !defined __INT_CURR_SYMBOL || ((defined __USE_GNU) && !defined __niji_CURRENCY_SYMBOL) || ((defined __USE_GNU) && !defined __niji_MON_DECIMAL_POINT) || ((defined __USE_GNU) && !defined __niji_MON_THOUSANDS_SEP) \
+    || ((defined __USE_GNU) && !defined __niji_MON_GROUPING) || ((defined __USE_GNU) && !defined __niji_POSITIVE_SIGN) || ((defined __USE_GNU) && !defined __niji_NEGATIVE_SIGN) || !defined __INT_FRAC_DIGITS || ((defined __USE_GNU) && !defined __niji_FRAC_DIGITS) || ((defined __USE_GNU) && !defined __niji_P_CS_PRECEDES) \
+    || ((defined __USE_GNU) && !defined __niji_P_SEP_BY_SPACE) || ((defined __USE_GNU) && !defined __niji_N_CS_PRECEDES) || ((defined __USE_GNU) && !defined __niji_N_SEP_BY_SPACE) || ((defined __USE_GNU) && !defined __niji_P_SIGN_POSN) || ((defined __USE_GNU) && !defined __niji_N_SIGN_POSN) || !defined __niji_CRNCYSTR \
+    || ((defined __USE_GNU) && !defined __niji_INT_P_CS_PRECEDES) || ((defined __USE_GNU) && !defined __niji_INT_P_SEP_BY_SPACE) || ((defined __USE_GNU) && !defined __niji_INT_N_CS_PRECEDES) || ((defined __USE_GNU) && !defined __niji_INT_N_SEP_BY_SPACE) || ((defined __USE_GNU) && !defined __niji_INT_P_SIGN_POSN) || ((defined __USE_GNU) && !defined __niji_INT_N_SIGN_POSN) \
     || !defined _NL_MONETARY_UNO_VALID_FROM || !defined _NL_MONETARY_UNO_VALID_TO || !defined _NL_MONETARY_DUO_VALID_FROM || !defined _NL_MONETARY_DUO_VALID_TO || !defined _NL_MONETARY_DECIMAL_POINT_WC || !defined _NL_MONETARY_THOUSANDS_SEP_WC \
-    || !defined __niji_YESEXPR || !defined __niji_NOEXPR || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_YESSTR) || ((__NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_NOSTR) || !defined _NL_PAPER_HEIGHT || !defined _NL_PAPER_WIDTH \
+    || !defined __niji_YESEXPR || !defined __niji_NOEXPR || ((defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_YESSTR) || ((defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)) && !defined __niji_NOSTR) || !defined _NL_PAPER_HEIGHT || !defined _NL_PAPER_WIDTH \
     || !defined _NL_ADDRESS_POSTAL_FMT || !defined _NL_ADDRESS_COUNTRY_NUM
 enum {
 #  ifndef _NL_CTYPE_CLASS
@@ -1530,7 +1530,7 @@ enum {
 #  ifndef ERA
   ERA = 131116,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ERA_YEAR
   __niji_ERA_YEAR = 131117,
 #  endif
@@ -1556,62 +1556,62 @@ enum {
 #  ifndef _DATE_FMT
   _DATE_FMT = 131180,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_1
   __niji_ALTMON_1 = 131183,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_2
   __niji_ALTMON_2 = 131184,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_3
   __niji_ALTMON_3 = 131185,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_4
   __niji_ALTMON_4 = 131186,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_5
   __niji_ALTMON_5 = 131187,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_6
   __niji_ALTMON_6 = 131188,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_7
   __niji_ALTMON_7 = 131189,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_8
   __niji_ALTMON_8 = 131190,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_9
   __niji_ALTMON_9 = 131191,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_10
   __niji_ALTMON_10 = 131192,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_11
   __niji_ALTMON_11 = 131193,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_ALTMON_12
   __niji_ALTMON_12 = 131194,
 #  endif
@@ -1658,32 +1658,32 @@ enum {
 #  ifndef __INT_CURR_SYMBOL
   __INT_CURR_SYMBOL = 262144,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_CURRENCY_SYMBOL
   __niji_CURRENCY_SYMBOL = 262145,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_MON_DECIMAL_POINT
   __niji_MON_DECIMAL_POINT = 262146,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_MON_THOUSANDS_SEP
   __niji_MON_THOUSANDS_SEP = 262147,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_MON_GROUPING
   __niji_MON_GROUPING = 262148,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_POSITIVE_SIGN
   __niji_POSITIVE_SIGN = 262149,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_NEGATIVE_SIGN
   __niji_NEGATIVE_SIGN = 262150,
 #  endif
@@ -1691,37 +1691,37 @@ enum {
 #  ifndef __INT_FRAC_DIGITS
   __INT_FRAC_DIGITS = 262151,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_FRAC_DIGITS
   __niji_FRAC_DIGITS = 262152,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_P_CS_PRECEDES
   __niji_P_CS_PRECEDES = 262153,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_P_SEP_BY_SPACE
   __niji_P_SEP_BY_SPACE = 262154,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_N_CS_PRECEDES
   __niji_N_CS_PRECEDES = 262155,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_N_SEP_BY_SPACE
   __niji_N_SEP_BY_SPACE = 262156,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_P_SIGN_POSN
   __niji_P_SIGN_POSN = 262157,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_N_SIGN_POSN
   __niji_N_SIGN_POSN = 262158,
 #  endif
@@ -1729,32 +1729,32 @@ enum {
 #  ifndef __niji_CRNCYSTR
   __niji_CRNCYSTR = 262159,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_P_CS_PRECEDES
   __niji_INT_P_CS_PRECEDES = 262160,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_P_SEP_BY_SPACE
   __niji_INT_P_SEP_BY_SPACE = 262161,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_N_CS_PRECEDES
   __niji_INT_N_CS_PRECEDES = 262162,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_N_SEP_BY_SPACE
   __niji_INT_N_SEP_BY_SPACE = 262163,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_P_SIGN_POSN
   __niji_INT_P_SIGN_POSN = 262164,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef __niji_INT_N_SIGN_POSN
   __niji_INT_N_SIGN_POSN = 262165,
 #  endif
@@ -1783,12 +1783,12 @@ enum {
 #  ifndef __niji_NOEXPR
   __niji_NOEXPR = 327681,
 #  endif
-#  if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+#  if defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
 #  ifndef __niji_YESSTR
   __niji_YESSTR = 327682,
 #  endif
 #  endif
-#  if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+#  if defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
 #  ifndef __niji_NOSTR
   __niji_NOSTR = 327683,
 #  endif
@@ -1808,301 +1808,107 @@ enum {
 };
 #  endif
 # endif
-# ifndef ABDAY_1
-#  define ABDAY_1 ABDAY_1
-# endif
-# ifndef ABDAY_2
-#  define ABDAY_2 ABDAY_2
-# endif
-# ifndef ABDAY_3
-#  define ABDAY_3 ABDAY_3
-# endif
-# ifndef ABDAY_4
-#  define ABDAY_4 ABDAY_4
-# endif
-# ifndef ABDAY_5
-#  define ABDAY_5 ABDAY_5
-# endif
-# ifndef ABDAY_6
-#  define ABDAY_6 ABDAY_6
-# endif
-# ifndef ABDAY_7
-#  define ABDAY_7 ABDAY_7
-# endif
-# ifndef ABMON_1
-#  define ABMON_1 ABMON_1
-# endif
-# ifndef ABMON_10
-#  define ABMON_10 ABMON_10
-# endif
-# ifndef ABMON_11
-#  define ABMON_11 ABMON_11
-# endif
-# ifndef ABMON_12
-#  define ABMON_12 ABMON_12
-# endif
-# ifndef ABMON_2
-#  define ABMON_2 ABMON_2
-# endif
-# ifndef ABMON_3
-#  define ABMON_3 ABMON_3
-# endif
-# ifndef ABMON_4
-#  define ABMON_4 ABMON_4
-# endif
-# ifndef ABMON_5
-#  define ABMON_5 ABMON_5
-# endif
-# ifndef ABMON_6
-#  define ABMON_6 ABMON_6
-# endif
-# ifndef ABMON_7
-#  define ABMON_7 ABMON_7
-# endif
-# ifndef ABMON_8
-#  define ABMON_8 ABMON_8
-# endif
-# ifndef ABMON_9
-#  define ABMON_9 ABMON_9
-# endif
-# ifndef ALT_DIGITS
-#  define ALT_DIGITS ALT_DIGITS
-# endif
-# ifndef AM_STR
-#  define AM_STR AM_STR
-# endif
-# ifndef CODESET
-#  define CODESET CODESET
-# endif
-# ifndef CRNCYSTR
-#  define CRNCYSTR __niji_CRNCYSTR
-# endif
-# ifndef DAY_1
-#  define DAY_1 DAY_1
-# endif
-# ifndef DAY_2
-#  define DAY_2 DAY_2
-# endif
-# ifndef DAY_3
-#  define DAY_3 DAY_3
-# endif
-# ifndef DAY_4
-#  define DAY_4 DAY_4
-# endif
-# ifndef DAY_5
-#  define DAY_5 DAY_5
-# endif
-# ifndef DAY_6
-#  define DAY_6 DAY_6
-# endif
-# ifndef DAY_7
-#  define DAY_7 DAY_7
-# endif
-# ifndef D_FMT
-#  define D_FMT D_FMT
-# endif
-# ifndef D_T_FMT
-#  define D_T_FMT D_T_FMT
-# endif
-# ifndef ERA
-#  define ERA ERA
-# endif
-# ifndef ERA_D_FMT
-#  define ERA_D_FMT ERA_D_FMT
-# endif
-# ifndef ERA_D_T_FMT
-#  define ERA_D_T_FMT ERA_D_T_FMT
-# endif
-# ifndef ERA_T_FMT
-#  define ERA_T_FMT ERA_T_FMT
-# endif
-# ifndef MON_1
-#  define MON_1 MON_1
-# endif
-# ifndef MON_10
-#  define MON_10 MON_10
-# endif
-# ifndef MON_11
-#  define MON_11 MON_11
-# endif
-# ifndef MON_12
-#  define MON_12 MON_12
-# endif
-# ifndef MON_2
-#  define MON_2 MON_2
-# endif
-# ifndef MON_3
-#  define MON_3 MON_3
-# endif
-# ifndef MON_4
-#  define MON_4 MON_4
-# endif
-# ifndef MON_5
-#  define MON_5 MON_5
-# endif
-# ifndef MON_6
-#  define MON_6 MON_6
-# endif
-# ifndef MON_7
-#  define MON_7 MON_7
-# endif
-# ifndef MON_8
-#  define MON_8 MON_8
-# endif
-# ifndef MON_9
-#  define MON_9 MON_9
-# endif
-# ifndef NL_CAT_LOCALE
-#  define NL_CAT_LOCALE 1
-# endif
-# ifndef NL_SETD
-#  define NL_SETD 1
-# endif
-# ifndef NOEXPR
-#  define NOEXPR __niji_NOEXPR
-# endif
-# ifndef PM_STR
-#  define PM_STR PM_STR
-# endif
-# ifndef RADIXCHAR
-#  define RADIXCHAR RADIXCHAR
-# endif
-# ifndef THOUSEP
-#  define THOUSEP THOUSEP
-# endif
-# ifndef T_FMT
-#  define T_FMT T_FMT
-# endif
-# ifndef T_FMT_AMPM
-#  define T_FMT_AMPM T_FMT_AMPM
-# endif
-# ifndef YESEXPR
-#  define YESEXPR __niji_YESEXPR
-# endif
-# ifndef _DATE_FMT
-#  define _DATE_FMT _DATE_FMT
-# endif
+# define ABDAY_1 ABDAY_1
+# define ABDAY_2 ABDAY_2
+# define ABDAY_3 ABDAY_3
+# define ABDAY_4 ABDAY_4
+# define ABDAY_5 ABDAY_5
+# define ABDAY_6 ABDAY_6
+# define ABDAY_7 ABDAY_7
+# define ABMON_1 ABMON_1
+# define ABMON_10 ABMON_10
+# define ABMON_11 ABMON_11
+# define ABMON_12 ABMON_12
+# define ABMON_2 ABMON_2
+# define ABMON_3 ABMON_3
+# define ABMON_4 ABMON_4
+# define ABMON_5 ABMON_5
+# define ABMON_6 ABMON_6
+# define ABMON_7 ABMON_7
+# define ABMON_8 ABMON_8
+# define ABMON_9 ABMON_9
+# define ALT_DIGITS ALT_DIGITS
+# define AM_STR AM_STR
+# define CODESET CODESET
+# define CRNCYSTR __niji_CRNCYSTR
+# define DAY_1 DAY_1
+# define DAY_2 DAY_2
+# define DAY_3 DAY_3
+# define DAY_4 DAY_4
+# define DAY_5 DAY_5
+# define DAY_6 DAY_6
+# define DAY_7 DAY_7
+# define D_FMT D_FMT
+# define D_T_FMT D_T_FMT
+# define ERA ERA
+# define ERA_D_FMT ERA_D_FMT
+# define ERA_D_T_FMT ERA_D_T_FMT
+# define ERA_T_FMT ERA_T_FMT
+# define MON_1 MON_1
+# define MON_10 MON_10
+# define MON_11 MON_11
+# define MON_12 MON_12
+# define MON_2 MON_2
+# define MON_3 MON_3
+# define MON_4 MON_4
+# define MON_5 MON_5
+# define MON_6 MON_6
+# define MON_7 MON_7
+# define MON_8 MON_8
+# define MON_9 MON_9
+# define NL_CAT_LOCALE 1
+# define NL_SETD 1
+# define NOEXPR __niji_NOEXPR
+# define PM_STR PM_STR
+# define RADIXCHAR RADIXCHAR
+# define THOUSEP THOUSEP
+# define T_FMT T_FMT
+# define T_FMT_AMPM T_FMT_AMPM
+# define YESEXPR __niji_YESEXPR
+# define _DATE_FMT _DATE_FMT
 #endif
-#if __NIJI_GNU
-# ifndef ALTMON_1
-#  define ALTMON_1 __niji_ALTMON_1
-# endif
-# ifndef ALTMON_10
-#  define ALTMON_10 __niji_ALTMON_10
-# endif
-# ifndef ALTMON_11
-#  define ALTMON_11 __niji_ALTMON_11
-# endif
-# ifndef ALTMON_12
-#  define ALTMON_12 __niji_ALTMON_12
-# endif
-# ifndef ALTMON_2
-#  define ALTMON_2 __niji_ALTMON_2
-# endif
-# ifndef ALTMON_3
-#  define ALTMON_3 __niji_ALTMON_3
-# endif
-# ifndef ALTMON_4
-#  define ALTMON_4 __niji_ALTMON_4
-# endif
-# ifndef ALTMON_5
-#  define ALTMON_5 __niji_ALTMON_5
-# endif
-# ifndef ALTMON_6
-#  define ALTMON_6 __niji_ALTMON_6
-# endif
-# ifndef ALTMON_7
-#  define ALTMON_7 __niji_ALTMON_7
-# endif
-# ifndef ALTMON_8
-#  define ALTMON_8 __niji_ALTMON_8
-# endif
-# ifndef ALTMON_9
-#  define ALTMON_9 __niji_ALTMON_9
-# endif
-# ifndef CURRENCY_SYMBOL
-#  define CURRENCY_SYMBOL __niji_CURRENCY_SYMBOL
-# endif
-# ifndef DECIMAL_POINT
-#  define DECIMAL_POINT RADIXCHAR
-# endif
-# ifndef ERA_YEAR
-#  define ERA_YEAR __niji_ERA_YEAR
-# endif
-# ifndef FRAC_DIGITS
-#  define FRAC_DIGITS __niji_FRAC_DIGITS
-# endif
-# ifndef GROUPING
-#  define GROUPING __GROUPING
-# endif
-# ifndef INT_CURR_SYMBOL
-#  define INT_CURR_SYMBOL __INT_CURR_SYMBOL
-# endif
-# ifndef INT_FRAC_DIGITS
-#  define INT_FRAC_DIGITS __INT_FRAC_DIGITS
-# endif
-# ifndef INT_N_CS_PRECEDES
-#  define INT_N_CS_PRECEDES __niji_INT_N_CS_PRECEDES
-# endif
-# ifndef INT_N_SEP_BY_SPACE
-#  define INT_N_SEP_BY_SPACE __niji_INT_N_SEP_BY_SPACE
-# endif
-# ifndef INT_N_SIGN_POSN
-#  define INT_N_SIGN_POSN __niji_INT_N_SIGN_POSN
-# endif
-# ifndef INT_P_CS_PRECEDES
-#  define INT_P_CS_PRECEDES __niji_INT_P_CS_PRECEDES
-# endif
-# ifndef INT_P_SEP_BY_SPACE
-#  define INT_P_SEP_BY_SPACE __niji_INT_P_SEP_BY_SPACE
-# endif
-# ifndef INT_P_SIGN_POSN
-#  define INT_P_SIGN_POSN __niji_INT_P_SIGN_POSN
-# endif
-# ifndef MON_DECIMAL_POINT
-#  define MON_DECIMAL_POINT __niji_MON_DECIMAL_POINT
-# endif
-# ifndef MON_GROUPING
-#  define MON_GROUPING __niji_MON_GROUPING
-# endif
-# ifndef MON_THOUSANDS_SEP
-#  define MON_THOUSANDS_SEP __niji_MON_THOUSANDS_SEP
-# endif
-# ifndef NEGATIVE_SIGN
-#  define NEGATIVE_SIGN __niji_NEGATIVE_SIGN
-# endif
-# ifndef N_CS_PRECEDES
-#  define N_CS_PRECEDES __niji_N_CS_PRECEDES
-# endif
-# ifndef N_SEP_BY_SPACE
-#  define N_SEP_BY_SPACE __niji_N_SEP_BY_SPACE
-# endif
-# ifndef N_SIGN_POSN
-#  define N_SIGN_POSN __niji_N_SIGN_POSN
-# endif
-# ifndef POSITIVE_SIGN
-#  define POSITIVE_SIGN __niji_POSITIVE_SIGN
-# endif
-# ifndef P_CS_PRECEDES
-#  define P_CS_PRECEDES __niji_P_CS_PRECEDES
-# endif
-# ifndef P_SEP_BY_SPACE
-#  define P_SEP_BY_SPACE __niji_P_SEP_BY_SPACE
-# endif
-# ifndef P_SIGN_POSN
-#  define P_SIGN_POSN __niji_P_SIGN_POSN
-# endif
-# ifndef THOUSANDS_SEP
-#  define THOUSANDS_SEP THOUSEP
-# endif
+#if defined __USE_GNU
+# define ALTMON_1 __niji_ALTMON_1
+# define ALTMON_10 __niji_ALTMON_10
+# define ALTMON_11 __niji_ALTMON_11
+# define ALTMON_12 __niji_ALTMON_12
+# define ALTMON_2 __niji_ALTMON_2
+# define ALTMON_3 __niji_ALTMON_3
+# define ALTMON_4 __niji_ALTMON_4
+# define ALTMON_5 __niji_ALTMON_5
+# define ALTMON_6 __niji_ALTMON_6
+# define ALTMON_7 __niji_ALTMON_7
+# define ALTMON_8 __niji_ALTMON_8
+# define ALTMON_9 __niji_ALTMON_9
+# define CURRENCY_SYMBOL __niji_CURRENCY_SYMBOL
+# define DECIMAL_POINT RADIXCHAR
+# define ERA_YEAR __niji_ERA_YEAR
+# define FRAC_DIGITS __niji_FRAC_DIGITS
+# define GROUPING __GROUPING
+# define INT_CURR_SYMBOL __INT_CURR_SYMBOL
+# define INT_FRAC_DIGITS __INT_FRAC_DIGITS
+# define INT_N_CS_PRECEDES __niji_INT_N_CS_PRECEDES
+# define INT_N_SEP_BY_SPACE __niji_INT_N_SEP_BY_SPACE
+# define INT_N_SIGN_POSN __niji_INT_N_SIGN_POSN
+# define INT_P_CS_PRECEDES __niji_INT_P_CS_PRECEDES
+# define INT_P_SEP_BY_SPACE __niji_INT_P_SEP_BY_SPACE
+# define INT_P_SIGN_POSN __niji_INT_P_SIGN_POSN
+# define MON_DECIMAL_POINT __niji_MON_DECIMAL_POINT
+# define MON_GROUPING __niji_MON_GROUPING
+# define MON_THOUSANDS_SEP __niji_MON_THOUSANDS_SEP
+# define NEGATIVE_SIGN __niji_NEGATIVE_SIGN
+# define N_CS_PRECEDES __niji_N_CS_PRECEDES
+# define N_SEP_BY_SPACE __niji_N_SEP_BY_SPACE
+# define N_SIGN_POSN __niji_N_SIGN_POSN
+# define POSITIVE_SIGN __niji_POSITIVE_SIGN
+# define P_CS_PRECEDES __niji_P_CS_PRECEDES
+# define P_SEP_BY_SPACE __niji_P_SEP_BY_SPACE
+# define P_SIGN_POSN __niji_P_SIGN_POSN
+# define THOUSANDS_SEP THOUSEP
 #endif
-#if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
-# ifndef NOSTR
-#  define NOSTR __niji_NOSTR
-# endif
-# ifndef YESSTR
-#  define YESSTR __niji_YESSTR
-# endif
+#if defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+# define NOSTR __niji_NOSTR
+# define YESSTR __niji_YESSTR
 #endif
 
 __NIJI_END_C

@@ -89,86 +89,34 @@ extern locale_t uselocale (locale_t) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef LC_ADDRESS
-#  define LC_ADDRESS 9
-# endif
-# ifndef LC_ALL
-#  define LC_ALL 6
-# endif
-# ifndef LC_COLLATE
-#  define LC_COLLATE 3
-# endif
-# ifndef LC_CTYPE
-#  define LC_CTYPE 0
-# endif
-# ifndef LC_IDENTIFICATION
-#  define LC_IDENTIFICATION 12
-# endif
-# ifndef LC_MEASUREMENT
-#  define LC_MEASUREMENT 11
-# endif
-# ifndef LC_MESSAGES
-#  define LC_MESSAGES 5
-# endif
-# ifndef LC_MONETARY
-#  define LC_MONETARY 4
-# endif
-# ifndef LC_NAME
-#  define LC_NAME 8
-# endif
-# ifndef LC_NUMERIC
-#  define LC_NUMERIC 1
-# endif
-# ifndef LC_PAPER
-#  define LC_PAPER 7
-# endif
-# ifndef LC_TELEPHONE
-#  define LC_TELEPHONE 10
-# endif
-# ifndef LC_TIME
-#  define LC_TIME 2
-# endif
+# define LC_ADDRESS 9
+# define LC_ALL 6
+# define LC_COLLATE 3
+# define LC_CTYPE 0
+# define LC_IDENTIFICATION 12
+# define LC_MEASUREMENT 11
+# define LC_MESSAGES 5
+# define LC_MONETARY 4
+# define LC_NAME 8
+# define LC_NUMERIC 1
+# define LC_PAPER 7
+# define LC_TELEPHONE 10
+# define LC_TIME 2
 #endif
 #if __NIJI_POSIX >= 200809
-# ifndef LC_ADDRESS_MASK
-#  define LC_ADDRESS_MASK 512
-# endif
-# ifndef LC_ALL_MASK
-#  define LC_ALL_MASK 8127
-# endif
-# ifndef LC_COLLATE_MASK
-#  define LC_COLLATE_MASK 8
-# endif
-# ifndef LC_CTYPE_MASK
-#  define LC_CTYPE_MASK 1
-# endif
-# ifndef LC_IDENTIFICATION_MASK
-#  define LC_IDENTIFICATION_MASK 4096
-# endif
-# ifndef LC_MEASUREMENT_MASK
-#  define LC_MEASUREMENT_MASK 2048
-# endif
-# ifndef LC_MESSAGES_MASK
-#  define LC_MESSAGES_MASK 32
-# endif
-# ifndef LC_MONETARY_MASK
-#  define LC_MONETARY_MASK 16
-# endif
-# ifndef LC_NAME_MASK
-#  define LC_NAME_MASK 256
-# endif
-# ifndef LC_NUMERIC_MASK
-#  define LC_NUMERIC_MASK 2
-# endif
-# ifndef LC_PAPER_MASK
-#  define LC_PAPER_MASK 128
-# endif
-# ifndef LC_TELEPHONE_MASK
-#  define LC_TELEPHONE_MASK 1024
-# endif
-# ifndef LC_TIME_MASK
-#  define LC_TIME_MASK 4
-# endif
+# define LC_ADDRESS_MASK 512
+# define LC_ALL_MASK 8127
+# define LC_COLLATE_MASK 8
+# define LC_CTYPE_MASK 1
+# define LC_IDENTIFICATION_MASK 4096
+# define LC_MEASUREMENT_MASK 2048
+# define LC_MESSAGES_MASK 32
+# define LC_MONETARY_MASK 16
+# define LC_NAME_MASK 256
+# define LC_NUMERIC_MASK 2
+# define LC_PAPER_MASK 128
+# define LC_TELEPHONE_MASK 1024
+# define LC_TIME_MASK 4
 #endif
 
 #if 1

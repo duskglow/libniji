@@ -57,7 +57,7 @@ extern const char *inet_ntop (int, const void *, char *, unsigned int) __NIJI_NO
 extern int inet_pton (int, const char *, void *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct in_addr;
 # ifndef __NIJI_D_inet_aton
 #  define __NIJI_D_inet_aton 1

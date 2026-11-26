@@ -44,9 +44,7 @@ extern struct fstab *getfsspec (const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_setfsent 1
 extern int setfsent (void) __NIJI_NOTHROW;
 # endif
-# ifndef _PATH_FSTAB
-#  define _PATH_FSTAB "/etc/fstab"
-# endif
+# define _PATH_FSTAB "/etc/fstab"
 #endif
 
 __NIJI_END_C

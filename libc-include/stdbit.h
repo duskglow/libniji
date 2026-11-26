@@ -117,9 +117,7 @@ typedef unsigned long uint_least64_t;
 #  define __NIJI_D_uint_least8_t 1
 typedef unsigned char uint_least8_t;
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 #define __STDC_ENDIAN_LITTLE__ __ORDER_LITTLE_ENDIAN__

@@ -256,12 +256,14 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef ELF_NGREG
-#  define ELF_NGREG 27UL
-# endif
-# ifndef ELF_PRARGSZ
-#  define ELF_PRARGSZ 80
-# endif
+# define ELF_NGREG 27UL
+# define ELF_PRARGSZ 80
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 /* The descriptor-set macros are visible here in every configuration, where sys/types.h defines them only in some:

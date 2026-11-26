@@ -276,7 +276,19 @@ extern int setrlimit (int, const struct rlimit *) __NIJI_NOTHROW __asm__ ("setrl
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+struct rlimit64;
+# ifndef __NIJI_D_getrlimit64
+#  define __NIJI_D_getrlimit64 1
+extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+struct rlimit64;
+# ifndef __NIJI_D_setrlimit64
+#  define __NIJI_D_setrlimit64 1
+extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+#endif
+#if defined __USE_GNU
 struct rlimit;
 struct rlimit;
 # ifndef __NIJI_D_prlimit
@@ -294,25 +306,9 @@ struct rlimit64;
 extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_LFS64
-struct rlimit64;
-# ifndef __NIJI_D_getrlimit64
-#  define __NIJI_D_getrlimit64 1
-extern int getrlimit64 (int, struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-struct rlimit64;
-# ifndef __NIJI_D_setrlimit64
-#  define __NIJI_D_setrlimit64 1
-extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
-# endif
-#endif
 #if 1
-# ifndef PRIO_MAX
-#  define PRIO_MAX 20
-# endif
-# ifndef PRIO_MIN
-#  define PRIO_MIN (-20)
-# endif
+# define PRIO_MAX 20
+# define PRIO_MIN (-20)
 # ifndef PRIO_PGRP
 #  define PRIO_PGRP PRIO_PGRP
 # endif
@@ -349,18 +345,14 @@ extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW __attribute
 # ifndef RLIMIT_NICE
 #  define RLIMIT_NICE __RLIMIT_NICE
 # endif
-# ifndef RLIMIT_NLIMITS
-#  define RLIMIT_NLIMITS __RLIMIT_NLIMITS
-# endif
+# define RLIMIT_NLIMITS __RLIMIT_NLIMITS
 # ifndef RLIMIT_NOFILE
 #  define RLIMIT_NOFILE RLIMIT_NOFILE
 # endif
 # ifndef RLIMIT_NPROC
 #  define RLIMIT_NPROC __RLIMIT_NPROC
 # endif
-# ifndef RLIMIT_OFILE
-#  define RLIMIT_OFILE RLIMIT_NOFILE
-# endif
+# define RLIMIT_OFILE RLIMIT_NOFILE
 # ifndef RLIMIT_RSS
 #  define RLIMIT_RSS __RLIMIT_RSS
 # endif
@@ -382,33 +374,25 @@ extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW __attribute
 # ifndef RLIM_NLIMITS
 #  define RLIM_NLIMITS __RLIMIT_NLIMITS
 # endif
-# ifndef RLIM_SAVED_CUR
-#  define RLIM_SAVED_CUR RLIM_INFINITY
-# endif
-# ifndef RLIM_SAVED_MAX
-#  define RLIM_SAVED_MAX RLIM_INFINITY
-# endif
+# define RLIM_SAVED_CUR RLIM_INFINITY
+# define RLIM_SAVED_MAX RLIM_INFINITY
 # ifndef RUSAGE_CHILDREN
 #  define RUSAGE_CHILDREN RUSAGE_CHILDREN
 # endif
 # ifndef RUSAGE_SELF
 #  define RUSAGE_SELF RUSAGE_SELF
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef RUSAGE_LWP
-#  define RUSAGE_LWP RUSAGE_THREAD
-# endif
-# ifndef RUSAGE_THREAD
-#  define RUSAGE_THREAD RUSAGE_THREAD
-# endif
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_LFS64
 # ifndef RLIM64_INFINITY
 #  define RLIM64_INFINITY 18446744073709551615ULL
+# endif
+#endif
+#if defined __USE_GNU
+# define RUSAGE_LWP RUSAGE_THREAD
+# ifndef RUSAGE_THREAD
+#  define RUSAGE_THREAD RUSAGE_THREAD
 # endif
 #endif
 

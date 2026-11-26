@@ -264,9 +264,7 @@ enum {
 # ifndef BLOCK_SIZE
 #  define BLOCK_SIZE 1024
 # endif
-# ifndef BLOCK_SIZE_BITS
-#  define BLOCK_SIZE_BITS 10
-# endif
+# define BLOCK_SIZE_BITS 10
 # ifndef FSMOUNT_CLOEXEC
 #  define FSMOUNT_CLOEXEC 1
 # endif
@@ -288,18 +286,10 @@ enum {
 # ifndef LSMT_ROOT
 #  define LSMT_ROOT 18446744073709551615UL
 # endif
-# ifndef MNT_DETACH
-#  define MNT_DETACH MNT_DETACH
-# endif
-# ifndef MNT_EXPIRE
-#  define MNT_EXPIRE MNT_EXPIRE
-# endif
-# ifndef MNT_FORCE
-#  define MNT_FORCE MNT_FORCE
-# endif
-# ifndef MNT_ID_REQ_SIZE_VER0
-#  define MNT_ID_REQ_SIZE_VER0 24
-# endif
+# define MNT_DETACH MNT_DETACH
+# define MNT_EXPIRE MNT_EXPIRE
+# define MNT_FORCE MNT_FORCE
+# define MNT_ID_REQ_SIZE_VER0 24
 # ifndef MOUNT_ATTR_IDMAP
 #  define MOUNT_ATTR_IDMAP 1048576
 # endif
@@ -327,9 +317,7 @@ enum {
 # ifndef MOUNT_ATTR_RELATIME
 #  define MOUNT_ATTR_RELATIME 0
 # endif
-# ifndef MOUNT_ATTR_SIZE_VER0
-#  define MOUNT_ATTR_SIZE_VER0 32
-# endif
+# define MOUNT_ATTR_SIZE_VER0 32
 # ifndef MOUNT_ATTR_STRICTATIME
 #  define MOUNT_ATTR_STRICTATIME 32
 # endif
@@ -475,9 +463,7 @@ enum {
 #   define OPEN_TREE_CLOEXEC 524288
 #  endif
 # endif
-# ifndef OPEN_TREE_CLONE
-#  define OPEN_TREE_CLONE 1
-# endif
+# define OPEN_TREE_CLONE 1
 # ifndef STATMOUNT_FS_TYPE
 #  define STATMOUNT_FS_TYPE 32U
 # endif
@@ -496,9 +482,7 @@ enum {
 # ifndef STATMOUNT_SB_BASIC
 #  define STATMOUNT_SB_BASIC 1U
 # endif
-# ifndef UMOUNT_NOFOLLOW
-#  define UMOUNT_NOFOLLOW UMOUNT_NOFOLLOW
-# endif
+# define UMOUNT_NOFOLLOW UMOUNT_NOFOLLOW
 #endif
 
 #if 1

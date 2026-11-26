@@ -210,519 +210,177 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW;
 #  endif
 # endif
-# ifndef IP6F_MORE_FRAG
-#  define IP6F_MORE_FRAG 256
-# endif
-# ifndef IP6F_OFF_MASK
-#  define IP6F_OFF_MASK 63743
-# endif
-# ifndef IP6F_RESERVED_MASK
-#  define IP6F_RESERVED_MASK 1536
-# endif
-# ifndef IP6OPT_JUMBO
-#  define IP6OPT_JUMBO 194
-# endif
-# ifndef IP6OPT_JUMBO_LEN
-#  define IP6OPT_JUMBO_LEN 6
-# endif
-# ifndef IP6OPT_NSAP_ADDR
-#  define IP6OPT_NSAP_ADDR 195
-# endif
-# ifndef IP6OPT_PAD1
-#  define IP6OPT_PAD1 0
-# endif
-# ifndef IP6OPT_PADN
-#  define IP6OPT_PADN 1
-# endif
-# ifndef IP6OPT_ROUTER_ALERT
-#  define IP6OPT_ROUTER_ALERT 5
-# endif
-# ifndef IP6OPT_TUNNEL_LIMIT
-#  define IP6OPT_TUNNEL_LIMIT 4
-# endif
-# ifndef IP6OPT_TYPE_DISCARD
-#  define IP6OPT_TYPE_DISCARD 64
-# endif
-# ifndef IP6OPT_TYPE_FORCEICMP
-#  define IP6OPT_TYPE_FORCEICMP 128
-# endif
-# ifndef IP6OPT_TYPE_ICMP
-#  define IP6OPT_TYPE_ICMP 192
-# endif
-# ifndef IP6OPT_TYPE_SKIP
-#  define IP6OPT_TYPE_SKIP 0
-# endif
-# ifndef IP6_ALERT_AN
-#  define IP6_ALERT_AN 512
-# endif
-# ifndef IP6_ALERT_MLD
-#  define IP6_ALERT_MLD 0
-# endif
-# ifndef IP6_ALERT_RSVP
-#  define IP6_ALERT_RSVP 256
-# endif
-# ifndef PRIX16
-#  define PRIX16 "X"
-# endif
-# ifndef PRIX32
-#  define PRIX32 "X"
-# endif
-# ifndef PRIX64
-#  define PRIX64 "lX"
-# endif
-# ifndef PRIX8
-#  define PRIX8 "X"
-# endif
-# ifndef PRIXFAST16
-#  define PRIXFAST16 "lX"
-# endif
-# ifndef PRIXFAST32
-#  define PRIXFAST32 "lX"
-# endif
-# ifndef PRIXFAST64
-#  define PRIXFAST64 "lX"
-# endif
-# ifndef PRIXFAST8
-#  define PRIXFAST8 "X"
-# endif
-# ifndef PRIXLEAST16
-#  define PRIXLEAST16 "X"
-# endif
-# ifndef PRIXLEAST32
-#  define PRIXLEAST32 "X"
-# endif
-# ifndef PRIXLEAST64
-#  define PRIXLEAST64 "lX"
-# endif
-# ifndef PRIXLEAST8
-#  define PRIXLEAST8 "X"
-# endif
-# ifndef PRIXMAX
-#  define PRIXMAX "lX"
-# endif
-# ifndef PRIXPTR
-#  define PRIXPTR "lX"
-# endif
-# ifndef PRId16
-#  define PRId16 "d"
-# endif
-# ifndef PRId32
-#  define PRId32 "d"
-# endif
-# ifndef PRId64
-#  define PRId64 "ld"
-# endif
-# ifndef PRId8
-#  define PRId8 "d"
-# endif
-# ifndef PRIdFAST16
-#  define PRIdFAST16 "ld"
-# endif
-# ifndef PRIdFAST32
-#  define PRIdFAST32 "ld"
-# endif
-# ifndef PRIdFAST64
-#  define PRIdFAST64 "ld"
-# endif
-# ifndef PRIdFAST8
-#  define PRIdFAST8 "d"
-# endif
-# ifndef PRIdLEAST16
-#  define PRIdLEAST16 "d"
-# endif
-# ifndef PRIdLEAST32
-#  define PRIdLEAST32 "d"
-# endif
-# ifndef PRIdLEAST64
-#  define PRIdLEAST64 "ld"
-# endif
-# ifndef PRIdLEAST8
-#  define PRIdLEAST8 "d"
-# endif
-# ifndef PRIdMAX
-#  define PRIdMAX "ld"
-# endif
-# ifndef PRIdPTR
-#  define PRIdPTR "ld"
-# endif
-# ifndef PRIi16
-#  define PRIi16 "i"
-# endif
-# ifndef PRIi32
-#  define PRIi32 "i"
-# endif
-# ifndef PRIi64
-#  define PRIi64 "li"
-# endif
-# ifndef PRIi8
-#  define PRIi8 "i"
-# endif
-# ifndef PRIiFAST16
-#  define PRIiFAST16 "li"
-# endif
-# ifndef PRIiFAST32
-#  define PRIiFAST32 "li"
-# endif
-# ifndef PRIiFAST64
-#  define PRIiFAST64 "li"
-# endif
-# ifndef PRIiFAST8
-#  define PRIiFAST8 "i"
-# endif
-# ifndef PRIiLEAST16
-#  define PRIiLEAST16 "i"
-# endif
-# ifndef PRIiLEAST32
-#  define PRIiLEAST32 "i"
-# endif
-# ifndef PRIiLEAST64
-#  define PRIiLEAST64 "li"
-# endif
-# ifndef PRIiLEAST8
-#  define PRIiLEAST8 "i"
-# endif
-# ifndef PRIiMAX
-#  define PRIiMAX "li"
-# endif
-# ifndef PRIiPTR
-#  define PRIiPTR "li"
-# endif
-# ifndef PRIo16
-#  define PRIo16 "o"
-# endif
-# ifndef PRIo32
-#  define PRIo32 "o"
-# endif
-# ifndef PRIo64
-#  define PRIo64 "lo"
-# endif
-# ifndef PRIo8
-#  define PRIo8 "o"
-# endif
-# ifndef PRIoFAST16
-#  define PRIoFAST16 "lo"
-# endif
-# ifndef PRIoFAST32
-#  define PRIoFAST32 "lo"
-# endif
-# ifndef PRIoFAST64
-#  define PRIoFAST64 "lo"
-# endif
-# ifndef PRIoFAST8
-#  define PRIoFAST8 "o"
-# endif
-# ifndef PRIoLEAST16
-#  define PRIoLEAST16 "o"
-# endif
-# ifndef PRIoLEAST32
-#  define PRIoLEAST32 "o"
-# endif
-# ifndef PRIoLEAST64
-#  define PRIoLEAST64 "lo"
-# endif
-# ifndef PRIoLEAST8
-#  define PRIoLEAST8 "o"
-# endif
-# ifndef PRIoMAX
-#  define PRIoMAX "lo"
-# endif
-# ifndef PRIoPTR
-#  define PRIoPTR "lo"
-# endif
-# ifndef PRIu16
-#  define PRIu16 "u"
-# endif
-# ifndef PRIu32
-#  define PRIu32 "u"
-# endif
-# ifndef PRIu64
-#  define PRIu64 "lu"
-# endif
-# ifndef PRIu8
-#  define PRIu8 "u"
-# endif
-# ifndef PRIuFAST16
-#  define PRIuFAST16 "lu"
-# endif
-# ifndef PRIuFAST32
-#  define PRIuFAST32 "lu"
-# endif
-# ifndef PRIuFAST64
-#  define PRIuFAST64 "lu"
-# endif
-# ifndef PRIuFAST8
-#  define PRIuFAST8 "u"
-# endif
-# ifndef PRIuLEAST16
-#  define PRIuLEAST16 "u"
-# endif
-# ifndef PRIuLEAST32
-#  define PRIuLEAST32 "u"
-# endif
-# ifndef PRIuLEAST64
-#  define PRIuLEAST64 "lu"
-# endif
-# ifndef PRIuLEAST8
-#  define PRIuLEAST8 "u"
-# endif
-# ifndef PRIuMAX
-#  define PRIuMAX "lu"
-# endif
-# ifndef PRIuPTR
-#  define PRIuPTR "lu"
-# endif
-# ifndef PRIx16
-#  define PRIx16 "x"
-# endif
-# ifndef PRIx32
-#  define PRIx32 "x"
-# endif
-# ifndef PRIx64
-#  define PRIx64 "lx"
-# endif
-# ifndef PRIx8
-#  define PRIx8 "x"
-# endif
-# ifndef PRIxFAST16
-#  define PRIxFAST16 "lx"
-# endif
-# ifndef PRIxFAST32
-#  define PRIxFAST32 "lx"
-# endif
-# ifndef PRIxFAST64
-#  define PRIxFAST64 "lx"
-# endif
-# ifndef PRIxFAST8
-#  define PRIxFAST8 "x"
-# endif
-# ifndef PRIxLEAST16
-#  define PRIxLEAST16 "x"
-# endif
-# ifndef PRIxLEAST32
-#  define PRIxLEAST32 "x"
-# endif
-# ifndef PRIxLEAST64
-#  define PRIxLEAST64 "lx"
-# endif
-# ifndef PRIxLEAST8
-#  define PRIxLEAST8 "x"
-# endif
-# ifndef PRIxMAX
-#  define PRIxMAX "lx"
-# endif
-# ifndef PRIxPTR
-#  define PRIxPTR "lx"
-# endif
-# ifndef SCNd16
-#  define SCNd16 "hd"
-# endif
-# ifndef SCNd32
-#  define SCNd32 "d"
-# endif
-# ifndef SCNd64
-#  define SCNd64 "ld"
-# endif
-# ifndef SCNd8
-#  define SCNd8 "hhd"
-# endif
-# ifndef SCNdFAST16
-#  define SCNdFAST16 "ld"
-# endif
-# ifndef SCNdFAST32
-#  define SCNdFAST32 "ld"
-# endif
-# ifndef SCNdFAST64
-#  define SCNdFAST64 "ld"
-# endif
-# ifndef SCNdFAST8
-#  define SCNdFAST8 "hhd"
-# endif
-# ifndef SCNdLEAST16
-#  define SCNdLEAST16 "hd"
-# endif
-# ifndef SCNdLEAST32
-#  define SCNdLEAST32 "d"
-# endif
-# ifndef SCNdLEAST64
-#  define SCNdLEAST64 "ld"
-# endif
-# ifndef SCNdLEAST8
-#  define SCNdLEAST8 "hhd"
-# endif
-# ifndef SCNdMAX
-#  define SCNdMAX "ld"
-# endif
-# ifndef SCNdPTR
-#  define SCNdPTR "ld"
-# endif
-# ifndef SCNi16
-#  define SCNi16 "hi"
-# endif
-# ifndef SCNi32
-#  define SCNi32 "i"
-# endif
-# ifndef SCNi64
-#  define SCNi64 "li"
-# endif
-# ifndef SCNi8
-#  define SCNi8 "hhi"
-# endif
-# ifndef SCNiFAST16
-#  define SCNiFAST16 "li"
-# endif
-# ifndef SCNiFAST32
-#  define SCNiFAST32 "li"
-# endif
-# ifndef SCNiFAST64
-#  define SCNiFAST64 "li"
-# endif
-# ifndef SCNiFAST8
-#  define SCNiFAST8 "hhi"
-# endif
-# ifndef SCNiLEAST16
-#  define SCNiLEAST16 "hi"
-# endif
-# ifndef SCNiLEAST32
-#  define SCNiLEAST32 "i"
-# endif
-# ifndef SCNiLEAST64
-#  define SCNiLEAST64 "li"
-# endif
-# ifndef SCNiLEAST8
-#  define SCNiLEAST8 "hhi"
-# endif
-# ifndef SCNiMAX
-#  define SCNiMAX "li"
-# endif
-# ifndef SCNiPTR
-#  define SCNiPTR "li"
-# endif
-# ifndef SCNo16
-#  define SCNo16 "ho"
-# endif
-# ifndef SCNo32
-#  define SCNo32 "o"
-# endif
-# ifndef SCNo64
-#  define SCNo64 "lo"
-# endif
-# ifndef SCNo8
-#  define SCNo8 "hho"
-# endif
-# ifndef SCNoFAST16
-#  define SCNoFAST16 "lo"
-# endif
-# ifndef SCNoFAST32
-#  define SCNoFAST32 "lo"
-# endif
-# ifndef SCNoFAST64
-#  define SCNoFAST64 "lo"
-# endif
-# ifndef SCNoFAST8
-#  define SCNoFAST8 "hho"
-# endif
-# ifndef SCNoLEAST16
-#  define SCNoLEAST16 "ho"
-# endif
-# ifndef SCNoLEAST32
-#  define SCNoLEAST32 "o"
-# endif
-# ifndef SCNoLEAST64
-#  define SCNoLEAST64 "lo"
-# endif
-# ifndef SCNoLEAST8
-#  define SCNoLEAST8 "hho"
-# endif
-# ifndef SCNoMAX
-#  define SCNoMAX "lo"
-# endif
-# ifndef SCNoPTR
-#  define SCNoPTR "lo"
-# endif
-# ifndef SCNu16
-#  define SCNu16 "hu"
-# endif
-# ifndef SCNu32
-#  define SCNu32 "u"
-# endif
-# ifndef SCNu64
-#  define SCNu64 "lu"
-# endif
-# ifndef SCNu8
-#  define SCNu8 "hhu"
-# endif
-# ifndef SCNuFAST16
-#  define SCNuFAST16 "lu"
-# endif
-# ifndef SCNuFAST32
-#  define SCNuFAST32 "lu"
-# endif
-# ifndef SCNuFAST64
-#  define SCNuFAST64 "lu"
-# endif
-# ifndef SCNuFAST8
-#  define SCNuFAST8 "hhu"
-# endif
-# ifndef SCNuLEAST16
-#  define SCNuLEAST16 "hu"
-# endif
-# ifndef SCNuLEAST32
-#  define SCNuLEAST32 "u"
-# endif
-# ifndef SCNuLEAST64
-#  define SCNuLEAST64 "lu"
-# endif
-# ifndef SCNuLEAST8
-#  define SCNuLEAST8 "hhu"
-# endif
-# ifndef SCNuMAX
-#  define SCNuMAX "lu"
-# endif
-# ifndef SCNuPTR
-#  define SCNuPTR "lu"
-# endif
-# ifndef SCNx16
-#  define SCNx16 "hx"
-# endif
-# ifndef SCNx32
-#  define SCNx32 "x"
-# endif
-# ifndef SCNx64
-#  define SCNx64 "lx"
-# endif
-# ifndef SCNx8
-#  define SCNx8 "hhx"
-# endif
-# ifndef SCNxFAST16
-#  define SCNxFAST16 "lx"
-# endif
-# ifndef SCNxFAST32
-#  define SCNxFAST32 "lx"
-# endif
-# ifndef SCNxFAST64
-#  define SCNxFAST64 "lx"
-# endif
-# ifndef SCNxFAST8
-#  define SCNxFAST8 "hhx"
-# endif
-# ifndef SCNxLEAST16
-#  define SCNxLEAST16 "hx"
-# endif
-# ifndef SCNxLEAST32
-#  define SCNxLEAST32 "x"
-# endif
-# ifndef SCNxLEAST64
-#  define SCNxLEAST64 "lx"
-# endif
-# ifndef SCNxLEAST8
-#  define SCNxLEAST8 "hhx"
-# endif
-# ifndef SCNxMAX
-#  define SCNxMAX "lx"
-# endif
-# ifndef SCNxPTR
-#  define SCNxPTR "lx"
-# endif
+# define IP6F_MORE_FRAG 256
+# define IP6F_OFF_MASK 63743
+# define IP6F_RESERVED_MASK 1536
+# define IP6OPT_JUMBO 194
+# define IP6OPT_JUMBO_LEN 6
+# define IP6OPT_NSAP_ADDR 195
+# define IP6OPT_PAD1 0
+# define IP6OPT_PADN 1
+# define IP6OPT_ROUTER_ALERT 5
+# define IP6OPT_TUNNEL_LIMIT 4
+# define IP6OPT_TYPE_DISCARD 64
+# define IP6OPT_TYPE_FORCEICMP 128
+# define IP6OPT_TYPE_ICMP 192
+# define IP6OPT_TYPE_SKIP 0
+# define IP6_ALERT_AN 512
+# define IP6_ALERT_MLD 0
+# define IP6_ALERT_RSVP 256
+# define PRIX16 "X"
+# define PRIX32 "X"
+# define PRIX64 "lX"
+# define PRIX8 "X"
+# define PRIXFAST16 "lX"
+# define PRIXFAST32 "lX"
+# define PRIXFAST64 "lX"
+# define PRIXFAST8 "X"
+# define PRIXLEAST16 "X"
+# define PRIXLEAST32 "X"
+# define PRIXLEAST64 "lX"
+# define PRIXLEAST8 "X"
+# define PRIXMAX "lX"
+# define PRIXPTR "lX"
+# define PRId16 "d"
+# define PRId32 "d"
+# define PRId64 "ld"
+# define PRId8 "d"
+# define PRIdFAST16 "ld"
+# define PRIdFAST32 "ld"
+# define PRIdFAST64 "ld"
+# define PRIdFAST8 "d"
+# define PRIdLEAST16 "d"
+# define PRIdLEAST32 "d"
+# define PRIdLEAST64 "ld"
+# define PRIdLEAST8 "d"
+# define PRIdMAX "ld"
+# define PRIdPTR "ld"
+# define PRIi16 "i"
+# define PRIi32 "i"
+# define PRIi64 "li"
+# define PRIi8 "i"
+# define PRIiFAST16 "li"
+# define PRIiFAST32 "li"
+# define PRIiFAST64 "li"
+# define PRIiFAST8 "i"
+# define PRIiLEAST16 "i"
+# define PRIiLEAST32 "i"
+# define PRIiLEAST64 "li"
+# define PRIiLEAST8 "i"
+# define PRIiMAX "li"
+# define PRIiPTR "li"
+# define PRIo16 "o"
+# define PRIo32 "o"
+# define PRIo64 "lo"
+# define PRIo8 "o"
+# define PRIoFAST16 "lo"
+# define PRIoFAST32 "lo"
+# define PRIoFAST64 "lo"
+# define PRIoFAST8 "o"
+# define PRIoLEAST16 "o"
+# define PRIoLEAST32 "o"
+# define PRIoLEAST64 "lo"
+# define PRIoLEAST8 "o"
+# define PRIoMAX "lo"
+# define PRIoPTR "lo"
+# define PRIu16 "u"
+# define PRIu32 "u"
+# define PRIu64 "lu"
+# define PRIu8 "u"
+# define PRIuFAST16 "lu"
+# define PRIuFAST32 "lu"
+# define PRIuFAST64 "lu"
+# define PRIuFAST8 "u"
+# define PRIuLEAST16 "u"
+# define PRIuLEAST32 "u"
+# define PRIuLEAST64 "lu"
+# define PRIuLEAST8 "u"
+# define PRIuMAX "lu"
+# define PRIuPTR "lu"
+# define PRIx16 "x"
+# define PRIx32 "x"
+# define PRIx64 "lx"
+# define PRIx8 "x"
+# define PRIxFAST16 "lx"
+# define PRIxFAST32 "lx"
+# define PRIxFAST64 "lx"
+# define PRIxFAST8 "x"
+# define PRIxLEAST16 "x"
+# define PRIxLEAST32 "x"
+# define PRIxLEAST64 "lx"
+# define PRIxLEAST8 "x"
+# define PRIxMAX "lx"
+# define PRIxPTR "lx"
+# define SCNd16 "hd"
+# define SCNd32 "d"
+# define SCNd64 "ld"
+# define SCNd8 "hhd"
+# define SCNdFAST16 "ld"
+# define SCNdFAST32 "ld"
+# define SCNdFAST64 "ld"
+# define SCNdFAST8 "hhd"
+# define SCNdLEAST16 "hd"
+# define SCNdLEAST32 "d"
+# define SCNdLEAST64 "ld"
+# define SCNdLEAST8 "hhd"
+# define SCNdMAX "ld"
+# define SCNdPTR "ld"
+# define SCNi16 "hi"
+# define SCNi32 "i"
+# define SCNi64 "li"
+# define SCNi8 "hhi"
+# define SCNiFAST16 "li"
+# define SCNiFAST32 "li"
+# define SCNiFAST64 "li"
+# define SCNiFAST8 "hhi"
+# define SCNiLEAST16 "hi"
+# define SCNiLEAST32 "i"
+# define SCNiLEAST64 "li"
+# define SCNiLEAST8 "hhi"
+# define SCNiMAX "li"
+# define SCNiPTR "li"
+# define SCNo16 "ho"
+# define SCNo32 "o"
+# define SCNo64 "lo"
+# define SCNo8 "hho"
+# define SCNoFAST16 "lo"
+# define SCNoFAST32 "lo"
+# define SCNoFAST64 "lo"
+# define SCNoFAST8 "hho"
+# define SCNoLEAST16 "ho"
+# define SCNoLEAST32 "o"
+# define SCNoLEAST64 "lo"
+# define SCNoLEAST8 "hho"
+# define SCNoMAX "lo"
+# define SCNoPTR "lo"
+# define SCNu16 "hu"
+# define SCNu32 "u"
+# define SCNu64 "lu"
+# define SCNu8 "hhu"
+# define SCNuFAST16 "lu"
+# define SCNuFAST32 "lu"
+# define SCNuFAST64 "lu"
+# define SCNuFAST8 "hhu"
+# define SCNuLEAST16 "hu"
+# define SCNuLEAST32 "u"
+# define SCNuLEAST64 "lu"
+# define SCNuLEAST8 "hhu"
+# define SCNuMAX "lu"
+# define SCNuPTR "lu"
+# define SCNx16 "hx"
+# define SCNx32 "x"
+# define SCNx64 "lx"
+# define SCNx8 "hhx"
+# define SCNxFAST16 "lx"
+# define SCNxFAST32 "lx"
+# define SCNxFAST64 "lx"
+# define SCNxFAST8 "hhx"
+# define SCNxLEAST16 "hx"
+# define SCNxLEAST32 "x"
+# define SCNxLEAST64 "lx"
+# define SCNxLEAST8 "hhx"
+# define SCNxMAX "lx"
+# define SCNxPTR "lx"
 #endif
 
 /* The fields of the IPv6 header (RFC 8200 section 3) by name: the first eight bytes are struct ip6_hdr's union of the

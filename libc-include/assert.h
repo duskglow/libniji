@@ -41,7 +41,7 @@ __NIJI_END_C
 # define static_assert _Static_assert
 #endif
 
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifdef NDEBUG
 #  define assert_perror(errnum) ((void) 0)
 # else

@@ -12,7 +12,14 @@ __NIJI_BEGIN_C
 /* The reference's <sys/profil.h> includes <sys/time.h>, which makes the FD_ macros visible; <sys/time.h> (slice 7)
    is not generated yet, so they are left out until it exists. */
 @@owns FD_CLR FD_ISSET FD_SET FD_ZERO
+@@owns-macro TIMESPEC_TO_TIMEVAL TIMEVAL_TO_TIMESPEC
 @@emit
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+@@when TIMESPEC_TO_TIMEVAL
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
 
 __NIJI_END_C
 

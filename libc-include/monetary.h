@@ -89,9 +89,7 @@ extern long strfmon_l (char *, unsigned long, locale_t, const char *, ...) __NIJ
 # endif
 #endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 __NIJI_END_C

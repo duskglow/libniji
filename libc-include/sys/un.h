@@ -6,14 +6,14 @@
 
 #include <features.h>
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <string.h>
 #endif
 
 /* max_align_t, ptrdiff_t, offsetof and the rest of the compiler's <stddef.h> where the reference shows them (its misc
    configurations): the compiler's own definition, so a program's <stddef.h> before or after this one declares the one
    type, whatever guard macros that compiler uses. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <stddef.h>
 #endif
 
@@ -32,7 +32,7 @@ struct sockaddr_un {
 typedef unsigned short sa_family_t;
 # endif
 #endif
-#if __NIJI_MISC && __NIJI_CXX < 1
+#if defined __USE_MISC && __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
 #  ifndef __cplusplus
@@ -41,9 +41,12 @@ typedef __WCHAR_TYPE__ wchar_t;
 # endif
 #endif
 #if 1
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define _SS_SIZE 128
+#endif
+
+/* unix(7): the length of the address part of a struct sockaddr_un through the end of its sun_path string. */
+#if defined __USE_MISC
+# define SUN_LEN(ptr) (__builtin_offsetof (struct sockaddr_un, sun_path) + strlen ((ptr)->sun_path))
 #endif
 
 __NIJI_END_C

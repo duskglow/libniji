@@ -29,12 +29,8 @@ extern char *catgets (void *, int, int, const char *) __NIJI_NOTHROW __attribute
 #  define __NIJI_D_catopen 1
 extern void * catopen (const char *, int) __attribute__ ((__nonnull__ (1)));
 # endif
-# ifndef NL_CAT_LOCALE
-#  define NL_CAT_LOCALE 1
-# endif
-# ifndef NL_SETD
-#  define NL_SETD 1
-# endif
+# define NL_CAT_LOCALE 1
+# define NL_SETD 1
 #endif
 
 __NIJI_END_C

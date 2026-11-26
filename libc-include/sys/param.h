@@ -36,63 +36,33 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef HZ
 #  define HZ 100
 # endif
-# ifndef MAXHOSTNAMELEN
-#  define MAXHOSTNAMELEN 64
-# endif
+# define MAXHOSTNAMELEN 64
 # ifndef MAXPATHLEN
 #  define MAXPATHLEN PATH_MAX
 # endif
-# ifndef MAXSYMLINKS
-#  define MAXSYMLINKS 20
-# endif
-# ifndef MAX_CANON
-#  define MAX_CANON 255
-# endif
-# ifndef MAX_INPUT
-#  define MAX_INPUT 255
-# endif
-# ifndef NAME_MAX
-#  define NAME_MAX 255
-# endif
-# ifndef NBBY
-#  define NBBY CHAR_BIT
-# endif
-# ifndef NCARGS
-#  define NCARGS 131072
-# endif
+# define MAXSYMLINKS 20
+# define MAX_CANON 255
+# define MAX_INPUT 255
+# define NAME_MAX 255
+# define NBBY CHAR_BIT
+# define NCARGS 131072
 # ifndef NGROUPS
 #  define NGROUPS NGROUPS_MAX
 # endif
-# ifndef NGROUPS_MAX
-#  define NGROUPS_MAX 65536
-# endif
+# define NGROUPS_MAX 65536
 # ifndef NODEV
 #  define NODEV 18446744073709551615UL
 # endif
-# ifndef NOFILE
-#  define NOFILE 256
-# endif
+# define NOFILE 256
 # ifndef NOGROUP
 #  define NOGROUP (-1)
 # endif
-# ifndef PATH_MAX
-#  define PATH_MAX 4096
-# endif
-# ifndef PIPE_BUF
-#  define PIPE_BUF 4096
-# endif
-# ifndef RTSIG_MAX
-#  define RTSIG_MAX 32
-# endif
-# ifndef XATTR_LIST_MAX
-#  define XATTR_LIST_MAX 65536
-# endif
-# ifndef XATTR_NAME_MAX
-#  define XATTR_NAME_MAX 255
-# endif
-# ifndef XATTR_SIZE_MAX
-#  define XATTR_SIZE_MAX 65536
-# endif
+# define PATH_MAX 4096
+# define PIPE_BUF 4096
+# define RTSIG_MAX 32
+# define XATTR_LIST_MAX 65536
+# define XATTR_NAME_MAX 255
+# define XATTR_SIZE_MAX 65536
 #endif
 
 #if 1

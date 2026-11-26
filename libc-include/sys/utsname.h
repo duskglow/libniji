@@ -25,12 +25,8 @@ struct utsname;
 #  define __NIJI_D_uname 1
 extern int uname (struct utsname *) __NIJI_NOTHROW;
 # endif
-# ifndef _UTSNAME_DOMAIN_LENGTH
-#  define _UTSNAME_DOMAIN_LENGTH _UTSNAME_LENGTH
-# endif
-# ifndef _UTSNAME_LENGTH
-#  define _UTSNAME_LENGTH 65
-# endif
+# define _UTSNAME_DOMAIN_LENGTH _UTSNAME_LENGTH
+# define _UTSNAME_LENGTH 65
 # ifndef _UTSNAME_MACHINE_LENGTH
 #  define _UTSNAME_MACHINE_LENGTH _UTSNAME_LENGTH
 # endif
@@ -47,10 +43,8 @@ extern int uname (struct utsname *) __NIJI_NOTHROW;
 #  define _UTSNAME_VERSION_LENGTH _UTSNAME_LENGTH
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef SYS_NMLN
-#  define SYS_NMLN _UTSNAME_LENGTH
-# endif
+#if defined __USE_MISC
+# define SYS_NMLN _UTSNAME_LENGTH
 #endif
 
 

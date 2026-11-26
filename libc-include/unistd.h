@@ -60,12 +60,6 @@ typedef long ssize_t;
 typedef long off64_t;
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D_socklen_t
-#  define __NIJI_D_socklen_t 1
-typedef unsigned int socklen_t;
-# endif
-#endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_gid_t
 #  define __NIJI_D_gid_t 1
@@ -94,10 +88,10 @@ typedef unsigned int useconds_t;
 typedef long intptr_t;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_environ
-#  define __NIJI_D_environ 1
-extern char * * environ;
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D_socklen_t
+#  define __NIJI_D_socklen_t 1
+typedef unsigned int socklen_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 2
@@ -116,6 +110,12 @@ extern int optind;
 # ifndef __NIJI_D_optopt
 #  define __NIJI_D_optopt 1
 extern int optopt;
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_environ
+#  define __NIJI_D_environ 1
+extern char * * environ;
 # endif
 #endif
 #if 1
@@ -312,76 +312,6 @@ extern int unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))
 extern long write (int, const void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D__Fork
-#  define __NIJI_D__Fork 1
-extern int _Fork (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_close_range
-#  define __NIJI_D_close_range 1
-extern int close_range (unsigned int, unsigned int, int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_copy_file_range
-#  define __NIJI_D_copy_file_range 1
-extern long copy_file_range (int, long *, int, long *, unsigned long, unsigned int);
-# endif
-# ifndef __NIJI_D_dup3
-#  define __NIJI_D_dup3 1
-extern int dup3 (int, int, int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_eaccess
-#  define __NIJI_D_eaccess 1
-extern int eaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_euidaccess
-#  define __NIJI_D_euidaccess 1
-extern int euidaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_execveat
-#  define __NIJI_D_execveat 1
-extern int execveat (int, const char *, char *const *, char *const *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
-# endif
-# ifndef __NIJI_D_execvpe
-#  define __NIJI_D_execvpe 1
-extern int execvpe (const char *, char *const *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-# ifndef __NIJI_D_get_current_dir_name
-#  define __NIJI_D_get_current_dir_name 1
-extern char *get_current_dir_name (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getresgid
-#  define __NIJI_D_getresgid 1
-extern int getresgid (unsigned int *, unsigned int *, unsigned int *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getresuid
-#  define __NIJI_D_getresuid 1
-extern int getresuid (unsigned int *, unsigned int *, unsigned int *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_gettid
-#  define __NIJI_D_gettid 1
-extern int gettid (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_group_member
-#  define __NIJI_D_group_member 1
-extern int group_member (unsigned int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_pipe2
-#  define __NIJI_D_pipe2 1
-extern int pipe2 (int [2], int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_setresgid
-#  define __NIJI_D_setresgid 1
-extern int setresgid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_setresuid
-#  define __NIJI_D_setresuid 1
-extern int setresuid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_syncfs
-#  define __NIJI_D_syncfs 1
-extern int syncfs (int) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_LFS64
 # ifndef __NIJI_D_ftruncate64
 #  define __NIJI_D_ftruncate64 1
@@ -406,166 +336,6 @@ extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__
 # ifndef __NIJI_D_truncate64
 #  define __NIJI_D_truncate64 1
 extern int truncate64 (const char *, long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_acct
-#  define __NIJI_D_acct 1
-extern int acct (const char *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_closefrom
-#  define __NIJI_D_closefrom 1
-extern void closefrom (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_crypt
-#  define __NIJI_D_crypt 1
-extern char *crypt (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-# ifndef __NIJI_D_daemon
-#  define __NIJI_D_daemon 1
-extern int daemon (int, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_endusershell
-#  define __NIJI_D_endusershell 1
-extern void endusershell (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getdomainname
-#  define __NIJI_D_getdomainname 1
-extern int getdomainname (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_getentropy
-#  define __NIJI_D_getentropy 1
-extern int getentropy (void *, unsigned long) __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_getusershell
-#  define __NIJI_D_getusershell 1
-extern char *getusershell (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_profil
-#  define __NIJI_D_profil 1
-extern int profil (short unsigned int *, unsigned long, unsigned long, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_revoke
-#  define __NIJI_D_revoke 1
-extern int revoke (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_setdomainname
-#  define __NIJI_D_setdomainname 1
-extern int setdomainname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_sethostid
-#  define __NIJI_D_sethostid 1
-extern int sethostid (long int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_sethostname
-#  define __NIJI_D_sethostname 1
-extern int sethostname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_setlogin
-#  define __NIJI_D_setlogin 1
-extern int setlogin (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_setusershell
-#  define __NIJI_D_setusershell 1
-extern void setusershell (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_syscall
-#  define __NIJI_D_syscall 1
-extern long int syscall (long int, ...) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_ttyslot
-#  define __NIJI_D_ttyslot 1
-extern int ttyslot (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_vhangup
-#  define __NIJI_D_vhangup 1
-extern int vhangup (void) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
-# ifndef __NIJI_D_chroot
-#  define __NIJI_D_chroot 1
-extern int chroot (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_getpass
-#  define __NIJI_D_getpass 1
-extern char *getpass (const char *) __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 450)
-# ifndef __NIJI_D_brk
-#  define __NIJI_D_brk 1
-extern int brk (void *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_getdtablesize
-#  define __NIJI_D_getdtablesize 1
-extern int getdtablesize (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_getpagesize
-#  define __NIJI_D_getpagesize 1
-extern int getpagesize (void) __NIJI_NOTHROW __attribute__ ((__const__));
-# endif
-# ifndef __NIJI_D_sbrk
-#  define __NIJI_D_sbrk 1
-extern void *sbrk (long) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)
-# ifndef __NIJI_D_getwd
-#  define __NIJI_D_getwd 1
-extern char *getwd (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __deprecated__, __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_ualarm
-#  define __NIJI_D_ualarm 1
-extern unsigned int ualarm (unsigned int, unsigned int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_usleep
-#  define __NIJI_D_usleep 1
-extern int usleep (unsigned int);
-# endif
-# ifndef __NIJI_D_vfork
-#  define __NIJI_D_vfork 1
-extern int vfork (void) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D_nice
-#  define __NIJI_D_nice 1
-extern int nice (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef __NIJI_D_gethostid
-#  define __NIJI_D_gethostid 1
-extern long int gethostid (void);
-# endif
-# ifndef __NIJI_D_lockf
-#  define __NIJI_D_lockf 1
-#  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
-#   if __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
-#   else
-extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
-#   endif
-#  elif __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
-#  endif
-# endif
-# ifndef __NIJI_D_setpgrp
-#  define __NIJI_D_setpgrp 1
-extern int setpgrp (void) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_setregid
-#  define __NIJI_D_setregid 1
-extern int setregid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_setreuid
-#  define __NIJI_D_setreuid 1
-extern int setreuid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_sync
-#  define __NIJI_D_sync 1
-extern void sync (void) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
@@ -734,6 +504,236 @@ extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64")
 # ifndef __NIJI_D_swab
 #  define __NIJI_D_swab 1
 extern void swab (const void *, void *, long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D__Fork
+#  define __NIJI_D__Fork 1
+extern int _Fork (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_close_range
+#  define __NIJI_D_close_range 1
+extern int close_range (unsigned int, unsigned int, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_copy_file_range
+#  define __NIJI_D_copy_file_range 1
+extern long copy_file_range (int, long *, int, long *, unsigned long, unsigned int);
+# endif
+# ifndef __NIJI_D_dup3
+#  define __NIJI_D_dup3 1
+extern int dup3 (int, int, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_eaccess
+#  define __NIJI_D_eaccess 1
+extern int eaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_euidaccess
+#  define __NIJI_D_euidaccess 1
+extern int euidaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_execveat
+#  define __NIJI_D_execveat 1
+extern int execveat (int, const char *, char *const *, char *const *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
+# endif
+# ifndef __NIJI_D_execvpe
+#  define __NIJI_D_execvpe 1
+extern int execvpe (const char *, char *const *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+# ifndef __NIJI_D_get_current_dir_name
+#  define __NIJI_D_get_current_dir_name 1
+extern char *get_current_dir_name (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getresgid
+#  define __NIJI_D_getresgid 1
+extern int getresgid (unsigned int *, unsigned int *, unsigned int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getresuid
+#  define __NIJI_D_getresuid 1
+extern int getresuid (unsigned int *, unsigned int *, unsigned int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_gettid
+#  define __NIJI_D_gettid 1
+extern int gettid (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_group_member
+#  define __NIJI_D_group_member 1
+extern int group_member (unsigned int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_pipe2
+#  define __NIJI_D_pipe2 1
+extern int pipe2 (int [2], int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_setresgid
+#  define __NIJI_D_setresgid 1
+extern int setresgid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_setresuid
+#  define __NIJI_D_setresuid 1
+extern int setresuid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_syncfs
+#  define __NIJI_D_syncfs 1
+extern int syncfs (int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_acct
+#  define __NIJI_D_acct 1
+extern int acct (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_closefrom
+#  define __NIJI_D_closefrom 1
+extern void closefrom (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_crypt
+#  define __NIJI_D_crypt 1
+extern char *crypt (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+# ifndef __NIJI_D_daemon
+#  define __NIJI_D_daemon 1
+extern int daemon (int, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_endusershell
+#  define __NIJI_D_endusershell 1
+extern void endusershell (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getdomainname
+#  define __NIJI_D_getdomainname 1
+extern int getdomainname (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_getentropy
+#  define __NIJI_D_getentropy 1
+extern int getentropy (void *, unsigned long) __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_getusershell
+#  define __NIJI_D_getusershell 1
+extern char *getusershell (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_profil
+#  define __NIJI_D_profil 1
+extern int profil (short unsigned int *, unsigned long, unsigned long, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_revoke
+#  define __NIJI_D_revoke 1
+extern int revoke (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_setdomainname
+#  define __NIJI_D_setdomainname 1
+extern int setdomainname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_sethostid
+#  define __NIJI_D_sethostid 1
+extern int sethostid (long int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_sethostname
+#  define __NIJI_D_sethostname 1
+extern int sethostname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_setlogin
+#  define __NIJI_D_setlogin 1
+extern int setlogin (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_setusershell
+#  define __NIJI_D_setusershell 1
+extern void setusershell (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_syscall
+#  define __NIJI_D_syscall 1
+extern long int syscall (long int, ...) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ttyslot
+#  define __NIJI_D_ttyslot 1
+extern int ttyslot (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_vhangup
+#  define __NIJI_D_vhangup 1
+extern int vhangup (void) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+# ifndef __NIJI_D_chroot
+#  define __NIJI_D_chroot 1
+extern int chroot (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_getpass
+#  define __NIJI_D_getpass 1
+extern char *getpass (const char *) __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 450)
+# ifndef __NIJI_D_brk
+#  define __NIJI_D_brk 1
+extern int brk (void *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_getdtablesize
+#  define __NIJI_D_getdtablesize 1
+extern int getdtablesize (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getpagesize
+#  define __NIJI_D_getpagesize 1
+extern int getpagesize (void) __NIJI_NOTHROW __attribute__ ((__const__));
+# endif
+# ifndef __NIJI_D_sbrk
+#  define __NIJI_D_sbrk 1
+extern void *sbrk (long) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)
+# ifndef __NIJI_D_getwd
+#  define __NIJI_D_getwd 1
+extern char *getwd (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __deprecated__, __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_ualarm
+#  define __NIJI_D_ualarm 1
+extern unsigned int ualarm (unsigned int, unsigned int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_usleep
+#  define __NIJI_D_usleep 1
+extern int usleep (unsigned int);
+# endif
+# ifndef __NIJI_D_vfork
+#  define __NIJI_D_vfork 1
+extern int vfork (void) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D_nice
+#  define __NIJI_D_nice 1
+extern int nice (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# ifndef __NIJI_D_gethostid
+#  define __NIJI_D_gethostid 1
+extern long int gethostid (void);
+# endif
+# ifndef __NIJI_D_lockf
+#  define __NIJI_D_lockf 1
+#  if (defined __USE_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
+#   else
+extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
+#   endif
+#  elif __NIJI_FOB64
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
+#  endif
+# endif
+# ifndef __NIJI_D_setpgrp
+#  define __NIJI_D_setpgrp 1
+extern int setpgrp (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_setregid
+#  define __NIJI_D_setregid 1
+extern int setregid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_setreuid
+#  define __NIJI_D_setreuid 1
+extern int setreuid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_sync
+#  define __NIJI_D_sync 1
+extern void sync (void) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
@@ -1713,1246 +1713,434 @@ enum {
 };
 #  endif
 # endif
-# ifndef F_OK
-#  define F_OK 0
-# endif
-# ifndef R_OK
-#  define R_OK 4
-# endif
-# ifndef SEEK_CUR
-#  define SEEK_CUR 1
-# endif
-# ifndef SEEK_END
-#  define SEEK_END 2
-# endif
-# ifndef SEEK_SET
-#  define SEEK_SET 0
-# endif
-# ifndef STDERR_FILENO
-#  define STDERR_FILENO 2
-# endif
-# ifndef STDIN_FILENO
-#  define STDIN_FILENO 0
-# endif
-# ifndef STDOUT_FILENO
-#  define STDOUT_FILENO 1
-# endif
-# ifndef W_OK
-#  define W_OK 2
-# endif
-# ifndef X_OK
-#  define X_OK 1
-# endif
-# ifndef _CS_GNU_LIBC_VERSION
-#  define _CS_GNU_LIBC_VERSION _CS_GNU_LIBC_VERSION
-# endif
-# ifndef _CS_GNU_LIBPTHREAD_VERSION
-#  define _CS_GNU_LIBPTHREAD_VERSION _CS_GNU_LIBPTHREAD_VERSION
-# endif
-# ifndef _CS_LFS64_CFLAGS
-#  define _CS_LFS64_CFLAGS _CS_LFS64_CFLAGS
-# endif
-# ifndef _CS_LFS64_LDFLAGS
-#  define _CS_LFS64_LDFLAGS _CS_LFS64_LDFLAGS
-# endif
-# ifndef _CS_LFS64_LIBS
-#  define _CS_LFS64_LIBS _CS_LFS64_LIBS
-# endif
-# ifndef _CS_LFS64_LINTFLAGS
-#  define _CS_LFS64_LINTFLAGS _CS_LFS64_LINTFLAGS
-# endif
-# ifndef _CS_LFS_CFLAGS
-#  define _CS_LFS_CFLAGS _CS_LFS_CFLAGS
-# endif
-# ifndef _CS_LFS_LDFLAGS
-#  define _CS_LFS_LDFLAGS _CS_LFS_LDFLAGS
-# endif
-# ifndef _CS_LFS_LIBS
-#  define _CS_LFS_LIBS _CS_LFS_LIBS
-# endif
-# ifndef _CS_LFS_LINTFLAGS
-#  define _CS_LFS_LINTFLAGS _CS_LFS_LINTFLAGS
-# endif
-# ifndef _CS_PATH
-#  define _CS_PATH _CS_PATH
-# endif
-# ifndef _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFF32_CFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_CFLAGS _CS_POSIX_V6_ILP32_OFF32_CFLAGS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_LDFLAGS _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFF32_LIBS
-#  define _CS_POSIX_V6_ILP32_OFF32_LIBS _CS_POSIX_V6_ILP32_OFF32_LIBS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
-#  define _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFFBIG_LIBS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LIBS _CS_POSIX_V6_ILP32_OFFBIG_LIBS
-# endif
-# ifndef _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LP64_OFF64_CFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_CFLAGS _CS_POSIX_V6_LP64_OFF64_CFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LP64_OFF64_LDFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_LDFLAGS _CS_POSIX_V6_LP64_OFF64_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LP64_OFF64_LIBS
-#  define _CS_POSIX_V6_LP64_OFF64_LIBS _CS_POSIX_V6_LP64_OFF64_LIBS
-# endif
-# ifndef _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
-#  define _CS_POSIX_V6_LP64_OFF64_LINTFLAGS _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LIBS _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
-# endif
-# ifndef _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFF32_CFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_CFLAGS _CS_POSIX_V7_ILP32_OFF32_CFLAGS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_LDFLAGS _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFF32_LIBS
-#  define _CS_POSIX_V7_ILP32_OFF32_LIBS _CS_POSIX_V7_ILP32_OFF32_LIBS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
-#  define _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFFBIG_LIBS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LIBS _CS_POSIX_V7_ILP32_OFFBIG_LIBS
-# endif
-# ifndef _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LP64_OFF64_CFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_CFLAGS _CS_POSIX_V7_LP64_OFF64_CFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LP64_OFF64_LDFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_LDFLAGS _CS_POSIX_V7_LP64_OFF64_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LP64_OFF64_LIBS
-#  define _CS_POSIX_V7_LP64_OFF64_LIBS _CS_POSIX_V7_LP64_OFF64_LIBS
-# endif
-# ifndef _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
-#  define _CS_POSIX_V7_LP64_OFF64_LINTFLAGS _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LIBS _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
-# endif
-# ifndef _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
-# endif
-# ifndef _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS
-#  define _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_V5_WIDTH_RESTRICTED_ENVS
-#  define _CS_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_V6_ENV
-#  define _CS_V6_ENV _CS_V6_ENV
-# endif
-# ifndef _CS_V6_WIDTH_RESTRICTED_ENVS
-#  define _CS_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_V7_ENV
-#  define _CS_V7_ENV _CS_V7_ENV
-# endif
-# ifndef _CS_V7_WIDTH_RESTRICTED_ENVS
-#  define _CS_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
-# endif
-# ifndef _CS_XBS5_ILP32_OFF32_CFLAGS
-#  define _CS_XBS5_ILP32_OFF32_CFLAGS _CS_XBS5_ILP32_OFF32_CFLAGS
-# endif
-# ifndef _CS_XBS5_ILP32_OFF32_LDFLAGS
-#  define _CS_XBS5_ILP32_OFF32_LDFLAGS _CS_XBS5_ILP32_OFF32_LDFLAGS
-# endif
-# ifndef _CS_XBS5_ILP32_OFF32_LIBS
-#  define _CS_XBS5_ILP32_OFF32_LIBS _CS_XBS5_ILP32_OFF32_LIBS
-# endif
-# ifndef _CS_XBS5_ILP32_OFF32_LINTFLAGS
-#  define _CS_XBS5_ILP32_OFF32_LINTFLAGS _CS_XBS5_ILP32_OFF32_LINTFLAGS
-# endif
-# ifndef _CS_XBS5_ILP32_OFFBIG_CFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_CFLAGS _CS_XBS5_ILP32_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_XBS5_ILP32_OFFBIG_LDFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_LDFLAGS _CS_XBS5_ILP32_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_XBS5_ILP32_OFFBIG_LIBS
-#  define _CS_XBS5_ILP32_OFFBIG_LIBS _CS_XBS5_ILP32_OFFBIG_LIBS
-# endif
-# ifndef _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
-#  define _CS_XBS5_ILP32_OFFBIG_LINTFLAGS _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
-# endif
-# ifndef _CS_XBS5_LP64_OFF64_CFLAGS
-#  define _CS_XBS5_LP64_OFF64_CFLAGS _CS_XBS5_LP64_OFF64_CFLAGS
-# endif
-# ifndef _CS_XBS5_LP64_OFF64_LDFLAGS
-#  define _CS_XBS5_LP64_OFF64_LDFLAGS _CS_XBS5_LP64_OFF64_LDFLAGS
-# endif
-# ifndef _CS_XBS5_LP64_OFF64_LIBS
-#  define _CS_XBS5_LP64_OFF64_LIBS _CS_XBS5_LP64_OFF64_LIBS
-# endif
-# ifndef _CS_XBS5_LP64_OFF64_LINTFLAGS
-#  define _CS_XBS5_LP64_OFF64_LINTFLAGS _CS_XBS5_LP64_OFF64_LINTFLAGS
-# endif
-# ifndef _CS_XBS5_LPBIG_OFFBIG_CFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_CFLAGS _CS_XBS5_LPBIG_OFFBIG_CFLAGS
-# endif
-# ifndef _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_LDFLAGS _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
-# endif
-# ifndef _CS_XBS5_LPBIG_OFFBIG_LIBS
-#  define _CS_XBS5_LPBIG_OFFBIG_LIBS _CS_XBS5_LPBIG_OFFBIG_LIBS
-# endif
-# ifndef _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
-#  define _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
-# endif
-# ifndef _LFS64_ASYNCHRONOUS_IO
-#  define _LFS64_ASYNCHRONOUS_IO 1
-# endif
-# ifndef _LFS64_LARGEFILE
-#  define _LFS64_LARGEFILE 1
-# endif
-# ifndef _LFS64_STDIO
-#  define _LFS64_STDIO 1
-# endif
-# ifndef _LFS_ASYNCHRONOUS_IO
-#  define _LFS_ASYNCHRONOUS_IO 1
-# endif
-# ifndef _LFS_LARGEFILE
-#  define _LFS_LARGEFILE 1
-# endif
-# ifndef _PC_2_SYMLINKS
-#  define _PC_2_SYMLINKS _PC_2_SYMLINKS
-# endif
-# ifndef _PC_ALLOC_SIZE_MIN
-#  define _PC_ALLOC_SIZE_MIN _PC_ALLOC_SIZE_MIN
-# endif
-# ifndef _PC_ASYNC_IO
-#  define _PC_ASYNC_IO _PC_ASYNC_IO
-# endif
-# ifndef _PC_CHOWN_RESTRICTED
-#  define _PC_CHOWN_RESTRICTED _PC_CHOWN_RESTRICTED
-# endif
-# ifndef _PC_FILESIZEBITS
-#  define _PC_FILESIZEBITS _PC_FILESIZEBITS
-# endif
-# ifndef _PC_LINK_MAX
-#  define _PC_LINK_MAX _PC_LINK_MAX
-# endif
-# ifndef _PC_MAX_CANON
-#  define _PC_MAX_CANON _PC_MAX_CANON
-# endif
-# ifndef _PC_MAX_INPUT
-#  define _PC_MAX_INPUT _PC_MAX_INPUT
-# endif
-# ifndef _PC_NAME_MAX
-#  define _PC_NAME_MAX _PC_NAME_MAX
-# endif
-# ifndef _PC_NO_TRUNC
-#  define _PC_NO_TRUNC _PC_NO_TRUNC
-# endif
-# ifndef _PC_PATH_MAX
-#  define _PC_PATH_MAX _PC_PATH_MAX
-# endif
-# ifndef _PC_PIPE_BUF
-#  define _PC_PIPE_BUF _PC_PIPE_BUF
-# endif
-# ifndef _PC_PRIO_IO
-#  define _PC_PRIO_IO _PC_PRIO_IO
-# endif
-# ifndef _PC_REC_INCR_XFER_SIZE
-#  define _PC_REC_INCR_XFER_SIZE _PC_REC_INCR_XFER_SIZE
-# endif
-# ifndef _PC_REC_MAX_XFER_SIZE
-#  define _PC_REC_MAX_XFER_SIZE _PC_REC_MAX_XFER_SIZE
-# endif
-# ifndef _PC_REC_MIN_XFER_SIZE
-#  define _PC_REC_MIN_XFER_SIZE _PC_REC_MIN_XFER_SIZE
-# endif
-# ifndef _PC_REC_XFER_ALIGN
-#  define _PC_REC_XFER_ALIGN _PC_REC_XFER_ALIGN
-# endif
-# ifndef _PC_SOCK_MAXBUF
-#  define _PC_SOCK_MAXBUF _PC_SOCK_MAXBUF
-# endif
-# ifndef _PC_SYMLINK_MAX
-#  define _PC_SYMLINK_MAX _PC_SYMLINK_MAX
-# endif
-# ifndef _PC_SYNC_IO
-#  define _PC_SYNC_IO _PC_SYNC_IO
-# endif
-# ifndef _PC_VDISABLE
-#  define _PC_VDISABLE _PC_VDISABLE
-# endif
-# ifndef _POSIX2_CHAR_TERM
-#  define _POSIX2_CHAR_TERM 200809L
-# endif
-# ifndef _POSIX2_C_BIND
-#  define _POSIX2_C_BIND 200809L
-# endif
-# ifndef _POSIX2_C_DEV
-#  define _POSIX2_C_DEV 200809L
-# endif
-# ifndef _POSIX2_C_VERSION
-#  define _POSIX2_C_VERSION 200809L
-# endif
-# ifndef _POSIX2_LOCALEDEF
-#  define _POSIX2_LOCALEDEF 200809L
-# endif
-# ifndef _POSIX2_SW_DEV
-#  define _POSIX2_SW_DEV 200809L
-# endif
-# ifndef _POSIX2_VERSION
-#  define _POSIX2_VERSION 200809L
-# endif
-# ifndef _POSIX_ADVISORY_INFO
-#  define _POSIX_ADVISORY_INFO 200809L
-# endif
-# ifndef _POSIX_ASYNCHRONOUS_IO
-#  define _POSIX_ASYNCHRONOUS_IO 200809L
-# endif
-# ifndef _POSIX_ASYNC_IO
-#  define _POSIX_ASYNC_IO 1
-# endif
-# ifndef _POSIX_BARRIERS
-#  define _POSIX_BARRIERS 200809L
-# endif
-# ifndef _POSIX_CHOWN_RESTRICTED
-#  define _POSIX_CHOWN_RESTRICTED 0
-# endif
-# ifndef _POSIX_CLOCK_SELECTION
-#  define _POSIX_CLOCK_SELECTION 200809L
-# endif
-# ifndef _POSIX_CPUTIME
-#  define _POSIX_CPUTIME 0
-# endif
-# ifndef _POSIX_FSYNC
-#  define _POSIX_FSYNC 200809L
-# endif
-# ifndef _POSIX_IPV6
-#  define _POSIX_IPV6 200809L
-# endif
-# ifndef _POSIX_JOB_CONTROL
-#  define _POSIX_JOB_CONTROL 1
-# endif
-# ifndef _POSIX_MAPPED_FILES
-#  define _POSIX_MAPPED_FILES 200809L
-# endif
-# ifndef _POSIX_MEMLOCK
-#  define _POSIX_MEMLOCK 200809L
-# endif
-# ifndef _POSIX_MEMLOCK_RANGE
-#  define _POSIX_MEMLOCK_RANGE 200809L
-# endif
-# ifndef _POSIX_MEMORY_PROTECTION
-#  define _POSIX_MEMORY_PROTECTION 200809L
-# endif
-# ifndef _POSIX_MESSAGE_PASSING
-#  define _POSIX_MESSAGE_PASSING 200809L
-# endif
-# ifndef _POSIX_MONOTONIC_CLOCK
-#  define _POSIX_MONOTONIC_CLOCK 0
-# endif
-# ifndef _POSIX_NO_TRUNC
-#  define _POSIX_NO_TRUNC 1
-# endif
-# ifndef _POSIX_PRIORITIZED_IO
-#  define _POSIX_PRIORITIZED_IO 200809L
-# endif
-# ifndef _POSIX_PRIORITY_SCHEDULING
-#  define _POSIX_PRIORITY_SCHEDULING 200809L
-# endif
-# ifndef _POSIX_RAW_SOCKETS
-#  define _POSIX_RAW_SOCKETS 200809L
-# endif
-# ifndef _POSIX_READER_WRITER_LOCKS
-#  define _POSIX_READER_WRITER_LOCKS 200809L
-# endif
-# ifndef _POSIX_REALTIME_SIGNALS
-#  define _POSIX_REALTIME_SIGNALS 200809L
-# endif
-# ifndef _POSIX_REENTRANT_FUNCTIONS
-#  define _POSIX_REENTRANT_FUNCTIONS 1
-# endif
-# ifndef _POSIX_REGEXP
-#  define _POSIX_REGEXP 1
-# endif
-# ifndef _POSIX_SAVED_IDS
-#  define _POSIX_SAVED_IDS 1
-# endif
-# ifndef _POSIX_SEMAPHORES
-#  define _POSIX_SEMAPHORES 200809L
-# endif
-# ifndef _POSIX_SHARED_MEMORY_OBJECTS
-#  define _POSIX_SHARED_MEMORY_OBJECTS 200809L
-# endif
-# ifndef _POSIX_SHELL
-#  define _POSIX_SHELL 1
-# endif
-# ifndef _POSIX_SPAWN
-#  define _POSIX_SPAWN 200809L
-# endif
-# ifndef _POSIX_SPIN_LOCKS
-#  define _POSIX_SPIN_LOCKS 200809L
-# endif
-# ifndef _POSIX_SPORADIC_SERVER
-#  define _POSIX_SPORADIC_SERVER (-1)
-# endif
-# ifndef _POSIX_SYNCHRONIZED_IO
-#  define _POSIX_SYNCHRONIZED_IO 200809L
-# endif
-# ifndef _POSIX_THREADS
-#  define _POSIX_THREADS 200809L
-# endif
-# ifndef _POSIX_THREAD_ATTR_STACKADDR
-#  define _POSIX_THREAD_ATTR_STACKADDR 200809L
-# endif
-# ifndef _POSIX_THREAD_ATTR_STACKSIZE
-#  define _POSIX_THREAD_ATTR_STACKSIZE 200809L
-# endif
-# ifndef _POSIX_THREAD_CPUTIME
-#  define _POSIX_THREAD_CPUTIME 0
-# endif
-# ifndef _POSIX_THREAD_PRIORITY_SCHEDULING
-#  define _POSIX_THREAD_PRIORITY_SCHEDULING 200809L
-# endif
-# ifndef _POSIX_THREAD_PRIO_INHERIT
-#  define _POSIX_THREAD_PRIO_INHERIT 200809L
-# endif
-# ifndef _POSIX_THREAD_PRIO_PROTECT
-#  define _POSIX_THREAD_PRIO_PROTECT 200809L
-# endif
-# ifndef _POSIX_THREAD_PROCESS_SHARED
-#  define _POSIX_THREAD_PROCESS_SHARED 200809L
-# endif
-# ifndef _POSIX_THREAD_SAFE_FUNCTIONS
-#  define _POSIX_THREAD_SAFE_FUNCTIONS 200809L
-# endif
-# ifndef _POSIX_THREAD_SPORADIC_SERVER
-#  define _POSIX_THREAD_SPORADIC_SERVER (-1)
-# endif
-# ifndef _POSIX_TIMEOUTS
-#  define _POSIX_TIMEOUTS 200809L
-# endif
-# ifndef _POSIX_TIMERS
-#  define _POSIX_TIMERS 200809L
-# endif
-# ifndef _POSIX_TRACE
-#  define _POSIX_TRACE (-1)
-# endif
-# ifndef _POSIX_TRACE_EVENT_FILTER
-#  define _POSIX_TRACE_EVENT_FILTER (-1)
-# endif
-# ifndef _POSIX_TRACE_INHERIT
-#  define _POSIX_TRACE_INHERIT (-1)
-# endif
-# ifndef _POSIX_TRACE_LOG
-#  define _POSIX_TRACE_LOG (-1)
-# endif
-# ifndef _POSIX_TYPED_MEMORY_OBJECTS
-#  define _POSIX_TYPED_MEMORY_OBJECTS (-1)
-# endif
-# ifndef _POSIX_VDISABLE
-#  define _POSIX_VDISABLE '\000'
-# endif
-# ifndef _POSIX_VERSION
-#  define _POSIX_VERSION 200809L
-# endif
-# ifndef _SC_2_CHAR_TERM
-#  define _SC_2_CHAR_TERM _SC_2_CHAR_TERM
-# endif
-# ifndef _SC_2_C_BIND
-#  define _SC_2_C_BIND _SC_2_C_BIND
-# endif
-# ifndef _SC_2_C_DEV
-#  define _SC_2_C_DEV _SC_2_C_DEV
-# endif
-# ifndef _SC_2_C_VERSION
-#  define _SC_2_C_VERSION _SC_2_C_VERSION
-# endif
-# ifndef _SC_2_FORT_DEV
-#  define _SC_2_FORT_DEV _SC_2_FORT_DEV
-# endif
-# ifndef _SC_2_FORT_RUN
-#  define _SC_2_FORT_RUN _SC_2_FORT_RUN
-# endif
-# ifndef _SC_2_LOCALEDEF
-#  define _SC_2_LOCALEDEF _SC_2_LOCALEDEF
-# endif
-# ifndef _SC_2_PBS
-#  define _SC_2_PBS _SC_2_PBS
-# endif
-# ifndef _SC_2_PBS_ACCOUNTING
-#  define _SC_2_PBS_ACCOUNTING _SC_2_PBS_ACCOUNTING
-# endif
-# ifndef _SC_2_PBS_CHECKPOINT
-#  define _SC_2_PBS_CHECKPOINT _SC_2_PBS_CHECKPOINT
-# endif
-# ifndef _SC_2_PBS_LOCATE
-#  define _SC_2_PBS_LOCATE _SC_2_PBS_LOCATE
-# endif
-# ifndef _SC_2_PBS_MESSAGE
-#  define _SC_2_PBS_MESSAGE _SC_2_PBS_MESSAGE
-# endif
-# ifndef _SC_2_PBS_TRACK
-#  define _SC_2_PBS_TRACK _SC_2_PBS_TRACK
-# endif
-# ifndef _SC_2_SW_DEV
-#  define _SC_2_SW_DEV _SC_2_SW_DEV
-# endif
-# ifndef _SC_2_UPE
-#  define _SC_2_UPE _SC_2_UPE
-# endif
-# ifndef _SC_2_VERSION
-#  define _SC_2_VERSION _SC_2_VERSION
-# endif
-# ifndef _SC_ADVISORY_INFO
-#  define _SC_ADVISORY_INFO _SC_ADVISORY_INFO
-# endif
-# ifndef _SC_AIO_LISTIO_MAX
-#  define _SC_AIO_LISTIO_MAX _SC_AIO_LISTIO_MAX
-# endif
-# ifndef _SC_AIO_MAX
-#  define _SC_AIO_MAX _SC_AIO_MAX
-# endif
-# ifndef _SC_AIO_PRIO_DELTA_MAX
-#  define _SC_AIO_PRIO_DELTA_MAX _SC_AIO_PRIO_DELTA_MAX
-# endif
-# ifndef _SC_ARG_MAX
-#  define _SC_ARG_MAX _SC_ARG_MAX
-# endif
-# ifndef _SC_ASYNCHRONOUS_IO
-#  define _SC_ASYNCHRONOUS_IO _SC_ASYNCHRONOUS_IO
-# endif
-# ifndef _SC_ATEXIT_MAX
-#  define _SC_ATEXIT_MAX _SC_ATEXIT_MAX
-# endif
-# ifndef _SC_AVPHYS_PAGES
-#  define _SC_AVPHYS_PAGES _SC_AVPHYS_PAGES
-# endif
-# ifndef _SC_BARRIERS
-#  define _SC_BARRIERS _SC_BARRIERS
-# endif
-# ifndef _SC_BASE
-#  define _SC_BASE _SC_BASE
-# endif
-# ifndef _SC_BC_BASE_MAX
-#  define _SC_BC_BASE_MAX _SC_BC_BASE_MAX
-# endif
-# ifndef _SC_BC_DIM_MAX
-#  define _SC_BC_DIM_MAX _SC_BC_DIM_MAX
-# endif
-# ifndef _SC_BC_SCALE_MAX
-#  define _SC_BC_SCALE_MAX _SC_BC_SCALE_MAX
-# endif
-# ifndef _SC_BC_STRING_MAX
-#  define _SC_BC_STRING_MAX _SC_BC_STRING_MAX
-# endif
-# ifndef _SC_CHARCLASS_NAME_MAX
-#  define _SC_CHARCLASS_NAME_MAX _SC_CHARCLASS_NAME_MAX
-# endif
-# ifndef _SC_CHAR_BIT
-#  define _SC_CHAR_BIT _SC_CHAR_BIT
-# endif
-# ifndef _SC_CHAR_MAX
-#  define _SC_CHAR_MAX _SC_CHAR_MAX
-# endif
-# ifndef _SC_CHAR_MIN
-#  define _SC_CHAR_MIN _SC_CHAR_MIN
-# endif
-# ifndef _SC_CHILD_MAX
-#  define _SC_CHILD_MAX _SC_CHILD_MAX
-# endif
-# ifndef _SC_CLK_TCK
-#  define _SC_CLK_TCK _SC_CLK_TCK
-# endif
-# ifndef _SC_CLOCK_SELECTION
-#  define _SC_CLOCK_SELECTION _SC_CLOCK_SELECTION
-# endif
-# ifndef _SC_COLL_WEIGHTS_MAX
-#  define _SC_COLL_WEIGHTS_MAX _SC_COLL_WEIGHTS_MAX
-# endif
-# ifndef _SC_CPUTIME
-#  define _SC_CPUTIME _SC_CPUTIME
-# endif
-# ifndef _SC_C_LANG_SUPPORT
-#  define _SC_C_LANG_SUPPORT _SC_C_LANG_SUPPORT
-# endif
-# ifndef _SC_C_LANG_SUPPORT_R
-#  define _SC_C_LANG_SUPPORT_R _SC_C_LANG_SUPPORT_R
-# endif
-# ifndef _SC_DELAYTIMER_MAX
-#  define _SC_DELAYTIMER_MAX _SC_DELAYTIMER_MAX
-# endif
-# ifndef _SC_DEVICE_IO
-#  define _SC_DEVICE_IO _SC_DEVICE_IO
-# endif
-# ifndef _SC_DEVICE_SPECIFIC
-#  define _SC_DEVICE_SPECIFIC _SC_DEVICE_SPECIFIC
-# endif
-# ifndef _SC_DEVICE_SPECIFIC_R
-#  define _SC_DEVICE_SPECIFIC_R _SC_DEVICE_SPECIFIC_R
-# endif
-# ifndef _SC_EQUIV_CLASS_MAX
-#  define _SC_EQUIV_CLASS_MAX _SC_EQUIV_CLASS_MAX
-# endif
-# ifndef _SC_EXPR_NEST_MAX
-#  define _SC_EXPR_NEST_MAX _SC_EXPR_NEST_MAX
-# endif
-# ifndef _SC_FD_MGMT
-#  define _SC_FD_MGMT _SC_FD_MGMT
-# endif
-# ifndef _SC_FIFO
-#  define _SC_FIFO _SC_FIFO
-# endif
-# ifndef _SC_FILE_ATTRIBUTES
-#  define _SC_FILE_ATTRIBUTES _SC_FILE_ATTRIBUTES
-# endif
-# ifndef _SC_FILE_LOCKING
-#  define _SC_FILE_LOCKING _SC_FILE_LOCKING
-# endif
-# ifndef _SC_FILE_SYSTEM
-#  define _SC_FILE_SYSTEM _SC_FILE_SYSTEM
-# endif
-# ifndef _SC_FSYNC
-#  define _SC_FSYNC _SC_FSYNC
-# endif
-# ifndef _SC_GETGR_R_SIZE_MAX
-#  define _SC_GETGR_R_SIZE_MAX _SC_GETGR_R_SIZE_MAX
-# endif
-# ifndef _SC_GETPW_R_SIZE_MAX
-#  define _SC_GETPW_R_SIZE_MAX _SC_GETPW_R_SIZE_MAX
-# endif
-# ifndef _SC_HOST_NAME_MAX
-#  define _SC_HOST_NAME_MAX _SC_HOST_NAME_MAX
-# endif
-# ifndef _SC_INT_MAX
-#  define _SC_INT_MAX _SC_INT_MAX
-# endif
-# ifndef _SC_INT_MIN
-#  define _SC_INT_MIN _SC_INT_MIN
-# endif
-# ifndef _SC_IOV_MAX
-#  define _SC_IOV_MAX _SC_IOV_MAX
-# endif
-# ifndef _SC_IPV6
-#  define _SC_IPV6 _SC_IPV6
-# endif
-# ifndef _SC_JOB_CONTROL
-#  define _SC_JOB_CONTROL _SC_JOB_CONTROL
-# endif
-# ifndef _SC_LEVEL1_DCACHE_ASSOC
-#  define _SC_LEVEL1_DCACHE_ASSOC _SC_LEVEL1_DCACHE_ASSOC
-# endif
-# ifndef _SC_LEVEL1_DCACHE_LINESIZE
-#  define _SC_LEVEL1_DCACHE_LINESIZE _SC_LEVEL1_DCACHE_LINESIZE
-# endif
-# ifndef _SC_LEVEL1_DCACHE_SIZE
-#  define _SC_LEVEL1_DCACHE_SIZE _SC_LEVEL1_DCACHE_SIZE
-# endif
-# ifndef _SC_LEVEL1_ICACHE_ASSOC
-#  define _SC_LEVEL1_ICACHE_ASSOC _SC_LEVEL1_ICACHE_ASSOC
-# endif
-# ifndef _SC_LEVEL1_ICACHE_LINESIZE
-#  define _SC_LEVEL1_ICACHE_LINESIZE _SC_LEVEL1_ICACHE_LINESIZE
-# endif
-# ifndef _SC_LEVEL1_ICACHE_SIZE
-#  define _SC_LEVEL1_ICACHE_SIZE _SC_LEVEL1_ICACHE_SIZE
-# endif
-# ifndef _SC_LEVEL2_CACHE_ASSOC
-#  define _SC_LEVEL2_CACHE_ASSOC _SC_LEVEL2_CACHE_ASSOC
-# endif
-# ifndef _SC_LEVEL2_CACHE_LINESIZE
-#  define _SC_LEVEL2_CACHE_LINESIZE _SC_LEVEL2_CACHE_LINESIZE
-# endif
-# ifndef _SC_LEVEL2_CACHE_SIZE
-#  define _SC_LEVEL2_CACHE_SIZE _SC_LEVEL2_CACHE_SIZE
-# endif
-# ifndef _SC_LEVEL3_CACHE_ASSOC
-#  define _SC_LEVEL3_CACHE_ASSOC _SC_LEVEL3_CACHE_ASSOC
-# endif
-# ifndef _SC_LEVEL3_CACHE_LINESIZE
-#  define _SC_LEVEL3_CACHE_LINESIZE _SC_LEVEL3_CACHE_LINESIZE
-# endif
-# ifndef _SC_LEVEL3_CACHE_SIZE
-#  define _SC_LEVEL3_CACHE_SIZE _SC_LEVEL3_CACHE_SIZE
-# endif
-# ifndef _SC_LEVEL4_CACHE_ASSOC
-#  define _SC_LEVEL4_CACHE_ASSOC _SC_LEVEL4_CACHE_ASSOC
-# endif
-# ifndef _SC_LEVEL4_CACHE_LINESIZE
-#  define _SC_LEVEL4_CACHE_LINESIZE _SC_LEVEL4_CACHE_LINESIZE
-# endif
-# ifndef _SC_LEVEL4_CACHE_SIZE
-#  define _SC_LEVEL4_CACHE_SIZE _SC_LEVEL4_CACHE_SIZE
-# endif
-# ifndef _SC_LINE_MAX
-#  define _SC_LINE_MAX _SC_LINE_MAX
-# endif
-# ifndef _SC_LOGIN_NAME_MAX
-#  define _SC_LOGIN_NAME_MAX _SC_LOGIN_NAME_MAX
-# endif
-# ifndef _SC_LONG_BIT
-#  define _SC_LONG_BIT _SC_LONG_BIT
-# endif
-# ifndef _SC_MAPPED_FILES
-#  define _SC_MAPPED_FILES _SC_MAPPED_FILES
-# endif
-# ifndef _SC_MB_LEN_MAX
-#  define _SC_MB_LEN_MAX _SC_MB_LEN_MAX
-# endif
-# ifndef _SC_MEMLOCK
-#  define _SC_MEMLOCK _SC_MEMLOCK
-# endif
-# ifndef _SC_MEMLOCK_RANGE
-#  define _SC_MEMLOCK_RANGE _SC_MEMLOCK_RANGE
-# endif
-# ifndef _SC_MEMORY_PROTECTION
-#  define _SC_MEMORY_PROTECTION _SC_MEMORY_PROTECTION
-# endif
-# ifndef _SC_MESSAGE_PASSING
-#  define _SC_MESSAGE_PASSING _SC_MESSAGE_PASSING
-# endif
-# ifndef _SC_MINSIGSTKSZ
-#  define _SC_MINSIGSTKSZ _SC_MINSIGSTKSZ
-# endif
-# ifndef _SC_MONOTONIC_CLOCK
-#  define _SC_MONOTONIC_CLOCK _SC_MONOTONIC_CLOCK
-# endif
-# ifndef _SC_MQ_OPEN_MAX
-#  define _SC_MQ_OPEN_MAX _SC_MQ_OPEN_MAX
-# endif
-# ifndef _SC_MQ_PRIO_MAX
-#  define _SC_MQ_PRIO_MAX _SC_MQ_PRIO_MAX
-# endif
-# ifndef _SC_MULTI_PROCESS
-#  define _SC_MULTI_PROCESS _SC_MULTI_PROCESS
-# endif
-# ifndef _SC_NETWORKING
-#  define _SC_NETWORKING _SC_NETWORKING
-# endif
-# ifndef _SC_NGROUPS_MAX
-#  define _SC_NGROUPS_MAX _SC_NGROUPS_MAX
-# endif
-# ifndef _SC_NL_ARGMAX
-#  define _SC_NL_ARGMAX _SC_NL_ARGMAX
-# endif
-# ifndef _SC_NL_LANGMAX
-#  define _SC_NL_LANGMAX _SC_NL_LANGMAX
-# endif
-# ifndef _SC_NL_MSGMAX
-#  define _SC_NL_MSGMAX _SC_NL_MSGMAX
-# endif
-# ifndef _SC_NL_NMAX
-#  define _SC_NL_NMAX _SC_NL_NMAX
-# endif
-# ifndef _SC_NL_SETMAX
-#  define _SC_NL_SETMAX _SC_NL_SETMAX
-# endif
-# ifndef _SC_NL_TEXTMAX
-#  define _SC_NL_TEXTMAX _SC_NL_TEXTMAX
-# endif
-# ifndef _SC_NPROCESSORS_CONF
-#  define _SC_NPROCESSORS_CONF _SC_NPROCESSORS_CONF
-# endif
-# ifndef _SC_NPROCESSORS_ONLN
-#  define _SC_NPROCESSORS_ONLN _SC_NPROCESSORS_ONLN
-# endif
-# ifndef _SC_NZERO
-#  define _SC_NZERO _SC_NZERO
-# endif
-# ifndef _SC_OPEN_MAX
-#  define _SC_OPEN_MAX _SC_OPEN_MAX
-# endif
-# ifndef _SC_PAGESIZE
-#  define _SC_PAGESIZE _SC_PAGESIZE
-# endif
-# ifndef _SC_PAGE_SIZE
-#  define _SC_PAGE_SIZE _SC_PAGESIZE
-# endif
-# ifndef _SC_PASS_MAX
-#  define _SC_PASS_MAX _SC_PASS_MAX
-# endif
-# ifndef _SC_PHYS_PAGES
-#  define _SC_PHYS_PAGES _SC_PHYS_PAGES
-# endif
-# ifndef _SC_PII
-#  define _SC_PII _SC_PII
-# endif
-# ifndef _SC_PII_INTERNET
-#  define _SC_PII_INTERNET _SC_PII_INTERNET
-# endif
-# ifndef _SC_PII_INTERNET_DGRAM
-#  define _SC_PII_INTERNET_DGRAM _SC_PII_INTERNET_DGRAM
-# endif
-# ifndef _SC_PII_INTERNET_STREAM
-#  define _SC_PII_INTERNET_STREAM _SC_PII_INTERNET_STREAM
-# endif
-# ifndef _SC_PII_OSI
-#  define _SC_PII_OSI _SC_PII_OSI
-# endif
-# ifndef _SC_PII_OSI_CLTS
-#  define _SC_PII_OSI_CLTS _SC_PII_OSI_CLTS
-# endif
-# ifndef _SC_PII_OSI_COTS
-#  define _SC_PII_OSI_COTS _SC_PII_OSI_COTS
-# endif
-# ifndef _SC_PII_OSI_M
-#  define _SC_PII_OSI_M _SC_PII_OSI_M
-# endif
-# ifndef _SC_PII_SOCKET
-#  define _SC_PII_SOCKET _SC_PII_SOCKET
-# endif
-# ifndef _SC_PII_XTI
-#  define _SC_PII_XTI _SC_PII_XTI
-# endif
-# ifndef _SC_PIPE
-#  define _SC_PIPE _SC_PIPE
-# endif
-# ifndef _SC_POLL
-#  define _SC_POLL _SC_POLL
-# endif
-# ifndef _SC_PRIORITIZED_IO
-#  define _SC_PRIORITIZED_IO _SC_PRIORITIZED_IO
-# endif
-# ifndef _SC_PRIORITY_SCHEDULING
-#  define _SC_PRIORITY_SCHEDULING _SC_PRIORITY_SCHEDULING
-# endif
-# ifndef _SC_RAW_SOCKETS
-#  define _SC_RAW_SOCKETS _SC_RAW_SOCKETS
-# endif
-# ifndef _SC_READER_WRITER_LOCKS
-#  define _SC_READER_WRITER_LOCKS _SC_READER_WRITER_LOCKS
-# endif
-# ifndef _SC_REALTIME_SIGNALS
-#  define _SC_REALTIME_SIGNALS _SC_REALTIME_SIGNALS
-# endif
-# ifndef _SC_REGEXP
-#  define _SC_REGEXP _SC_REGEXP
-# endif
-# ifndef _SC_REGEX_VERSION
-#  define _SC_REGEX_VERSION _SC_REGEX_VERSION
-# endif
-# ifndef _SC_RE_DUP_MAX
-#  define _SC_RE_DUP_MAX _SC_RE_DUP_MAX
-# endif
-# ifndef _SC_RTSIG_MAX
-#  define _SC_RTSIG_MAX _SC_RTSIG_MAX
-# endif
-# ifndef _SC_SAVED_IDS
-#  define _SC_SAVED_IDS _SC_SAVED_IDS
-# endif
-# ifndef _SC_SCHAR_MAX
-#  define _SC_SCHAR_MAX _SC_SCHAR_MAX
-# endif
-# ifndef _SC_SCHAR_MIN
-#  define _SC_SCHAR_MIN _SC_SCHAR_MIN
-# endif
-# ifndef _SC_SELECT
-#  define _SC_SELECT _SC_SELECT
-# endif
-# ifndef _SC_SEMAPHORES
-#  define _SC_SEMAPHORES _SC_SEMAPHORES
-# endif
-# ifndef _SC_SEM_NSEMS_MAX
-#  define _SC_SEM_NSEMS_MAX _SC_SEM_NSEMS_MAX
-# endif
-# ifndef _SC_SEM_VALUE_MAX
-#  define _SC_SEM_VALUE_MAX _SC_SEM_VALUE_MAX
-# endif
-# ifndef _SC_SHARED_MEMORY_OBJECTS
-#  define _SC_SHARED_MEMORY_OBJECTS _SC_SHARED_MEMORY_OBJECTS
-# endif
-# ifndef _SC_SHELL
-#  define _SC_SHELL _SC_SHELL
-# endif
-# ifndef _SC_SHRT_MAX
-#  define _SC_SHRT_MAX _SC_SHRT_MAX
-# endif
-# ifndef _SC_SHRT_MIN
-#  define _SC_SHRT_MIN _SC_SHRT_MIN
-# endif
-# ifndef _SC_SIGNALS
-#  define _SC_SIGNALS _SC_SIGNALS
-# endif
-# ifndef _SC_SIGQUEUE_MAX
-#  define _SC_SIGQUEUE_MAX _SC_SIGQUEUE_MAX
-# endif
-# ifndef _SC_SIGSTKSZ
-#  define _SC_SIGSTKSZ _SC_SIGSTKSZ
-# endif
-# ifndef _SC_SINGLE_PROCESS
-#  define _SC_SINGLE_PROCESS _SC_SINGLE_PROCESS
-# endif
-# ifndef _SC_SPAWN
-#  define _SC_SPAWN _SC_SPAWN
-# endif
-# ifndef _SC_SPIN_LOCKS
-#  define _SC_SPIN_LOCKS _SC_SPIN_LOCKS
-# endif
-# ifndef _SC_SPORADIC_SERVER
-#  define _SC_SPORADIC_SERVER _SC_SPORADIC_SERVER
-# endif
-# ifndef _SC_SSIZE_MAX
-#  define _SC_SSIZE_MAX _SC_SSIZE_MAX
-# endif
-# ifndef _SC_SS_REPL_MAX
-#  define _SC_SS_REPL_MAX _SC_SS_REPL_MAX
-# endif
-# ifndef _SC_STREAMS
-#  define _SC_STREAMS _SC_STREAMS
-# endif
-# ifndef _SC_STREAM_MAX
-#  define _SC_STREAM_MAX _SC_STREAM_MAX
-# endif
-# ifndef _SC_SYMLOOP_MAX
-#  define _SC_SYMLOOP_MAX _SC_SYMLOOP_MAX
-# endif
-# ifndef _SC_SYNCHRONIZED_IO
-#  define _SC_SYNCHRONIZED_IO _SC_SYNCHRONIZED_IO
-# endif
-# ifndef _SC_SYSTEM_DATABASE
-#  define _SC_SYSTEM_DATABASE _SC_SYSTEM_DATABASE
-# endif
-# ifndef _SC_SYSTEM_DATABASE_R
-#  define _SC_SYSTEM_DATABASE_R _SC_SYSTEM_DATABASE_R
-# endif
-# ifndef _SC_THREADS
-#  define _SC_THREADS _SC_THREADS
-# endif
-# ifndef _SC_THREAD_ATTR_STACKADDR
-#  define _SC_THREAD_ATTR_STACKADDR _SC_THREAD_ATTR_STACKADDR
-# endif
-# ifndef _SC_THREAD_ATTR_STACKSIZE
-#  define _SC_THREAD_ATTR_STACKSIZE _SC_THREAD_ATTR_STACKSIZE
-# endif
-# ifndef _SC_THREAD_CPUTIME
-#  define _SC_THREAD_CPUTIME _SC_THREAD_CPUTIME
-# endif
-# ifndef _SC_THREAD_DESTRUCTOR_ITERATIONS
-#  define _SC_THREAD_DESTRUCTOR_ITERATIONS _SC_THREAD_DESTRUCTOR_ITERATIONS
-# endif
-# ifndef _SC_THREAD_KEYS_MAX
-#  define _SC_THREAD_KEYS_MAX _SC_THREAD_KEYS_MAX
-# endif
-# ifndef _SC_THREAD_PRIORITY_SCHEDULING
-#  define _SC_THREAD_PRIORITY_SCHEDULING _SC_THREAD_PRIORITY_SCHEDULING
-# endif
-# ifndef _SC_THREAD_PRIO_INHERIT
-#  define _SC_THREAD_PRIO_INHERIT _SC_THREAD_PRIO_INHERIT
-# endif
-# ifndef _SC_THREAD_PRIO_PROTECT
-#  define _SC_THREAD_PRIO_PROTECT _SC_THREAD_PRIO_PROTECT
-# endif
-# ifndef _SC_THREAD_PROCESS_SHARED
-#  define _SC_THREAD_PROCESS_SHARED _SC_THREAD_PROCESS_SHARED
-# endif
-# ifndef _SC_THREAD_ROBUST_PRIO_INHERIT
-#  define _SC_THREAD_ROBUST_PRIO_INHERIT _SC_THREAD_ROBUST_PRIO_INHERIT
-# endif
-# ifndef _SC_THREAD_ROBUST_PRIO_PROTECT
-#  define _SC_THREAD_ROBUST_PRIO_PROTECT _SC_THREAD_ROBUST_PRIO_PROTECT
-# endif
-# ifndef _SC_THREAD_SAFE_FUNCTIONS
-#  define _SC_THREAD_SAFE_FUNCTIONS _SC_THREAD_SAFE_FUNCTIONS
-# endif
-# ifndef _SC_THREAD_SPORADIC_SERVER
-#  define _SC_THREAD_SPORADIC_SERVER _SC_THREAD_SPORADIC_SERVER
-# endif
-# ifndef _SC_THREAD_STACK_MIN
-#  define _SC_THREAD_STACK_MIN _SC_THREAD_STACK_MIN
-# endif
-# ifndef _SC_THREAD_THREADS_MAX
-#  define _SC_THREAD_THREADS_MAX _SC_THREAD_THREADS_MAX
-# endif
-# ifndef _SC_TIMEOUTS
-#  define _SC_TIMEOUTS _SC_TIMEOUTS
-# endif
-# ifndef _SC_TIMERS
-#  define _SC_TIMERS _SC_TIMERS
-# endif
-# ifndef _SC_TIMER_MAX
-#  define _SC_TIMER_MAX _SC_TIMER_MAX
-# endif
-# ifndef _SC_TRACE
-#  define _SC_TRACE _SC_TRACE
-# endif
-# ifndef _SC_TRACE_EVENT_FILTER
-#  define _SC_TRACE_EVENT_FILTER _SC_TRACE_EVENT_FILTER
-# endif
-# ifndef _SC_TRACE_EVENT_NAME_MAX
-#  define _SC_TRACE_EVENT_NAME_MAX _SC_TRACE_EVENT_NAME_MAX
-# endif
-# ifndef _SC_TRACE_INHERIT
-#  define _SC_TRACE_INHERIT _SC_TRACE_INHERIT
-# endif
-# ifndef _SC_TRACE_LOG
-#  define _SC_TRACE_LOG _SC_TRACE_LOG
-# endif
-# ifndef _SC_TRACE_NAME_MAX
-#  define _SC_TRACE_NAME_MAX _SC_TRACE_NAME_MAX
-# endif
-# ifndef _SC_TRACE_SYS_MAX
-#  define _SC_TRACE_SYS_MAX _SC_TRACE_SYS_MAX
-# endif
-# ifndef _SC_TRACE_USER_EVENT_MAX
-#  define _SC_TRACE_USER_EVENT_MAX _SC_TRACE_USER_EVENT_MAX
-# endif
-# ifndef _SC_TTY_NAME_MAX
-#  define _SC_TTY_NAME_MAX _SC_TTY_NAME_MAX
-# endif
-# ifndef _SC_TYPED_MEMORY_OBJECTS
-#  define _SC_TYPED_MEMORY_OBJECTS _SC_TYPED_MEMORY_OBJECTS
-# endif
-# ifndef _SC_TZNAME_MAX
-#  define _SC_TZNAME_MAX _SC_TZNAME_MAX
-# endif
-# ifndef _SC_T_IOV_MAX
-#  define _SC_T_IOV_MAX _SC_T_IOV_MAX
-# endif
-# ifndef _SC_UCHAR_MAX
-#  define _SC_UCHAR_MAX _SC_UCHAR_MAX
-# endif
-# ifndef _SC_UINT_MAX
-#  define _SC_UINT_MAX _SC_UINT_MAX
-# endif
-# ifndef _SC_UIO_MAXIOV
-#  define _SC_UIO_MAXIOV _SC_UIO_MAXIOV
-# endif
-# ifndef _SC_ULONG_MAX
-#  define _SC_ULONG_MAX _SC_ULONG_MAX
-# endif
-# ifndef _SC_USER_GROUPS
-#  define _SC_USER_GROUPS _SC_USER_GROUPS
-# endif
-# ifndef _SC_USER_GROUPS_R
-#  define _SC_USER_GROUPS_R _SC_USER_GROUPS_R
-# endif
-# ifndef _SC_USHRT_MAX
-#  define _SC_USHRT_MAX _SC_USHRT_MAX
-# endif
-# ifndef _SC_V6_ILP32_OFF32
-#  define _SC_V6_ILP32_OFF32 _SC_V6_ILP32_OFF32
-# endif
-# ifndef _SC_V6_ILP32_OFFBIG
-#  define _SC_V6_ILP32_OFFBIG _SC_V6_ILP32_OFFBIG
-# endif
-# ifndef _SC_V6_LP64_OFF64
-#  define _SC_V6_LP64_OFF64 _SC_V6_LP64_OFF64
-# endif
-# ifndef _SC_V6_LPBIG_OFFBIG
-#  define _SC_V6_LPBIG_OFFBIG _SC_V6_LPBIG_OFFBIG
-# endif
-# ifndef _SC_V7_ILP32_OFF32
-#  define _SC_V7_ILP32_OFF32 _SC_V7_ILP32_OFF32
-# endif
-# ifndef _SC_V7_ILP32_OFFBIG
-#  define _SC_V7_ILP32_OFFBIG _SC_V7_ILP32_OFFBIG
-# endif
-# ifndef _SC_V7_LP64_OFF64
-#  define _SC_V7_LP64_OFF64 _SC_V7_LP64_OFF64
-# endif
-# ifndef _SC_V7_LPBIG_OFFBIG
-#  define _SC_V7_LPBIG_OFFBIG _SC_V7_LPBIG_OFFBIG
-# endif
-# ifndef _SC_VERSION
-#  define _SC_VERSION _SC_VERSION
-# endif
-# ifndef _SC_WORD_BIT
-#  define _SC_WORD_BIT _SC_WORD_BIT
-# endif
-# ifndef _SC_XBS5_ILP32_OFF32
-#  define _SC_XBS5_ILP32_OFF32 _SC_XBS5_ILP32_OFF32
-# endif
-# ifndef _SC_XBS5_ILP32_OFFBIG
-#  define _SC_XBS5_ILP32_OFFBIG _SC_XBS5_ILP32_OFFBIG
-# endif
-# ifndef _SC_XBS5_LP64_OFF64
-#  define _SC_XBS5_LP64_OFF64 _SC_XBS5_LP64_OFF64
-# endif
-# ifndef _SC_XBS5_LPBIG_OFFBIG
-#  define _SC_XBS5_LPBIG_OFFBIG _SC_XBS5_LPBIG_OFFBIG
-# endif
-# ifndef _SC_XOPEN_CRYPT
-#  define _SC_XOPEN_CRYPT _SC_XOPEN_CRYPT
-# endif
-# ifndef _SC_XOPEN_ENH_I18N
-#  define _SC_XOPEN_ENH_I18N _SC_XOPEN_ENH_I18N
-# endif
-# ifndef _SC_XOPEN_LEGACY
-#  define _SC_XOPEN_LEGACY _SC_XOPEN_LEGACY
-# endif
-# ifndef _SC_XOPEN_REALTIME
-#  define _SC_XOPEN_REALTIME _SC_XOPEN_REALTIME
-# endif
-# ifndef _SC_XOPEN_REALTIME_THREADS
-#  define _SC_XOPEN_REALTIME_THREADS _SC_XOPEN_REALTIME_THREADS
-# endif
-# ifndef _SC_XOPEN_SHM
-#  define _SC_XOPEN_SHM _SC_XOPEN_SHM
-# endif
-# ifndef _SC_XOPEN_STREAMS
-#  define _SC_XOPEN_STREAMS _SC_XOPEN_STREAMS
-# endif
-# ifndef _SC_XOPEN_UNIX
-#  define _SC_XOPEN_UNIX _SC_XOPEN_UNIX
-# endif
-# ifndef _SC_XOPEN_VERSION
-#  define _SC_XOPEN_VERSION _SC_XOPEN_VERSION
-# endif
-# ifndef _SC_XOPEN_XCU_VERSION
-#  define _SC_XOPEN_XCU_VERSION _SC_XOPEN_XCU_VERSION
-# endif
-# ifndef _SC_XOPEN_XPG2
-#  define _SC_XOPEN_XPG2 _SC_XOPEN_XPG2
-# endif
-# ifndef _SC_XOPEN_XPG3
-#  define _SC_XOPEN_XPG3 _SC_XOPEN_XPG3
-# endif
-# ifndef _SC_XOPEN_XPG4
-#  define _SC_XOPEN_XPG4 _SC_XOPEN_XPG4
-# endif
-# ifndef _XOPEN_ENH_I18N
-#  define _XOPEN_ENH_I18N 1
-# endif
-# ifndef _XOPEN_LEGACY
-#  define _XOPEN_LEGACY 1
-# endif
-# ifndef _XOPEN_REALTIME
-#  define _XOPEN_REALTIME 1
-# endif
-# ifndef _XOPEN_REALTIME_THREADS
-#  define _XOPEN_REALTIME_THREADS 1
-# endif
-# ifndef _XOPEN_SHM
-#  define _XOPEN_SHM 1
-# endif
-# ifndef _XOPEN_UNIX
-#  define _XOPEN_UNIX 1
-# endif
-# ifndef _XOPEN_VERSION
-#  define _XOPEN_VERSION 700
-# endif
-# ifndef _XOPEN_XCU_VERSION
-#  define _XOPEN_XCU_VERSION 4
-# endif
-# ifndef _XOPEN_XPG2
-#  define _XOPEN_XPG2 1
-# endif
-# ifndef _XOPEN_XPG3
-#  define _XOPEN_XPG3 1
-# endif
-# ifndef _XOPEN_XPG4
-#  define _XOPEN_XPG4 1
-# endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define F_OK 0
+# define R_OK 4
+# define SEEK_CUR 1
+# define SEEK_END 2
+# define SEEK_SET 0
+# define STDERR_FILENO 2
+# define STDIN_FILENO 0
+# define STDOUT_FILENO 1
+# define W_OK 2
+# define X_OK 1
+# define _CS_GNU_LIBC_VERSION _CS_GNU_LIBC_VERSION
+# define _CS_GNU_LIBPTHREAD_VERSION _CS_GNU_LIBPTHREAD_VERSION
+# define _CS_LFS64_CFLAGS _CS_LFS64_CFLAGS
+# define _CS_LFS64_LDFLAGS _CS_LFS64_LDFLAGS
+# define _CS_LFS64_LIBS _CS_LFS64_LIBS
+# define _CS_LFS64_LINTFLAGS _CS_LFS64_LINTFLAGS
+# define _CS_LFS_CFLAGS _CS_LFS_CFLAGS
+# define _CS_LFS_LDFLAGS _CS_LFS_LDFLAGS
+# define _CS_LFS_LIBS _CS_LFS_LIBS
+# define _CS_LFS_LINTFLAGS _CS_LFS_LINTFLAGS
+# define _CS_PATH _CS_PATH
+# define _CS_POSIX_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
+# define _CS_POSIX_V6_ILP32_OFF32_CFLAGS _CS_POSIX_V6_ILP32_OFF32_CFLAGS
+# define _CS_POSIX_V6_ILP32_OFF32_LDFLAGS _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
+# define _CS_POSIX_V6_ILP32_OFF32_LIBS _CS_POSIX_V6_ILP32_OFF32_LIBS
+# define _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS _CS_POSIX_V6_ILP32_OFF32_LINTFLAGS
+# define _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
+# define _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
+# define _CS_POSIX_V6_ILP32_OFFBIG_LIBS _CS_POSIX_V6_ILP32_OFFBIG_LIBS
+# define _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V6_ILP32_OFFBIG_LINTFLAGS
+# define _CS_POSIX_V6_LP64_OFF64_CFLAGS _CS_POSIX_V6_LP64_OFF64_CFLAGS
+# define _CS_POSIX_V6_LP64_OFF64_LDFLAGS _CS_POSIX_V6_LP64_OFF64_LDFLAGS
+# define _CS_POSIX_V6_LP64_OFF64_LIBS _CS_POSIX_V6_LP64_OFF64_LIBS
+# define _CS_POSIX_V6_LP64_OFF64_LINTFLAGS _CS_POSIX_V6_LP64_OFF64_LINTFLAGS
+# define _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
+# define _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
+# define _CS_POSIX_V6_LPBIG_OFFBIG_LIBS _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
+# define _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V6_LPBIG_OFFBIG_LINTFLAGS
+# define _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
+# define _CS_POSIX_V7_ILP32_OFF32_CFLAGS _CS_POSIX_V7_ILP32_OFF32_CFLAGS
+# define _CS_POSIX_V7_ILP32_OFF32_LDFLAGS _CS_POSIX_V7_ILP32_OFF32_LDFLAGS
+# define _CS_POSIX_V7_ILP32_OFF32_LIBS _CS_POSIX_V7_ILP32_OFF32_LIBS
+# define _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS _CS_POSIX_V7_ILP32_OFF32_LINTFLAGS
+# define _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS
+# define _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS
+# define _CS_POSIX_V7_ILP32_OFFBIG_LIBS _CS_POSIX_V7_ILP32_OFFBIG_LIBS
+# define _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS _CS_POSIX_V7_ILP32_OFFBIG_LINTFLAGS
+# define _CS_POSIX_V7_LP64_OFF64_CFLAGS _CS_POSIX_V7_LP64_OFF64_CFLAGS
+# define _CS_POSIX_V7_LP64_OFF64_LDFLAGS _CS_POSIX_V7_LP64_OFF64_LDFLAGS
+# define _CS_POSIX_V7_LP64_OFF64_LIBS _CS_POSIX_V7_LP64_OFF64_LIBS
+# define _CS_POSIX_V7_LP64_OFF64_LINTFLAGS _CS_POSIX_V7_LP64_OFF64_LINTFLAGS
+# define _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS
+# define _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS
+# define _CS_POSIX_V7_LPBIG_OFFBIG_LIBS _CS_POSIX_V7_LPBIG_OFFBIG_LIBS
+# define _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS _CS_POSIX_V7_LPBIG_OFFBIG_LINTFLAGS
+# define _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
+# define _CS_V5_WIDTH_RESTRICTED_ENVS _CS_V5_WIDTH_RESTRICTED_ENVS
+# define _CS_V6_ENV _CS_V6_ENV
+# define _CS_V6_WIDTH_RESTRICTED_ENVS _CS_V6_WIDTH_RESTRICTED_ENVS
+# define _CS_V7_ENV _CS_V7_ENV
+# define _CS_V7_WIDTH_RESTRICTED_ENVS _CS_V7_WIDTH_RESTRICTED_ENVS
+# define _CS_XBS5_ILP32_OFF32_CFLAGS _CS_XBS5_ILP32_OFF32_CFLAGS
+# define _CS_XBS5_ILP32_OFF32_LDFLAGS _CS_XBS5_ILP32_OFF32_LDFLAGS
+# define _CS_XBS5_ILP32_OFF32_LIBS _CS_XBS5_ILP32_OFF32_LIBS
+# define _CS_XBS5_ILP32_OFF32_LINTFLAGS _CS_XBS5_ILP32_OFF32_LINTFLAGS
+# define _CS_XBS5_ILP32_OFFBIG_CFLAGS _CS_XBS5_ILP32_OFFBIG_CFLAGS
+# define _CS_XBS5_ILP32_OFFBIG_LDFLAGS _CS_XBS5_ILP32_OFFBIG_LDFLAGS
+# define _CS_XBS5_ILP32_OFFBIG_LIBS _CS_XBS5_ILP32_OFFBIG_LIBS
+# define _CS_XBS5_ILP32_OFFBIG_LINTFLAGS _CS_XBS5_ILP32_OFFBIG_LINTFLAGS
+# define _CS_XBS5_LP64_OFF64_CFLAGS _CS_XBS5_LP64_OFF64_CFLAGS
+# define _CS_XBS5_LP64_OFF64_LDFLAGS _CS_XBS5_LP64_OFF64_LDFLAGS
+# define _CS_XBS5_LP64_OFF64_LIBS _CS_XBS5_LP64_OFF64_LIBS
+# define _CS_XBS5_LP64_OFF64_LINTFLAGS _CS_XBS5_LP64_OFF64_LINTFLAGS
+# define _CS_XBS5_LPBIG_OFFBIG_CFLAGS _CS_XBS5_LPBIG_OFFBIG_CFLAGS
+# define _CS_XBS5_LPBIG_OFFBIG_LDFLAGS _CS_XBS5_LPBIG_OFFBIG_LDFLAGS
+# define _CS_XBS5_LPBIG_OFFBIG_LIBS _CS_XBS5_LPBIG_OFFBIG_LIBS
+# define _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS
+# define _LFS64_ASYNCHRONOUS_IO 1
+# define _LFS64_LARGEFILE 1
+# define _LFS64_STDIO 1
+# define _LFS_ASYNCHRONOUS_IO 1
+# define _LFS_LARGEFILE 1
+# define _PC_2_SYMLINKS _PC_2_SYMLINKS
+# define _PC_ALLOC_SIZE_MIN _PC_ALLOC_SIZE_MIN
+# define _PC_ASYNC_IO _PC_ASYNC_IO
+# define _PC_CHOWN_RESTRICTED _PC_CHOWN_RESTRICTED
+# define _PC_FILESIZEBITS _PC_FILESIZEBITS
+# define _PC_LINK_MAX _PC_LINK_MAX
+# define _PC_MAX_CANON _PC_MAX_CANON
+# define _PC_MAX_INPUT _PC_MAX_INPUT
+# define _PC_NAME_MAX _PC_NAME_MAX
+# define _PC_NO_TRUNC _PC_NO_TRUNC
+# define _PC_PATH_MAX _PC_PATH_MAX
+# define _PC_PIPE_BUF _PC_PIPE_BUF
+# define _PC_PRIO_IO _PC_PRIO_IO
+# define _PC_REC_INCR_XFER_SIZE _PC_REC_INCR_XFER_SIZE
+# define _PC_REC_MAX_XFER_SIZE _PC_REC_MAX_XFER_SIZE
+# define _PC_REC_MIN_XFER_SIZE _PC_REC_MIN_XFER_SIZE
+# define _PC_REC_XFER_ALIGN _PC_REC_XFER_ALIGN
+# define _PC_SOCK_MAXBUF _PC_SOCK_MAXBUF
+# define _PC_SYMLINK_MAX _PC_SYMLINK_MAX
+# define _PC_SYNC_IO _PC_SYNC_IO
+# define _PC_VDISABLE _PC_VDISABLE
+# define _POSIX2_CHAR_TERM 200809L
+# define _POSIX2_C_BIND 200809L
+# define _POSIX2_C_DEV 200809L
+# define _POSIX2_C_VERSION 200809L
+# define _POSIX2_LOCALEDEF 200809L
+# define _POSIX2_SW_DEV 200809L
+# define _POSIX2_VERSION 200809L
+# define _POSIX_ADVISORY_INFO 200809L
+# define _POSIX_ASYNCHRONOUS_IO 200809L
+# define _POSIX_ASYNC_IO 1
+# define _POSIX_BARRIERS 200809L
+# define _POSIX_CHOWN_RESTRICTED 0
+# define _POSIX_CLOCK_SELECTION 200809L
+# define _POSIX_CPUTIME 0
+# define _POSIX_FSYNC 200809L
+# define _POSIX_IPV6 200809L
+# define _POSIX_JOB_CONTROL 1
+# define _POSIX_MAPPED_FILES 200809L
+# define _POSIX_MEMLOCK 200809L
+# define _POSIX_MEMLOCK_RANGE 200809L
+# define _POSIX_MEMORY_PROTECTION 200809L
+# define _POSIX_MESSAGE_PASSING 200809L
+# define _POSIX_MONOTONIC_CLOCK 0
+# define _POSIX_NO_TRUNC 1
+# define _POSIX_PRIORITIZED_IO 200809L
+# define _POSIX_PRIORITY_SCHEDULING 200809L
+# define _POSIX_RAW_SOCKETS 200809L
+# define _POSIX_READER_WRITER_LOCKS 200809L
+# define _POSIX_REALTIME_SIGNALS 200809L
+# define _POSIX_REENTRANT_FUNCTIONS 1
+# define _POSIX_REGEXP 1
+# define _POSIX_SAVED_IDS 1
+# define _POSIX_SEMAPHORES 200809L
+# define _POSIX_SHARED_MEMORY_OBJECTS 200809L
+# define _POSIX_SHELL 1
+# define _POSIX_SPAWN 200809L
+# define _POSIX_SPIN_LOCKS 200809L
+# define _POSIX_SPORADIC_SERVER (-1)
+# define _POSIX_SYNCHRONIZED_IO 200809L
+# define _POSIX_THREADS 200809L
+# define _POSIX_THREAD_ATTR_STACKADDR 200809L
+# define _POSIX_THREAD_ATTR_STACKSIZE 200809L
+# define _POSIX_THREAD_CPUTIME 0
+# define _POSIX_THREAD_PRIORITY_SCHEDULING 200809L
+# define _POSIX_THREAD_PRIO_INHERIT 200809L
+# define _POSIX_THREAD_PRIO_PROTECT 200809L
+# define _POSIX_THREAD_PROCESS_SHARED 200809L
+# define _POSIX_THREAD_SAFE_FUNCTIONS 200809L
+# define _POSIX_THREAD_SPORADIC_SERVER (-1)
+# define _POSIX_TIMEOUTS 200809L
+# define _POSIX_TIMERS 200809L
+# define _POSIX_TRACE (-1)
+# define _POSIX_TRACE_EVENT_FILTER (-1)
+# define _POSIX_TRACE_INHERIT (-1)
+# define _POSIX_TRACE_LOG (-1)
+# define _POSIX_TYPED_MEMORY_OBJECTS (-1)
+# define _POSIX_VDISABLE '\000'
+# define _POSIX_VERSION 200809L
+# define _SC_2_CHAR_TERM _SC_2_CHAR_TERM
+# define _SC_2_C_BIND _SC_2_C_BIND
+# define _SC_2_C_DEV _SC_2_C_DEV
+# define _SC_2_C_VERSION _SC_2_C_VERSION
+# define _SC_2_FORT_DEV _SC_2_FORT_DEV
+# define _SC_2_FORT_RUN _SC_2_FORT_RUN
+# define _SC_2_LOCALEDEF _SC_2_LOCALEDEF
+# define _SC_2_PBS _SC_2_PBS
+# define _SC_2_PBS_ACCOUNTING _SC_2_PBS_ACCOUNTING
+# define _SC_2_PBS_CHECKPOINT _SC_2_PBS_CHECKPOINT
+# define _SC_2_PBS_LOCATE _SC_2_PBS_LOCATE
+# define _SC_2_PBS_MESSAGE _SC_2_PBS_MESSAGE
+# define _SC_2_PBS_TRACK _SC_2_PBS_TRACK
+# define _SC_2_SW_DEV _SC_2_SW_DEV
+# define _SC_2_UPE _SC_2_UPE
+# define _SC_2_VERSION _SC_2_VERSION
+# define _SC_ADVISORY_INFO _SC_ADVISORY_INFO
+# define _SC_AIO_LISTIO_MAX _SC_AIO_LISTIO_MAX
+# define _SC_AIO_MAX _SC_AIO_MAX
+# define _SC_AIO_PRIO_DELTA_MAX _SC_AIO_PRIO_DELTA_MAX
+# define _SC_ARG_MAX _SC_ARG_MAX
+# define _SC_ASYNCHRONOUS_IO _SC_ASYNCHRONOUS_IO
+# define _SC_ATEXIT_MAX _SC_ATEXIT_MAX
+# define _SC_AVPHYS_PAGES _SC_AVPHYS_PAGES
+# define _SC_BARRIERS _SC_BARRIERS
+# define _SC_BASE _SC_BASE
+# define _SC_BC_BASE_MAX _SC_BC_BASE_MAX
+# define _SC_BC_DIM_MAX _SC_BC_DIM_MAX
+# define _SC_BC_SCALE_MAX _SC_BC_SCALE_MAX
+# define _SC_BC_STRING_MAX _SC_BC_STRING_MAX
+# define _SC_CHARCLASS_NAME_MAX _SC_CHARCLASS_NAME_MAX
+# define _SC_CHAR_BIT _SC_CHAR_BIT
+# define _SC_CHAR_MAX _SC_CHAR_MAX
+# define _SC_CHAR_MIN _SC_CHAR_MIN
+# define _SC_CHILD_MAX _SC_CHILD_MAX
+# define _SC_CLK_TCK _SC_CLK_TCK
+# define _SC_CLOCK_SELECTION _SC_CLOCK_SELECTION
+# define _SC_COLL_WEIGHTS_MAX _SC_COLL_WEIGHTS_MAX
+# define _SC_CPUTIME _SC_CPUTIME
+# define _SC_C_LANG_SUPPORT _SC_C_LANG_SUPPORT
+# define _SC_C_LANG_SUPPORT_R _SC_C_LANG_SUPPORT_R
+# define _SC_DELAYTIMER_MAX _SC_DELAYTIMER_MAX
+# define _SC_DEVICE_IO _SC_DEVICE_IO
+# define _SC_DEVICE_SPECIFIC _SC_DEVICE_SPECIFIC
+# define _SC_DEVICE_SPECIFIC_R _SC_DEVICE_SPECIFIC_R
+# define _SC_EQUIV_CLASS_MAX _SC_EQUIV_CLASS_MAX
+# define _SC_EXPR_NEST_MAX _SC_EXPR_NEST_MAX
+# define _SC_FD_MGMT _SC_FD_MGMT
+# define _SC_FIFO _SC_FIFO
+# define _SC_FILE_ATTRIBUTES _SC_FILE_ATTRIBUTES
+# define _SC_FILE_LOCKING _SC_FILE_LOCKING
+# define _SC_FILE_SYSTEM _SC_FILE_SYSTEM
+# define _SC_FSYNC _SC_FSYNC
+# define _SC_GETGR_R_SIZE_MAX _SC_GETGR_R_SIZE_MAX
+# define _SC_GETPW_R_SIZE_MAX _SC_GETPW_R_SIZE_MAX
+# define _SC_HOST_NAME_MAX _SC_HOST_NAME_MAX
+# define _SC_INT_MAX _SC_INT_MAX
+# define _SC_INT_MIN _SC_INT_MIN
+# define _SC_IOV_MAX _SC_IOV_MAX
+# define _SC_IPV6 _SC_IPV6
+# define _SC_JOB_CONTROL _SC_JOB_CONTROL
+# define _SC_LEVEL1_DCACHE_ASSOC _SC_LEVEL1_DCACHE_ASSOC
+# define _SC_LEVEL1_DCACHE_LINESIZE _SC_LEVEL1_DCACHE_LINESIZE
+# define _SC_LEVEL1_DCACHE_SIZE _SC_LEVEL1_DCACHE_SIZE
+# define _SC_LEVEL1_ICACHE_ASSOC _SC_LEVEL1_ICACHE_ASSOC
+# define _SC_LEVEL1_ICACHE_LINESIZE _SC_LEVEL1_ICACHE_LINESIZE
+# define _SC_LEVEL1_ICACHE_SIZE _SC_LEVEL1_ICACHE_SIZE
+# define _SC_LEVEL2_CACHE_ASSOC _SC_LEVEL2_CACHE_ASSOC
+# define _SC_LEVEL2_CACHE_LINESIZE _SC_LEVEL2_CACHE_LINESIZE
+# define _SC_LEVEL2_CACHE_SIZE _SC_LEVEL2_CACHE_SIZE
+# define _SC_LEVEL3_CACHE_ASSOC _SC_LEVEL3_CACHE_ASSOC
+# define _SC_LEVEL3_CACHE_LINESIZE _SC_LEVEL3_CACHE_LINESIZE
+# define _SC_LEVEL3_CACHE_SIZE _SC_LEVEL3_CACHE_SIZE
+# define _SC_LEVEL4_CACHE_ASSOC _SC_LEVEL4_CACHE_ASSOC
+# define _SC_LEVEL4_CACHE_LINESIZE _SC_LEVEL4_CACHE_LINESIZE
+# define _SC_LEVEL4_CACHE_SIZE _SC_LEVEL4_CACHE_SIZE
+# define _SC_LINE_MAX _SC_LINE_MAX
+# define _SC_LOGIN_NAME_MAX _SC_LOGIN_NAME_MAX
+# define _SC_LONG_BIT _SC_LONG_BIT
+# define _SC_MAPPED_FILES _SC_MAPPED_FILES
+# define _SC_MB_LEN_MAX _SC_MB_LEN_MAX
+# define _SC_MEMLOCK _SC_MEMLOCK
+# define _SC_MEMLOCK_RANGE _SC_MEMLOCK_RANGE
+# define _SC_MEMORY_PROTECTION _SC_MEMORY_PROTECTION
+# define _SC_MESSAGE_PASSING _SC_MESSAGE_PASSING
+# define _SC_MINSIGSTKSZ _SC_MINSIGSTKSZ
+# define _SC_MONOTONIC_CLOCK _SC_MONOTONIC_CLOCK
+# define _SC_MQ_OPEN_MAX _SC_MQ_OPEN_MAX
+# define _SC_MQ_PRIO_MAX _SC_MQ_PRIO_MAX
+# define _SC_MULTI_PROCESS _SC_MULTI_PROCESS
+# define _SC_NETWORKING _SC_NETWORKING
+# define _SC_NGROUPS_MAX _SC_NGROUPS_MAX
+# define _SC_NL_ARGMAX _SC_NL_ARGMAX
+# define _SC_NL_LANGMAX _SC_NL_LANGMAX
+# define _SC_NL_MSGMAX _SC_NL_MSGMAX
+# define _SC_NL_NMAX _SC_NL_NMAX
+# define _SC_NL_SETMAX _SC_NL_SETMAX
+# define _SC_NL_TEXTMAX _SC_NL_TEXTMAX
+# define _SC_NPROCESSORS_CONF _SC_NPROCESSORS_CONF
+# define _SC_NPROCESSORS_ONLN _SC_NPROCESSORS_ONLN
+# define _SC_NZERO _SC_NZERO
+# define _SC_OPEN_MAX _SC_OPEN_MAX
+# define _SC_PAGESIZE _SC_PAGESIZE
+# define _SC_PAGE_SIZE _SC_PAGESIZE
+# define _SC_PASS_MAX _SC_PASS_MAX
+# define _SC_PHYS_PAGES _SC_PHYS_PAGES
+# define _SC_PII _SC_PII
+# define _SC_PII_INTERNET _SC_PII_INTERNET
+# define _SC_PII_INTERNET_DGRAM _SC_PII_INTERNET_DGRAM
+# define _SC_PII_INTERNET_STREAM _SC_PII_INTERNET_STREAM
+# define _SC_PII_OSI _SC_PII_OSI
+# define _SC_PII_OSI_CLTS _SC_PII_OSI_CLTS
+# define _SC_PII_OSI_COTS _SC_PII_OSI_COTS
+# define _SC_PII_OSI_M _SC_PII_OSI_M
+# define _SC_PII_SOCKET _SC_PII_SOCKET
+# define _SC_PII_XTI _SC_PII_XTI
+# define _SC_PIPE _SC_PIPE
+# define _SC_POLL _SC_POLL
+# define _SC_PRIORITIZED_IO _SC_PRIORITIZED_IO
+# define _SC_PRIORITY_SCHEDULING _SC_PRIORITY_SCHEDULING
+# define _SC_RAW_SOCKETS _SC_RAW_SOCKETS
+# define _SC_READER_WRITER_LOCKS _SC_READER_WRITER_LOCKS
+# define _SC_REALTIME_SIGNALS _SC_REALTIME_SIGNALS
+# define _SC_REGEXP _SC_REGEXP
+# define _SC_REGEX_VERSION _SC_REGEX_VERSION
+# define _SC_RE_DUP_MAX _SC_RE_DUP_MAX
+# define _SC_RTSIG_MAX _SC_RTSIG_MAX
+# define _SC_SAVED_IDS _SC_SAVED_IDS
+# define _SC_SCHAR_MAX _SC_SCHAR_MAX
+# define _SC_SCHAR_MIN _SC_SCHAR_MIN
+# define _SC_SELECT _SC_SELECT
+# define _SC_SEMAPHORES _SC_SEMAPHORES
+# define _SC_SEM_NSEMS_MAX _SC_SEM_NSEMS_MAX
+# define _SC_SEM_VALUE_MAX _SC_SEM_VALUE_MAX
+# define _SC_SHARED_MEMORY_OBJECTS _SC_SHARED_MEMORY_OBJECTS
+# define _SC_SHELL _SC_SHELL
+# define _SC_SHRT_MAX _SC_SHRT_MAX
+# define _SC_SHRT_MIN _SC_SHRT_MIN
+# define _SC_SIGNALS _SC_SIGNALS
+# define _SC_SIGQUEUE_MAX _SC_SIGQUEUE_MAX
+# define _SC_SIGSTKSZ _SC_SIGSTKSZ
+# define _SC_SINGLE_PROCESS _SC_SINGLE_PROCESS
+# define _SC_SPAWN _SC_SPAWN
+# define _SC_SPIN_LOCKS _SC_SPIN_LOCKS
+# define _SC_SPORADIC_SERVER _SC_SPORADIC_SERVER
+# define _SC_SSIZE_MAX _SC_SSIZE_MAX
+# define _SC_SS_REPL_MAX _SC_SS_REPL_MAX
+# define _SC_STREAMS _SC_STREAMS
+# define _SC_STREAM_MAX _SC_STREAM_MAX
+# define _SC_SYMLOOP_MAX _SC_SYMLOOP_MAX
+# define _SC_SYNCHRONIZED_IO _SC_SYNCHRONIZED_IO
+# define _SC_SYSTEM_DATABASE _SC_SYSTEM_DATABASE
+# define _SC_SYSTEM_DATABASE_R _SC_SYSTEM_DATABASE_R
+# define _SC_THREADS _SC_THREADS
+# define _SC_THREAD_ATTR_STACKADDR _SC_THREAD_ATTR_STACKADDR
+# define _SC_THREAD_ATTR_STACKSIZE _SC_THREAD_ATTR_STACKSIZE
+# define _SC_THREAD_CPUTIME _SC_THREAD_CPUTIME
+# define _SC_THREAD_DESTRUCTOR_ITERATIONS _SC_THREAD_DESTRUCTOR_ITERATIONS
+# define _SC_THREAD_KEYS_MAX _SC_THREAD_KEYS_MAX
+# define _SC_THREAD_PRIORITY_SCHEDULING _SC_THREAD_PRIORITY_SCHEDULING
+# define _SC_THREAD_PRIO_INHERIT _SC_THREAD_PRIO_INHERIT
+# define _SC_THREAD_PRIO_PROTECT _SC_THREAD_PRIO_PROTECT
+# define _SC_THREAD_PROCESS_SHARED _SC_THREAD_PROCESS_SHARED
+# define _SC_THREAD_ROBUST_PRIO_INHERIT _SC_THREAD_ROBUST_PRIO_INHERIT
+# define _SC_THREAD_ROBUST_PRIO_PROTECT _SC_THREAD_ROBUST_PRIO_PROTECT
+# define _SC_THREAD_SAFE_FUNCTIONS _SC_THREAD_SAFE_FUNCTIONS
+# define _SC_THREAD_SPORADIC_SERVER _SC_THREAD_SPORADIC_SERVER
+# define _SC_THREAD_STACK_MIN _SC_THREAD_STACK_MIN
+# define _SC_THREAD_THREADS_MAX _SC_THREAD_THREADS_MAX
+# define _SC_TIMEOUTS _SC_TIMEOUTS
+# define _SC_TIMERS _SC_TIMERS
+# define _SC_TIMER_MAX _SC_TIMER_MAX
+# define _SC_TRACE _SC_TRACE
+# define _SC_TRACE_EVENT_FILTER _SC_TRACE_EVENT_FILTER
+# define _SC_TRACE_EVENT_NAME_MAX _SC_TRACE_EVENT_NAME_MAX
+# define _SC_TRACE_INHERIT _SC_TRACE_INHERIT
+# define _SC_TRACE_LOG _SC_TRACE_LOG
+# define _SC_TRACE_NAME_MAX _SC_TRACE_NAME_MAX
+# define _SC_TRACE_SYS_MAX _SC_TRACE_SYS_MAX
+# define _SC_TRACE_USER_EVENT_MAX _SC_TRACE_USER_EVENT_MAX
+# define _SC_TTY_NAME_MAX _SC_TTY_NAME_MAX
+# define _SC_TYPED_MEMORY_OBJECTS _SC_TYPED_MEMORY_OBJECTS
+# define _SC_TZNAME_MAX _SC_TZNAME_MAX
+# define _SC_T_IOV_MAX _SC_T_IOV_MAX
+# define _SC_UCHAR_MAX _SC_UCHAR_MAX
+# define _SC_UINT_MAX _SC_UINT_MAX
+# define _SC_UIO_MAXIOV _SC_UIO_MAXIOV
+# define _SC_ULONG_MAX _SC_ULONG_MAX
+# define _SC_USER_GROUPS _SC_USER_GROUPS
+# define _SC_USER_GROUPS_R _SC_USER_GROUPS_R
+# define _SC_USHRT_MAX _SC_USHRT_MAX
+# define _SC_V6_ILP32_OFF32 _SC_V6_ILP32_OFF32
+# define _SC_V6_ILP32_OFFBIG _SC_V6_ILP32_OFFBIG
+# define _SC_V6_LP64_OFF64 _SC_V6_LP64_OFF64
+# define _SC_V6_LPBIG_OFFBIG _SC_V6_LPBIG_OFFBIG
+# define _SC_V7_ILP32_OFF32 _SC_V7_ILP32_OFF32
+# define _SC_V7_ILP32_OFFBIG _SC_V7_ILP32_OFFBIG
+# define _SC_V7_LP64_OFF64 _SC_V7_LP64_OFF64
+# define _SC_V7_LPBIG_OFFBIG _SC_V7_LPBIG_OFFBIG
+# define _SC_VERSION _SC_VERSION
+# define _SC_WORD_BIT _SC_WORD_BIT
+# define _SC_XBS5_ILP32_OFF32 _SC_XBS5_ILP32_OFF32
+# define _SC_XBS5_ILP32_OFFBIG _SC_XBS5_ILP32_OFFBIG
+# define _SC_XBS5_LP64_OFF64 _SC_XBS5_LP64_OFF64
+# define _SC_XBS5_LPBIG_OFFBIG _SC_XBS5_LPBIG_OFFBIG
+# define _SC_XOPEN_CRYPT _SC_XOPEN_CRYPT
+# define _SC_XOPEN_ENH_I18N _SC_XOPEN_ENH_I18N
+# define _SC_XOPEN_LEGACY _SC_XOPEN_LEGACY
+# define _SC_XOPEN_REALTIME _SC_XOPEN_REALTIME
+# define _SC_XOPEN_REALTIME_THREADS _SC_XOPEN_REALTIME_THREADS
+# define _SC_XOPEN_SHM _SC_XOPEN_SHM
+# define _SC_XOPEN_STREAMS _SC_XOPEN_STREAMS
+# define _SC_XOPEN_UNIX _SC_XOPEN_UNIX
+# define _SC_XOPEN_VERSION _SC_XOPEN_VERSION
+# define _SC_XOPEN_XCU_VERSION _SC_XOPEN_XCU_VERSION
+# define _SC_XOPEN_XPG2 _SC_XOPEN_XPG2
+# define _SC_XOPEN_XPG3 _SC_XOPEN_XPG3
+# define _SC_XOPEN_XPG4 _SC_XOPEN_XPG4
+# define _XOPEN_ENH_I18N 1
+# define _XOPEN_LEGACY 1
+# define _XOPEN_REALTIME 1
+# define _XOPEN_REALTIME_THREADS 1
+# define _XOPEN_SHM 1
+# define _XOPEN_UNIX 1
+# define _XOPEN_VERSION 700
+# define _XOPEN_XCU_VERSION 4
+# define _XOPEN_XPG2 1
+# define _XOPEN_XPG3 1
+# define _XOPEN_XPG4 1
+# define __FD_SETSIZE 1024
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
+# define _POSIX_V6_LP64_OFF64 1
+# define _POSIX_V6_LPBIG_OFFBIG (-1)
+# define _POSIX_V7_LP64_OFF64 1
+# define _POSIX_V7_LPBIG_OFFBIG (-1)
+# define _XBS5_LP64_OFF64 1
+# define _XBS5_LPBIG_OFFBIG (-1)
+#endif
+#if __NIJI_POSIX >= 200809
+# define _POSIX_THREAD_ROBUST_PRIO_INHERIT 200809L
+# define _POSIX_THREAD_ROBUST_PRIO_PROTECT (-1)
+#endif
+#if defined __USE_GNU
 # ifndef CLOSE_RANGE_CLOEXEC
 #  define CLOSE_RANGE_CLOEXEC 4U
 # endif
 # ifndef CLOSE_RANGE_UNSHARE
 #  define CLOSE_RANGE_UNSHARE 2U
 # endif
-# ifndef SEEK_DATA
-#  define SEEK_DATA 3
-# endif
-# ifndef SEEK_HOLE
-#  define SEEK_HOLE 4
-# endif
+# define SEEK_DATA 3
+# define SEEK_HOLE 4
 #endif
-#if __NIJI_MISC
-# ifndef L_INCR
-#  define L_INCR SEEK_CUR
-# endif
+#if defined __USE_MISC
+# define L_INCR SEEK_CUR
 # ifndef L_SET
 #  define L_SET SEEK_SET
 # endif
-# ifndef L_XTND
-#  define L_XTND SEEK_END
-# endif
+# define L_XTND SEEK_END
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
+#if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef F_LOCK
 #  define F_LOCK 1
 # endif
-# ifndef F_TEST
-#  define F_TEST 3
-# endif
-# ifndef F_TLOCK
-#  define F_TLOCK 2
-# endif
-# ifndef F_ULOCK
-#  define F_ULOCK 0
-# endif
-#endif
-#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
-# ifndef _POSIX_V6_LP64_OFF64
-#  define _POSIX_V6_LP64_OFF64 1
-# endif
-# ifndef _POSIX_V6_LPBIG_OFFBIG
-#  define _POSIX_V6_LPBIG_OFFBIG (-1)
-# endif
-# ifndef _POSIX_V7_LP64_OFF64
-#  define _POSIX_V7_LP64_OFF64 1
-# endif
-# ifndef _POSIX_V7_LPBIG_OFFBIG
-#  define _POSIX_V7_LPBIG_OFFBIG (-1)
-# endif
-# ifndef _XBS5_LP64_OFF64
-#  define _XBS5_LP64_OFF64 1
-# endif
-# ifndef _XBS5_LPBIG_OFFBIG
-#  define _XBS5_LPBIG_OFFBIG (-1)
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef _POSIX_THREAD_ROBUST_PRIO_INHERIT
-#  define _POSIX_THREAD_ROBUST_PRIO_INHERIT 200809L
-# endif
-# ifndef _POSIX_THREAD_ROBUST_PRIO_PROTECT
-#  define _POSIX_THREAD_ROBUST_PRIO_PROTECT (-1)
-# endif
+# define F_TEST 3
+# define F_TLOCK 2
+# define F_ULOCK 0
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -3001,7 +2189,7 @@ __NIJI_FORTIFY_FN char *getcwd (char *__p0, unsigned long __p1) __NIJI_NOTHROW
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_getdomainname
 #  define __NIJI_F_getdomainname 1
 #  ifndef __NIJI_D___getdomainname_chk
@@ -3065,7 +2253,7 @@ __NIJI_FORTIFY_FN int getlogin_r (char *__p0, unsigned long __p1)
 }
 # endif
 #endif
-#if (__NIJI_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_getwd
 #  define __NIJI_F_getwd 1
 #  ifndef __NIJI_D___getwd_chk
@@ -3203,7 +2391,7 @@ __NIJI_FORTIFY_FN int ttyname_r (int __p0, char *__p1, unsigned long __p2) __NIJ
 #endif
 
 /* GNU: repeat an interrupted call (errno is EINTR) until it ends otherwise. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define TEMP_FAILURE_RETRY(expression) (__extension__ ({ long int __result; do __result = (long int) (expression); while (__result == -1L && errno == EINTR); __result; }))
 #endif
 

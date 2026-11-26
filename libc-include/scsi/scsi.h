@@ -26,381 +26,131 @@ struct ccs_modesel_head {
   unsigned char block_length_lo;
 };
 # endif
-# ifndef ABORT
-#  define ABORT 238
-# endif
-# ifndef ABORTED_COMMAND
-#  define ABORTED_COMMAND 11
-# endif
-# ifndef ALLOW_MEDIUM_REMOVAL
-#  define ALLOW_MEDIUM_REMOVAL 30
-# endif
-# ifndef BLANK_CHECK
-#  define BLANK_CHECK 8
-# endif
-# ifndef BUSY
-#  define BUSY 4
-# endif
-# ifndef BUS_DEVICE_RESET
-#  define BUS_DEVICE_RESET 12
-# endif
-# ifndef CHANGE_DEFINITION
-#  define CHANGE_DEFINITION 64
-# endif
-# ifndef CHECK_CONDITION
-#  define CHECK_CONDITION 1
-# endif
-# ifndef COMMAND_COMPLETE
-#  define COMMAND_COMPLETE 0
-# endif
-# ifndef COMMAND_TERMINATED
-#  define COMMAND_TERMINATED 17
-# endif
-# ifndef COMPARE
-#  define COMPARE 57
-# endif
-# ifndef CONDITION_GOOD
-#  define CONDITION_GOOD 2
-# endif
-# ifndef COPY
-#  define COPY 24
-# endif
-# ifndef COPY_ABORTED
-#  define COPY_ABORTED 10
-# endif
-# ifndef COPY_VERIFY
-#  define COPY_VERIFY 58
-# endif
-# ifndef DATA_PROTECT
-#  define DATA_PROTECT 7
-# endif
-# ifndef DISCONNECT
-#  define DISCONNECT 4
-# endif
-# ifndef ERASE
-#  define ERASE 25
-# endif
-# ifndef EXTENDED_EXTENDED_IDENTIFY
-#  define EXTENDED_EXTENDED_IDENTIFY 2
-# endif
-# ifndef EXTENDED_MESSAGE
-#  define EXTENDED_MESSAGE 1
-# endif
-# ifndef EXTENDED_MODIFY_DATA_POINTER
-#  define EXTENDED_MODIFY_DATA_POINTER 0
-# endif
-# ifndef EXTENDED_SDTR
-#  define EXTENDED_SDTR 1
-# endif
-# ifndef EXTENDED_WDTR
-#  define EXTENDED_WDTR 3
-# endif
-# ifndef FORMAT_UNIT
-#  define FORMAT_UNIT 4
-# endif
-# ifndef GOOD
-#  define GOOD 0
-# endif
-# ifndef HARDWARE_ERROR
-#  define HARDWARE_ERROR 4
-# endif
-# ifndef HEAD_OF_QUEUE_TAG
-#  define HEAD_OF_QUEUE_TAG 33
-# endif
-# ifndef ILLEGAL_REQUEST
-#  define ILLEGAL_REQUEST 5
-# endif
-# ifndef INITIATE_RECOVERY
-#  define INITIATE_RECOVERY 15
-# endif
-# ifndef INITIATOR_ERROR
-#  define INITIATOR_ERROR 5
-# endif
-# ifndef INQUIRY
-#  define INQUIRY 18
-# endif
-# ifndef INTERMEDIATE_C_GOOD
-#  define INTERMEDIATE_C_GOOD 10
-# endif
-# ifndef INTERMEDIATE_GOOD
-#  define INTERMEDIATE_GOOD 8
-# endif
-# ifndef LINKED_CMD_COMPLETE
-#  define LINKED_CMD_COMPLETE 10
-# endif
-# ifndef LINKED_FLG_CMD_COMPLETE
-#  define LINKED_FLG_CMD_COMPLETE 11
-# endif
-# ifndef LOCK_UNLOCK_CACHE
-#  define LOCK_UNLOCK_CACHE 54
-# endif
-# ifndef LOG_SELECT
-#  define LOG_SELECT 76
-# endif
-# ifndef LOG_SENSE
-#  define LOG_SENSE 77
-# endif
-# ifndef MEDIUM_ERROR
-#  define MEDIUM_ERROR 3
-# endif
-# ifndef MEDIUM_SCAN
-#  define MEDIUM_SCAN 56
-# endif
-# ifndef MESSAGE_REJECT
-#  define MESSAGE_REJECT 7
-# endif
-# ifndef MISCOMPARE
-#  define MISCOMPARE 14
-# endif
-# ifndef MODE_SELECT
-#  define MODE_SELECT 21
-# endif
-# ifndef MODE_SELECT_10
-#  define MODE_SELECT_10 85
-# endif
-# ifndef MODE_SENSE
-#  define MODE_SENSE 26
-# endif
-# ifndef MODE_SENSE_10
-#  define MODE_SENSE_10 90
-# endif
-# ifndef MOVE_MEDIUM
-#  define MOVE_MEDIUM 165
-# endif
-# ifndef MSG_PARITY_ERROR
-#  define MSG_PARITY_ERROR 9
-# endif
-# ifndef NOP
-#  define NOP 241
-# endif
-# ifndef NOT_READY
-#  define NOT_READY 2
-# endif
-# ifndef NO_SENSE
-#  define NO_SENSE 0
-# endif
-# ifndef ORDERED_QUEUE_TAG
-#  define ORDERED_QUEUE_TAG 34
-# endif
-# ifndef PRE_FETCH
-#  define PRE_FETCH 52
-# endif
-# ifndef QUEUE_FULL
-#  define QUEUE_FULL 20
-# endif
-# ifndef READ_10
-#  define READ_10 40
-# endif
-# ifndef READ_12
-#  define READ_12 168
-# endif
-# ifndef READ_6
-#  define READ_6 8
-# endif
-# ifndef READ_BLOCK_LIMITS
-#  define READ_BLOCK_LIMITS 5
-# endif
-# ifndef READ_BUFFER
-#  define READ_BUFFER 60
-# endif
-# ifndef READ_CAPACITY
-#  define READ_CAPACITY 37
-# endif
-# ifndef READ_DEFECT_DATA
-#  define READ_DEFECT_DATA 55
-# endif
-# ifndef READ_ELEMENT_STATUS
-#  define READ_ELEMENT_STATUS 184
-# endif
-# ifndef READ_LONG
-#  define READ_LONG 62
-# endif
-# ifndef READ_POSITION
-#  define READ_POSITION 52
-# endif
-# ifndef READ_REVERSE
-#  define READ_REVERSE 15
-# endif
-# ifndef READ_TOC
-#  define READ_TOC 67
-# endif
-# ifndef REASSIGN_BLOCKS
-#  define REASSIGN_BLOCKS 7
-# endif
-# ifndef RECEIVE_DIAGNOSTIC
-#  define RECEIVE_DIAGNOSTIC 28
-# endif
-# ifndef RECOVERED_ERROR
-#  define RECOVERED_ERROR 1
-# endif
-# ifndef RECOVER_BUFFERED_DATA
-#  define RECOVER_BUFFERED_DATA 20
-# endif
-# ifndef RELEASE
-#  define RELEASE 23
-# endif
-# ifndef RELEASE_RECOVERY
-#  define RELEASE_RECOVERY 16
-# endif
-# ifndef REQUEST_SENSE
-#  define REQUEST_SENSE 3
-# endif
-# ifndef RESERVATION_CONFLICT
-#  define RESERVATION_CONFLICT 12
-# endif
-# ifndef RESERVE
-#  define RESERVE 22
-# endif
-# ifndef RESTORE_POINTERS
-#  define RESTORE_POINTERS 3
-# endif
-# ifndef REZERO_UNIT
-#  define REZERO_UNIT 1
-# endif
-# ifndef SAVE_POINTERS
-#  define SAVE_POINTERS 2
-# endif
-# ifndef SCSI_IOCTL_GET_BUS_NUMBER
-#  define SCSI_IOCTL_GET_BUS_NUMBER 21382
-# endif
-# ifndef SCSI_IOCTL_GET_IDLUN
-#  define SCSI_IOCTL_GET_IDLUN 21378
-# endif
-# ifndef SCSI_IOCTL_PROBE_HOST
-#  define SCSI_IOCTL_PROBE_HOST 21381
-# endif
-# ifndef SCSI_IOCTL_TAGGED_DISABLE
-#  define SCSI_IOCTL_TAGGED_DISABLE 21380
-# endif
-# ifndef SCSI_IOCTL_TAGGED_ENABLE
-#  define SCSI_IOCTL_TAGGED_ENABLE 21379
-# endif
-# ifndef SEARCH_EQUAL
-#  define SEARCH_EQUAL 49
-# endif
-# ifndef SEARCH_EQUAL_12
-#  define SEARCH_EQUAL_12 177
-# endif
-# ifndef SEARCH_HIGH
-#  define SEARCH_HIGH 48
-# endif
-# ifndef SEARCH_HIGH_12
-#  define SEARCH_HIGH_12 176
-# endif
-# ifndef SEARCH_LOW
-#  define SEARCH_LOW 50
-# endif
-# ifndef SEARCH_LOW_12
-#  define SEARCH_LOW_12 178
-# endif
-# ifndef SEEK_10
-#  define SEEK_10 43
-# endif
-# ifndef SEEK_6
-#  define SEEK_6 11
-# endif
-# ifndef SEND_DIAGNOSTIC
-#  define SEND_DIAGNOSTIC 29
-# endif
-# ifndef SEND_VOLUME_TAG
-#  define SEND_VOLUME_TAG 182
-# endif
-# ifndef SET_LIMITS
-#  define SET_LIMITS 51
-# endif
-# ifndef SET_WINDOW
-#  define SET_WINDOW 36
-# endif
-# ifndef SIMPLE_QUEUE_TAG
-#  define SIMPLE_QUEUE_TAG 32
-# endif
-# ifndef SPACE
-#  define SPACE 17
-# endif
-# ifndef START_STOP
-#  define START_STOP 27
-# endif
-# ifndef STATUS_MASK
-#  define STATUS_MASK 62
-# endif
-# ifndef SYNCHRONIZE_CACHE
-#  define SYNCHRONIZE_CACHE 53
-# endif
-# ifndef TEST_UNIT_READY
-#  define TEST_UNIT_READY 0
-# endif
-# ifndef TYPE_DISK
-#  define TYPE_DISK 0
-# endif
-# ifndef TYPE_ENCLOSURE
-#  define TYPE_ENCLOSURE 13
-# endif
-# ifndef TYPE_MEDIUM_CHANGER
-#  define TYPE_MEDIUM_CHANGER 8
-# endif
-# ifndef TYPE_MOD
-#  define TYPE_MOD 7
-# endif
-# ifndef TYPE_NO_LUN
-#  define TYPE_NO_LUN 127
-# endif
-# ifndef TYPE_PROCESSOR
-#  define TYPE_PROCESSOR 3
-# endif
-# ifndef TYPE_ROM
-#  define TYPE_ROM 5
-# endif
-# ifndef TYPE_SCANNER
-#  define TYPE_SCANNER 6
-# endif
-# ifndef TYPE_TAPE
-#  define TYPE_TAPE 1
-# endif
-# ifndef TYPE_WORM
-#  define TYPE_WORM 4
-# endif
-# ifndef UNIT_ATTENTION
-#  define UNIT_ATTENTION 6
-# endif
-# ifndef UPDATE_BLOCK
-#  define UPDATE_BLOCK 61
-# endif
-# ifndef VERIFY
-#  define VERIFY 47
-# endif
-# ifndef VOLUME_OVERFLOW
-#  define VOLUME_OVERFLOW 13
-# endif
-# ifndef WRITE_10
-#  define WRITE_10 42
-# endif
-# ifndef WRITE_12
-#  define WRITE_12 170
-# endif
-# ifndef WRITE_6
-#  define WRITE_6 10
-# endif
-# ifndef WRITE_BUFFER
-#  define WRITE_BUFFER 59
-# endif
-# ifndef WRITE_FILEMARKS
-#  define WRITE_FILEMARKS 16
-# endif
-# ifndef WRITE_LONG
-#  define WRITE_LONG 63
-# endif
-# ifndef WRITE_LONG_2
-#  define WRITE_LONG_2 234
-# endif
-# ifndef WRITE_SAME
-#  define WRITE_SAME 65
-# endif
-# ifndef WRITE_VERIFY
-#  define WRITE_VERIFY 46
-# endif
-# ifndef WRITE_VERIFY_12
-#  define WRITE_VERIFY_12 174
-# endif
+# define ABORT 238
+# define ABORTED_COMMAND 11
+# define ALLOW_MEDIUM_REMOVAL 30
+# define BLANK_CHECK 8
+# define BUSY 4
+# define BUS_DEVICE_RESET 12
+# define CHANGE_DEFINITION 64
+# define CHECK_CONDITION 1
+# define COMMAND_COMPLETE 0
+# define COMMAND_TERMINATED 17
+# define COMPARE 57
+# define CONDITION_GOOD 2
+# define COPY 24
+# define COPY_ABORTED 10
+# define COPY_VERIFY 58
+# define DATA_PROTECT 7
+# define DISCONNECT 4
+# define ERASE 25
+# define EXTENDED_EXTENDED_IDENTIFY 2
+# define EXTENDED_MESSAGE 1
+# define EXTENDED_MODIFY_DATA_POINTER 0
+# define EXTENDED_SDTR 1
+# define EXTENDED_WDTR 3
+# define FORMAT_UNIT 4
+# define GOOD 0
+# define HARDWARE_ERROR 4
+# define HEAD_OF_QUEUE_TAG 33
+# define ILLEGAL_REQUEST 5
+# define INITIATE_RECOVERY 15
+# define INITIATOR_ERROR 5
+# define INQUIRY 18
+# define INTERMEDIATE_C_GOOD 10
+# define INTERMEDIATE_GOOD 8
+# define LINKED_CMD_COMPLETE 10
+# define LINKED_FLG_CMD_COMPLETE 11
+# define LOCK_UNLOCK_CACHE 54
+# define LOG_SELECT 76
+# define LOG_SENSE 77
+# define MEDIUM_ERROR 3
+# define MEDIUM_SCAN 56
+# define MESSAGE_REJECT 7
+# define MISCOMPARE 14
+# define MODE_SELECT 21
+# define MODE_SELECT_10 85
+# define MODE_SENSE 26
+# define MODE_SENSE_10 90
+# define MOVE_MEDIUM 165
+# define MSG_PARITY_ERROR 9
+# define NOP 241
+# define NOT_READY 2
+# define NO_SENSE 0
+# define ORDERED_QUEUE_TAG 34
+# define PRE_FETCH 52
+# define QUEUE_FULL 20
+# define READ_10 40
+# define READ_12 168
+# define READ_6 8
+# define READ_BLOCK_LIMITS 5
+# define READ_BUFFER 60
+# define READ_CAPACITY 37
+# define READ_DEFECT_DATA 55
+# define READ_ELEMENT_STATUS 184
+# define READ_LONG 62
+# define READ_POSITION 52
+# define READ_REVERSE 15
+# define READ_TOC 67
+# define REASSIGN_BLOCKS 7
+# define RECEIVE_DIAGNOSTIC 28
+# define RECOVERED_ERROR 1
+# define RECOVER_BUFFERED_DATA 20
+# define RELEASE 23
+# define RELEASE_RECOVERY 16
+# define REQUEST_SENSE 3
+# define RESERVATION_CONFLICT 12
+# define RESERVE 22
+# define RESTORE_POINTERS 3
+# define REZERO_UNIT 1
+# define SAVE_POINTERS 2
+# define SCSI_IOCTL_GET_BUS_NUMBER 21382
+# define SCSI_IOCTL_GET_IDLUN 21378
+# define SCSI_IOCTL_PROBE_HOST 21381
+# define SCSI_IOCTL_TAGGED_DISABLE 21380
+# define SCSI_IOCTL_TAGGED_ENABLE 21379
+# define SEARCH_EQUAL 49
+# define SEARCH_EQUAL_12 177
+# define SEARCH_HIGH 48
+# define SEARCH_HIGH_12 176
+# define SEARCH_LOW 50
+# define SEARCH_LOW_12 178
+# define SEEK_10 43
+# define SEEK_6 11
+# define SEND_DIAGNOSTIC 29
+# define SEND_VOLUME_TAG 182
+# define SET_LIMITS 51
+# define SET_WINDOW 36
+# define SIMPLE_QUEUE_TAG 32
+# define SPACE 17
+# define START_STOP 27
+# define STATUS_MASK 62
+# define SYNCHRONIZE_CACHE 53
+# define TEST_UNIT_READY 0
+# define TYPE_DISK 0
+# define TYPE_ENCLOSURE 13
+# define TYPE_MEDIUM_CHANGER 8
+# define TYPE_MOD 7
+# define TYPE_NO_LUN 127
+# define TYPE_PROCESSOR 3
+# define TYPE_ROM 5
+# define TYPE_SCANNER 6
+# define TYPE_TAPE 1
+# define TYPE_WORM 4
+# define UNIT_ATTENTION 6
+# define UPDATE_BLOCK 61
+# define VERIFY 47
+# define VOLUME_OVERFLOW 13
+# define WRITE_10 42
+# define WRITE_12 170
+# define WRITE_6 10
+# define WRITE_BUFFER 59
+# define WRITE_FILEMARKS 16
+# define WRITE_LONG 63
+# define WRITE_LONG_2 234
+# define WRITE_SAME 65
+# define WRITE_VERIFY 46
+# define WRITE_VERIFY_12 174
 #endif
 
 __NIJI_END_C

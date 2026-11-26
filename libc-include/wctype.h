@@ -237,9 +237,7 @@ extern unsigned long wctype_l (const char *, locale_t) __NIJI_NOTHROW;
 # ifndef _WINT_T
 #  define _WINT_T 1
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 __NIJI_END_C

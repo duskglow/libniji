@@ -63,7 +63,7 @@ struct sockaddr_storage {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_msghdr
 #  define __NIJI_D_struct_msghdr 1
 struct msghdr {
@@ -138,7 +138,7 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -164,7 +164,7 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __sockaddr__;
   const struct sockaddr_at * __sockaddr_at__;
@@ -190,7 +190,7 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __sockaddr__;
   const struct sockaddr_at * __sockaddr_at__;
@@ -216,7 +216,7 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -242,7 +242,7 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -280,7 +280,7 @@ extern long recv (int, void *, unsigned long, int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -320,7 +320,7 @@ extern long sendmsg (int, const struct msghdr *, int);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __sockaddr__;
   const struct sockaddr_at * __sockaddr_at__;
@@ -361,10 +361,16 @@ extern int socket (int, int, int) __NIJI_NOTHROW;
 extern int socketpair (int, int, int, int [2]) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_sockatmark
+#  define __NIJI_D_sockatmark 1
+extern int sockatmark (int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -400,22 +406,16 @@ struct mmsghdr;
 extern int sendmmsg (int, struct mmsghdr *, unsigned int, int);
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_isfdtype
 #  define __NIJI_D_isfdtype 1
 extern int isfdtype (int, int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_sockatmark
-#  define __NIJI_D_sockatmark 1
-extern int sockatmark (int) __NIJI_NOTHROW;
-# endif
-#endif
 #if 1
 # ifndef __NIJI_D_anon_MSG_BATCH
 #  define __NIJI_D_anon_MSG_BATCH 1
-#  if !defined MSG_OOB || !defined MSG_PEEK || !defined MSG_DONTROUTE || ((__NIJI_GNU) && !defined MSG_TRYHARD) || !defined MSG_CTRUNC || !defined MSG_PROXY \
+#  if !defined MSG_OOB || !defined MSG_PEEK || !defined MSG_DONTROUTE || ((defined __USE_GNU) && !defined MSG_TRYHARD) || !defined MSG_CTRUNC || !defined MSG_PROXY \
     || !defined MSG_TRUNC || !defined MSG_DONTWAIT || !defined MSG_EOR || !defined MSG_WAITALL || !defined MSG_FIN || !defined MSG_SYN \
     || !defined MSG_CONFIRM || !defined MSG_RST || !defined MSG_ERRQUEUE || !defined MSG_NOSIGNAL || !defined MSG_MORE || !defined MSG_WAITFORONE \
     || !defined MSG_BATCH || !defined MSG_ZEROCOPY || !defined MSG_FASTOPEN || !defined MSG_CMSG_CLOEXEC
@@ -429,7 +429,7 @@ enum {
 #  ifndef MSG_DONTROUTE
   MSG_DONTROUTE = 4,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef MSG_TRYHARD
   MSG_TRYHARD = 4,
 #  endif
@@ -493,22 +493,22 @@ enum {
 # endif
 # ifndef __NIJI_D_anon_SCM_CREDENTIALS
 #  define __NIJI_D_anon_SCM_CREDENTIALS 1
-#  if !defined SCM_RIGHTS || ((__NIJI_GNU) && !defined SCM_CREDENTIALS) || ((__NIJI_GNU) && !defined SCM_SECURITY) || ((__NIJI_GNU) && !defined SCM_PIDFD)
+#  if !defined SCM_RIGHTS || ((defined __USE_GNU) && !defined SCM_CREDENTIALS) || ((defined __USE_GNU) && !defined SCM_SECURITY) || ((defined __USE_GNU) && !defined SCM_PIDFD)
 enum {
 #  ifndef SCM_RIGHTS
   SCM_RIGHTS = 1,
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef SCM_CREDENTIALS
   SCM_CREDENTIALS = 2,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef SCM_SECURITY
   SCM_SECURITY = 3,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef SCM_PIDFD
   SCM_PIDFD = 4,
 #  endif
@@ -532,621 +532,249 @@ enum {
 };
 #  endif
 # endif
-# ifndef AF_ALG
-#  define AF_ALG PF_ALG
-# endif
-# ifndef AF_APPLETALK
-#  define AF_APPLETALK PF_APPLETALK
-# endif
-# ifndef AF_ASH
-#  define AF_ASH PF_ASH
-# endif
-# ifndef AF_ATMPVC
-#  define AF_ATMPVC PF_ATMPVC
-# endif
-# ifndef AF_ATMSVC
-#  define AF_ATMSVC PF_ATMSVC
-# endif
-# ifndef AF_AX25
-#  define AF_AX25 PF_AX25
-# endif
-# ifndef AF_BLUETOOTH
-#  define AF_BLUETOOTH PF_BLUETOOTH
-# endif
-# ifndef AF_BRIDGE
-#  define AF_BRIDGE PF_BRIDGE
-# endif
-# ifndef AF_CAIF
-#  define AF_CAIF PF_CAIF
-# endif
-# ifndef AF_CAN
-#  define AF_CAN PF_CAN
-# endif
-# ifndef AF_DECnet
-#  define AF_DECnet PF_DECnet
-# endif
-# ifndef AF_ECONET
-#  define AF_ECONET PF_ECONET
-# endif
-# ifndef AF_FILE
-#  define AF_FILE PF_FILE
-# endif
-# ifndef AF_IB
-#  define AF_IB PF_IB
-# endif
-# ifndef AF_IEEE802154
-#  define AF_IEEE802154 PF_IEEE802154
-# endif
-# ifndef AF_INET
-#  define AF_INET PF_INET
-# endif
-# ifndef AF_INET6
-#  define AF_INET6 PF_INET6
-# endif
-# ifndef AF_IPX
-#  define AF_IPX PF_IPX
-# endif
-# ifndef AF_IRDA
-#  define AF_IRDA PF_IRDA
-# endif
-# ifndef AF_ISDN
-#  define AF_ISDN PF_ISDN
-# endif
-# ifndef AF_IUCV
-#  define AF_IUCV PF_IUCV
-# endif
-# ifndef AF_KCM
-#  define AF_KCM PF_KCM
-# endif
-# ifndef AF_KEY
-#  define AF_KEY PF_KEY
-# endif
-# ifndef AF_LLC
-#  define AF_LLC PF_LLC
-# endif
-# ifndef AF_LOCAL
-#  define AF_LOCAL PF_LOCAL
-# endif
-# ifndef AF_MAX
-#  define AF_MAX PF_MAX
-# endif
-# ifndef AF_MCTP
-#  define AF_MCTP PF_MCTP
-# endif
-# ifndef AF_MPLS
-#  define AF_MPLS PF_MPLS
-# endif
-# ifndef AF_NETBEUI
-#  define AF_NETBEUI PF_NETBEUI
-# endif
-# ifndef AF_NETLINK
-#  define AF_NETLINK PF_NETLINK
-# endif
-# ifndef AF_NETROM
-#  define AF_NETROM PF_NETROM
-# endif
-# ifndef AF_NFC
-#  define AF_NFC PF_NFC
-# endif
-# ifndef AF_PACKET
-#  define AF_PACKET PF_PACKET
-# endif
-# ifndef AF_PHONET
-#  define AF_PHONET PF_PHONET
-# endif
+# define AF_ALG PF_ALG
+# define AF_APPLETALK PF_APPLETALK
+# define AF_ASH PF_ASH
+# define AF_ATMPVC PF_ATMPVC
+# define AF_ATMSVC PF_ATMSVC
+# define AF_AX25 PF_AX25
+# define AF_BLUETOOTH PF_BLUETOOTH
+# define AF_BRIDGE PF_BRIDGE
+# define AF_CAIF PF_CAIF
+# define AF_CAN PF_CAN
+# define AF_DECnet PF_DECnet
+# define AF_ECONET PF_ECONET
+# define AF_FILE PF_FILE
+# define AF_IB PF_IB
+# define AF_IEEE802154 PF_IEEE802154
+# define AF_INET PF_INET
+# define AF_INET6 PF_INET6
+# define AF_IPX PF_IPX
+# define AF_IRDA PF_IRDA
+# define AF_ISDN PF_ISDN
+# define AF_IUCV PF_IUCV
+# define AF_KCM PF_KCM
+# define AF_KEY PF_KEY
+# define AF_LLC PF_LLC
+# define AF_LOCAL PF_LOCAL
+# define AF_MAX PF_MAX
+# define AF_MCTP PF_MCTP
+# define AF_MPLS PF_MPLS
+# define AF_NETBEUI PF_NETBEUI
+# define AF_NETLINK PF_NETLINK
+# define AF_NETROM PF_NETROM
+# define AF_NFC PF_NFC
+# define AF_PACKET PF_PACKET
+# define AF_PHONET PF_PHONET
 # ifndef AF_PPPOX
 #  define AF_PPPOX PF_PPPOX
 # endif
-# ifndef AF_QIPCRTR
-#  define AF_QIPCRTR PF_QIPCRTR
-# endif
-# ifndef AF_RDS
-#  define AF_RDS PF_RDS
-# endif
-# ifndef AF_ROSE
-#  define AF_ROSE PF_ROSE
-# endif
-# ifndef AF_ROUTE
-#  define AF_ROUTE PF_ROUTE
-# endif
-# ifndef AF_RXRPC
-#  define AF_RXRPC PF_RXRPC
-# endif
-# ifndef AF_SECURITY
-#  define AF_SECURITY PF_SECURITY
-# endif
-# ifndef AF_SMC
-#  define AF_SMC PF_SMC
-# endif
-# ifndef AF_SNA
-#  define AF_SNA PF_SNA
-# endif
+# define AF_QIPCRTR PF_QIPCRTR
+# define AF_RDS PF_RDS
+# define AF_ROSE PF_ROSE
+# define AF_ROUTE PF_ROUTE
+# define AF_RXRPC PF_RXRPC
+# define AF_SECURITY PF_SECURITY
+# define AF_SMC PF_SMC
+# define AF_SNA PF_SNA
 # ifndef AF_TIPC
 #  define AF_TIPC PF_TIPC
 # endif
-# ifndef AF_UNIX
-#  define AF_UNIX PF_UNIX
-# endif
-# ifndef AF_UNSPEC
-#  define AF_UNSPEC PF_UNSPEC
-# endif
-# ifndef AF_VSOCK
-#  define AF_VSOCK PF_VSOCK
-# endif
-# ifndef AF_WANPIPE
-#  define AF_WANPIPE PF_WANPIPE
-# endif
-# ifndef AF_X25
-#  define AF_X25 PF_X25
-# endif
-# ifndef AF_XDP
-#  define AF_XDP PF_XDP
-# endif
-# ifndef MSG_BATCH
-#  define MSG_BATCH MSG_BATCH
-# endif
-# ifndef MSG_CMSG_CLOEXEC
-#  define MSG_CMSG_CLOEXEC MSG_CMSG_CLOEXEC
-# endif
-# ifndef MSG_CONFIRM
-#  define MSG_CONFIRM MSG_CONFIRM
-# endif
-# ifndef MSG_CTRUNC
-#  define MSG_CTRUNC MSG_CTRUNC
-# endif
-# ifndef MSG_DONTROUTE
-#  define MSG_DONTROUTE MSG_DONTROUTE
-# endif
-# ifndef MSG_DONTWAIT
-#  define MSG_DONTWAIT MSG_DONTWAIT
-# endif
-# ifndef MSG_EOR
-#  define MSG_EOR MSG_EOR
-# endif
-# ifndef MSG_ERRQUEUE
-#  define MSG_ERRQUEUE MSG_ERRQUEUE
-# endif
-# ifndef MSG_FASTOPEN
-#  define MSG_FASTOPEN MSG_FASTOPEN
-# endif
-# ifndef MSG_FIN
-#  define MSG_FIN MSG_FIN
-# endif
-# ifndef MSG_MORE
-#  define MSG_MORE MSG_MORE
-# endif
-# ifndef MSG_NOSIGNAL
-#  define MSG_NOSIGNAL MSG_NOSIGNAL
-# endif
-# ifndef MSG_OOB
-#  define MSG_OOB MSG_OOB
-# endif
-# ifndef MSG_PEEK
-#  define MSG_PEEK MSG_PEEK
-# endif
-# ifndef MSG_PROXY
-#  define MSG_PROXY MSG_PROXY
-# endif
-# ifndef MSG_RST
-#  define MSG_RST MSG_RST
-# endif
-# ifndef MSG_SYN
-#  define MSG_SYN MSG_SYN
-# endif
-# ifndef MSG_TRUNC
-#  define MSG_TRUNC MSG_TRUNC
-# endif
-# ifndef MSG_WAITALL
-#  define MSG_WAITALL MSG_WAITALL
-# endif
-# ifndef MSG_WAITFORONE
-#  define MSG_WAITFORONE MSG_WAITFORONE
-# endif
-# ifndef MSG_ZEROCOPY
-#  define MSG_ZEROCOPY MSG_ZEROCOPY
-# endif
-# ifndef PF_ALG
-#  define PF_ALG 38
-# endif
-# ifndef PF_APPLETALK
-#  define PF_APPLETALK 5
-# endif
-# ifndef PF_ASH
-#  define PF_ASH 18
-# endif
-# ifndef PF_ATMPVC
-#  define PF_ATMPVC 8
-# endif
-# ifndef PF_ATMSVC
-#  define PF_ATMSVC 20
-# endif
-# ifndef PF_AX25
-#  define PF_AX25 3
-# endif
-# ifndef PF_BLUETOOTH
-#  define PF_BLUETOOTH 31
-# endif
-# ifndef PF_BRIDGE
-#  define PF_BRIDGE 7
-# endif
-# ifndef PF_CAIF
-#  define PF_CAIF 37
-# endif
-# ifndef PF_CAN
-#  define PF_CAN 29
-# endif
-# ifndef PF_DECnet
-#  define PF_DECnet 12
-# endif
-# ifndef PF_ECONET
-#  define PF_ECONET 19
-# endif
-# ifndef PF_FILE
-#  define PF_FILE PF_LOCAL
-# endif
-# ifndef PF_IB
-#  define PF_IB 27
-# endif
-# ifndef PF_IEEE802154
-#  define PF_IEEE802154 36
-# endif
-# ifndef PF_INET
-#  define PF_INET 2
-# endif
-# ifndef PF_INET6
-#  define PF_INET6 10
-# endif
-# ifndef PF_IPX
-#  define PF_IPX 4
-# endif
-# ifndef PF_IRDA
-#  define PF_IRDA 23
-# endif
-# ifndef PF_ISDN
-#  define PF_ISDN 34
-# endif
-# ifndef PF_IUCV
-#  define PF_IUCV 32
-# endif
-# ifndef PF_KCM
-#  define PF_KCM 41
-# endif
-# ifndef PF_KEY
-#  define PF_KEY 15
-# endif
-# ifndef PF_LLC
-#  define PF_LLC 26
-# endif
-# ifndef PF_LOCAL
-#  define PF_LOCAL 1
-# endif
-# ifndef PF_MAX
-#  define PF_MAX 46
-# endif
-# ifndef PF_MCTP
-#  define PF_MCTP 45
-# endif
-# ifndef PF_MPLS
-#  define PF_MPLS 28
-# endif
-# ifndef PF_NETBEUI
-#  define PF_NETBEUI 13
-# endif
-# ifndef PF_NETLINK
-#  define PF_NETLINK 16
-# endif
-# ifndef PF_NETROM
-#  define PF_NETROM 6
-# endif
-# ifndef PF_NFC
-#  define PF_NFC 39
-# endif
-# ifndef PF_PACKET
-#  define PF_PACKET 17
-# endif
-# ifndef PF_PHONET
-#  define PF_PHONET 35
-# endif
+# define AF_UNIX PF_UNIX
+# define AF_UNSPEC PF_UNSPEC
+# define AF_VSOCK PF_VSOCK
+# define AF_WANPIPE PF_WANPIPE
+# define AF_X25 PF_X25
+# define AF_XDP PF_XDP
+# define MSG_BATCH MSG_BATCH
+# define MSG_CMSG_CLOEXEC MSG_CMSG_CLOEXEC
+# define MSG_CONFIRM MSG_CONFIRM
+# define MSG_CTRUNC MSG_CTRUNC
+# define MSG_DONTROUTE MSG_DONTROUTE
+# define MSG_DONTWAIT MSG_DONTWAIT
+# define MSG_EOR MSG_EOR
+# define MSG_ERRQUEUE MSG_ERRQUEUE
+# define MSG_FASTOPEN MSG_FASTOPEN
+# define MSG_FIN MSG_FIN
+# define MSG_MORE MSG_MORE
+# define MSG_NOSIGNAL MSG_NOSIGNAL
+# define MSG_OOB MSG_OOB
+# define MSG_PEEK MSG_PEEK
+# define MSG_PROXY MSG_PROXY
+# define MSG_RST MSG_RST
+# define MSG_SYN MSG_SYN
+# define MSG_TRUNC MSG_TRUNC
+# define MSG_WAITALL MSG_WAITALL
+# define MSG_WAITFORONE MSG_WAITFORONE
+# define MSG_ZEROCOPY MSG_ZEROCOPY
+# define PF_ALG 38
+# define PF_APPLETALK 5
+# define PF_ASH 18
+# define PF_ATMPVC 8
+# define PF_ATMSVC 20
+# define PF_AX25 3
+# define PF_BLUETOOTH 31
+# define PF_BRIDGE 7
+# define PF_CAIF 37
+# define PF_CAN 29
+# define PF_DECnet 12
+# define PF_ECONET 19
+# define PF_FILE PF_LOCAL
+# define PF_IB 27
+# define PF_IEEE802154 36
+# define PF_INET 2
+# define PF_INET6 10
+# define PF_IPX 4
+# define PF_IRDA 23
+# define PF_ISDN 34
+# define PF_IUCV 32
+# define PF_KCM 41
+# define PF_KEY 15
+# define PF_LLC 26
+# define PF_LOCAL 1
+# define PF_MAX 46
+# define PF_MCTP 45
+# define PF_MPLS 28
+# define PF_NETBEUI 13
+# define PF_NETLINK 16
+# define PF_NETROM 6
+# define PF_NFC 39
+# define PF_PACKET 17
+# define PF_PHONET 35
 # ifndef PF_PPPOX
 #  define PF_PPPOX 24
 # endif
-# ifndef PF_QIPCRTR
-#  define PF_QIPCRTR 42
-# endif
-# ifndef PF_RDS
-#  define PF_RDS 21
-# endif
-# ifndef PF_ROSE
-#  define PF_ROSE 11
-# endif
-# ifndef PF_ROUTE
-#  define PF_ROUTE PF_NETLINK
-# endif
-# ifndef PF_RXRPC
-#  define PF_RXRPC 33
-# endif
-# ifndef PF_SECURITY
-#  define PF_SECURITY 14
-# endif
-# ifndef PF_SMC
-#  define PF_SMC 43
-# endif
-# ifndef PF_SNA
-#  define PF_SNA 22
-# endif
+# define PF_QIPCRTR 42
+# define PF_RDS 21
+# define PF_ROSE 11
+# define PF_ROUTE PF_NETLINK
+# define PF_RXRPC 33
+# define PF_SECURITY 14
+# define PF_SMC 43
+# define PF_SNA 22
 # ifndef PF_TIPC
 #  define PF_TIPC 30
 # endif
-# ifndef PF_UNIX
-#  define PF_UNIX PF_LOCAL
-# endif
-# ifndef PF_UNSPEC
-#  define PF_UNSPEC 0
-# endif
-# ifndef PF_VSOCK
-#  define PF_VSOCK 40
-# endif
-# ifndef PF_WANPIPE
-#  define PF_WANPIPE 25
-# endif
-# ifndef PF_X25
-#  define PF_X25 9
-# endif
-# ifndef PF_XDP
-#  define PF_XDP 44
-# endif
-# ifndef SCM_RIGHTS
-#  define SCM_RIGHTS SCM_RIGHTS
-# endif
-# ifndef SHUT_RD
-#  define SHUT_RD SHUT_RD
-# endif
-# ifndef SHUT_RDWR
-#  define SHUT_RDWR SHUT_RDWR
-# endif
-# ifndef SHUT_WR
-#  define SHUT_WR SHUT_WR
-# endif
-# ifndef SOCK_CLOEXEC
-#  define SOCK_CLOEXEC SOCK_CLOEXEC
-# endif
-# ifndef SOCK_DCCP
-#  define SOCK_DCCP SOCK_DCCP
-# endif
-# ifndef SOCK_DGRAM
-#  define SOCK_DGRAM SOCK_DGRAM
-# endif
-# ifndef SOCK_NONBLOCK
-#  define SOCK_NONBLOCK SOCK_NONBLOCK
-# endif
-# ifndef SOCK_PACKET
-#  define SOCK_PACKET SOCK_PACKET
-# endif
-# ifndef SOCK_RAW
-#  define SOCK_RAW SOCK_RAW
-# endif
-# ifndef SOCK_RDM
-#  define SOCK_RDM SOCK_RDM
-# endif
-# ifndef SOCK_SEQPACKET
-#  define SOCK_SEQPACKET SOCK_SEQPACKET
-# endif
-# ifndef SOCK_STREAM
-#  define SOCK_STREAM SOCK_STREAM
-# endif
-# ifndef SOL_AAL
-#  define SOL_AAL 265
-# endif
-# ifndef SOL_ALG
-#  define SOL_ALG 279
-# endif
-# ifndef SOL_ATM
-#  define SOL_ATM 264
-# endif
-# ifndef SOL_BLUETOOTH
-#  define SOL_BLUETOOTH 274
-# endif
-# ifndef SOL_CAIF
-#  define SOL_CAIF 278
-# endif
-# ifndef SOL_DCCP
-#  define SOL_DCCP 269
-# endif
-# ifndef SOL_DECNET
-#  define SOL_DECNET 261
-# endif
-# ifndef SOL_IRDA
-#  define SOL_IRDA 266
-# endif
-# ifndef SOL_IUCV
-#  define SOL_IUCV 277
-# endif
-# ifndef SOL_KCM
-#  define SOL_KCM 281
-# endif
-# ifndef SOL_LLC
-#  define SOL_LLC 268
-# endif
-# ifndef SOL_MCTP
-#  define SOL_MCTP 285
-# endif
-# ifndef SOL_MPTCP
-#  define SOL_MPTCP 284
-# endif
-# ifndef SOL_NETBEUI
-#  define SOL_NETBEUI 267
-# endif
-# ifndef SOL_NETLINK
-#  define SOL_NETLINK 270
-# endif
-# ifndef SOL_NFC
-#  define SOL_NFC 280
-# endif
-# ifndef SOL_PACKET
-#  define SOL_PACKET 263
-# endif
-# ifndef SOL_PNPIPE
-#  define SOL_PNPIPE 275
-# endif
-# ifndef SOL_PPPOL2TP
-#  define SOL_PPPOL2TP 273
-# endif
-# ifndef SOL_RAW
-#  define SOL_RAW 255
-# endif
-# ifndef SOL_RDS
-#  define SOL_RDS 276
-# endif
-# ifndef SOL_RXRPC
-#  define SOL_RXRPC 272
-# endif
-# ifndef SOL_SMC
-#  define SOL_SMC 286
-# endif
-# ifndef SOL_SOCKET
-#  define SOL_SOCKET 1
-# endif
-# ifndef SOL_TIPC
-#  define SOL_TIPC 271
-# endif
-# ifndef SOL_TLS
-#  define SOL_TLS 282
-# endif
-# ifndef SOL_X25
-#  define SOL_X25 262
-# endif
-# ifndef SOL_XDP
-#  define SOL_XDP 283
-# endif
-# ifndef SOMAXCONN
-#  define SOMAXCONN 4096
-# endif
-# ifndef SO_ACCEPTCONN
-#  define SO_ACCEPTCONN 30
-# endif
-# ifndef SO_BROADCAST
-#  define SO_BROADCAST 6
-# endif
-# ifndef SO_DEBUG
-#  define SO_DEBUG 1
-# endif
-# ifndef SO_DONTROUTE
-#  define SO_DONTROUTE 5
-# endif
-# ifndef SO_ERROR
-#  define SO_ERROR 4
-# endif
-# ifndef SO_KEEPALIVE
-#  define SO_KEEPALIVE 9
-# endif
-# ifndef SO_LINGER
-#  define SO_LINGER 13
-# endif
-# ifndef SO_OOBINLINE
-#  define SO_OOBINLINE 10
-# endif
-# ifndef SO_RCVBUF
-#  define SO_RCVBUF 8
-# endif
-# ifndef SO_RCVLOWAT
-#  define SO_RCVLOWAT 18
-# endif
+# define PF_UNIX PF_LOCAL
+# define PF_UNSPEC 0
+# define PF_VSOCK 40
+# define PF_WANPIPE 25
+# define PF_X25 9
+# define PF_XDP 44
+# define SCM_RIGHTS SCM_RIGHTS
+# define SHUT_RD SHUT_RD
+# define SHUT_RDWR SHUT_RDWR
+# define SHUT_WR SHUT_WR
+# define SOCK_CLOEXEC SOCK_CLOEXEC
+# define SOCK_DCCP SOCK_DCCP
+# define SOCK_DGRAM SOCK_DGRAM
+# define SOCK_NONBLOCK SOCK_NONBLOCK
+# define SOCK_PACKET SOCK_PACKET
+# define SOCK_RAW SOCK_RAW
+# define SOCK_RDM SOCK_RDM
+# define SOCK_SEQPACKET SOCK_SEQPACKET
+# define SOCK_STREAM SOCK_STREAM
+# define SOL_AAL 265
+# define SOL_ALG 279
+# define SOL_ATM 264
+# define SOL_BLUETOOTH 274
+# define SOL_CAIF 278
+# define SOL_DCCP 269
+# define SOL_DECNET 261
+# define SOL_IRDA 266
+# define SOL_IUCV 277
+# define SOL_KCM 281
+# define SOL_LLC 268
+# define SOL_MCTP 285
+# define SOL_MPTCP 284
+# define SOL_NETBEUI 267
+# define SOL_NETLINK 270
+# define SOL_NFC 280
+# define SOL_PACKET 263
+# define SOL_PNPIPE 275
+# define SOL_PPPOL2TP 273
+# define SOL_RAW 255
+# define SOL_RDS 276
+# define SOL_RXRPC 272
+# define SOL_SMC 286
+# define SOL_SOCKET 1
+# define SOL_TIPC 271
+# define SOL_TLS 282
+# define SOL_X25 262
+# define SOL_XDP 283
+# define SOMAXCONN 4096
+# define SO_ACCEPTCONN 30
+# define SO_BROADCAST 6
+# define SO_DEBUG 1
+# define SO_DONTROUTE 5
+# define SO_ERROR 4
+# define SO_KEEPALIVE 9
+# define SO_LINGER 13
+# define SO_OOBINLINE 10
+# define SO_RCVBUF 8
+# define SO_RCVLOWAT 18
 # ifndef SO_RCVTIMEO
-#  if __NIJI_MISC
+#  if defined __USE_MISC
 #   define SO_RCVTIMEO SO_RCVTIMEO_OLD
 #  else
 #   define SO_RCVTIMEO 20
 #  endif
 # endif
-# ifndef SO_REUSEADDR
-#  define SO_REUSEADDR 2
-# endif
-# ifndef SO_SNDBUF
-#  define SO_SNDBUF 7
-# endif
-# ifndef SO_SNDLOWAT
-#  define SO_SNDLOWAT 19
-# endif
+# define SO_REUSEADDR 2
+# define SO_SNDBUF 7
+# define SO_SNDLOWAT 19
 # ifndef SO_SNDTIMEO
-#  if __NIJI_MISC
+#  if defined __USE_MISC
 #   define SO_SNDTIMEO SO_SNDTIMEO_OLD
 #  else
 #   define SO_SNDTIMEO 21
 #  endif
 # endif
 # ifndef SO_TIMESTAMP
-#  if __NIJI_MISC
+#  if defined __USE_MISC
 #   define SO_TIMESTAMP SO_TIMESTAMP_OLD
 #  else
 #   define SO_TIMESTAMP 29
 #  endif
 # endif
 # ifndef SO_TIMESTAMPING
-#  if __NIJI_MISC
+#  if defined __USE_MISC
 #   define SO_TIMESTAMPING SO_TIMESTAMPING_OLD
 #  else
 #   define SO_TIMESTAMPING 37
 #  endif
 # endif
 # ifndef SO_TIMESTAMPNS
-#  if __NIJI_MISC
+#  if defined __USE_MISC
 #   define SO_TIMESTAMPNS SO_TIMESTAMPNS_OLD
 #  else
 #   define SO_TIMESTAMPNS 35
 #  endif
 # endif
-# ifndef SO_TYPE
-#  define SO_TYPE 3
-# endif
-# ifndef _SS_PADSIZE
-#  define _SS_PADSIZE 118UL
-# endif
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define SO_TYPE 3
+# define _SS_PADSIZE 118UL
+# define _SS_SIZE 128
 #endif
-#if __NIJI_GNU
-# ifndef MSG_TRYHARD
-#  define MSG_TRYHARD MSG_DONTROUTE
-# endif
-# ifndef SCM_CREDENTIALS
-#  define SCM_CREDENTIALS SCM_CREDENTIALS
-# endif
-# ifndef SCM_PIDFD
-#  define SCM_PIDFD SCM_PIDFD
-# endif
-# ifndef SCM_SECURITY
-#  define SCM_SECURITY SCM_SECURITY
-# endif
+#if defined __USE_GNU
+# define MSG_TRYHARD MSG_DONTROUTE
+# define SCM_CREDENTIALS SCM_CREDENTIALS
+# define SCM_PIDFD SCM_PIDFD
+# define SCM_SECURITY SCM_SECURITY
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef FIOGETOWN
 #  define FIOGETOWN 35075
 # endif
 # ifndef FIOSETOWN
 #  define FIOSETOWN 35073
 # endif
-# ifndef SCM_TIMESTAMP
-#  define SCM_TIMESTAMP SO_TIMESTAMP
-# endif
-# ifndef SCM_TIMESTAMPING
-#  define SCM_TIMESTAMPING SO_TIMESTAMPING
-# endif
-# ifndef SCM_TIMESTAMPING_OPT_STATS
-#  define SCM_TIMESTAMPING_OPT_STATS 54
-# endif
-# ifndef SCM_TIMESTAMPING_PKTINFO
-#  define SCM_TIMESTAMPING_PKTINFO 58
-# endif
-# ifndef SCM_TIMESTAMPNS
-#  define SCM_TIMESTAMPNS SO_TIMESTAMPNS
-# endif
-# ifndef SCM_TXTIME
-#  define SCM_TXTIME SO_TXTIME
-# endif
-# ifndef SCM_WIFI_STATUS
-#  define SCM_WIFI_STATUS SO_WIFI_STATUS
-# endif
+# define SCM_TIMESTAMP SO_TIMESTAMP
+# define SCM_TIMESTAMPING SO_TIMESTAMPING
+# define SCM_TIMESTAMPING_OPT_STATS 54
+# define SCM_TIMESTAMPING_PKTINFO 58
+# define SCM_TIMESTAMPNS SO_TIMESTAMPNS
+# define SCM_TXTIME SO_TXTIME
+# define SCM_WIFI_STATUS SO_WIFI_STATUS
 # ifndef SIOCATMARK
 #  define SIOCATMARK 35077
 # endif
@@ -1162,195 +790,71 @@ enum {
 # ifndef SIOCSPGRP
 #  define SIOCSPGRP 35074
 # endif
-# ifndef SO_ATTACH_BPF
-#  define SO_ATTACH_BPF 50
-# endif
-# ifndef SO_ATTACH_FILTER
-#  define SO_ATTACH_FILTER 26
-# endif
-# ifndef SO_ATTACH_REUSEPORT_CBPF
-#  define SO_ATTACH_REUSEPORT_CBPF 51
-# endif
-# ifndef SO_ATTACH_REUSEPORT_EBPF
-#  define SO_ATTACH_REUSEPORT_EBPF 52
-# endif
-# ifndef SO_BINDTODEVICE
-#  define SO_BINDTODEVICE 25
-# endif
-# ifndef SO_BINDTOIFINDEX
-#  define SO_BINDTOIFINDEX 62
-# endif
-# ifndef SO_BPF_EXTENSIONS
-#  define SO_BPF_EXTENSIONS 48
-# endif
-# ifndef SO_BSDCOMPAT
-#  define SO_BSDCOMPAT 14
-# endif
-# ifndef SO_BUF_LOCK
-#  define SO_BUF_LOCK 72
-# endif
-# ifndef SO_BUSY_POLL
-#  define SO_BUSY_POLL 46
-# endif
-# ifndef SO_BUSY_POLL_BUDGET
-#  define SO_BUSY_POLL_BUDGET 70
-# endif
-# ifndef SO_CNX_ADVICE
-#  define SO_CNX_ADVICE 53
-# endif
-# ifndef SO_COOKIE
-#  define SO_COOKIE 57
-# endif
-# ifndef SO_DETACH_BPF
-#  define SO_DETACH_BPF SO_DETACH_FILTER
-# endif
-# ifndef SO_DETACH_FILTER
-#  define SO_DETACH_FILTER 27
-# endif
-# ifndef SO_DETACH_REUSEPORT_BPF
-#  define SO_DETACH_REUSEPORT_BPF 68
-# endif
-# ifndef SO_DOMAIN
-#  define SO_DOMAIN 39
-# endif
-# ifndef SO_GET_FILTER
-#  define SO_GET_FILTER SO_ATTACH_FILTER
-# endif
-# ifndef SO_INCOMING_CPU
-#  define SO_INCOMING_CPU 49
-# endif
-# ifndef SO_INCOMING_NAPI_ID
-#  define SO_INCOMING_NAPI_ID 56
-# endif
-# ifndef SO_LOCK_FILTER
-#  define SO_LOCK_FILTER 44
-# endif
-# ifndef SO_MARK
-#  define SO_MARK 36
-# endif
-# ifndef SO_MAX_PACING_RATE
-#  define SO_MAX_PACING_RATE 47
-# endif
-# ifndef SO_MEMINFO
-#  define SO_MEMINFO 55
-# endif
-# ifndef SO_NETNS_COOKIE
-#  define SO_NETNS_COOKIE 71
-# endif
-# ifndef SO_NOFCS
-#  define SO_NOFCS 43
-# endif
-# ifndef SO_NO_CHECK
-#  define SO_NO_CHECK 11
-# endif
+# define SO_ATTACH_BPF 50
+# define SO_ATTACH_FILTER 26
+# define SO_ATTACH_REUSEPORT_CBPF 51
+# define SO_ATTACH_REUSEPORT_EBPF 52
+# define SO_BINDTODEVICE 25
+# define SO_BINDTOIFINDEX 62
+# define SO_BPF_EXTENSIONS 48
+# define SO_BSDCOMPAT 14
+# define SO_BUF_LOCK 72
+# define SO_BUSY_POLL 46
+# define SO_BUSY_POLL_BUDGET 70
+# define SO_CNX_ADVICE 53
+# define SO_COOKIE 57
+# define SO_DETACH_BPF SO_DETACH_FILTER
+# define SO_DETACH_FILTER 27
+# define SO_DETACH_REUSEPORT_BPF 68
+# define SO_DOMAIN 39
+# define SO_GET_FILTER SO_ATTACH_FILTER
+# define SO_INCOMING_CPU 49
+# define SO_INCOMING_NAPI_ID 56
+# define SO_LOCK_FILTER 44
+# define SO_MARK 36
+# define SO_MAX_PACING_RATE 47
+# define SO_MEMINFO 55
+# define SO_NETNS_COOKIE 71
+# define SO_NOFCS 43
+# define SO_NO_CHECK 11
 # ifndef SO_PASSCRED
 #  define SO_PASSCRED 16
 # endif
-# ifndef SO_PASSPIDFD
-#  define SO_PASSPIDFD 76
-# endif
-# ifndef SO_PASSSEC
-#  define SO_PASSSEC 34
-# endif
-# ifndef SO_PEEK_OFF
-#  define SO_PEEK_OFF 42
-# endif
-# ifndef SO_PEERCRED
-#  define SO_PEERCRED 17
-# endif
-# ifndef SO_PEERGROUPS
-#  define SO_PEERGROUPS 59
-# endif
-# ifndef SO_PEERNAME
-#  define SO_PEERNAME 28
-# endif
-# ifndef SO_PEERPIDFD
-#  define SO_PEERPIDFD 77
-# endif
-# ifndef SO_PEERSEC
-#  define SO_PEERSEC 31
-# endif
-# ifndef SO_PREFER_BUSY_POLL
-#  define SO_PREFER_BUSY_POLL 69
-# endif
-# ifndef SO_PRIORITY
-#  define SO_PRIORITY 12
-# endif
-# ifndef SO_PROTOCOL
-#  define SO_PROTOCOL 38
-# endif
-# ifndef SO_RCVBUFFORCE
-#  define SO_RCVBUFFORCE 33
-# endif
-# ifndef SO_RCVMARK
-#  define SO_RCVMARK 75
-# endif
-# ifndef SO_RCVTIMEO_NEW
-#  define SO_RCVTIMEO_NEW 66
-# endif
-# ifndef SO_RCVTIMEO_OLD
-#  define SO_RCVTIMEO_OLD 20
-# endif
-# ifndef SO_RESERVE_MEM
-#  define SO_RESERVE_MEM 73
-# endif
-# ifndef SO_REUSEPORT
-#  define SO_REUSEPORT 15
-# endif
-# ifndef SO_RXQ_OVFL
-#  define SO_RXQ_OVFL 40
-# endif
-# ifndef SO_SECURITY_AUTHENTICATION
-#  define SO_SECURITY_AUTHENTICATION 22
-# endif
-# ifndef SO_SECURITY_ENCRYPTION_NETWORK
-#  define SO_SECURITY_ENCRYPTION_NETWORK 24
-# endif
-# ifndef SO_SECURITY_ENCRYPTION_TRANSPORT
-#  define SO_SECURITY_ENCRYPTION_TRANSPORT 23
-# endif
-# ifndef SO_SELECT_ERR_QUEUE
-#  define SO_SELECT_ERR_QUEUE 45
-# endif
-# ifndef SO_SNDBUFFORCE
-#  define SO_SNDBUFFORCE 32
-# endif
-# ifndef SO_SNDTIMEO_NEW
-#  define SO_SNDTIMEO_NEW 67
-# endif
-# ifndef SO_SNDTIMEO_OLD
-#  define SO_SNDTIMEO_OLD 21
-# endif
-# ifndef SO_TIMESTAMPING_NEW
-#  define SO_TIMESTAMPING_NEW 65
-# endif
-# ifndef SO_TIMESTAMPING_OLD
-#  define SO_TIMESTAMPING_OLD 37
-# endif
-# ifndef SO_TIMESTAMPNS_NEW
-#  define SO_TIMESTAMPNS_NEW 64
-# endif
-# ifndef SO_TIMESTAMPNS_OLD
-#  define SO_TIMESTAMPNS_OLD 35
-# endif
-# ifndef SO_TIMESTAMP_NEW
-#  define SO_TIMESTAMP_NEW 63
-# endif
-# ifndef SO_TIMESTAMP_OLD
-#  define SO_TIMESTAMP_OLD 29
-# endif
-# ifndef SO_TXREHASH
-#  define SO_TXREHASH 74
-# endif
-# ifndef SO_TXTIME
-#  define SO_TXTIME 61
-# endif
-# ifndef SO_WIFI_STATUS
-#  define SO_WIFI_STATUS 41
-# endif
-# ifndef SO_ZEROCOPY
-#  define SO_ZEROCOPY 60
-# endif
+# define SO_PASSPIDFD 76
+# define SO_PASSSEC 34
+# define SO_PEEK_OFF 42
+# define SO_PEERCRED 17
+# define SO_PEERGROUPS 59
+# define SO_PEERNAME 28
+# define SO_PEERPIDFD 77
+# define SO_PEERSEC 31
+# define SO_PREFER_BUSY_POLL 69
+# define SO_PRIORITY 12
+# define SO_PROTOCOL 38
+# define SO_RCVBUFFORCE 33
+# define SO_RCVMARK 75
+# define SO_RCVTIMEO_NEW 66
+# define SO_RCVTIMEO_OLD 20
+# define SO_RESERVE_MEM 73
+# define SO_REUSEPORT 15
+# define SO_RXQ_OVFL 40
+# define SO_SECURITY_AUTHENTICATION 22
+# define SO_SECURITY_ENCRYPTION_NETWORK 24
+# define SO_SECURITY_ENCRYPTION_TRANSPORT 23
+# define SO_SELECT_ERR_QUEUE 45
+# define SO_SNDBUFFORCE 32
+# define SO_SNDTIMEO_NEW 67
+# define SO_SNDTIMEO_OLD 21
+# define SO_TIMESTAMPING_NEW 65
+# define SO_TIMESTAMPING_OLD 37
+# define SO_TIMESTAMPNS_NEW 64
+# define SO_TIMESTAMPNS_OLD 35
+# define SO_TIMESTAMP_NEW 63
+# define SO_TIMESTAMP_OLD 29
+# define SO_TXREHASH 74
+# define SO_TXTIME 61
+# define SO_WIFI_STATUS 41
+# define SO_ZEROCOPY 60
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -1385,7 +889,7 @@ __NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
 #endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;
@@ -1407,7 +911,7 @@ typedef union __attribute__ ((__transparent_union__)) {
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __sockaddr__;
   struct sockaddr_at * __sockaddr_at__;

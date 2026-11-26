@@ -9,84 +9,32 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef CBRK
-#  define CBRK '\000'
-# endif
-# ifndef CDISCARD
-#  define CDISCARD 15
-# endif
-# ifndef CDSUSP
-#  define CDSUSP 25
-# endif
-# ifndef CEOF
-#  define CEOF 4
-# endif
-# ifndef CEOL
-#  define CEOL '\000'
-# endif
-# ifndef CEOT
-#  define CEOT CEOF
-# endif
-# ifndef CERASE
-#  define CERASE 127
-# endif
-# ifndef CFLUSH
-#  define CFLUSH CDISCARD
-# endif
-# ifndef CINTR
-#  define CINTR 3
-# endif
-# ifndef CKILL
-#  define CKILL 21
-# endif
-# ifndef CLNEXT
-#  define CLNEXT 22
-# endif
-# ifndef CMIN
-#  define CMIN 1
-# endif
-# ifndef CQUIT
-#  define CQUIT 28
-# endif
-# ifndef CREPRINT
-#  define CREPRINT 18
-# endif
-# ifndef CRPRNT
-#  define CRPRNT CREPRINT
-# endif
-# ifndef CSTART
-#  define CSTART 17
-# endif
-# ifndef CSTATUS
-#  define CSTATUS '\000'
-# endif
-# ifndef CSTOP
-#  define CSTOP 19
-# endif
-# ifndef CSUSP
-#  define CSUSP 26
-# endif
-# ifndef CTIME
-#  define CTIME 0
-# endif
-# ifndef CWERASE
-#  define CWERASE 23
-# endif
-# ifndef TTYDEF_CFLAG
-#  define TTYDEF_CFLAG 1440
-# endif
-# ifndef TTYDEF_IFLAG
-#  define TTYDEF_IFLAG 11554
-# endif
-# ifndef TTYDEF_LFLAG
-#  define TTYDEF_LFLAG 35355
-# endif
-# ifndef TTYDEF_OFLAG
-#  define TTYDEF_OFLAG 6149
-# endif
-# ifndef TTYDEF_SPEED
-#  define TTYDEF_SPEED 13
-# endif
+# define CBRK '\000'
+# define CDISCARD 15
+# define CDSUSP 25
+# define CEOF 4
+# define CEOL '\000'
+# define CEOT CEOF
+# define CERASE 127
+# define CFLUSH CDISCARD
+# define CINTR 3
+# define CKILL 21
+# define CLNEXT 22
+# define CMIN 1
+# define CQUIT 28
+# define CREPRINT 18
+# define CRPRNT CREPRINT
+# define CSTART 17
+# define CSTATUS '\000'
+# define CSTOP 19
+# define CSUSP 26
+# define CTIME 0
+# define CWERASE 23
+# define TTYDEF_CFLAG 1440
+# define TTYDEF_IFLAG 11554
+# define TTYDEF_LFLAG 35355
+# define TTYDEF_OFLAG 6149
+# define TTYDEF_SPEED 13
 #endif
 
 __NIJI_END_C

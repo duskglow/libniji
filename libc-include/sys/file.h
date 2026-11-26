@@ -21,30 +21,6 @@ struct flock {
 };
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_struct_f_owner_ex
-#  define __NIJI_D_struct_f_owner_ex 1
-struct f_owner_ex {
-  unsigned int type;
-  int pid;
-};
-# endif
-# ifndef __NIJI_D_struct_file_handle
-#  define __NIJI_D_struct_file_handle 1
-struct file_handle {
-  unsigned int handle_bytes;
-  int handle_type;
-  unsigned char f_handle[0];
-};
-# endif
-# ifndef __NIJI_D_struct_iovec
-#  define __NIJI_D_struct_iovec 1
-struct iovec {
-  void * iov_base;
-  unsigned long iov_len;
-};
-# endif
-#endif
 #if __NIJI_LFS64
 # ifndef __NIJI_D_struct_flock64
 #  define __NIJI_D_struct_flock64 1
@@ -172,6 +148,39 @@ struct stat {
 };
 # endif
 #endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_struct_f_owner_ex
+#  define __NIJI_D_struct_f_owner_ex 1
+struct f_owner_ex {
+  unsigned int type;
+  int pid;
+};
+# endif
+# ifndef __NIJI_D_struct_file_handle
+#  define __NIJI_D_struct_file_handle 1
+struct file_handle {
+  unsigned int handle_bytes;
+  int handle_type;
+  unsigned char f_handle[0];
+};
+# endif
+# ifndef __NIJI_D_struct_iovec
+#  define __NIJI_D_struct_iovec 1
+struct iovec {
+  void * iov_base;
+  unsigned long iov_len;
+};
+# endif
+# ifndef __NIJI_D_enum___pid_type
+#  define __NIJI_D_enum___pid_type 1
+enum __pid_type {
+  F_OWNER_TID = 0,
+  F_OWNER_PID = 1,
+  F_OWNER_PGRP = 2,
+  F_OWNER_GID = 2,
+};
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
@@ -222,12 +231,6 @@ typedef long off_t;
 typedef int pid_t;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_size_t
-#  define __NIJI_D_size_t 1
-typedef unsigned long size_t;
-# endif
-#endif
 #if __NIJI_LFS64
 # ifndef __NIJI_D_off64_t
 #  define __NIJI_D_off64_t 1
@@ -238,6 +241,12 @@ typedef long off64_t;
 # ifndef __NIJI_D_time_t
 #  define __NIJI_D_time_t 1
 typedef long time_t;
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
 # endif
 #endif
 #if 1
@@ -270,7 +279,65 @@ extern int open (const char *, int, ...) __asm__ ("open64") __attribute__ ((__no
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_creat64
+#  define __NIJI_D_creat64 1
+extern int creat64 (const char *, unsigned int) __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_fcntl64
+#  define __NIJI_D_fcntl64 1
+extern int fcntl64 (int, int, ...);
+# endif
+# ifndef __NIJI_D_lockf64
+#  define __NIJI_D_lockf64 1
+extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_open64
+#  define __NIJI_D_open64 1
+extern int open64 (const char *, int, ...) __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_openat64
+#  define __NIJI_D_openat64 1
+extern int openat64 (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
+# endif
+# ifndef __NIJI_D_posix_fadvise64
+#  define __NIJI_D_posix_fadvise64 1
+extern int posix_fadvise64 (int, long, long, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_posix_fallocate64
+#  define __NIJI_D_posix_fallocate64 1
+extern int posix_fallocate64 (int, long, long);
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_posix_fadvise
+#  define __NIJI_D_posix_fadvise 1
+#  if __NIJI_POSIX >= 200112 && !__NIJI_FOB64
+extern int posix_fadvise (int, long, long, int) __NIJI_NOTHROW;
+#  elif __NIJI_FOB64
+extern int posix_fadvise (int, long, long, int) __NIJI_NOTHROW __asm__ ("posix_fadvise64");
+#  endif
+# endif
+# ifndef __NIJI_D_posix_fallocate
+#  define __NIJI_D_posix_fallocate 1
+#  if __NIJI_POSIX >= 200112 && !__NIJI_FOB64
+extern int posix_fallocate (int, long, long);
+#  elif __NIJI_FOB64
+extern int posix_fallocate (int, long, long) __asm__ ("posix_fallocate64");
+#  endif
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_openat
+#  define __NIJI_D_openat 1
+#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
+extern int openat (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
+#  elif __NIJI_FOB64
+extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute__ ((__nonnull__ (2)));
+#  endif
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_fallocate
 #  define __NIJI_D_fallocate 1
 #  if __NIJI_FOB64
@@ -315,40 +382,10 @@ struct iovec;
 extern long vmsplice (int, const struct iovec *, unsigned long, unsigned int);
 # endif
 #endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_creat64
-#  define __NIJI_D_creat64 1
-extern int creat64 (const char *, unsigned int) __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_fcntl64
-#  define __NIJI_D_fcntl64 1
-extern int fcntl64 (int, int, ...);
-# endif
-# ifndef __NIJI_D_lockf64
-#  define __NIJI_D_lockf64 1
-extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_open64
-#  define __NIJI_D_open64 1
-extern int open64 (const char *, int, ...) __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_openat64
-#  define __NIJI_D_openat64 1
-extern int openat64 (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
-# endif
-# ifndef __NIJI_D_posix_fadvise64
-#  define __NIJI_D_posix_fadvise64 1
-extern int posix_fadvise64 (int, long, long, int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_posix_fallocate64
-#  define __NIJI_D_posix_fallocate64 1
-extern int posix_fallocate64 (int, long, long);
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
-#  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#  if (defined __USE_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
 extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #   else
@@ -359,50 +396,14 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 #  endif
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_posix_fadvise
-#  define __NIJI_D_posix_fadvise 1
-#  if __NIJI_POSIX >= 200112 && !__NIJI_FOB64
-extern int posix_fadvise (int, long, long, int) __NIJI_NOTHROW;
-#  elif __NIJI_FOB64
-extern int posix_fadvise (int, long, long, int) __NIJI_NOTHROW __asm__ ("posix_fadvise64");
-#  endif
-# endif
-# ifndef __NIJI_D_posix_fallocate
-#  define __NIJI_D_posix_fallocate 1
-#  if __NIJI_POSIX >= 200112 && !__NIJI_FOB64
-extern int posix_fallocate (int, long, long);
-#  elif __NIJI_FOB64
-extern int posix_fallocate (int, long, long) __asm__ ("posix_fallocate64");
-#  endif
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_openat
-#  define __NIJI_D_openat 1
-#  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int openat (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
-#  elif __NIJI_FOB64
-extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute__ ((__nonnull__ (2)));
-#  endif
-# endif
-#endif
 #if 1
-# ifndef FD_CLOEXEC
-#  define FD_CLOEXEC 1
-# endif
-# ifndef F_DUPFD
-#  define F_DUPFD 0
-# endif
+# define FD_CLOEXEC 1
+# define F_DUPFD 0
 # ifndef F_EXLCK
 #  define F_EXLCK 4
 # endif
-# ifndef F_GETFD
-#  define F_GETFD 1
-# endif
-# ifndef F_GETFL
-#  define F_GETFL 3
-# endif
+# define F_GETFD 1
+# define F_GETFL 3
 # ifndef F_GETLK
 #  define F_GETLK F_GETLK64
 # endif
@@ -412,12 +413,8 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef F_RDLCK
 #  define F_RDLCK 0
 # endif
-# ifndef F_SETFD
-#  define F_SETFD 2
-# endif
-# ifndef F_SETFL
-#  define F_SETFL 4
-# endif
+# define F_SETFD 2
+# define F_SETFL 4
 # ifndef F_SETLK
 #  define F_SETLK F_SETLK64
 # endif
@@ -430,36 +427,20 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef F_SETLKW64
 #  define F_SETLKW64 7
 # endif
-# ifndef F_SHLCK
-#  define F_SHLCK 8
-# endif
-# ifndef F_UNLCK
-#  define F_UNLCK 2
-# endif
-# ifndef F_WRLCK
-#  define F_WRLCK 1
-# endif
-# ifndef LOCK_EX
-#  define LOCK_EX 2
-# endif
+# define F_SHLCK 8
+# define F_UNLCK 2
+# define F_WRLCK 1
+# define LOCK_EX 2
 # ifndef LOCK_NB
 #  define LOCK_NB 4
 # endif
-# ifndef LOCK_SH
-#  define LOCK_SH 1
-# endif
-# ifndef LOCK_UN
-#  define LOCK_UN 8
-# endif
-# ifndef L_INCR
-#  define L_INCR 1
-# endif
+# define LOCK_SH 1
+# define LOCK_UN 8
+# define L_INCR 1
 # ifndef L_SET
 #  define L_SET 0
 # endif
-# ifndef L_XTND
-#  define L_XTND 2
-# endif
+# define L_XTND 2
 # ifndef O_ACCMODE
 #  define O_ACCMODE 3
 # endif
@@ -475,9 +456,7 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef O_EXCL
 #  define O_EXCL 128
 # endif
-# ifndef O_FSYNC
-#  define O_FSYNC O_SYNC
-# endif
+# define O_FSYNC O_SYNC
 # ifndef O_NDELAY
 #  define O_NDELAY O_NONBLOCK
 # endif
@@ -502,11 +481,134 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef O_WRONLY
 #  define O_WRONLY 1
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
+# define __FD_SETSIZE 1024
+#endif
+#if __NIJI_LFS64
+# ifndef O_LARGEFILE
+#  define O_LARGEFILE 0
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 199309
+# ifndef O_DSYNC
+#  define O_DSYNC 4096
+# endif
+# define O_RSYNC O_SYNC
+#endif
+#if __NIJI_POSIX >= 200112
+# define POSIX_FADV_DONTNEED 4
+# define POSIX_FADV_NOREUSE 5
+# define POSIX_FADV_NORMAL 0
+# define POSIX_FADV_RANDOM 1
+# define POSIX_FADV_SEQUENTIAL 2
+# define POSIX_FADV_WILLNEED 3
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef AT_EACCESS
+#  define AT_EACCESS 512
+# endif
+# ifndef AT_FDCWD
+#  define AT_FDCWD (-100)
+# endif
+# ifndef AT_REMOVEDIR
+#  define AT_REMOVEDIR 512
+# endif
+# ifndef AT_SYMLINK_FOLLOW
+#  define AT_SYMLINK_FOLLOW 1024
+# endif
+# ifndef AT_SYMLINK_NOFOLLOW
+#  define AT_SYMLINK_NOFOLLOW 256
+# endif
+# ifndef F_DUPFD_CLOEXEC
+#  define F_DUPFD_CLOEXEC 1030
+# endif
+# ifndef O_CLOEXEC
+#  define O_CLOEXEC 524288
+# endif
+# ifndef O_DIRECTORY
+#  define O_DIRECTORY 65536
+# endif
+# ifndef O_NOFOLLOW
+#  define O_NOFOLLOW 131072
+# endif
+# define UTIME_NOW 1073741823L
+# define UTIME_OMIT 1073741822L
+#endif
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
+# define SEEK_CUR 1
+# define SEEK_END 2
+# define SEEK_SET 0
+# ifndef S_IFBLK
+#  define S_IFBLK 24576
+# endif
+# ifndef S_IFCHR
+#  define S_IFCHR 8192
+# endif
+# ifndef S_IFDIR
+#  define S_IFDIR 16384
+# endif
+# ifndef S_IFIFO
+#  define S_IFIFO 4096
+# endif
+# ifndef S_IFLNK
+#  define S_IFLNK 40960
+# endif
+# ifndef S_IFMT
+#  define S_IFMT 61440
+# endif
+# ifndef S_IFREG
+#  define S_IFREG 32768
+# endif
+# ifndef S_IRGRP
+#  define S_IRGRP 32
+# endif
+# ifndef S_IROTH
+#  define S_IROTH 4
+# endif
+# ifndef S_IRUSR
+#  define S_IRUSR 256
+# endif
+# ifndef S_IRWXG
+#  define S_IRWXG 56
+# endif
+# ifndef S_IRWXO
+#  define S_IRWXO 7
+# endif
+# ifndef S_IRWXU
+#  define S_IRWXU 448
+# endif
+# ifndef S_ISGID
+#  define S_ISGID 1024
+# endif
+# ifndef S_ISUID
+#  define S_ISUID 2048
+# endif
+# ifndef S_IWGRP
+#  define S_IWGRP 16
+# endif
+# ifndef S_IWOTH
+#  define S_IWOTH 2
+# endif
+# ifndef S_IWUSR
+#  define S_IWUSR 128
+# endif
+# ifndef S_IXGRP
+#  define S_IXGRP 8
+# endif
+# ifndef S_IXOTH
+#  define S_IXOTH 1
+# endif
+# ifndef S_IXUSR
+#  define S_IXUSR 64
+# endif
+#endif
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
+# define F_GETOWN 9
+# define F_SETOWN 8
+# ifndef S_IFSOCK
+#  define S_IFSOCK 49152
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef AT_EMPTY_PATH
 #  define AT_EMPTY_PATH 4096
 # endif
@@ -582,15 +684,11 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef F_GETLEASE
 #  define F_GETLEASE 1025
 # endif
-# ifndef F_GETOWN_EX
-#  define F_GETOWN_EX 16
-# endif
+# define F_GETOWN_EX 16
 # ifndef F_GETPIPE_SZ
 #  define F_GETPIPE_SZ 1032
 # endif
-# ifndef F_GETSIG
-#  define F_GETSIG 11
-# endif
+# define F_GETSIG 11
 # ifndef F_GET_FILE_RW_HINT
 #  define F_GET_FILE_RW_HINT 1037
 # endif
@@ -603,15 +701,9 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef F_NOTIFY
 #  define F_NOTIFY 1026
 # endif
-# ifndef F_OFD_GETLK
-#  define F_OFD_GETLK 36
-# endif
-# ifndef F_OFD_SETLK
-#  define F_OFD_SETLK 37
-# endif
-# ifndef F_OFD_SETLKW
-#  define F_OFD_SETLKW 38
-# endif
+# define F_OFD_GETLK 36
+# define F_OFD_SETLK 37
+# define F_OFD_SETLKW 38
 # ifndef F_SEAL_EXEC
 #  define F_SEAL_EXEC 32
 # endif
@@ -633,36 +725,22 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef F_SETLEASE
 #  define F_SETLEASE 1024
 # endif
-# ifndef F_SETOWN_EX
-#  define F_SETOWN_EX 15
-# endif
+# define F_SETOWN_EX 15
 # ifndef F_SETPIPE_SZ
 #  define F_SETPIPE_SZ 1031
 # endif
-# ifndef F_SETSIG
-#  define F_SETSIG 10
-# endif
+# define F_SETSIG 10
 # ifndef F_SET_FILE_RW_HINT
 #  define F_SET_FILE_RW_HINT 1038
 # endif
 # ifndef F_SET_RW_HINT
 #  define F_SET_RW_HINT 1036
 # endif
-# ifndef LOCK_MAND
-#  define LOCK_MAND 32
-# endif
-# ifndef LOCK_READ
-#  define LOCK_READ 64
-# endif
-# ifndef LOCK_RW
-#  define LOCK_RW 192
-# endif
-# ifndef LOCK_WRITE
-#  define LOCK_WRITE 128
-# endif
-# ifndef MAX_HANDLE_SZ
-#  define MAX_HANDLE_SZ 128
-# endif
+# define LOCK_MAND 32
+# define LOCK_READ 64
+# define LOCK_RW 192
+# define LOCK_WRITE 128
+# define MAX_HANDLE_SZ 128
 # ifndef O_DIRECT
 #  define O_DIRECT 16384
 # endif
@@ -675,259 +753,56 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 # ifndef O_TMPFILE
 #  define O_TMPFILE 4259840
 # endif
-# ifndef RWF_WRITE_LIFE_NOT_SET
-#  define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
-# endif
-# ifndef RWH_WRITE_LIFE_EXTREME
-#  define RWH_WRITE_LIFE_EXTREME 5
-# endif
-# ifndef RWH_WRITE_LIFE_LONG
-#  define RWH_WRITE_LIFE_LONG 4
-# endif
-# ifndef RWH_WRITE_LIFE_MEDIUM
-#  define RWH_WRITE_LIFE_MEDIUM 3
-# endif
-# ifndef RWH_WRITE_LIFE_NONE
-#  define RWH_WRITE_LIFE_NONE 1
-# endif
-# ifndef RWH_WRITE_LIFE_NOT_SET
-#  define RWH_WRITE_LIFE_NOT_SET 0
-# endif
-# ifndef RWH_WRITE_LIFE_SHORT
-#  define RWH_WRITE_LIFE_SHORT 2
-# endif
-# ifndef SPLICE_F_GIFT
-#  define SPLICE_F_GIFT 8
-# endif
-# ifndef SPLICE_F_MORE
-#  define SPLICE_F_MORE 4
-# endif
-# ifndef SPLICE_F_MOVE
-#  define SPLICE_F_MOVE 1
-# endif
-# ifndef SPLICE_F_NONBLOCK
-#  define SPLICE_F_NONBLOCK 2
-# endif
-# ifndef SYNC_FILE_RANGE_WAIT_AFTER
-#  define SYNC_FILE_RANGE_WAIT_AFTER 4
-# endif
-# ifndef SYNC_FILE_RANGE_WAIT_BEFORE
-#  define SYNC_FILE_RANGE_WAIT_BEFORE 1
-# endif
-# ifndef SYNC_FILE_RANGE_WRITE
-#  define SYNC_FILE_RANGE_WRITE 2
-# endif
+# define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
+# define RWH_WRITE_LIFE_EXTREME 5
+# define RWH_WRITE_LIFE_LONG 4
+# define RWH_WRITE_LIFE_MEDIUM 3
+# define RWH_WRITE_LIFE_NONE 1
+# define RWH_WRITE_LIFE_NOT_SET 0
+# define RWH_WRITE_LIFE_SHORT 2
+# define SPLICE_F_GIFT 8
+# define SPLICE_F_MORE 4
+# define SPLICE_F_MOVE 1
+# define SPLICE_F_NONBLOCK 2
+# define SYNC_FILE_RANGE_WAIT_AFTER 4
+# define SYNC_FILE_RANGE_WAIT_BEFORE 1
+# define SYNC_FILE_RANGE_WRITE 2
 # ifndef SYNC_FILE_RANGE_WRITE_AND_WAIT
 #  define SYNC_FILE_RANGE_WRITE_AND_WAIT 7
 # endif
 #endif
-#if __NIJI_LFS64
-# ifndef O_LARGEFILE
-#  define O_LARGEFILE 0
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef FAPPEND
-#  define FAPPEND O_APPEND
-# endif
+#if defined __USE_MISC
+# define FAPPEND O_APPEND
 # ifndef FASYNC
 #  define FASYNC O_ASYNC
 # endif
-# ifndef FFSYNC
-#  define FFSYNC O_FSYNC
-# endif
-# ifndef FNDELAY
-#  define FNDELAY O_NDELAY
-# endif
-# ifndef FNONBLOCK
-#  define FNONBLOCK O_NONBLOCK
-# endif
+# define FFSYNC O_FSYNC
+# define FNDELAY O_NDELAY
+# define FNONBLOCK O_NONBLOCK
 # ifndef F_LOCK
 #  define F_LOCK 1
 # endif
-# ifndef F_OK
-#  define F_OK 0
-# endif
-# ifndef F_TEST
-#  define F_TEST 3
-# endif
-# ifndef F_TLOCK
-#  define F_TLOCK 2
-# endif
-# ifndef F_ULOCK
-#  define F_ULOCK 0
-# endif
+# define F_OK 0
+# define F_TEST 3
+# define F_TLOCK 2
+# define F_ULOCK 0
 # ifndef R_OK
 #  define R_OK 4
 # endif
-# ifndef W_OK
-#  define W_OK 2
-# endif
-# ifndef X_OK
-#  define X_OK 1
-# endif
+# define W_OK 2
+# define X_OK 1
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # ifndef S_ISVTX
 #  define S_ISVTX 512
-# endif
-#endif
-#if __NIJI_POSIX >= 199309
-# ifndef O_DSYNC
-#  define O_DSYNC 4096
-# endif
-# ifndef O_RSYNC
-#  define O_RSYNC O_SYNC
-# endif
-#endif
-#if __NIJI_POSIX >= 200112
-# ifndef POSIX_FADV_DONTNEED
-#  define POSIX_FADV_DONTNEED 4
-# endif
-# ifndef POSIX_FADV_NOREUSE
-#  define POSIX_FADV_NOREUSE 5
-# endif
-# ifndef POSIX_FADV_NORMAL
-#  define POSIX_FADV_NORMAL 0
-# endif
-# ifndef POSIX_FADV_RANDOM
-#  define POSIX_FADV_RANDOM 1
-# endif
-# ifndef POSIX_FADV_SEQUENTIAL
-#  define POSIX_FADV_SEQUENTIAL 2
-# endif
-# ifndef POSIX_FADV_WILLNEED
-#  define POSIX_FADV_WILLNEED 3
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef AT_EACCESS
-#  define AT_EACCESS 512
-# endif
-# ifndef AT_FDCWD
-#  define AT_FDCWD (-100)
-# endif
-# ifndef AT_REMOVEDIR
-#  define AT_REMOVEDIR 512
-# endif
-# ifndef AT_SYMLINK_FOLLOW
-#  define AT_SYMLINK_FOLLOW 1024
-# endif
-# ifndef AT_SYMLINK_NOFOLLOW
-#  define AT_SYMLINK_NOFOLLOW 256
-# endif
-# ifndef F_DUPFD_CLOEXEC
-#  define F_DUPFD_CLOEXEC 1030
-# endif
-# ifndef O_CLOEXEC
-#  define O_CLOEXEC 524288
-# endif
-# ifndef O_DIRECTORY
-#  define O_DIRECTORY 65536
-# endif
-# ifndef O_NOFOLLOW
-#  define O_NOFOLLOW 131072
-# endif
-# ifndef UTIME_NOW
-#  define UTIME_NOW 1073741823L
-# endif
-# ifndef UTIME_OMIT
-#  define UTIME_OMIT 1073741822L
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
-# ifndef SEEK_CUR
-#  define SEEK_CUR 1
-# endif
-# ifndef SEEK_END
-#  define SEEK_END 2
-# endif
-# ifndef SEEK_SET
-#  define SEEK_SET 0
-# endif
-# ifndef S_IFBLK
-#  define S_IFBLK 24576
-# endif
-# ifndef S_IFCHR
-#  define S_IFCHR 8192
-# endif
-# ifndef S_IFDIR
-#  define S_IFDIR 16384
-# endif
-# ifndef S_IFIFO
-#  define S_IFIFO 4096
-# endif
-# ifndef S_IFLNK
-#  define S_IFLNK 40960
-# endif
-# ifndef S_IFMT
-#  define S_IFMT 61440
-# endif
-# ifndef S_IFREG
-#  define S_IFREG 32768
-# endif
-# ifndef S_IRGRP
-#  define S_IRGRP 32
-# endif
-# ifndef S_IROTH
-#  define S_IROTH 4
-# endif
-# ifndef S_IRUSR
-#  define S_IRUSR 256
-# endif
-# ifndef S_IRWXG
-#  define S_IRWXG 56
-# endif
-# ifndef S_IRWXO
-#  define S_IRWXO 7
-# endif
-# ifndef S_IRWXU
-#  define S_IRWXU 448
-# endif
-# ifndef S_ISGID
-#  define S_ISGID 1024
-# endif
-# ifndef S_ISUID
-#  define S_ISUID 2048
-# endif
-# ifndef S_IWGRP
-#  define S_IWGRP 16
-# endif
-# ifndef S_IWOTH
-#  define S_IWOTH 2
-# endif
-# ifndef S_IWUSR
-#  define S_IWUSR 128
-# endif
-# ifndef S_IXGRP
-#  define S_IXGRP 8
-# endif
-# ifndef S_IXOTH
-#  define S_IXOTH 1
-# endif
-# ifndef S_IXUSR
-#  define S_IXUSR 64
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
-# ifndef F_GETOWN
-#  define F_GETOWN 9
-# endif
-# ifndef F_SETOWN
-#  define F_SETOWN 8
-# endif
-# ifndef S_IFSOCK
-#  define S_IFSOCK 49152
 # endif
 #endif
 
 /* struct stat's times (POSIX XSH <sys/stat.h>), named as there: st_atime is the seconds of st_atim. */
 #if __NIJI_POSIX >= 200809
-# ifndef st_atime
-#  define st_atime st_atim.tv_sec
-#  define st_mtime st_mtim.tv_sec
-#  define st_ctime st_ctim.tv_sec
-# endif
+# define st_atime st_atim.tv_sec
+# define st_mtime st_mtim.tv_sec
+# define st_ctime st_ctim.tv_sec
 #endif
 
 __NIJI_END_C

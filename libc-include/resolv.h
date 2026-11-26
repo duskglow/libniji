@@ -241,162 +241,58 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # endif
 #endif
 #if 1
-# ifndef LOCALDOMAINPARTS
-#  define LOCALDOMAINPARTS 2
-# endif
-# ifndef MAXDFLSRCH
-#  define MAXDFLSRCH 3
-# endif
-# ifndef MAXDNSRCH
-#  define MAXDNSRCH 6
-# endif
-# ifndef MAXNS
-#  define MAXNS 3
-# endif
-# ifndef MAXRESOLVSORT
-#  define MAXRESOLVSORT 10
-# endif
-# ifndef RES_AAONLY
-#  define RES_AAONLY 4
-# endif
-# ifndef RES_BLAST
-#  define RES_BLAST 131072
-# endif
-# ifndef RES_DEBUG
-#  define RES_DEBUG 2
-# endif
-# ifndef RES_DEFAULT
-#  define RES_DEFAULT 704
-# endif
-# ifndef RES_DEFNAMES
-#  define RES_DEFNAMES 128
-# endif
-# ifndef RES_DFLRETRY
-#  define RES_DFLRETRY 2
-# endif
-# ifndef RES_DNSRCH
-#  define RES_DNSRCH 512
-# endif
-# ifndef RES_IGNTC
-#  define RES_IGNTC 32
-# endif
-# ifndef RES_INIT
-#  define RES_INIT 1
-# endif
-# ifndef RES_KEEPTSIG
-#  define RES_KEEPTSIG 65536
-# endif
-# ifndef RES_MAXNDOTS
-#  define RES_MAXNDOTS 15
-# endif
-# ifndef RES_MAXRETRANS
-#  define RES_MAXRETRANS 30
-# endif
-# ifndef RES_MAXRETRY
-#  define RES_MAXRETRY 5
-# endif
-# ifndef RES_MAXTIME
-#  define RES_MAXTIME 65535
-# endif
-# ifndef RES_NOAAAA
-#  define RES_NOAAAA 134217728
-# endif
-# ifndef RES_NOALIASES
-#  define RES_NOALIASES 4096
-# endif
-# ifndef RES_NOCHECKNAME
-#  define RES_NOCHECKNAME 32768
-# endif
-# ifndef RES_NORELOAD
-#  define RES_NORELOAD 33554432
-# endif
-# ifndef RES_NOTLDQUERY
-#  define RES_NOTLDQUERY 16777216
-# endif
-# ifndef RES_PRF_ADD
-#  define RES_PRF_ADD 128
-# endif
-# ifndef RES_PRF_ANS
-#  define RES_PRF_ANS 32
-# endif
-# ifndef RES_PRF_AUTH
-#  define RES_PRF_AUTH 64
-# endif
-# ifndef RES_PRF_CLASS
-#  define RES_PRF_CLASS 4
-# endif
-# ifndef RES_PRF_CMD
-#  define RES_PRF_CMD 8
-# endif
-# ifndef RES_PRF_HEAD1
-#  define RES_PRF_HEAD1 256
-# endif
-# ifndef RES_PRF_HEAD2
-#  define RES_PRF_HEAD2 512
-# endif
-# ifndef RES_PRF_HEADX
-#  define RES_PRF_HEADX 2048
-# endif
-# ifndef RES_PRF_INIT
-#  define RES_PRF_INIT 16384
-# endif
-# ifndef RES_PRF_QUERY
-#  define RES_PRF_QUERY 4096
-# endif
-# ifndef RES_PRF_QUES
-#  define RES_PRF_QUES 16
-# endif
-# ifndef RES_PRF_REPLY
-#  define RES_PRF_REPLY 8192
-# endif
-# ifndef RES_PRF_STATS
-#  define RES_PRF_STATS 1
-# endif
-# ifndef RES_PRF_TTLID
-#  define RES_PRF_TTLID 1024
-# endif
-# ifndef RES_PRF_UPDATE
-#  define RES_PRF_UPDATE 2
-# endif
-# ifndef RES_PRIMARY
-#  define RES_PRIMARY 16
-# endif
-# ifndef RES_RECURSE
-#  define RES_RECURSE 64
-# endif
-# ifndef RES_ROTATE
-#  define RES_ROTATE 16384
-# endif
-# ifndef RES_SNGLKUP
-#  define RES_SNGLKUP 2097152
-# endif
-# ifndef RES_SNGLKUPREOP
-#  define RES_SNGLKUPREOP 4194304
-# endif
-# ifndef RES_STAYOPEN
-#  define RES_STAYOPEN 256
-# endif
-# ifndef RES_TIMEOUT
-#  define RES_TIMEOUT 5
-# endif
-# ifndef RES_TRUSTAD
-#  define RES_TRUSTAD 67108864
-# endif
-# ifndef RES_USEVC
-#  define RES_USEVC 8
-# endif
-# ifndef RES_USE_DNSSEC
-#  define RES_USE_DNSSEC 8388608
-# endif
-# ifndef RES_USE_EDNS0
-#  define RES_USE_EDNS0 1048576
-# endif
-# ifndef _PATH_RESCONF
-#  define _PATH_RESCONF "/etc/resolv.conf"
-# endif
-# ifndef __RES
-#  define __RES 19991006
-# endif
+# define LOCALDOMAINPARTS 2
+# define MAXDFLSRCH 3
+# define MAXDNSRCH 6
+# define MAXNS 3
+# define MAXRESOLVSORT 10
+# define RES_AAONLY 4
+# define RES_BLAST 131072
+# define RES_DEBUG 2
+# define RES_DEFAULT 704
+# define RES_DEFNAMES 128
+# define RES_DFLRETRY 2
+# define RES_DNSRCH 512
+# define RES_IGNTC 32
+# define RES_INIT 1
+# define RES_KEEPTSIG 65536
+# define RES_MAXNDOTS 15
+# define RES_MAXRETRANS 30
+# define RES_MAXRETRY 5
+# define RES_MAXTIME 65535
+# define RES_NOAAAA 134217728
+# define RES_NOALIASES 4096
+# define RES_NOCHECKNAME 32768
+# define RES_NORELOAD 33554432
+# define RES_NOTLDQUERY 16777216
+# define RES_PRF_ADD 128
+# define RES_PRF_ANS 32
+# define RES_PRF_AUTH 64
+# define RES_PRF_CLASS 4
+# define RES_PRF_CMD 8
+# define RES_PRF_HEAD1 256
+# define RES_PRF_HEAD2 512
+# define RES_PRF_HEADX 2048
+# define RES_PRF_INIT 16384
+# define RES_PRF_QUERY 4096
+# define RES_PRF_QUES 16
+# define RES_PRF_REPLY 8192
+# define RES_PRF_STATS 1
+# define RES_PRF_TTLID 1024
+# define RES_PRF_UPDATE 2
+# define RES_PRIMARY 16
+# define RES_RECURSE 64
+# define RES_ROTATE 16384
+# define RES_SNGLKUP 2097152
+# define RES_SNGLKUPREOP 4194304
+# define RES_STAYOPEN 256
+# define RES_TIMEOUT 5
+# define RES_TRUSTAD 67108864
+# define RES_USEVC 8
+# define RES_USE_DNSSEC 8388608
+# define RES_USE_EDNS0 1048576
+# define _PATH_RESCONF "/etc/resolv.conf"
+# define __RES 19991006
 #endif
 
 /* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */

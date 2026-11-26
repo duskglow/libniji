@@ -159,7 +159,19 @@ typedef struct _G_fpos64_t fpos64_t;
 typedef long off64_t;
 # endif
 #endif
-#if __NIJI_MISC
+#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
+# ifndef __NIJI_D_off_t
+#  define __NIJI_D_off_t 1
+typedef long off_t;
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_ssize_t
+#  define __NIJI_D_ssize_t 1
+typedef long ssize_t;
+# endif
+#endif
+#if defined __USE_MISC
 # ifndef __NIJI_D_cookie_close_function_t
 #  define __NIJI_D_cookie_close_function_t 1
 typedef int cookie_close_function_t(void *);
@@ -204,18 +216,6 @@ typedef int cookie_seek_function_t(void *, long *, int);
 # ifndef __NIJI_D_cookie_write_function_t
 #  define __NIJI_D_cookie_write_function_t 1
 typedef long cookie_write_function_t(void *, char const *, unsigned long);
-# endif
-#endif
-#if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
-# ifndef __NIJI_D_off_t
-#  define __NIJI_D_off_t 1
-typedef long off_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_ssize_t
-#  define __NIJI_D_ssize_t 1
-typedef long ssize_t;
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
@@ -444,40 +444,6 @@ extern int vprintf (const char *, __builtin_va_list) __attribute__ ((__format__ 
 extern int vsprintf (char *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_fcloseall
-#  define __NIJI_D_fcloseall 1
-extern int fcloseall (void);
-# endif
-# ifndef __NIJI_D_fgets_unlocked
-#  define __NIJI_D_fgets_unlocked 1
-extern char *fgets_unlocked (char *, int, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_fputs_unlocked
-#  define __NIJI_D_fputs_unlocked 1
-extern int fputs_unlocked (const char *, FILE *) __attribute__ ((__nonnull__ (2)));
-# endif
-struct obstack;
-# ifndef __NIJI_D_obstack_printf
-#  define __NIJI_D_obstack_printf 1
-extern int obstack_printf (struct obstack *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3)));
-# endif
-struct obstack;
-# ifndef __NIJI_D_obstack_vprintf
-#  define __NIJI_D_obstack_vprintf 1
-extern int obstack_vprintf (struct obstack *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0)));
-# endif
-# ifndef __NIJI_D_renameat2
-#  define __NIJI_D_renameat2 1
-extern int renameat2 (int, const char *, int, const char *, unsigned int) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
-# ifndef __NIJI_D_cuserid
-#  define __NIJI_D_cuserid 1
-extern char *cuserid (char *);
-# endif
-#endif
 #if __NIJI_ISOC >= 1999
 # ifndef __NIJI_D_snprintf
 #  define __NIJI_D_snprintf 1
@@ -546,84 +512,6 @@ extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_res
 # ifndef __NIJI_D_tmpfile64
 #  define __NIJI_D_tmpfile64 1
 extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__));
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_asprintf
-#  define __NIJI_D_asprintf 1
-extern int asprintf (char **, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_clearerr_unlocked
-#  define __NIJI_D_clearerr_unlocked 1
-extern void clearerr_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_feof_unlocked
-#  define __NIJI_D_feof_unlocked 1
-extern int feof_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_ferror_unlocked
-#  define __NIJI_D_ferror_unlocked 1
-extern int ferror_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_fflush_unlocked
-#  define __NIJI_D_fflush_unlocked 1
-extern int fflush_unlocked (FILE *);
-# endif
-# ifndef __NIJI_D_fgetc_unlocked
-#  define __NIJI_D_fgetc_unlocked 1
-extern int fgetc_unlocked (FILE *) __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_fileno_unlocked
-#  define __NIJI_D_fileno_unlocked 1
-extern int fileno_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_fopencookie
-#  define __NIJI_D_fopencookie 1
-extern FILE *fopencookie (void *, const char *, cookie_io_functions_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_fputc_unlocked
-#  define __NIJI_D_fputc_unlocked 1
-extern int fputc_unlocked (int, FILE *) __attribute__ ((__nonnull__ (2)));
-# endif
-# ifndef __NIJI_D_fread_unlocked
-#  define __NIJI_D_fread_unlocked 1
-extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
-# endif
-# ifndef __NIJI_D_fwrite_unlocked
-#  define __NIJI_D_fwrite_unlocked 1
-extern unsigned long fwrite_unlocked (const void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4)));
-# endif
-# ifndef __NIJI_D_setbuffer
-#  define __NIJI_D_setbuffer 1
-extern void setbuffer (FILE *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_setlinebuf
-#  define __NIJI_D_setlinebuf 1
-extern void setlinebuf (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_tmpnam_r
-#  define __NIJI_D_tmpnam_r 1
-extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D_vasprintf
-#  define __NIJI_D_vasprintf 1
-extern int vasprintf (char **, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0), __warn_unused_result__));
-# endif
-#endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
-# ifndef __NIJI_D_getw
-#  define __NIJI_D_getw 1
-extern int getw (FILE *) __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_putw
-#  define __NIJI_D_putw 1
-extern int putw (int, FILE *) __attribute__ ((__nonnull__ (2)));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D_tempnam
-#  define __NIJI_D_tempnam 1
-extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
@@ -746,57 +634,143 @@ extern int renameat (int, const char *, int, const char *) __NIJI_NOTHROW;
 extern int vdprintf (int, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
 #endif
-#if 1
-# ifndef BUFSIZ
-#  define BUFSIZ 8192
+#if defined __USE_GNU
+# ifndef __NIJI_D_fcloseall
+#  define __NIJI_D_fcloseall 1
+extern int fcloseall (void);
 # endif
-# ifndef EOF
-#  define EOF (-1)
+# ifndef __NIJI_D_fgets_unlocked
+#  define __NIJI_D_fgets_unlocked 1
+extern char *fgets_unlocked (char *, int, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
 # endif
-# ifndef FILENAME_MAX
-#  define FILENAME_MAX 4096
+# ifndef __NIJI_D_fputs_unlocked
+#  define __NIJI_D_fputs_unlocked 1
+extern int fputs_unlocked (const char *, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
-# ifndef FOPEN_MAX
-#  define FOPEN_MAX 16
+struct obstack;
+# ifndef __NIJI_D_obstack_printf
+#  define __NIJI_D_obstack_printf 1
+extern int obstack_printf (struct obstack *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3)));
 # endif
-# ifndef L_tmpnam
-#  define L_tmpnam 20
+struct obstack;
+# ifndef __NIJI_D_obstack_vprintf
+#  define __NIJI_D_obstack_vprintf 1
+extern int obstack_vprintf (struct obstack *, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
-# ifndef SEEK_CUR
-#  define SEEK_CUR 1
-# endif
-# ifndef SEEK_END
-#  define SEEK_END 2
-# endif
-# ifndef SEEK_SET
-#  define SEEK_SET 0
-# endif
-# ifndef TMP_MAX
-#  define TMP_MAX 238328
-# endif
-# ifndef _IOFBF
-#  define _IOFBF 0
-# endif
-# ifndef _IOLBF
-#  define _IOLBF 1
-# endif
-# ifndef _IONBF
-#  define _IONBF 2
-# endif
-# ifndef _IO_EOF_SEEN
-#  define _IO_EOF_SEEN 16
-# endif
-# ifndef _IO_ERR_SEEN
-#  define _IO_ERR_SEEN 32
-# endif
-# ifndef _IO_USER_LOCK
-#  define _IO_USER_LOCK 32768
-# endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
+# ifndef __NIJI_D_renameat2
+#  define __NIJI_D_renameat2 1
+extern int renameat2 (int, const char *, int, const char *, unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+# ifndef __NIJI_D_cuserid
+#  define __NIJI_D_cuserid 1
+extern char *cuserid (char *);
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_asprintf
+#  define __NIJI_D_asprintf 1
+extern int asprintf (char **, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_clearerr_unlocked
+#  define __NIJI_D_clearerr_unlocked 1
+extern void clearerr_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_feof_unlocked
+#  define __NIJI_D_feof_unlocked 1
+extern int feof_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_ferror_unlocked
+#  define __NIJI_D_ferror_unlocked 1
+extern int ferror_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_fflush_unlocked
+#  define __NIJI_D_fflush_unlocked 1
+extern int fflush_unlocked (FILE *);
+# endif
+# ifndef __NIJI_D_fgetc_unlocked
+#  define __NIJI_D_fgetc_unlocked 1
+extern int fgetc_unlocked (FILE *) __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_fileno_unlocked
+#  define __NIJI_D_fileno_unlocked 1
+extern int fileno_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_fopencookie
+#  define __NIJI_D_fopencookie 1
+extern FILE *fopencookie (void *, const char *, cookie_io_functions_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_fputc_unlocked
+#  define __NIJI_D_fputc_unlocked 1
+extern int fputc_unlocked (int, FILE *) __attribute__ ((__nonnull__ (2)));
+# endif
+# ifndef __NIJI_D_fread_unlocked
+#  define __NIJI_D_fread_unlocked 1
+extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+# endif
+# ifndef __NIJI_D_fwrite_unlocked
+#  define __NIJI_D_fwrite_unlocked 1
+extern unsigned long fwrite_unlocked (const void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4)));
+# endif
+# ifndef __NIJI_D_setbuffer
+#  define __NIJI_D_setbuffer 1
+extern void setbuffer (FILE *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_setlinebuf
+#  define __NIJI_D_setlinebuf 1
+extern void setlinebuf (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_tmpnam_r
+#  define __NIJI_D_tmpnam_r 1
+extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D_vasprintf
+#  define __NIJI_D_vasprintf 1
+extern int vasprintf (char **, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0), __warn_unused_result__));
+# endif
+#endif
+#if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+# ifndef __NIJI_D_getw
+#  define __NIJI_D_getw 1
+extern int getw (FILE *) __attribute__ ((__nonnull__ (1)));
+# endif
+# ifndef __NIJI_D_putw
+#  define __NIJI_D_putw 1
+extern int putw (int, FILE *) __attribute__ ((__nonnull__ (2)));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D_tempnam
+#  define __NIJI_D_tempnam 1
+extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+# endif
+#endif
+#if 1
+# define BUFSIZ 8192
+# define EOF (-1)
+# define FILENAME_MAX 4096
+# define FOPEN_MAX 16
+# define L_tmpnam 20
+# define SEEK_CUR 1
+# define SEEK_END 2
+# define SEEK_SET 0
+# define TMP_MAX 238328
+# define _IOFBF 0
+# define _IOLBF 1
+# define _IONBF 2
+# define _IO_EOF_SEEN 16
+# define _IO_ERR_SEEN 32
+# define _IO_USER_LOCK 32768
+# define __FD_SETSIZE 1024
+#endif
+#if __NIJI_ISOC >= 2023
+# define _PRINTF_NAN_LEN_MAX 4
+#endif
+#if __NIJI_POSIX >= 1
+# define L_ctermid 9
+#endif
+#if defined __USE_GNU
 # ifndef RENAME_EXCHANGE
 #  define RENAME_EXCHANGE 2
 # endif
@@ -806,32 +780,14 @@ extern int vdprintf (int, const char *, __builtin_va_list) __attribute__ ((__for
 # ifndef RENAME_WHITEOUT
 #  define RENAME_WHITEOUT 4
 # endif
-# ifndef SEEK_DATA
-#  define SEEK_DATA 3
-# endif
-# ifndef SEEK_HOLE
-#  define SEEK_HOLE 4
-# endif
+# define SEEK_DATA 3
+# define SEEK_HOLE 4
 #endif
-#if __NIJI_GNU || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
-# ifndef L_cuserid
-#  define L_cuserid 9
-# endif
+#if defined __USE_GNU || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
+# define L_cuserid 9
 #endif
-#if __NIJI_ISOC >= 2023
-# ifndef _PRINTF_NAN_LEN_MAX
-#  define _PRINTF_NAN_LEN_MAX 4
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef P_tmpdir
-#  define P_tmpdir "/tmp"
-# endif
-#endif
-#if __NIJI_POSIX >= 1
-# ifndef L_ctermid
-#  define L_ctermid 9
-# endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# define P_tmpdir "/tmp"
 #endif
 
 #if __NIJI_ISOC < 2011 || (__NIJI_CXX >= 1 && __NIJI_CXX < 3)
@@ -890,7 +846,7 @@ __NIJI_INLINE_FN int putchar_unlocked (int __c)
   return putc_unlocked (__c, stdout);
 }
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 __NIJI_INLINE_FN int fgetc_unlocked (FILE *__fp)
 {
   return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
@@ -944,7 +900,7 @@ __NIJI_INLINE_FN ssize_t getline (char **__lineptr, size_t *__n, FILE *__stream)
 # endif
 #endif
 #endif
-#if (__NIJI_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2
+#if (defined __USE_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_asprintf
 #  define __NIJI_F_asprintf 1
 #  ifndef __NIJI_D___asprintf_chk
@@ -986,7 +942,7 @@ __NIJI_FORTIFY_FN char *fgets (char *__p0, int __p1, FILE *__p2)
 }
 # endif
 #endif
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_fgets_unlocked
 #  define __NIJI_F_fgets_unlocked 1
 #  ifndef __NIJI_D___fgets_unlocked_chk
@@ -1031,7 +987,7 @@ __NIJI_FORTIFY_FN unsigned long fread (void *__p0, unsigned long __p1, unsigned 
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_fread_unlocked
 #  define __NIJI_F_fread_unlocked 1
 #  ifndef __NIJI_D___fread_unlocked_chk
@@ -1048,7 +1004,7 @@ __NIJI_FORTIFY_FN unsigned long fread_unlocked (void *__p0, unsigned long __p1, 
 # endif
 #endif
 struct obstack;
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 2
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_obstack_printf
 #  define __NIJI_F_obstack_printf 1
 #  ifndef __NIJI_D___obstack_printf_chk
@@ -1062,7 +1018,7 @@ __NIJI_FORTIFY_FN int obstack_printf (struct obstack *__p0, const char *__p1, ..
 # endif
 #endif
 struct obstack;
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 2
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_obstack_vprintf
 #  define __NIJI_F_obstack_vprintf 1
 #  ifndef __NIJI_D___obstack_vprintf_chk
@@ -1106,7 +1062,7 @@ __NIJI_FORTIFY_FN int sprintf (char *__p0, const char *__p1, ...) __NIJI_NOTHROW
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2
+#if (defined __USE_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 2
 # ifndef __NIJI_F_vasprintf
 #  define __NIJI_F_vasprintf 1
 #  ifndef __NIJI_D___vasprintf_chk

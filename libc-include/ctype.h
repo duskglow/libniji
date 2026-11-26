@@ -136,34 +136,10 @@ extern int tolower (int) __NIJI_NOTHROW;
 extern int toupper (int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_isctype
-#  define __NIJI_D_isctype 1
-extern int isctype (int, int) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC >= 1999
 # ifndef __NIJI_D_isblank
 #  define __NIJI_D_isblank 1
 extern int isblank (int) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D__tolower
-#  define __NIJI_D__tolower 1
-extern int _tolower (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D__toupper
-#  define __NIJI_D__toupper 1
-extern int _toupper (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_isascii
-#  define __NIJI_D_isascii 1
-extern int isascii (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_toascii
-#  define __NIJI_D_toascii 1
-extern int toascii (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
@@ -224,6 +200,30 @@ extern int tolower_l (int, locale_t) __NIJI_NOTHROW;
 extern int toupper_l (int, locale_t) __NIJI_NOTHROW;
 # endif
 #endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_isctype
+#  define __NIJI_D_isctype 1
+extern int isctype (int, int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D__tolower
+#  define __NIJI_D__tolower 1
+extern int _tolower (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D__toupper
+#  define __NIJI_D__toupper 1
+extern int _toupper (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_isascii
+#  define __NIJI_D_isascii 1
+extern int isascii (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_toascii
+#  define __NIJI_D_toascii 1
+extern int toascii (int) __NIJI_NOTHROW;
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_anon__ISalnum
 #  define __NIJI_D_anon__ISalnum 1
@@ -238,9 +238,7 @@ enum {
 };
 #  endif
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 /* The class masks the macros below name: an enumeration of twelve constants. The visibility probes see macros only, so the
@@ -313,11 +311,11 @@ __NIJI_END_C
 #endif
 
 /* The macros below are macros in C and in C++ (visibility.tsv). */
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # define _tolower(c) ((int) (*__ctype_tolower_loc ())[(int) (c)])
 # define _toupper(c) ((int) (*__ctype_toupper_loc ())[(int) (c)])
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # define isascii(c) ((((c) & ~0x7f)) == 0)
 # define toascii(c) ((c) & 0x7f)
 #endif

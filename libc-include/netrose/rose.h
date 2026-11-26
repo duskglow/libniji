@@ -353,81 +353,39 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef AX25_BACKOFF
-#  define AX25_BACKOFF 6
-# endif
-# ifndef AX25_EXTSEQ
-#  define AX25_EXTSEQ 7
-# endif
-# ifndef AX25_IAMDIGI
-#  define AX25_IAMDIGI 12
-# endif
-# ifndef AX25_IDLE
-#  define AX25_IDLE 9
-# endif
-# ifndef AX25_KILL
-#  define AX25_KILL 99
-# endif
-# ifndef AX25_MAX_DIGIS
-#  define AX25_MAX_DIGIS 8
-# endif
-# ifndef AX25_N2
-#  define AX25_N2 3
-# endif
-# ifndef AX25_NOUID_BLOCK
-#  define AX25_NOUID_BLOCK 1
-# endif
-# ifndef AX25_NOUID_DEFAULT
-#  define AX25_NOUID_DEFAULT 0
-# endif
-# ifndef AX25_PACLEN
-#  define AX25_PACLEN 10
-# endif
-# ifndef AX25_PIDINCL
-#  define AX25_PIDINCL 8
-# endif
-# ifndef AX25_SET_RT_IPMODE
-#  define AX25_SET_RT_IPMODE 2
-# endif
-# ifndef AX25_T1
-#  define AX25_T1 2
-# endif
-# ifndef AX25_T2
-#  define AX25_T2 5
-# endif
-# ifndef AX25_T3
-#  define AX25_T3 4
-# endif
-# ifndef AX25_WINDOW
-#  define AX25_WINDOW 1
-# endif
+# define AX25_BACKOFF 6
+# define AX25_EXTSEQ 7
+# define AX25_IAMDIGI 12
+# define AX25_IDLE 9
+# define AX25_KILL 99
+# define AX25_MAX_DIGIS 8
+# define AX25_N2 3
+# define AX25_NOUID_BLOCK 1
+# define AX25_NOUID_DEFAULT 0
+# define AX25_PACLEN 10
+# define AX25_PIDINCL 8
+# define AX25_SET_RT_IPMODE 2
+# define AX25_T1 2
+# define AX25_T2 5
+# define AX25_T3 4
+# define AX25_WINDOW 1
 # ifndef ROSE_ACCESS_BARRED
 #  define ROSE_ACCESS_BARRED 11
 # endif
-# ifndef ROSE_DEFER
-#  define ROSE_DEFER 1
-# endif
+# define ROSE_DEFER 1
 # ifndef ROSE_DTE_ORIGINATED
 #  define ROSE_DTE_ORIGINATED 0
 # endif
-# ifndef ROSE_HOLDBACK
-#  define ROSE_HOLDBACK 7
-# endif
-# ifndef ROSE_IDLE
-#  define ROSE_IDLE 5
-# endif
+# define ROSE_HOLDBACK 7
+# define ROSE_IDLE 5
 # ifndef ROSE_INVALID_FACILITY
 #  define ROSE_INVALID_FACILITY 3
 # endif
 # ifndef ROSE_LOCAL_PROCEDURE
 #  define ROSE_LOCAL_PROCEDURE 19
 # endif
-# ifndef ROSE_MAX_DIGIS
-#  define ROSE_MAX_DIGIS 6
-# endif
-# ifndef ROSE_MTU
-#  define ROSE_MTU 251
-# endif
+# define ROSE_MAX_DIGIS 6
+# define ROSE_MTU 251
 # ifndef ROSE_NETWORK_CONGESTION
 #  define ROSE_NETWORK_CONGESTION 5
 # endif
@@ -440,30 +398,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef ROSE_OUT_OF_ORDER
 #  define ROSE_OUT_OF_ORDER 9
 # endif
-# ifndef ROSE_QBITINCL
-#  define ROSE_QBITINCL 6
-# endif
+# define ROSE_QBITINCL 6
 # ifndef ROSE_REMOTE_PROCEDURE
 #  define ROSE_REMOTE_PROCEDURE 17
 # endif
 # ifndef ROSE_SHIP_ABSENT
 #  define ROSE_SHIP_ABSENT 57
 # endif
-# ifndef ROSE_T1
-#  define ROSE_T1 2
-# endif
-# ifndef ROSE_T2
-#  define ROSE_T2 3
-# endif
-# ifndef ROSE_T3
-#  define ROSE_T3 4
-# endif
-# ifndef SOL_AX25
-#  define SOL_AX25 257
-# endif
-# ifndef SOL_ROSE
-#  define SOL_ROSE 260
-# endif
+# define ROSE_T1 2
+# define ROSE_T2 3
+# define ROSE_T3 4
+# define SOL_AX25 257
+# define SOL_ROSE 260
 #endif
 
 __NIJI_END_C

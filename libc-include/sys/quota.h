@@ -47,54 +47,24 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # ifndef DQF_SYS_FILE
 #  define DQF_SYS_FILE 65536
 # endif
-# ifndef GRPQUOTA
-#  define GRPQUOTA 1
-# endif
+# define GRPQUOTA 1
 # ifndef IIF_ALL
 #  define IIF_ALL 7
 # endif
-# ifndef IIF_BGRACE
-#  define IIF_BGRACE 1
-# endif
-# ifndef IIF_FLAGS
-#  define IIF_FLAGS 4
-# endif
-# ifndef IIF_IGRACE
-#  define IIF_IGRACE 2
-# endif
-# ifndef MAXQUOTAS
-#  define MAXQUOTAS 3
-# endif
-# ifndef MAX_DQ_TIME
-#  define MAX_DQ_TIME 604800
-# endif
-# ifndef MAX_IQ_TIME
-#  define MAX_IQ_TIME 604800
-# endif
-# ifndef NR_DQHASH
-#  define NR_DQHASH 43
-# endif
-# ifndef NR_DQUOTS
-#  define NR_DQUOTS 256
-# endif
-# ifndef PRJQUOTA
-#  define PRJQUOTA 2
-# endif
-# ifndef QFMT_OCFS2
-#  define QFMT_OCFS2 3
-# endif
-# ifndef QFMT_SHMEM
-#  define QFMT_SHMEM 5
-# endif
-# ifndef QFMT_VFS_OLD
-#  define QFMT_VFS_OLD 1
-# endif
-# ifndef QFMT_VFS_V0
-#  define QFMT_VFS_V0 2
-# endif
-# ifndef QFMT_VFS_V1
-#  define QFMT_VFS_V1 4
-# endif
+# define IIF_BGRACE 1
+# define IIF_FLAGS 4
+# define IIF_IGRACE 2
+# define MAXQUOTAS 3
+# define MAX_DQ_TIME 604800
+# define MAX_IQ_TIME 604800
+# define NR_DQHASH 43
+# define NR_DQUOTS 256
+# define PRJQUOTA 2
+# define QFMT_OCFS2 3
+# define QFMT_SHMEM 5
+# define QFMT_VFS_OLD 1
+# define QFMT_VFS_V0 2
+# define QFMT_VFS_V1 4
 # ifndef QIF_ALL
 #  define QIF_ALL 63
 # endif
@@ -107,9 +77,7 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # ifndef QIF_DQBLKSIZE
 #  define QIF_DQBLKSIZE 1024
 # endif
-# ifndef QIF_DQBLKSIZE_BITS
-#  define QIF_DQBLKSIZE_BITS 10
-# endif
+# define QIF_DQBLKSIZE_BITS 10
 # ifndef QIF_ILIMITS
 #  define QIF_ILIMITS 4
 # endif
@@ -134,42 +102,20 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # ifndef QUOTA_NL_A_MAX
 #  define QUOTA_NL_A_MAX 7
 # endif
-# ifndef QUOTA_NL_BHARDBELOW
-#  define QUOTA_NL_BHARDBELOW 9
-# endif
-# ifndef QUOTA_NL_BHARDWARN
-#  define QUOTA_NL_BHARDWARN 4
-# endif
-# ifndef QUOTA_NL_BSOFTBELOW
-#  define QUOTA_NL_BSOFTBELOW 10
-# endif
-# ifndef QUOTA_NL_BSOFTLONGWARN
-#  define QUOTA_NL_BSOFTLONGWARN 5
-# endif
-# ifndef QUOTA_NL_BSOFTWARN
-#  define QUOTA_NL_BSOFTWARN 6
-# endif
+# define QUOTA_NL_BHARDBELOW 9
+# define QUOTA_NL_BHARDWARN 4
+# define QUOTA_NL_BSOFTBELOW 10
+# define QUOTA_NL_BSOFTLONGWARN 5
+# define QUOTA_NL_BSOFTWARN 6
 # ifndef QUOTA_NL_C_MAX
 #  define QUOTA_NL_C_MAX 1
 # endif
-# ifndef QUOTA_NL_IHARDBELOW
-#  define QUOTA_NL_IHARDBELOW 7
-# endif
-# ifndef QUOTA_NL_IHARDWARN
-#  define QUOTA_NL_IHARDWARN 1
-# endif
-# ifndef QUOTA_NL_ISOFTBELOW
-#  define QUOTA_NL_ISOFTBELOW 8
-# endif
-# ifndef QUOTA_NL_ISOFTLONGWARN
-#  define QUOTA_NL_ISOFTLONGWARN 2
-# endif
-# ifndef QUOTA_NL_ISOFTWARN
-#  define QUOTA_NL_ISOFTWARN 3
-# endif
-# ifndef QUOTA_NL_NOWARN
-#  define QUOTA_NL_NOWARN 0
-# endif
+# define QUOTA_NL_IHARDBELOW 7
+# define QUOTA_NL_IHARDWARN 1
+# define QUOTA_NL_ISOFTBELOW 8
+# define QUOTA_NL_ISOFTLONGWARN 2
+# define QUOTA_NL_ISOFTWARN 3
+# define QUOTA_NL_NOWARN 0
 # ifndef Q_GETFMT
 #  define Q_GETFMT 8388612
 # endif
@@ -200,12 +146,8 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # ifndef SUBCMDMASK
 #  define SUBCMDMASK 255
 # endif
-# ifndef SUBCMDSHIFT
-#  define SUBCMDSHIFT 8
-# endif
-# ifndef USRQUOTA
-#  define USRQUOTA 0
-# endif
+# define SUBCMDSHIFT 8
+# define USRQUOTA 0
 #endif
 
 __NIJI_END_C

@@ -5,17 +5,17 @@
 #define _NETINET_TCP_H 1
 
 #include <features.h>
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <sys/socket.h>
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <stdint.h>
 #endif
 
 __NIJI_BEGIN_C
 
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_tcp_cookie_transactions
 #  define __NIJI_D_struct_tcp_cookie_transactions 1
 struct tcp_cookie_transactions {
@@ -259,254 +259,98 @@ enum { TCP_TIME_WAIT = 6 };
 # endif
 #endif
 #if 1
-# ifndef TCP_CC_INFO
-#  define TCP_CC_INFO 26
-# endif
+# define TCP_CC_INFO 26
 # ifndef TCP_CM_INQ
 #  define TCP_CM_INQ 36
 # endif
-# ifndef TCP_CONGESTION
-#  define TCP_CONGESTION 13
-# endif
-# ifndef TCP_COOKIE_TRANSACTIONS
-#  define TCP_COOKIE_TRANSACTIONS 15
-# endif
-# ifndef TCP_CORK
-#  define TCP_CORK 3
-# endif
-# ifndef TCP_DEFER_ACCEPT
-#  define TCP_DEFER_ACCEPT 9
-# endif
-# ifndef TCP_FASTOPEN
-#  define TCP_FASTOPEN 23
-# endif
-# ifndef TCP_FASTOPEN_CONNECT
-#  define TCP_FASTOPEN_CONNECT 30
-# endif
-# ifndef TCP_FASTOPEN_KEY
-#  define TCP_FASTOPEN_KEY 33
-# endif
-# ifndef TCP_FASTOPEN_NO_COOKIE
-#  define TCP_FASTOPEN_NO_COOKIE 34
-# endif
-# ifndef TCP_INFO
-#  define TCP_INFO 11
-# endif
-# ifndef TCP_INQ
-#  define TCP_INQ 36
-# endif
-# ifndef TCP_KEEPCNT
-#  define TCP_KEEPCNT 6
-# endif
-# ifndef TCP_KEEPIDLE
-#  define TCP_KEEPIDLE 4
-# endif
-# ifndef TCP_KEEPINTVL
-#  define TCP_KEEPINTVL 5
-# endif
-# ifndef TCP_LINGER2
-#  define TCP_LINGER2 8
-# endif
-# ifndef TCP_MAXSEG
-#  define TCP_MAXSEG 2
-# endif
-# ifndef TCP_MD5SIG
-#  define TCP_MD5SIG 14
-# endif
-# ifndef TCP_MD5SIG_EXT
-#  define TCP_MD5SIG_EXT 32
-# endif
-# ifndef TCP_NODELAY
-#  define TCP_NODELAY 1
-# endif
-# ifndef TCP_NOTSENT_LOWAT
-#  define TCP_NOTSENT_LOWAT 25
-# endif
-# ifndef TCP_QUEUE_SEQ
-#  define TCP_QUEUE_SEQ 21
-# endif
-# ifndef TCP_QUICKACK
-#  define TCP_QUICKACK 12
-# endif
-# ifndef TCP_REPAIR
-#  define TCP_REPAIR 19
-# endif
-# ifndef TCP_REPAIR_OFF
-#  define TCP_REPAIR_OFF 0
-# endif
+# define TCP_CONGESTION 13
+# define TCP_COOKIE_TRANSACTIONS 15
+# define TCP_CORK 3
+# define TCP_DEFER_ACCEPT 9
+# define TCP_FASTOPEN 23
+# define TCP_FASTOPEN_CONNECT 30
+# define TCP_FASTOPEN_KEY 33
+# define TCP_FASTOPEN_NO_COOKIE 34
+# define TCP_INFO 11
+# define TCP_INQ 36
+# define TCP_KEEPCNT 6
+# define TCP_KEEPIDLE 4
+# define TCP_KEEPINTVL 5
+# define TCP_LINGER2 8
+# define TCP_MAXSEG 2
+# define TCP_MD5SIG 14
+# define TCP_MD5SIG_EXT 32
+# define TCP_NODELAY 1
+# define TCP_NOTSENT_LOWAT 25
+# define TCP_QUEUE_SEQ 21
+# define TCP_QUICKACK 12
+# define TCP_REPAIR 19
+# define TCP_REPAIR_OFF 0
 # ifndef TCP_REPAIR_OFF_NO_WP
 #  define TCP_REPAIR_OFF_NO_WP (-1)
 # endif
-# ifndef TCP_REPAIR_ON
-#  define TCP_REPAIR_ON 1
-# endif
-# ifndef TCP_REPAIR_OPTIONS
-#  define TCP_REPAIR_OPTIONS 22
-# endif
-# ifndef TCP_REPAIR_QUEUE
-#  define TCP_REPAIR_QUEUE 20
-# endif
-# ifndef TCP_REPAIR_WINDOW
-#  define TCP_REPAIR_WINDOW 29
-# endif
-# ifndef TCP_SAVED_SYN
-#  define TCP_SAVED_SYN 28
-# endif
-# ifndef TCP_SAVE_SYN
-#  define TCP_SAVE_SYN 27
-# endif
-# ifndef TCP_SYNCNT
-#  define TCP_SYNCNT 7
-# endif
-# ifndef TCP_THIN_DUPACK
-#  define TCP_THIN_DUPACK 17
-# endif
-# ifndef TCP_THIN_LINEAR_TIMEOUTS
-#  define TCP_THIN_LINEAR_TIMEOUTS 16
-# endif
-# ifndef TCP_TIMESTAMP
-#  define TCP_TIMESTAMP 24
-# endif
-# ifndef TCP_TX_DELAY
-#  define TCP_TX_DELAY 37
-# endif
-# ifndef TCP_ULP
-#  define TCP_ULP 31
-# endif
-# ifndef TCP_USER_TIMEOUT
-#  define TCP_USER_TIMEOUT 18
-# endif
-# ifndef TCP_WINDOW_CLAMP
-#  define TCP_WINDOW_CLAMP 10
-# endif
-# ifndef TCP_ZEROCOPY_RECEIVE
-#  define TCP_ZEROCOPY_RECEIVE 35
-# endif
+# define TCP_REPAIR_ON 1
+# define TCP_REPAIR_OPTIONS 22
+# define TCP_REPAIR_QUEUE 20
+# define TCP_REPAIR_WINDOW 29
+# define TCP_SAVED_SYN 28
+# define TCP_SAVE_SYN 27
+# define TCP_SYNCNT 7
+# define TCP_THIN_DUPACK 17
+# define TCP_THIN_LINEAR_TIMEOUTS 16
+# define TCP_TIMESTAMP 24
+# define TCP_TX_DELAY 37
+# define TCP_ULP 31
+# define TCP_USER_TIMEOUT 18
+# define TCP_WINDOW_CLAMP 10
+# define TCP_ZEROCOPY_RECEIVE 35
 #endif
-#if __NIJI_MISC
-# ifndef SOL_TCP
-#  define SOL_TCP 6
-# endif
-# ifndef TCPI_OPT_ECN
-#  define TCPI_OPT_ECN 8
-# endif
-# ifndef TCPI_OPT_ECN_SEEN
-#  define TCPI_OPT_ECN_SEEN 16
-# endif
-# ifndef TCPI_OPT_SACK
-#  define TCPI_OPT_SACK 2
-# endif
-# ifndef TCPI_OPT_SYN_DATA
-#  define TCPI_OPT_SYN_DATA 32
-# endif
-# ifndef TCPI_OPT_TIMESTAMPS
-#  define TCPI_OPT_TIMESTAMPS 1
-# endif
-# ifndef TCPI_OPT_WSCALE
-#  define TCPI_OPT_WSCALE 4
-# endif
-# ifndef TCPOLEN_MAXSEG
-#  define TCPOLEN_MAXSEG 4
-# endif
-# ifndef TCPOLEN_SACK_PERMITTED
-#  define TCPOLEN_SACK_PERMITTED 2
-# endif
-# ifndef TCPOLEN_TIMESTAMP
-#  define TCPOLEN_TIMESTAMP 10
-# endif
-# ifndef TCPOLEN_TSTAMP_APPA
-#  define TCPOLEN_TSTAMP_APPA 12
-# endif
-# ifndef TCPOLEN_WINDOW
-#  define TCPOLEN_WINDOW 3
-# endif
-# ifndef TCPOPT_EOL
-#  define TCPOPT_EOL 0
-# endif
-# ifndef TCPOPT_MAXSEG
-#  define TCPOPT_MAXSEG 2
-# endif
-# ifndef TCPOPT_NOP
-#  define TCPOPT_NOP 1
-# endif
-# ifndef TCPOPT_SACK
-#  define TCPOPT_SACK 5
-# endif
-# ifndef TCPOPT_SACK_PERMITTED
-#  define TCPOPT_SACK_PERMITTED 4
-# endif
-# ifndef TCPOPT_TIMESTAMP
-#  define TCPOPT_TIMESTAMP 8
-# endif
-# ifndef TCPOPT_TSTAMP_HDR
-#  define TCPOPT_TSTAMP_HDR 16844810
-# endif
-# ifndef TCPOPT_WINDOW
-#  define TCPOPT_WINDOW 3
-# endif
-# ifndef TCP_COOKIE_IN_ALWAYS
-#  define TCP_COOKIE_IN_ALWAYS 1
-# endif
-# ifndef TCP_COOKIE_MAX
-#  define TCP_COOKIE_MAX 16
-# endif
-# ifndef TCP_COOKIE_MIN
-#  define TCP_COOKIE_MIN 8
-# endif
-# ifndef TCP_COOKIE_OUT_NEVER
-#  define TCP_COOKIE_OUT_NEVER 2
-# endif
-# ifndef TCP_COOKIE_PAIR_SIZE
-#  define TCP_COOKIE_PAIR_SIZE 32
-# endif
-# ifndef TCP_MAXWIN
-#  define TCP_MAXWIN 65535
-# endif
-# ifndef TCP_MAX_WINSHIFT
-#  define TCP_MAX_WINSHIFT 14
-# endif
+#if defined __USE_MISC
+# define SOL_TCP 6
+# define TCPI_OPT_ECN 8
+# define TCPI_OPT_ECN_SEEN 16
+# define TCPI_OPT_SACK 2
+# define TCPI_OPT_SYN_DATA 32
+# define TCPI_OPT_TIMESTAMPS 1
+# define TCPI_OPT_WSCALE 4
+# define TCPOLEN_MAXSEG 4
+# define TCPOLEN_SACK_PERMITTED 2
+# define TCPOLEN_TIMESTAMP 10
+# define TCPOLEN_TSTAMP_APPA 12
+# define TCPOLEN_WINDOW 3
+# define TCPOPT_EOL 0
+# define TCPOPT_MAXSEG 2
+# define TCPOPT_NOP 1
+# define TCPOPT_SACK 5
+# define TCPOPT_SACK_PERMITTED 4
+# define TCPOPT_TIMESTAMP 8
+# define TCPOPT_TSTAMP_HDR 16844810
+# define TCPOPT_WINDOW 3
+# define TCP_COOKIE_IN_ALWAYS 1
+# define TCP_COOKIE_MAX 16
+# define TCP_COOKIE_MIN 8
+# define TCP_COOKIE_OUT_NEVER 2
+# define TCP_COOKIE_PAIR_SIZE 32
+# define TCP_MAXWIN 65535
+# define TCP_MAX_WINSHIFT 14
 # ifndef TCP_MD5SIG_FLAG_IFINDEX
 #  define TCP_MD5SIG_FLAG_IFINDEX 2
 # endif
 # ifndef TCP_MD5SIG_FLAG_PREFIX
 #  define TCP_MD5SIG_FLAG_PREFIX 1
 # endif
-# ifndef TCP_MD5SIG_MAXKEYLEN
-#  define TCP_MD5SIG_MAXKEYLEN 80
-# endif
-# ifndef TCP_MSS
-#  define TCP_MSS 512
-# endif
-# ifndef TCP_MSS_DEFAULT
-#  define TCP_MSS_DEFAULT 536U
-# endif
-# ifndef TCP_MSS_DESIRED
-#  define TCP_MSS_DESIRED 1220U
-# endif
-# ifndef TCP_S_DATA_IN
-#  define TCP_S_DATA_IN 4
-# endif
-# ifndef TCP_S_DATA_OUT
-#  define TCP_S_DATA_OUT 8
-# endif
-# ifndef TH_ACK
-#  define TH_ACK 16
-# endif
-# ifndef TH_FIN
-#  define TH_FIN 1
-# endif
-# ifndef TH_PUSH
-#  define TH_PUSH 8
-# endif
-# ifndef TH_RST
-#  define TH_RST 4
-# endif
-# ifndef TH_SYN
-#  define TH_SYN 2
-# endif
-# ifndef TH_URG
-#  define TH_URG 32
-# endif
+# define TCP_MD5SIG_MAXKEYLEN 80
+# define TCP_MSS 512
+# define TCP_MSS_DEFAULT 536U
+# define TCP_MSS_DESIRED 1220U
+# define TCP_S_DATA_IN 4
+# define TCP_S_DATA_OUT 8
+# define TH_ACK 16
+# define TH_FIN 1
+# define TH_PUSH 8
+# define TH_RST 4
+# define TH_SYN 2
+# define TH_URG 32
 #endif
 
 __NIJI_END_C

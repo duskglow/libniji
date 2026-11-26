@@ -1,0 +1,4 @@
+# HEADERS-FEATURES-FORMS-2 plant: the reference row the direct-tier gate needed; without it P2 sees the generated sys/pidfd.h show an enumerator the table does not.
+hff2-gid-row | spec/abi/visibility.tsv | perl:s/^sys\/pidfd\.h\tF_OWNER_GID\t[^\n]*\n//m | cargo test -p xtask --test header_p2_fixed_rows | msg:extra sys/pidfd.h F_OWNER_GID enumerator
+# cargo xtask plants results (1 plants: 1 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hff2-gid-row: CAUGHT, caught by header_p2_fixed_rows p2_visibility_of_the_fixed_rows

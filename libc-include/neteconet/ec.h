@@ -38,33 +38,15 @@ struct sockaddr_ec {
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
 # endif
-# ifndef ECTYPE_PACKET_RECEIVED
-#  define ECTYPE_PACKET_RECEIVED 0
-# endif
-# ifndef ECTYPE_TRANSMIT_LINE_JAMMED
-#  define ECTYPE_TRANSMIT_LINE_JAMMED 5
-# endif
-# ifndef ECTYPE_TRANSMIT_NET_ERROR
-#  define ECTYPE_TRANSMIT_NET_ERROR 3
-# endif
-# ifndef ECTYPE_TRANSMIT_NOT_LISTENING
-#  define ECTYPE_TRANSMIT_NOT_LISTENING 2
-# endif
-# ifndef ECTYPE_TRANSMIT_NOT_PRESENT
-#  define ECTYPE_TRANSMIT_NOT_PRESENT 6
-# endif
-# ifndef ECTYPE_TRANSMIT_NO_CLOCK
-#  define ECTYPE_TRANSMIT_NO_CLOCK 4
-# endif
-# ifndef ECTYPE_TRANSMIT_OK
-#  define ECTYPE_TRANSMIT_OK 1
-# endif
-# ifndef ECTYPE_TRANSMIT_STATUS
-#  define ECTYPE_TRANSMIT_STATUS 16
-# endif
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define ECTYPE_PACKET_RECEIVED 0
+# define ECTYPE_TRANSMIT_LINE_JAMMED 5
+# define ECTYPE_TRANSMIT_NET_ERROR 3
+# define ECTYPE_TRANSMIT_NOT_LISTENING 2
+# define ECTYPE_TRANSMIT_NOT_PRESENT 6
+# define ECTYPE_TRANSMIT_NO_CLOCK 4
+# define ECTYPE_TRANSMIT_OK 1
+# define ECTYPE_TRANSMIT_STATUS 16
+# define _SS_SIZE 128
 #endif
 
 __NIJI_END_C

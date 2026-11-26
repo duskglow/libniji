@@ -48,7 +48,7 @@ struct semid_ds {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_seminfo
 #  define __NIJI_D_struct_seminfo 1
 struct seminfo {
@@ -90,7 +90,7 @@ struct sembuf;
 extern int semop (int, struct sembuf *, unsigned long) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct sembuf;
 struct timespec;
 # ifndef __NIJI_D_semtimedop
@@ -99,44 +99,22 @@ extern int semtimedop (int, struct sembuf *, unsigned long, const struct timespe
 # endif
 #endif
 #if 1
-# ifndef GETALL
-#  define GETALL 13
-# endif
-# ifndef GETNCNT
-#  define GETNCNT 14
-# endif
-# ifndef GETPID
-#  define GETPID 11
-# endif
-# ifndef GETVAL
-#  define GETVAL 12
-# endif
-# ifndef GETZCNT
-#  define GETZCNT 15
-# endif
+# define GETALL 13
+# define GETNCNT 14
+# define GETPID 11
+# define GETVAL 12
+# define GETZCNT 15
 # ifndef SEM_UNDO
 #  define SEM_UNDO 4096
 # endif
-# ifndef SETALL
-#  define SETALL 17
-# endif
-# ifndef SETVAL
-#  define SETVAL 16
-# endif
-# ifndef _SEM_SEMUN_UNDEFINED
-#  define _SEM_SEMUN_UNDEFINED 1
-# endif
+# define SETALL 17
+# define SETVAL 16
+# define _SEM_SEMUN_UNDEFINED 1
 #endif
-#if __NIJI_MISC
-# ifndef SEM_INFO
-#  define SEM_INFO 19
-# endif
-# ifndef SEM_STAT
-#  define SEM_STAT 18
-# endif
-# ifndef SEM_STAT_ANY
-#  define SEM_STAT_ANY 20
-# endif
+#if defined __USE_MISC
+# define SEM_INFO 19
+# define SEM_STAT 18
+# define SEM_STAT_ANY 20
 #endif
 
 __NIJI_END_C

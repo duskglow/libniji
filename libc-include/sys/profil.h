@@ -41,6 +41,12 @@ extern int sprofil (struct prof *, int, struct timeval *, unsigned int) __NIJI_N
 # endif
 #endif
 
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
+
 __NIJI_END_C
 
 #endif

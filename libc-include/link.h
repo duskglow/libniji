@@ -40,7 +40,7 @@ struct r_debug {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_Elf64_Phdr
 #  define __NIJI_D_Elf64_Phdr 1
 typedef struct {
@@ -242,7 +242,7 @@ extern unsigned long la_x86_64_gnu_pltenter (Elf64_Sym *, unsigned int, unsigned
 extern unsigned int la_x86_64_gnu_pltexit (Elf64_Sym *, unsigned int, unsigned long *, unsigned long *, const La_x86_64_regs *, La_x86_64_retval *, const char *);
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct dl_phdr_info;
 # ifndef __NIJI_D_dl_iterate_phdr
 #  define __NIJI_D_dl_iterate_phdr 1
@@ -281,9 +281,7 @@ extern unsigned long la_symbind64 (Elf64_Sym *, unsigned int, unsigned long *, u
 #  define __NIJI_D_la_version 1
 extern unsigned int la_version (unsigned int);
 # endif
-# ifndef LAV_CURRENT
-#  define LAV_CURRENT 2
-# endif
+# define LAV_CURRENT 2
 #endif
 
 /* dl_iterate_phdr(3): ElfW(Addr) names the ELF type of the native class (x86-64: Elf64_Addr). */

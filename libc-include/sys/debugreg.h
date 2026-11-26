@@ -6,33 +6,19 @@
 #define _SYS_DEBUGREG_H 1
 
 #if 1
-# ifndef DR_CONTROL
-#  define DR_CONTROL 7
-# endif
-# ifndef DR_CONTROL_SHIFT
-#  define DR_CONTROL_SHIFT 16
-# endif
-# ifndef DR_CONTROL_SIZE
-#  define DR_CONTROL_SIZE 4
-# endif
-# ifndef DR_ENABLE_SIZE
-#  define DR_ENABLE_SIZE 2
-# endif
-# ifndef DR_FIRSTADDR
-#  define DR_FIRSTADDR 0
-# endif
+# define DR_CONTROL 7
+# define DR_CONTROL_SHIFT 16
+# define DR_CONTROL_SIZE 4
+# define DR_ENABLE_SIZE 2
+# define DR_FIRSTADDR 0
 # ifndef DR_GLOBAL_ENABLE_MASK
 #  define DR_GLOBAL_ENABLE_MASK 170
 # endif
-# ifndef DR_GLOBAL_ENABLE_SHIFT
-#  define DR_GLOBAL_ENABLE_SHIFT 1
-# endif
+# define DR_GLOBAL_ENABLE_SHIFT 1
 # ifndef DR_GLOBAL_SLOWDOWN
 #  define DR_GLOBAL_SLOWDOWN 512
 # endif
-# ifndef DR_LASTADDR
-#  define DR_LASTADDR 3
-# endif
+# define DR_LASTADDR 3
 # ifndef DR_LEN_1
 #  define DR_LEN_1 0
 # endif
@@ -48,9 +34,7 @@
 # ifndef DR_LOCAL_ENABLE_MASK
 #  define DR_LOCAL_ENABLE_MASK 85
 # endif
-# ifndef DR_LOCAL_ENABLE_SHIFT
-#  define DR_LOCAL_ENABLE_SHIFT 0
-# endif
+# define DR_LOCAL_ENABLE_SHIFT 0
 # ifndef DR_LOCAL_SLOWDOWN
 #  define DR_LOCAL_SLOWDOWN 256
 # endif
@@ -63,9 +47,7 @@
 # ifndef DR_RW_WRITE
 #  define DR_RW_WRITE 1
 # endif
-# ifndef DR_STATUS
-#  define DR_STATUS 6
-# endif
+# define DR_STATUS 6
 # ifndef DR_STEP
 #  define DR_STEP 16384
 # endif

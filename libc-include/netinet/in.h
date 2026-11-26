@@ -93,7 +93,7 @@ struct sockaddr_in6 {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
@@ -131,7 +131,7 @@ struct ip6_mtuinfo {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_sockaddr_storage
 #  define __NIJI_D_struct_sockaddr_storage 1
 struct sockaddr_storage {
@@ -306,7 +306,7 @@ extern unsigned int ntohl (unsigned int) __NIJI_NOTHROW;
 extern unsigned short ntohs (unsigned short) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct in_addr;
 struct in_addr;
 struct in_addr;
@@ -417,7 +417,7 @@ struct sockaddr_storage;
 extern int setsourcefilter (int, unsigned int, const struct sockaddr *, unsigned int, unsigned int, unsigned int, const struct sockaddr_storage *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct sockaddr_in;
 # ifndef __NIJI_D_bindresvport
 #  define __NIJI_D_bindresvport 1
@@ -592,539 +592,215 @@ enum {
 # ifndef INADDR_UNSPEC_GROUP
 #  define INADDR_UNSPEC_GROUP 3758096384U
 # endif
-# ifndef INET6_ADDRSTRLEN
-#  define INET6_ADDRSTRLEN 46
-# endif
-# ifndef INET_ADDRSTRLEN
-#  define INET_ADDRSTRLEN 16
-# endif
+# define INET6_ADDRSTRLEN 46
+# define INET_ADDRSTRLEN 16
 # ifndef IN_CLASSA_HOST
 #  define IN_CLASSA_HOST 16777215U
 # endif
-# ifndef IN_CLASSA_MAX
-#  define IN_CLASSA_MAX 128
-# endif
+# define IN_CLASSA_MAX 128
 # ifndef IN_CLASSA_NET
 #  define IN_CLASSA_NET 4278190080U
 # endif
-# ifndef IN_CLASSA_NSHIFT
-#  define IN_CLASSA_NSHIFT 24
-# endif
+# define IN_CLASSA_NSHIFT 24
 # ifndef IN_CLASSB_HOST
 #  define IN_CLASSB_HOST 65535U
 # endif
-# ifndef IN_CLASSB_MAX
-#  define IN_CLASSB_MAX 65536
-# endif
+# define IN_CLASSB_MAX 65536
 # ifndef IN_CLASSB_NET
 #  define IN_CLASSB_NET 4294901760U
 # endif
-# ifndef IN_CLASSB_NSHIFT
-#  define IN_CLASSB_NSHIFT 16
-# endif
+# define IN_CLASSB_NSHIFT 16
 # ifndef IN_CLASSC_HOST
 #  define IN_CLASSC_HOST 255U
 # endif
 # ifndef IN_CLASSC_NET
 #  define IN_CLASSC_NET 4294967040U
 # endif
-# ifndef IN_CLASSC_NSHIFT
-#  define IN_CLASSC_NSHIFT 8
-# endif
-# ifndef IN_LOOPBACKNET
-#  define IN_LOOPBACKNET 127
-# endif
-# ifndef IPPROTO_AH
-#  define IPPROTO_AH IPPROTO_AH
-# endif
-# ifndef IPPROTO_BEETPH
-#  define IPPROTO_BEETPH IPPROTO_BEETPH
-# endif
-# ifndef IPPROTO_COMP
-#  define IPPROTO_COMP IPPROTO_COMP
-# endif
-# ifndef IPPROTO_DCCP
-#  define IPPROTO_DCCP IPPROTO_DCCP
-# endif
+# define IN_CLASSC_NSHIFT 8
+# define IN_LOOPBACKNET 127
+# define IPPROTO_AH IPPROTO_AH
+# define IPPROTO_BEETPH IPPROTO_BEETPH
+# define IPPROTO_COMP IPPROTO_COMP
+# define IPPROTO_DCCP IPPROTO_DCCP
 # ifndef IPPROTO_DSTOPTS
 #  define IPPROTO_DSTOPTS IPPROTO_DSTOPTS
 # endif
-# ifndef IPPROTO_EGP
-#  define IPPROTO_EGP IPPROTO_EGP
-# endif
-# ifndef IPPROTO_ENCAP
-#  define IPPROTO_ENCAP IPPROTO_ENCAP
-# endif
-# ifndef IPPROTO_ESP
-#  define IPPROTO_ESP IPPROTO_ESP
-# endif
-# ifndef IPPROTO_ETHERNET
-#  define IPPROTO_ETHERNET IPPROTO_ETHERNET
-# endif
+# define IPPROTO_EGP IPPROTO_EGP
+# define IPPROTO_ENCAP IPPROTO_ENCAP
+# define IPPROTO_ESP IPPROTO_ESP
+# define IPPROTO_ETHERNET IPPROTO_ETHERNET
 # ifndef IPPROTO_FRAGMENT
 #  define IPPROTO_FRAGMENT IPPROTO_FRAGMENT
 # endif
-# ifndef IPPROTO_GRE
-#  define IPPROTO_GRE IPPROTO_GRE
-# endif
+# define IPPROTO_GRE IPPROTO_GRE
 # ifndef IPPROTO_HOPOPTS
 #  define IPPROTO_HOPOPTS IPPROTO_HOPOPTS
 # endif
-# ifndef IPPROTO_ICMP
-#  define IPPROTO_ICMP IPPROTO_ICMP
-# endif
+# define IPPROTO_ICMP IPPROTO_ICMP
 # ifndef IPPROTO_ICMPV6
 #  define IPPROTO_ICMPV6 IPPROTO_ICMPV6
 # endif
-# ifndef IPPROTO_IDP
-#  define IPPROTO_IDP IPPROTO_IDP
-# endif
-# ifndef IPPROTO_IGMP
-#  define IPPROTO_IGMP IPPROTO_IGMP
-# endif
-# ifndef IPPROTO_IP
-#  define IPPROTO_IP IPPROTO_IP
-# endif
-# ifndef IPPROTO_IPIP
-#  define IPPROTO_IPIP IPPROTO_IPIP
-# endif
-# ifndef IPPROTO_IPV6
-#  define IPPROTO_IPV6 IPPROTO_IPV6
-# endif
-# ifndef IPPROTO_L2TP
-#  define IPPROTO_L2TP IPPROTO_L2TP
-# endif
+# define IPPROTO_IDP IPPROTO_IDP
+# define IPPROTO_IGMP IPPROTO_IGMP
+# define IPPROTO_IP IPPROTO_IP
+# define IPPROTO_IPIP IPPROTO_IPIP
+# define IPPROTO_IPV6 IPPROTO_IPV6
+# define IPPROTO_L2TP IPPROTO_L2TP
 # ifndef IPPROTO_MH
 #  define IPPROTO_MH IPPROTO_MH
 # endif
-# ifndef IPPROTO_MPLS
-#  define IPPROTO_MPLS IPPROTO_MPLS
-# endif
-# ifndef IPPROTO_MPTCP
-#  define IPPROTO_MPTCP IPPROTO_MPTCP
-# endif
-# ifndef IPPROTO_MTP
-#  define IPPROTO_MTP IPPROTO_MTP
-# endif
+# define IPPROTO_MPLS IPPROTO_MPLS
+# define IPPROTO_MPTCP IPPROTO_MPTCP
+# define IPPROTO_MTP IPPROTO_MTP
 # ifndef IPPROTO_NONE
 #  define IPPROTO_NONE IPPROTO_NONE
 # endif
-# ifndef IPPROTO_PIM
-#  define IPPROTO_PIM IPPROTO_PIM
-# endif
-# ifndef IPPROTO_PUP
-#  define IPPROTO_PUP IPPROTO_PUP
-# endif
-# ifndef IPPROTO_RAW
-#  define IPPROTO_RAW IPPROTO_RAW
-# endif
+# define IPPROTO_PIM IPPROTO_PIM
+# define IPPROTO_PUP IPPROTO_PUP
+# define IPPROTO_RAW IPPROTO_RAW
 # ifndef IPPROTO_ROUTING
 #  define IPPROTO_ROUTING IPPROTO_ROUTING
 # endif
-# ifndef IPPROTO_RSVP
-#  define IPPROTO_RSVP IPPROTO_RSVP
-# endif
-# ifndef IPPROTO_SCTP
-#  define IPPROTO_SCTP IPPROTO_SCTP
-# endif
-# ifndef IPPROTO_TCP
-#  define IPPROTO_TCP IPPROTO_TCP
-# endif
-# ifndef IPPROTO_TP
-#  define IPPROTO_TP IPPROTO_TP
-# endif
-# ifndef IPPROTO_UDP
-#  define IPPROTO_UDP IPPROTO_UDP
-# endif
-# ifndef IPPROTO_UDPLITE
-#  define IPPROTO_UDPLITE IPPROTO_UDPLITE
-# endif
-# ifndef IPV6_2292DSTOPTS
-#  define IPV6_2292DSTOPTS 4
-# endif
-# ifndef IPV6_2292HOPLIMIT
-#  define IPV6_2292HOPLIMIT 8
-# endif
-# ifndef IPV6_2292HOPOPTS
-#  define IPV6_2292HOPOPTS 3
-# endif
-# ifndef IPV6_2292PKTINFO
-#  define IPV6_2292PKTINFO 2
-# endif
-# ifndef IPV6_2292PKTOPTIONS
-#  define IPV6_2292PKTOPTIONS 6
-# endif
-# ifndef IPV6_2292RTHDR
-#  define IPV6_2292RTHDR 5
-# endif
-# ifndef IPV6_ADDRFORM
-#  define IPV6_ADDRFORM 1
-# endif
-# ifndef IPV6_ADDR_PREFERENCES
-#  define IPV6_ADDR_PREFERENCES 72
-# endif
+# define IPPROTO_RSVP IPPROTO_RSVP
+# define IPPROTO_SCTP IPPROTO_SCTP
+# define IPPROTO_TCP IPPROTO_TCP
+# define IPPROTO_TP IPPROTO_TP
+# define IPPROTO_UDP IPPROTO_UDP
+# define IPPROTO_UDPLITE IPPROTO_UDPLITE
+# define IPV6_2292DSTOPTS 4
+# define IPV6_2292HOPLIMIT 8
+# define IPV6_2292HOPOPTS 3
+# define IPV6_2292PKTINFO 2
+# define IPV6_2292PKTOPTIONS 6
+# define IPV6_2292RTHDR 5
+# define IPV6_ADDRFORM 1
+# define IPV6_ADDR_PREFERENCES 72
 # ifndef IPV6_ADD_MEMBERSHIP
 #  define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 # endif
-# ifndef IPV6_AUTHHDR
-#  define IPV6_AUTHHDR 10
-# endif
-# ifndef IPV6_AUTOFLOWLABEL
-#  define IPV6_AUTOFLOWLABEL 70
-# endif
-# ifndef IPV6_CHECKSUM
-#  define IPV6_CHECKSUM 7
-# endif
-# ifndef IPV6_DONTFRAG
-#  define IPV6_DONTFRAG 62
-# endif
+# define IPV6_AUTHHDR 10
+# define IPV6_AUTOFLOWLABEL 70
+# define IPV6_CHECKSUM 7
+# define IPV6_DONTFRAG 62
 # ifndef IPV6_DROP_MEMBERSHIP
 #  define IPV6_DROP_MEMBERSHIP IPV6_LEAVE_GROUP
 # endif
-# ifndef IPV6_DSTOPTS
-#  define IPV6_DSTOPTS 59
-# endif
-# ifndef IPV6_FREEBIND
-#  define IPV6_FREEBIND 78
-# endif
-# ifndef IPV6_HDRINCL
-#  define IPV6_HDRINCL 36
-# endif
-# ifndef IPV6_HOPLIMIT
-#  define IPV6_HOPLIMIT 52
-# endif
-# ifndef IPV6_HOPOPTS
-#  define IPV6_HOPOPTS 54
-# endif
-# ifndef IPV6_IPSEC_POLICY
-#  define IPV6_IPSEC_POLICY 34
-# endif
-# ifndef IPV6_JOIN_ANYCAST
-#  define IPV6_JOIN_ANYCAST 27
-# endif
-# ifndef IPV6_JOIN_GROUP
-#  define IPV6_JOIN_GROUP 20
-# endif
-# ifndef IPV6_LEAVE_ANYCAST
-#  define IPV6_LEAVE_ANYCAST 28
-# endif
-# ifndef IPV6_LEAVE_GROUP
-#  define IPV6_LEAVE_GROUP 21
-# endif
-# ifndef IPV6_MINHOPCOUNT
-#  define IPV6_MINHOPCOUNT 73
-# endif
-# ifndef IPV6_MTU
-#  define IPV6_MTU 24
-# endif
-# ifndef IPV6_MTU_DISCOVER
-#  define IPV6_MTU_DISCOVER 23
-# endif
-# ifndef IPV6_MULTICAST_ALL
-#  define IPV6_MULTICAST_ALL 29
-# endif
-# ifndef IPV6_MULTICAST_HOPS
-#  define IPV6_MULTICAST_HOPS 18
-# endif
-# ifndef IPV6_MULTICAST_IF
-#  define IPV6_MULTICAST_IF 17
-# endif
-# ifndef IPV6_MULTICAST_LOOP
-#  define IPV6_MULTICAST_LOOP 19
-# endif
-# ifndef IPV6_NEXTHOP
-#  define IPV6_NEXTHOP 9
-# endif
-# ifndef IPV6_ORIGDSTADDR
-#  define IPV6_ORIGDSTADDR 74
-# endif
-# ifndef IPV6_PATHMTU
-#  define IPV6_PATHMTU 61
-# endif
-# ifndef IPV6_PKTINFO
-#  define IPV6_PKTINFO 50
-# endif
-# ifndef IPV6_PMTUDISC_DO
-#  define IPV6_PMTUDISC_DO 2
-# endif
-# ifndef IPV6_PMTUDISC_DONT
-#  define IPV6_PMTUDISC_DONT 0
-# endif
-# ifndef IPV6_PMTUDISC_INTERFACE
-#  define IPV6_PMTUDISC_INTERFACE 4
-# endif
-# ifndef IPV6_PMTUDISC_OMIT
-#  define IPV6_PMTUDISC_OMIT 5
-# endif
-# ifndef IPV6_PMTUDISC_PROBE
-#  define IPV6_PMTUDISC_PROBE 3
-# endif
-# ifndef IPV6_PMTUDISC_WANT
-#  define IPV6_PMTUDISC_WANT 1
-# endif
-# ifndef IPV6_RECVDSTOPTS
-#  define IPV6_RECVDSTOPTS 58
-# endif
-# ifndef IPV6_RECVERR
-#  define IPV6_RECVERR 25
-# endif
-# ifndef IPV6_RECVERR_RFC4884
-#  define IPV6_RECVERR_RFC4884 31
-# endif
-# ifndef IPV6_RECVFRAGSIZE
-#  define IPV6_RECVFRAGSIZE 77
-# endif
-# ifndef IPV6_RECVHOPLIMIT
-#  define IPV6_RECVHOPLIMIT 51
-# endif
-# ifndef IPV6_RECVHOPOPTS
-#  define IPV6_RECVHOPOPTS 53
-# endif
-# ifndef IPV6_RECVPATHMTU
-#  define IPV6_RECVPATHMTU 60
-# endif
-# ifndef IPV6_RECVPKTINFO
-#  define IPV6_RECVPKTINFO 49
-# endif
-# ifndef IPV6_RECVRTHDR
-#  define IPV6_RECVRTHDR 56
-# endif
-# ifndef IPV6_RECVTCLASS
-#  define IPV6_RECVTCLASS 66
-# endif
-# ifndef IPV6_ROUTER_ALERT
-#  define IPV6_ROUTER_ALERT 22
-# endif
-# ifndef IPV6_ROUTER_ALERT_ISOLATE
-#  define IPV6_ROUTER_ALERT_ISOLATE 30
-# endif
-# ifndef IPV6_RTHDR
-#  define IPV6_RTHDR 57
-# endif
-# ifndef IPV6_RTHDRDSTOPTS
-#  define IPV6_RTHDRDSTOPTS 55
-# endif
-# ifndef IPV6_RTHDR_LOOSE
-#  define IPV6_RTHDR_LOOSE 0
-# endif
-# ifndef IPV6_RTHDR_STRICT
-#  define IPV6_RTHDR_STRICT 1
-# endif
-# ifndef IPV6_RTHDR_TYPE_0
-#  define IPV6_RTHDR_TYPE_0 0
-# endif
-# ifndef IPV6_RXDSTOPTS
-#  define IPV6_RXDSTOPTS IPV6_DSTOPTS
-# endif
-# ifndef IPV6_RXHOPOPTS
-#  define IPV6_RXHOPOPTS IPV6_HOPOPTS
-# endif
-# ifndef IPV6_TCLASS
-#  define IPV6_TCLASS 67
-# endif
-# ifndef IPV6_TRANSPARENT
-#  define IPV6_TRANSPARENT 75
-# endif
-# ifndef IPV6_UNICAST_HOPS
-#  define IPV6_UNICAST_HOPS 16
-# endif
-# ifndef IPV6_UNICAST_IF
-#  define IPV6_UNICAST_IF 76
-# endif
-# ifndef IPV6_V6ONLY
-#  define IPV6_V6ONLY 26
-# endif
-# ifndef IPV6_XFRM_POLICY
-#  define IPV6_XFRM_POLICY 35
-# endif
-# ifndef IP_ADD_MEMBERSHIP
-#  define IP_ADD_MEMBERSHIP 35
-# endif
-# ifndef IP_ADD_SOURCE_MEMBERSHIP
-#  define IP_ADD_SOURCE_MEMBERSHIP 39
-# endif
-# ifndef IP_BIND_ADDRESS_NO_PORT
-#  define IP_BIND_ADDRESS_NO_PORT 24
-# endif
-# ifndef IP_BLOCK_SOURCE
-#  define IP_BLOCK_SOURCE 38
-# endif
-# ifndef IP_CHECKSUM
-#  define IP_CHECKSUM 23
-# endif
-# ifndef IP_DEFAULT_MULTICAST_LOOP
-#  define IP_DEFAULT_MULTICAST_LOOP 1
-# endif
-# ifndef IP_DEFAULT_MULTICAST_TTL
-#  define IP_DEFAULT_MULTICAST_TTL 1
-# endif
-# ifndef IP_DROP_MEMBERSHIP
-#  define IP_DROP_MEMBERSHIP 36
-# endif
-# ifndef IP_DROP_SOURCE_MEMBERSHIP
-#  define IP_DROP_SOURCE_MEMBERSHIP 40
-# endif
-# ifndef IP_FREEBIND
-#  define IP_FREEBIND 15
-# endif
-# ifndef IP_HDRINCL
-#  define IP_HDRINCL 3
-# endif
-# ifndef IP_IPSEC_POLICY
-#  define IP_IPSEC_POLICY 16
-# endif
-# ifndef IP_LOCAL_PORT_RANGE
-#  define IP_LOCAL_PORT_RANGE 51
-# endif
-# ifndef IP_MAX_MEMBERSHIPS
-#  define IP_MAX_MEMBERSHIPS 20
-# endif
-# ifndef IP_MINTTL
-#  define IP_MINTTL 21
-# endif
-# ifndef IP_MSFILTER
-#  define IP_MSFILTER 41
-# endif
-# ifndef IP_MTU
-#  define IP_MTU 14
-# endif
-# ifndef IP_MTU_DISCOVER
-#  define IP_MTU_DISCOVER 10
-# endif
-# ifndef IP_MULTICAST_ALL
-#  define IP_MULTICAST_ALL 49
-# endif
-# ifndef IP_MULTICAST_IF
-#  define IP_MULTICAST_IF 32
-# endif
-# ifndef IP_MULTICAST_LOOP
-#  define IP_MULTICAST_LOOP 34
-# endif
-# ifndef IP_MULTICAST_TTL
-#  define IP_MULTICAST_TTL 33
-# endif
-# ifndef IP_NODEFRAG
-#  define IP_NODEFRAG 22
-# endif
-# ifndef IP_OPTIONS
-#  define IP_OPTIONS 4
-# endif
-# ifndef IP_ORIGDSTADDR
-#  define IP_ORIGDSTADDR 20
-# endif
-# ifndef IP_PASSSEC
-#  define IP_PASSSEC 18
-# endif
-# ifndef IP_PKTINFO
-#  define IP_PKTINFO 8
-# endif
-# ifndef IP_PKTOPTIONS
-#  define IP_PKTOPTIONS 9
-# endif
-# ifndef IP_PMTUDISC
-#  define IP_PMTUDISC 10
-# endif
-# ifndef IP_PMTUDISC_DO
-#  define IP_PMTUDISC_DO 2
-# endif
-# ifndef IP_PMTUDISC_DONT
-#  define IP_PMTUDISC_DONT 0
-# endif
-# ifndef IP_PMTUDISC_INTERFACE
-#  define IP_PMTUDISC_INTERFACE 4
-# endif
-# ifndef IP_PMTUDISC_OMIT
-#  define IP_PMTUDISC_OMIT 5
-# endif
-# ifndef IP_PMTUDISC_PROBE
-#  define IP_PMTUDISC_PROBE 3
-# endif
-# ifndef IP_PMTUDISC_WANT
-#  define IP_PMTUDISC_WANT 1
-# endif
-# ifndef IP_PROTOCOL
-#  define IP_PROTOCOL 52
-# endif
-# ifndef IP_RECVERR
-#  define IP_RECVERR 11
-# endif
-# ifndef IP_RECVERR_RFC4884
-#  define IP_RECVERR_RFC4884 26
-# endif
-# ifndef IP_RECVFRAGSIZE
-#  define IP_RECVFRAGSIZE 25
-# endif
-# ifndef IP_RECVOPTS
-#  define IP_RECVOPTS 6
-# endif
-# ifndef IP_RECVTOS
-#  define IP_RECVTOS 13
-# endif
-# ifndef IP_RECVTTL
-#  define IP_RECVTTL 12
-# endif
-# ifndef IP_RETOPTS
-#  define IP_RETOPTS 7
-# endif
-# ifndef IP_ROUTER_ALERT
-#  define IP_ROUTER_ALERT 5
-# endif
-# ifndef IP_TOS
-#  define IP_TOS 1
-# endif
-# ifndef IP_TRANSPARENT
-#  define IP_TRANSPARENT 19
-# endif
-# ifndef IP_TTL
-#  define IP_TTL 2
-# endif
-# ifndef IP_UNBLOCK_SOURCE
-#  define IP_UNBLOCK_SOURCE 37
-# endif
-# ifndef IP_UNICAST_IF
-#  define IP_UNICAST_IF 50
-# endif
-# ifndef IP_XFRM_POLICY
-#  define IP_XFRM_POLICY 17
-# endif
-# ifndef SOL_ICMPV6
-#  define SOL_ICMPV6 58
-# endif
-# ifndef SOL_IP
-#  define SOL_IP 0
-# endif
-# ifndef SOL_IPV6
-#  define SOL_IPV6 41
-# endif
+# define IPV6_DSTOPTS 59
+# define IPV6_FREEBIND 78
+# define IPV6_HDRINCL 36
+# define IPV6_HOPLIMIT 52
+# define IPV6_HOPOPTS 54
+# define IPV6_IPSEC_POLICY 34
+# define IPV6_JOIN_ANYCAST 27
+# define IPV6_JOIN_GROUP 20
+# define IPV6_LEAVE_ANYCAST 28
+# define IPV6_LEAVE_GROUP 21
+# define IPV6_MINHOPCOUNT 73
+# define IPV6_MTU 24
+# define IPV6_MTU_DISCOVER 23
+# define IPV6_MULTICAST_ALL 29
+# define IPV6_MULTICAST_HOPS 18
+# define IPV6_MULTICAST_IF 17
+# define IPV6_MULTICAST_LOOP 19
+# define IPV6_NEXTHOP 9
+# define IPV6_ORIGDSTADDR 74
+# define IPV6_PATHMTU 61
+# define IPV6_PKTINFO 50
+# define IPV6_PMTUDISC_DO 2
+# define IPV6_PMTUDISC_DONT 0
+# define IPV6_PMTUDISC_INTERFACE 4
+# define IPV6_PMTUDISC_OMIT 5
+# define IPV6_PMTUDISC_PROBE 3
+# define IPV6_PMTUDISC_WANT 1
+# define IPV6_RECVDSTOPTS 58
+# define IPV6_RECVERR 25
+# define IPV6_RECVERR_RFC4884 31
+# define IPV6_RECVFRAGSIZE 77
+# define IPV6_RECVHOPLIMIT 51
+# define IPV6_RECVHOPOPTS 53
+# define IPV6_RECVPATHMTU 60
+# define IPV6_RECVPKTINFO 49
+# define IPV6_RECVRTHDR 56
+# define IPV6_RECVTCLASS 66
+# define IPV6_ROUTER_ALERT 22
+# define IPV6_ROUTER_ALERT_ISOLATE 30
+# define IPV6_RTHDR 57
+# define IPV6_RTHDRDSTOPTS 55
+# define IPV6_RTHDR_LOOSE 0
+# define IPV6_RTHDR_STRICT 1
+# define IPV6_RTHDR_TYPE_0 0
+# define IPV6_RXDSTOPTS IPV6_DSTOPTS
+# define IPV6_RXHOPOPTS IPV6_HOPOPTS
+# define IPV6_TCLASS 67
+# define IPV6_TRANSPARENT 75
+# define IPV6_UNICAST_HOPS 16
+# define IPV6_UNICAST_IF 76
+# define IPV6_V6ONLY 26
+# define IPV6_XFRM_POLICY 35
+# define IP_ADD_MEMBERSHIP 35
+# define IP_ADD_SOURCE_MEMBERSHIP 39
+# define IP_BIND_ADDRESS_NO_PORT 24
+# define IP_BLOCK_SOURCE 38
+# define IP_CHECKSUM 23
+# define IP_DEFAULT_MULTICAST_LOOP 1
+# define IP_DEFAULT_MULTICAST_TTL 1
+# define IP_DROP_MEMBERSHIP 36
+# define IP_DROP_SOURCE_MEMBERSHIP 40
+# define IP_FREEBIND 15
+# define IP_HDRINCL 3
+# define IP_IPSEC_POLICY 16
+# define IP_LOCAL_PORT_RANGE 51
+# define IP_MAX_MEMBERSHIPS 20
+# define IP_MINTTL 21
+# define IP_MSFILTER 41
+# define IP_MTU 14
+# define IP_MTU_DISCOVER 10
+# define IP_MULTICAST_ALL 49
+# define IP_MULTICAST_IF 32
+# define IP_MULTICAST_LOOP 34
+# define IP_MULTICAST_TTL 33
+# define IP_NODEFRAG 22
+# define IP_OPTIONS 4
+# define IP_ORIGDSTADDR 20
+# define IP_PASSSEC 18
+# define IP_PKTINFO 8
+# define IP_PKTOPTIONS 9
+# define IP_PMTUDISC 10
+# define IP_PMTUDISC_DO 2
+# define IP_PMTUDISC_DONT 0
+# define IP_PMTUDISC_INTERFACE 4
+# define IP_PMTUDISC_OMIT 5
+# define IP_PMTUDISC_PROBE 3
+# define IP_PMTUDISC_WANT 1
+# define IP_PROTOCOL 52
+# define IP_RECVERR 11
+# define IP_RECVERR_RFC4884 26
+# define IP_RECVFRAGSIZE 25
+# define IP_RECVOPTS 6
+# define IP_RECVTOS 13
+# define IP_RECVTTL 12
+# define IP_RETOPTS 7
+# define IP_ROUTER_ALERT 5
+# define IP_TOS 1
+# define IP_TRANSPARENT 19
+# define IP_TTL 2
+# define IP_UNBLOCK_SOURCE 37
+# define IP_UNICAST_IF 50
+# define IP_XFRM_POLICY 17
+# define SOL_ICMPV6 58
+# define SOL_IP 0
+# define SOL_IPV6 41
 #endif
-#if __NIJI_MISC
-# ifndef MCAST_BLOCK_SOURCE
-#  define MCAST_BLOCK_SOURCE 43
-# endif
-# ifndef MCAST_EXCLUDE
-#  define MCAST_EXCLUDE 0
-# endif
-# ifndef MCAST_INCLUDE
-#  define MCAST_INCLUDE 1
-# endif
-# ifndef MCAST_JOIN_GROUP
-#  define MCAST_JOIN_GROUP 42
-# endif
-# ifndef MCAST_JOIN_SOURCE_GROUP
-#  define MCAST_JOIN_SOURCE_GROUP 46
-# endif
-# ifndef MCAST_LEAVE_GROUP
-#  define MCAST_LEAVE_GROUP 45
-# endif
-# ifndef MCAST_LEAVE_SOURCE_GROUP
-#  define MCAST_LEAVE_SOURCE_GROUP 47
-# endif
-# ifndef MCAST_MSFILTER
-#  define MCAST_MSFILTER 48
-# endif
-# ifndef MCAST_UNBLOCK_SOURCE
-#  define MCAST_UNBLOCK_SOURCE 44
-# endif
+#if defined __USE_MISC
+# define MCAST_BLOCK_SOURCE 43
+# define MCAST_EXCLUDE 0
+# define MCAST_INCLUDE 1
+# define MCAST_JOIN_GROUP 42
+# define MCAST_JOIN_SOURCE_GROUP 46
+# define MCAST_LEAVE_GROUP 45
+# define MCAST_LEAVE_SOURCE_GROUP 47
+# define MCAST_MSFILTER 48
+# define MCAST_UNBLOCK_SOURCE 44
 #endif
 
 /* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list

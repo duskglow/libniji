@@ -57,9 +57,7 @@ extern unsigned long gnu_dev_makedev (unsigned int, unsigned int) __NIJI_NOTHROW
 #  define __NIJI_D_gnu_dev_minor 1
 extern unsigned int gnu_dev_minor (unsigned long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 /* makedev(3): the macros are the functions. A call is expanded in place (the Linux 64-bit dev_t encoding: 12 bits of

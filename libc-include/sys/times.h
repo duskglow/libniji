@@ -63,9 +63,7 @@ struct tms;
 #  define __NIJI_D_times 1
 extern long times (struct tms *) __NIJI_NOTHROW;
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 

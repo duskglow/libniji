@@ -157,296 +157,108 @@ typedef unsigned long uintmax_t;
 #  define __NIJI_D_uintptr_t 1
 typedef unsigned long uintptr_t;
 # endif
-# ifndef INT16_MAX
-#  define INT16_MAX 32767
-# endif
-# ifndef INT16_MIN
-#  define INT16_MIN (-32768)
-# endif
-# ifndef INT32_MAX
-#  define INT32_MAX 2147483647
-# endif
-# ifndef INT32_MIN
-#  define INT32_MIN (-2147483647-1)
-# endif
-# ifndef INT64_MAX
-#  define INT64_MAX 9223372036854775807L
-# endif
-# ifndef INT64_MIN
-#  define INT64_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT8_MAX
-#  define INT8_MAX 127
-# endif
-# ifndef INT8_MIN
-#  define INT8_MIN (-128)
-# endif
-# ifndef INTMAX_MAX
-#  define INTMAX_MAX 9223372036854775807L
-# endif
-# ifndef INTMAX_MIN
-#  define INTMAX_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INTPTR_MAX
-#  define INTPTR_MAX 9223372036854775807L
-# endif
-# ifndef INTPTR_MIN
-#  define INTPTR_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT_FAST16_MAX
-#  define INT_FAST16_MAX 9223372036854775807L
-# endif
-# ifndef INT_FAST16_MIN
-#  define INT_FAST16_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT_FAST32_MAX
-#  define INT_FAST32_MAX 9223372036854775807L
-# endif
-# ifndef INT_FAST32_MIN
-#  define INT_FAST32_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT_FAST64_MAX
-#  define INT_FAST64_MAX 9223372036854775807L
-# endif
-# ifndef INT_FAST64_MIN
-#  define INT_FAST64_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT_FAST8_MAX
-#  define INT_FAST8_MAX 127
-# endif
-# ifndef INT_FAST8_MIN
-#  define INT_FAST8_MIN (-128)
-# endif
-# ifndef INT_LEAST16_MAX
-#  define INT_LEAST16_MAX 32767
-# endif
-# ifndef INT_LEAST16_MIN
-#  define INT_LEAST16_MIN (-32768)
-# endif
-# ifndef INT_LEAST32_MAX
-#  define INT_LEAST32_MAX 2147483647
-# endif
-# ifndef INT_LEAST32_MIN
-#  define INT_LEAST32_MIN (-2147483647-1)
-# endif
-# ifndef INT_LEAST64_MAX
-#  define INT_LEAST64_MAX 9223372036854775807L
-# endif
-# ifndef INT_LEAST64_MIN
-#  define INT_LEAST64_MIN (-9223372036854775807L-1)
-# endif
-# ifndef INT_LEAST8_MAX
-#  define INT_LEAST8_MAX 127
-# endif
-# ifndef INT_LEAST8_MIN
-#  define INT_LEAST8_MIN (-128)
-# endif
-# ifndef PTRDIFF_MAX
-#  define PTRDIFF_MAX 9223372036854775807L
-# endif
-# ifndef PTRDIFF_MIN
-#  define PTRDIFF_MIN (-9223372036854775807L-1)
-# endif
-# ifndef SIG_ATOMIC_MAX
-#  define SIG_ATOMIC_MAX 2147483647
-# endif
-# ifndef SIG_ATOMIC_MIN
-#  define SIG_ATOMIC_MIN (-2147483647-1)
-# endif
-# ifndef SIZE_MAX
-#  define SIZE_MAX 18446744073709551615UL
-# endif
-# ifndef UINT16_MAX
-#  define UINT16_MAX 65535
-# endif
-# ifndef UINT32_MAX
-#  define UINT32_MAX 4294967295U
-# endif
-# ifndef UINT64_MAX
-#  define UINT64_MAX 18446744073709551615UL
-# endif
-# ifndef UINT8_MAX
-#  define UINT8_MAX 255
-# endif
-# ifndef UINTMAX_MAX
-#  define UINTMAX_MAX 18446744073709551615UL
-# endif
-# ifndef UINTPTR_MAX
-#  define UINTPTR_MAX 18446744073709551615UL
-# endif
-# ifndef UINT_FAST16_MAX
-#  define UINT_FAST16_MAX 18446744073709551615UL
-# endif
-# ifndef UINT_FAST32_MAX
-#  define UINT_FAST32_MAX 18446744073709551615UL
-# endif
-# ifndef UINT_FAST64_MAX
-#  define UINT_FAST64_MAX 18446744073709551615UL
-# endif
-# ifndef UINT_FAST8_MAX
-#  define UINT_FAST8_MAX 255
-# endif
-# ifndef UINT_LEAST16_MAX
-#  define UINT_LEAST16_MAX 65535
-# endif
-# ifndef UINT_LEAST32_MAX
-#  define UINT_LEAST32_MAX 4294967295U
-# endif
-# ifndef UINT_LEAST64_MAX
-#  define UINT_LEAST64_MAX 18446744073709551615UL
-# endif
-# ifndef UINT_LEAST8_MAX
-#  define UINT_LEAST8_MAX 255
-# endif
-# ifndef WCHAR_MAX
-#  define WCHAR_MAX 2147483647
-# endif
+# define INT16_MAX 32767
+# define INT16_MIN (-32768)
+# define INT32_MAX 2147483647
+# define INT32_MIN (-2147483647-1)
+# define INT64_MAX 9223372036854775807L
+# define INT64_MIN (-9223372036854775807L-1)
+# define INT8_MAX 127
+# define INT8_MIN (-128)
+# define INTMAX_MAX 9223372036854775807L
+# define INTMAX_MIN (-9223372036854775807L-1)
+# define INTPTR_MAX 9223372036854775807L
+# define INTPTR_MIN (-9223372036854775807L-1)
+# define INT_FAST16_MAX 9223372036854775807L
+# define INT_FAST16_MIN (-9223372036854775807L-1)
+# define INT_FAST32_MAX 9223372036854775807L
+# define INT_FAST32_MIN (-9223372036854775807L-1)
+# define INT_FAST64_MAX 9223372036854775807L
+# define INT_FAST64_MIN (-9223372036854775807L-1)
+# define INT_FAST8_MAX 127
+# define INT_FAST8_MIN (-128)
+# define INT_LEAST16_MAX 32767
+# define INT_LEAST16_MIN (-32768)
+# define INT_LEAST32_MAX 2147483647
+# define INT_LEAST32_MIN (-2147483647-1)
+# define INT_LEAST64_MAX 9223372036854775807L
+# define INT_LEAST64_MIN (-9223372036854775807L-1)
+# define INT_LEAST8_MAX 127
+# define INT_LEAST8_MIN (-128)
+# define PTRDIFF_MAX 9223372036854775807L
+# define PTRDIFF_MIN (-9223372036854775807L-1)
+# define SIG_ATOMIC_MAX 2147483647
+# define SIG_ATOMIC_MIN (-2147483647-1)
+# define SIZE_MAX 18446744073709551615UL
+# define UINT16_MAX 65535
+# define UINT32_MAX 4294967295U
+# define UINT64_MAX 18446744073709551615UL
+# define UINT8_MAX 255
+# define UINTMAX_MAX 18446744073709551615UL
+# define UINTPTR_MAX 18446744073709551615UL
+# define UINT_FAST16_MAX 18446744073709551615UL
+# define UINT_FAST32_MAX 18446744073709551615UL
+# define UINT_FAST64_MAX 18446744073709551615UL
+# define UINT_FAST8_MAX 255
+# define UINT_LEAST16_MAX 65535
+# define UINT_LEAST32_MAX 4294967295U
+# define UINT_LEAST64_MAX 18446744073709551615UL
+# define UINT_LEAST8_MAX 255
+# define WCHAR_MAX 2147483647
 # ifndef WCHAR_MIN
 #  define WCHAR_MIN (-2147483647-1)
 # endif
-# ifndef WINT_MAX
-#  define WINT_MAX 4294967295U
-# endif
-# ifndef WINT_MIN
-#  define WINT_MIN 0U
-# endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define WINT_MAX 4294967295U
+# define WINT_MIN 0U
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_ISOC >= 2023
-# ifndef INT16_WIDTH
-#  define INT16_WIDTH 16
-# endif
-# ifndef INT32_WIDTH
-#  define INT32_WIDTH 32
-# endif
-# ifndef INT64_WIDTH
-#  define INT64_WIDTH 64
-# endif
-# ifndef INT8_WIDTH
-#  define INT8_WIDTH 8
-# endif
-# ifndef INTMAX_WIDTH
-#  define INTMAX_WIDTH 64
-# endif
-# ifndef INTPTR_WIDTH
-#  define INTPTR_WIDTH 64
-# endif
-# ifndef INT_FAST16_WIDTH
-#  define INT_FAST16_WIDTH 64
-# endif
-# ifndef INT_FAST32_WIDTH
-#  define INT_FAST32_WIDTH 64
-# endif
-# ifndef INT_FAST64_WIDTH
-#  define INT_FAST64_WIDTH 64
-# endif
-# ifndef INT_FAST8_WIDTH
-#  define INT_FAST8_WIDTH 8
-# endif
-# ifndef INT_LEAST16_WIDTH
-#  define INT_LEAST16_WIDTH 16
-# endif
-# ifndef INT_LEAST32_WIDTH
-#  define INT_LEAST32_WIDTH 32
-# endif
-# ifndef INT_LEAST64_WIDTH
-#  define INT_LEAST64_WIDTH 64
-# endif
-# ifndef INT_LEAST8_WIDTH
-#  define INT_LEAST8_WIDTH 8
-# endif
-# ifndef PTRDIFF_WIDTH
-#  define PTRDIFF_WIDTH 64
-# endif
-# ifndef SIG_ATOMIC_WIDTH
-#  define SIG_ATOMIC_WIDTH 32
-# endif
-# ifndef SIZE_WIDTH
-#  define SIZE_WIDTH 64
-# endif
-# ifndef UINT16_WIDTH
-#  define UINT16_WIDTH 16
-# endif
-# ifndef UINT32_WIDTH
-#  define UINT32_WIDTH 32
-# endif
-# ifndef UINT64_WIDTH
-#  define UINT64_WIDTH 64
-# endif
-# ifndef UINT8_WIDTH
-#  define UINT8_WIDTH 8
-# endif
-# ifndef UINTMAX_WIDTH
-#  define UINTMAX_WIDTH 64
-# endif
-# ifndef UINTPTR_WIDTH
-#  define UINTPTR_WIDTH 64
-# endif
-# ifndef UINT_FAST16_WIDTH
-#  define UINT_FAST16_WIDTH 64
-# endif
-# ifndef UINT_FAST32_WIDTH
-#  define UINT_FAST32_WIDTH 64
-# endif
-# ifndef UINT_FAST64_WIDTH
-#  define UINT_FAST64_WIDTH 64
-# endif
-# ifndef UINT_FAST8_WIDTH
-#  define UINT_FAST8_WIDTH 8
-# endif
-# ifndef UINT_LEAST16_WIDTH
-#  define UINT_LEAST16_WIDTH 16
-# endif
-# ifndef UINT_LEAST32_WIDTH
-#  define UINT_LEAST32_WIDTH 32
-# endif
-# ifndef UINT_LEAST64_WIDTH
-#  define UINT_LEAST64_WIDTH 64
-# endif
-# ifndef UINT_LEAST8_WIDTH
-#  define UINT_LEAST8_WIDTH 8
-# endif
-# ifndef WCHAR_WIDTH
-#  define WCHAR_WIDTH 32
-# endif
-# ifndef WINT_WIDTH
-#  define WINT_WIDTH 32
-# endif
+# define INT16_WIDTH 16
+# define INT32_WIDTH 32
+# define INT64_WIDTH 64
+# define INT8_WIDTH 8
+# define INTMAX_WIDTH 64
+# define INTPTR_WIDTH 64
+# define INT_FAST16_WIDTH 64
+# define INT_FAST32_WIDTH 64
+# define INT_FAST64_WIDTH 64
+# define INT_FAST8_WIDTH 8
+# define INT_LEAST16_WIDTH 16
+# define INT_LEAST32_WIDTH 32
+# define INT_LEAST64_WIDTH 64
+# define INT_LEAST8_WIDTH 8
+# define PTRDIFF_WIDTH 64
+# define SIG_ATOMIC_WIDTH 32
+# define SIZE_WIDTH 64
+# define UINT16_WIDTH 16
+# define UINT32_WIDTH 32
+# define UINT64_WIDTH 64
+# define UINT8_WIDTH 8
+# define UINTMAX_WIDTH 64
+# define UINTPTR_WIDTH 64
+# define UINT_FAST16_WIDTH 64
+# define UINT_FAST32_WIDTH 64
+# define UINT_FAST64_WIDTH 64
+# define UINT_FAST8_WIDTH 8
+# define UINT_LEAST16_WIDTH 16
+# define UINT_LEAST32_WIDTH 32
+# define UINT_LEAST64_WIDTH 64
+# define UINT_LEAST8_WIDTH 8
+# define WCHAR_WIDTH 32
+# define WINT_WIDTH 32
 #endif
 
 /* C 7.20.4: the integer-constant macros, from the typedefs.tsv rows of the least-width types. */
-# ifndef INT8_C
-#  define INT8_C(c) c
-# endif
-# ifndef UINT8_C
-#  define UINT8_C(c) c
-# endif
-# ifndef INT16_C
-#  define INT16_C(c) c
-# endif
-# ifndef UINT16_C
-#  define UINT16_C(c) c
-# endif
-# ifndef INT32_C
-#  define INT32_C(c) c
-# endif
-# ifndef UINT32_C
-#  define UINT32_C(c) c ## U
-# endif
-# ifndef INT64_C
-#  define INT64_C(c) c ## L
-# endif
-# ifndef UINT64_C
-#  define UINT64_C(c) c ## UL
-# endif
-# ifndef INTMAX_C
-#  define INTMAX_C(c) c ## L
-# endif
-# ifndef UINTMAX_C
-#  define UINTMAX_C(c) c ## UL
-# endif
+# define INT8_C(c) c
+# define UINT8_C(c) c
+# define INT16_C(c) c
+# define UINT16_C(c) c
+# define INT32_C(c) c
+# define UINT32_C(c) c ## U
+# define INT64_C(c) c ## L
+# define UINT64_C(c) c ## UL
+# define INTMAX_C(c) c ## L
+# define UINTMAX_C(c) c ## UL
 
 __NIJI_END_C
 

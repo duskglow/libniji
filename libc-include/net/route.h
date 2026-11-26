@@ -110,18 +110,14 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTCF_NAT
 #  define RTCF_NAT 8388608
 # endif
-# ifndef RTF_ADDRCLASSMASK
-#  define RTF_ADDRCLASSMASK 4160749568U
-# endif
+# define RTF_ADDRCLASSMASK 4160749568U
 # ifndef RTF_ADDRCONF
 #  define RTF_ADDRCONF 262144
 # endif
 # ifndef RTF_ALLONLINK
 #  define RTF_ALLONLINK 131072
 # endif
-# ifndef RTF_BROADCAST
-#  define RTF_BROADCAST 268435456
-# endif
+# define RTF_BROADCAST 268435456
 # ifndef RTF_CACHE
 #  define RTF_CACHE 16777216
 # endif
@@ -140,42 +136,28 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTF_HOST
 #  define RTF_HOST 4
 # endif
-# ifndef RTF_INTERFACE
-#  define RTF_INTERFACE 1073741824
-# endif
+# define RTF_INTERFACE 1073741824
 # ifndef RTF_IRTT
 #  define RTF_IRTT 256
 # endif
-# ifndef RTF_LINKRT
-#  define RTF_LINKRT 1048576
-# endif
+# define RTF_LINKRT 1048576
 # ifndef RTF_LOCAL
 #  define RTF_LOCAL 2147483648U
 # endif
 # ifndef RTF_MODIFIED
 #  define RTF_MODIFIED 32
 # endif
-# ifndef RTF_MSS
-#  define RTF_MSS RTF_MTU
-# endif
+# define RTF_MSS RTF_MTU
 # ifndef RTF_MTU
 #  define RTF_MTU 64
 # endif
-# ifndef RTF_MULTICAST
-#  define RTF_MULTICAST 536870912
-# endif
-# ifndef RTF_NAT
-#  define RTF_NAT 134217728
-# endif
-# ifndef RTF_NOFORWARD
-#  define RTF_NOFORWARD 4096
-# endif
+# define RTF_MULTICAST 536870912
+# define RTF_NAT 134217728
+# define RTF_NOFORWARD 4096
 # ifndef RTF_NONEXTHOP
 #  define RTF_NONEXTHOP 2097152
 # endif
-# ifndef RTF_NOPMTUDISC
-#  define RTF_NOPMTUDISC 16384
-# endif
+# define RTF_NOPMTUDISC 16384
 # ifndef RTF_POLICY
 #  define RTF_POLICY 67108864
 # endif
@@ -185,21 +167,15 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTF_REJECT
 #  define RTF_REJECT 512
 # endif
-# ifndef RTF_STATIC
-#  define RTF_STATIC 1024
-# endif
-# ifndef RTF_THROW
-#  define RTF_THROW 8192
-# endif
+# define RTF_STATIC 1024
+# define RTF_THROW 8192
 # ifndef RTF_UP
 #  define RTF_UP 1
 # endif
 # ifndef RTF_WINDOW
 #  define RTF_WINDOW 128
 # endif
-# ifndef RTF_XRESOLVE
-#  define RTF_XRESOLVE 2048
-# endif
+# define RTF_XRESOLVE 2048
 # ifndef RTMSG_DELDEVICE
 #  define RTMSG_DELDEVICE 18
 # endif

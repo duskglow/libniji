@@ -20,15 +20,11 @@
 # ifndef FS
 #  define FS 25
 # endif
-# ifndef FS_BASE
-#  define FS_BASE 21
-# endif
+# define FS_BASE 21
 # ifndef GS
 #  define GS 26
 # endif
-# ifndef GS_BASE
-#  define GS_BASE 22
-# endif
+# define GS_BASE 22
 # ifndef ORIG_RAX
 #  define ORIG_RAX 15
 # endif
@@ -47,9 +43,7 @@
 # ifndef R14
 #  define R14 1
 # endif
-# ifndef R15
-#  define R15 0
-# endif
+# define R15 0
 # ifndef R8
 #  define R8 9
 # endif

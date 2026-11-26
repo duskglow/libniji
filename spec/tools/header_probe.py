@@ -346,6 +346,16 @@ def package_names():
     # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
     out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
     out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
+    # HEADERS-FEATURES-FORMS (Yohane stage 2): python3.13's fcntlmodule.c (F_OWNER_TID, F_OWNER_PID, F_OWNER_PGRP:
+    # fcntl(2) F_GETOWN_EX), util-linux's lib/monotonic.c (TIMESPEC_TO_TIMEVAL, and its inverse), fstrm (SUN_LEN,
+    # unix(7)), openssl's ktls.h (SOL_TCP) and the other socket option levels of socket(7), tcp(7), udp(7), ip(7),
+    # ipv6(7), packet(7), netlink(7), raw(7), and the kernel's UAPI headers (SOL_TLS, SOL_XDP, SOL_MPTCP, ...).
+    out += ["F_OWNER_TID", "F_OWNER_PID", "F_OWNER_PGRP", "TIMESPEC_TO_TIMEVAL", "TIMEVAL_TO_TIMESPEC", "SUN_LEN"]
+    out += [f"SOL_{s}" for s in ("SOCKET", "IP", "IPV6", "ICMPV6", "TCP", "UDP", "UDPLITE", "RAW", "DECNET", "X25",
+                                 "PACKET", "ATM", "AAL", "IRDA", "NETBEUI", "LLC", "DCCP", "NETLINK", "TIPC", "RXRPC",
+                                 "PPPOL2TP", "BLUETOOTH", "PNPIPE", "RDS", "IUCV", "CAIF", "ALG", "NFC", "KCM", "TLS",
+                                 "XDP", "MPTCP", "MCTP", "SMC", "VSOCK", "SCTP", "AX25", "ROSE", "NETROM", "IPX",
+                                 "ATALK", "HCI", "L2CAP", "SCO", "RFCOMM")]
     # HEADERS-STAGE2-GAPS-D (Yohane stage 2): perl's pp_sys.c casts to `__priority_which_t`, perl and heimdal read
     # `struct hostent`'s `h_addr`; glib calls IN_MULTICAST, with the other address-class tests of RFC 791 / RFC 1112
     # (class A to D, experimental, bad class); google-perftools waits with `__WALL` (wait(2) names __WALL, __WCLONE,

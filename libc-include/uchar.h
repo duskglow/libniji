@@ -103,9 +103,7 @@ extern unsigned long mbrtoc8 (char8_t *, const char *, unsigned long, mbstate_t 
 # endif
 #endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 #if defined __cplusplus && !defined __cpp_char8_t

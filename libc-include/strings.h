@@ -47,7 +47,17 @@ extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ 
 extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
-#if __NIJI_MISC
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_strcasecmp_l
+#  define __NIJI_D_strcasecmp_l 1
+extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
+# endif
+# ifndef __NIJI_D_strncasecmp_l
+#  define __NIJI_D_strncasecmp_l 1
+extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 4), __pure__));
+# endif
+#endif
+#if defined __USE_MISC
 # ifndef __NIJI_D_ffsl
 #  define __NIJI_D_ffsl 1
 extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
@@ -57,7 +67,7 @@ extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_POSIX < 200809
+#if defined __USE_MISC || __NIJI_POSIX < 200809
 # ifndef __NIJI_D_bcmp
 #  define __NIJI_D_bcmp 1
 extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
@@ -71,20 +81,10 @@ extern void bcopy (const void *, void *, unsigned long) __NIJI_NOTHROW __attribu
 extern void bzero (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_POSIX < 200809 || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_POSIX < 200809 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_ffs
 #  define __NIJI_D_ffs 1
 extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__const__));
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_strcasecmp_l
-#  define __NIJI_D_strcasecmp_l 1
-extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
-# endif
-# ifndef __NIJI_D_strncasecmp_l
-#  define __NIJI_D_strncasecmp_l 1
-extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 4), __pure__));
 # endif
 #endif
 #if __NIJI_FORTIFY > 0
@@ -102,7 +102,7 @@ extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) _
 # endif
 #endif
 #endif
-#if (__NIJI_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_bcopy
 #  define __NIJI_F_bcopy 1
 __NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) __NIJI_NOTHROW
@@ -111,7 +111,7 @@ __NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) 
 }
 # endif
 #endif
-#if (__NIJI_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_bzero
 #  define __NIJI_F_bzero 1
 __NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
@@ -121,7 +121,7 @@ __NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
 # endif
 #endif
 
-#if __NIJI_MISC || __NIJI_POSIX < 200809
+#if defined __USE_MISC || __NIJI_POSIX < 200809
 # ifndef __NIJI_D_index
 #  define __NIJI_D_index 1
 #  ifdef __cplusplus

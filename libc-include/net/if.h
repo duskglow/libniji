@@ -5,7 +5,7 @@
 #define _NET_IF_H 1
 
 #include <features.h>
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <sys/socket.h>
 #endif
 
@@ -20,7 +20,7 @@ struct if_nameindex {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_sockaddr
 #  define __NIJI_D_struct_sockaddr 1
 struct sockaddr {
@@ -151,7 +151,7 @@ extern struct if_nameindex *if_nameindex (void) __NIJI_NOTHROW;
 extern unsigned int if_nametoindex (const char *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_anon_IFF_ALLMULTI
 #  define __NIJI_D_anon_IFF_ALLMULTI 1
 #  if !defined IFF_UP || !defined IFF_BROADCAST || !defined IFF_DEBUG || !defined IFF_LOOPBACK || !defined IFF_POINTOPOINT || !defined IFF_NOTRAILERS \
@@ -211,62 +211,26 @@ enum {
 # endif
 #endif
 #if 1
-# ifndef IF_NAMESIZE
-#  define IF_NAMESIZE 16
-# endif
+# define IF_NAMESIZE 16
 #endif
-#if __NIJI_MISC
-# ifndef IFF_ALLMULTI
-#  define IFF_ALLMULTI IFF_ALLMULTI
-# endif
-# ifndef IFF_AUTOMEDIA
-#  define IFF_AUTOMEDIA IFF_AUTOMEDIA
-# endif
-# ifndef IFF_BROADCAST
-#  define IFF_BROADCAST IFF_BROADCAST
-# endif
-# ifndef IFF_DEBUG
-#  define IFF_DEBUG IFF_DEBUG
-# endif
-# ifndef IFF_DYNAMIC
-#  define IFF_DYNAMIC IFF_DYNAMIC
-# endif
-# ifndef IFF_LOOPBACK
-#  define IFF_LOOPBACK IFF_LOOPBACK
-# endif
-# ifndef IFF_MASTER
-#  define IFF_MASTER IFF_MASTER
-# endif
-# ifndef IFF_MULTICAST
-#  define IFF_MULTICAST IFF_MULTICAST
-# endif
-# ifndef IFF_NOARP
-#  define IFF_NOARP IFF_NOARP
-# endif
-# ifndef IFF_NOTRAILERS
-#  define IFF_NOTRAILERS IFF_NOTRAILERS
-# endif
-# ifndef IFF_POINTOPOINT
-#  define IFF_POINTOPOINT IFF_POINTOPOINT
-# endif
-# ifndef IFF_PORTSEL
-#  define IFF_PORTSEL IFF_PORTSEL
-# endif
-# ifndef IFF_PROMISC
-#  define IFF_PROMISC IFF_PROMISC
-# endif
-# ifndef IFF_RUNNING
-#  define IFF_RUNNING IFF_RUNNING
-# endif
-# ifndef IFF_SLAVE
-#  define IFF_SLAVE IFF_SLAVE
-# endif
-# ifndef IFF_UP
-#  define IFF_UP IFF_UP
-# endif
-# ifndef IFHWADDRLEN
-#  define IFHWADDRLEN 6
-# endif
+#if defined __USE_MISC
+# define IFF_ALLMULTI IFF_ALLMULTI
+# define IFF_AUTOMEDIA IFF_AUTOMEDIA
+# define IFF_BROADCAST IFF_BROADCAST
+# define IFF_DEBUG IFF_DEBUG
+# define IFF_DYNAMIC IFF_DYNAMIC
+# define IFF_LOOPBACK IFF_LOOPBACK
+# define IFF_MASTER IFF_MASTER
+# define IFF_MULTICAST IFF_MULTICAST
+# define IFF_NOARP IFF_NOARP
+# define IFF_NOTRAILERS IFF_NOTRAILERS
+# define IFF_POINTOPOINT IFF_POINTOPOINT
+# define IFF_PORTSEL IFF_PORTSEL
+# define IFF_PROMISC IFF_PROMISC
+# define IFF_RUNNING IFF_RUNNING
+# define IFF_SLAVE IFF_SLAVE
+# define IFF_UP IFF_UP
+# define IFHWADDRLEN 6
 # ifndef IFNAMSIZ
 #  define IFNAMSIZ IF_NAMESIZE
 # endif
@@ -275,7 +239,7 @@ enum {
 /* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro
    for the member of the union the layout table records (the metric, index, bandwidth and queue length share the
    integer member). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define ifr_name ifr_ifrn.ifrn_name
 # define ifr_hwaddr ifr_ifru.ifru_hwaddr
 # define ifr_addr ifr_ifru.ifru_addr
@@ -293,13 +257,13 @@ enum {
 # define ifr_qlen ifr_ifru.ifru_ivalue
 # define ifr_newname ifr_ifru.ifru_newname
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define ifc_buf ifc_ifcu.ifcu_buf
 # define ifc_req ifc_ifcu.ifcu_req
 #endif
 /* The BSD interface address record's two names for its union's address (the same spelling as <ifaddrs.h>'s for
    struct ifaddrs, so the two headers together define each macro once). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define ifa_broadaddr ifa_ifu.ifu_broadaddr
 # define ifa_dstaddr ifa_ifu.ifu_dstaddr
 #endif

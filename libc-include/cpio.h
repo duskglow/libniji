@@ -5,69 +5,27 @@
 #define _CPIO_H 1
 
 #if 1
-# ifndef C_IRGRP
-#  define C_IRGRP 32
-# endif
-# ifndef C_IROTH
-#  define C_IROTH 4
-# endif
-# ifndef C_IRUSR
-#  define C_IRUSR 256
-# endif
-# ifndef C_ISBLK
-#  define C_ISBLK 24576
-# endif
-# ifndef C_ISCHR
-#  define C_ISCHR 8192
-# endif
-# ifndef C_ISCTG
-#  define C_ISCTG 36864
-# endif
-# ifndef C_ISDIR
-#  define C_ISDIR 16384
-# endif
-# ifndef C_ISFIFO
-#  define C_ISFIFO 4096
-# endif
-# ifndef C_ISGID
-#  define C_ISGID 1024
-# endif
-# ifndef C_ISLNK
-#  define C_ISLNK 40960
-# endif
-# ifndef C_ISREG
-#  define C_ISREG 32768
-# endif
-# ifndef C_ISSOCK
-#  define C_ISSOCK 49152
-# endif
-# ifndef C_ISUID
-#  define C_ISUID 2048
-# endif
-# ifndef C_ISVTX
-#  define C_ISVTX 512
-# endif
-# ifndef C_IWGRP
-#  define C_IWGRP 16
-# endif
-# ifndef C_IWOTH
-#  define C_IWOTH 2
-# endif
-# ifndef C_IWUSR
-#  define C_IWUSR 128
-# endif
-# ifndef C_IXGRP
-#  define C_IXGRP 8
-# endif
-# ifndef C_IXOTH
-#  define C_IXOTH 1
-# endif
-# ifndef C_IXUSR
-#  define C_IXUSR 64
-# endif
-# ifndef MAGIC
-#  define MAGIC "070707"
-# endif
+# define C_IRGRP 32
+# define C_IROTH 4
+# define C_IRUSR 256
+# define C_ISBLK 24576
+# define C_ISCHR 8192
+# define C_ISCTG 36864
+# define C_ISDIR 16384
+# define C_ISFIFO 4096
+# define C_ISGID 1024
+# define C_ISLNK 40960
+# define C_ISREG 32768
+# define C_ISSOCK 49152
+# define C_ISUID 2048
+# define C_ISVTX 512
+# define C_IWGRP 16
+# define C_IWOTH 2
+# define C_IWUSR 128
+# define C_IXGRP 8
+# define C_IXOTH 1
+# define C_IXUSR 64
+# define MAGIC "070707"
 #endif
 
 #endif

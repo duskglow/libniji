@@ -45,9 +45,7 @@ typedef unsigned long __u_quad_t;
 #  define __NIJI_D___u_short 1
 typedef unsigned short __u_short;
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 #define bswap_16(x) __builtin_bswap16 (x)

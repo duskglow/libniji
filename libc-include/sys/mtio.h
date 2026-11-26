@@ -83,117 +83,53 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef DEFTAPE
 #  define DEFTAPE "/dev/tape"
 # endif
-# ifndef MTBSF
-#  define MTBSF 2
-# endif
-# ifndef MTBSFM
-#  define MTBSFM 10
-# endif
-# ifndef MTBSR
-#  define MTBSR 4
-# endif
-# ifndef MTBSS
-#  define MTBSS 26
-# endif
-# ifndef MTCOMPRESSION
-#  define MTCOMPRESSION 32
-# endif
+# define MTBSF 2
+# define MTBSFM 10
+# define MTBSR 4
+# define MTBSS 26
+# define MTCOMPRESSION 32
 # ifndef MTEOM
 #  define MTEOM 12
 # endif
-# ifndef MTERASE
-#  define MTERASE 13
-# endif
+# define MTERASE 13
 # ifndef MTFSF
 #  define MTFSF 1
 # endif
-# ifndef MTFSFM
-#  define MTFSFM 11
-# endif
-# ifndef MTFSR
-#  define MTFSR 3
-# endif
-# ifndef MTFSS
-#  define MTFSS 25
-# endif
+# define MTFSFM 11
+# define MTFSR 3
+# define MTFSS 25
 # ifndef MTIOCGET
 #  define MTIOCGET 2150657282UL
 # endif
-# ifndef MTIOCGETCONFIG
-#  define MTIOCGETCONFIG 2150657284UL
-# endif
+# define MTIOCGETCONFIG 2150657284UL
 # ifndef MTIOCPOS
 #  define MTIOCPOS 2148035843UL
 # endif
-# ifndef MTIOCSETCONFIG
-#  define MTIOCSETCONFIG 1076915461UL
-# endif
+# define MTIOCSETCONFIG 1076915461UL
 # ifndef MTIOCTOP
 #  define MTIOCTOP 1074294017UL
 # endif
-# ifndef MTLOAD
-#  define MTLOAD 30
-# endif
-# ifndef MTLOCK
-#  define MTLOCK 28
-# endif
-# ifndef MTMKPART
-#  define MTMKPART 34
-# endif
-# ifndef MTNOP
-#  define MTNOP 8
-# endif
-# ifndef MTOFFL
-#  define MTOFFL 7
-# endif
-# ifndef MTRAS1
-#  define MTRAS1 14
-# endif
-# ifndef MTRAS2
-#  define MTRAS2 15
-# endif
-# ifndef MTRAS3
-#  define MTRAS3 16
-# endif
-# ifndef MTRESET
-#  define MTRESET 0
-# endif
-# ifndef MTRETEN
-#  define MTRETEN 9
-# endif
-# ifndef MTREW
-#  define MTREW 6
-# endif
-# ifndef MTSEEK
-#  define MTSEEK 22
-# endif
-# ifndef MTSETBLK
-#  define MTSETBLK 20
-# endif
-# ifndef MTSETDENSITY
-#  define MTSETDENSITY 21
-# endif
-# ifndef MTSETDRVBUFFER
-#  define MTSETDRVBUFFER 24
-# endif
-# ifndef MTSETPART
-#  define MTSETPART 33
-# endif
-# ifndef MTTELL
-#  define MTTELL 23
-# endif
-# ifndef MTUNLOAD
-#  define MTUNLOAD 31
-# endif
-# ifndef MTUNLOCK
-#  define MTUNLOCK 29
-# endif
-# ifndef MTWEOF
-#  define MTWEOF 5
-# endif
-# ifndef MTWSM
-#  define MTWSM 27
-# endif
+# define MTLOAD 30
+# define MTLOCK 28
+# define MTMKPART 34
+# define MTNOP 8
+# define MTOFFL 7
+# define MTRAS1 14
+# define MTRAS2 15
+# define MTRAS3 16
+# define MTRESET 0
+# define MTRETEN 9
+# define MTREW 6
+# define MTSEEK 22
+# define MTSETBLK 20
+# define MTSETDENSITY 21
+# define MTSETDRVBUFFER 24
+# define MTSETPART 33
+# define MTTELL 23
+# define MTUNLOAD 31
+# define MTUNLOCK 29
+# define MTWEOF 5
+# define MTWSM 27
 # ifndef MT_ISARCHIVESC499
 #  define MT_ISARCHIVESC499 10
 # endif
@@ -263,9 +199,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef MT_ST_BLKSIZE_MASK
 #  define MT_ST_BLKSIZE_MASK 16777215
 # endif
-# ifndef MT_ST_BLKSIZE_SHIFT
-#  define MT_ST_BLKSIZE_SHIFT 0
-# endif
+# define MT_ST_BLKSIZE_SHIFT 0
 # ifndef MT_ST_BOOLEANS
 #  define MT_ST_BOOLEANS 268435456
 # endif
@@ -308,15 +242,11 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef MT_ST_DENSITY_MASK
 #  define MT_ST_DENSITY_MASK 4278190080U
 # endif
-# ifndef MT_ST_DENSITY_SHIFT
-#  define MT_ST_DENSITY_SHIFT 24
-# endif
+# define MT_ST_DENSITY_SHIFT 24
 # ifndef MT_ST_FAST_MTEOM
 #  define MT_ST_FAST_MTEOM 32
 # endif
-# ifndef MT_ST_HPLOADER_OFFSET
-#  define MT_ST_HPLOADER_OFFSET 10000
-# endif
+# define MT_ST_HPLOADER_OFFSET 10000
 # ifndef MT_ST_NO_BLKLIMS
 #  define MT_ST_NO_BLKLIMS 512
 # endif
@@ -335,9 +265,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef MT_ST_SOFTERR_MASK
 #  define MT_ST_SOFTERR_MASK 65535
 # endif
-# ifndef MT_ST_SOFTERR_SHIFT
-#  define MT_ST_SOFTERR_SHIFT 0
-# endif
+# define MT_ST_SOFTERR_SHIFT 0
 # ifndef MT_ST_TWO_FM
 #  define MT_ST_TWO_FM 16
 # endif

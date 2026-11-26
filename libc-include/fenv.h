@@ -96,20 +96,6 @@ extern int fetestexcept (int) __NIJI_NOTHROW;
 extern int feupdateenv (const fenv_t *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_fedisableexcept
-#  define __NIJI_D_fedisableexcept 1
-extern int fedisableexcept (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_feenableexcept
-#  define __NIJI_D_feenableexcept 1
-extern int feenableexcept (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_fegetexcept
-#  define __NIJI_D_fegetexcept 1
-extern int fegetexcept (void) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_fegetmode
 #  define __NIJI_D_fegetmode 1
@@ -126,6 +112,20 @@ extern int fesetmode (const femode_t *) __NIJI_NOTHROW;
 # ifndef __NIJI_D_fetestexceptflag
 #  define __NIJI_D_fetestexceptflag 1
 extern int fetestexceptflag (const unsigned short *, int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_fedisableexcept
+#  define __NIJI_D_fedisableexcept 1
+extern int fedisableexcept (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_feenableexcept
+#  define __NIJI_D_feenableexcept 1
+extern int feenableexcept (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_fegetexcept
+#  define __NIJI_D_fegetexcept 1
+extern int fegetexcept (void) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
@@ -183,36 +183,16 @@ enum { FE_UNDERFLOW = 16 };
 enum { FE_UPWARD = 2048 };
 #  endif
 # endif
-# ifndef FE_ALL_EXCEPT
-#  define FE_ALL_EXCEPT 61
-# endif
-# ifndef FE_DIVBYZERO
-#  define FE_DIVBYZERO 4
-# endif
-# ifndef FE_DOWNWARD
-#  define FE_DOWNWARD 1024
-# endif
-# ifndef FE_INEXACT
-#  define FE_INEXACT 32
-# endif
-# ifndef FE_INVALID
-#  define FE_INVALID 1
-# endif
-# ifndef FE_OVERFLOW
-#  define FE_OVERFLOW 8
-# endif
-# ifndef FE_TONEAREST
-#  define FE_TONEAREST 0
-# endif
-# ifndef FE_TOWARDZERO
-#  define FE_TOWARDZERO 3072
-# endif
-# ifndef FE_UNDERFLOW
-#  define FE_UNDERFLOW 16
-# endif
-# ifndef FE_UPWARD
-#  define FE_UPWARD 2048
-# endif
+# define FE_ALL_EXCEPT 61
+# define FE_DIVBYZERO 4
+# define FE_DOWNWARD 1024
+# define FE_INEXACT 32
+# define FE_INVALID 1
+# define FE_OVERFLOW 8
+# define FE_TONEAREST 0
+# define FE_TOWARDZERO 3072
+# define FE_UNDERFLOW 16
+# define FE_UPWARD 2048
 #endif
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
@@ -221,7 +201,7 @@ enum { FE_UPWARD = 2048 };
 #if 1
 # define FE_DFL_ENV ((fenv_t const *) (-1L))
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define FE_NOMASK_ENV ((fenv_t const *) (-2L))
 #endif
 #if __NIJI_ISOC >= 2023

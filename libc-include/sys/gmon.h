@@ -28,48 +28,20 @@ extern void _mcleanup (void) __NIJI_NOTHROW;
 #  define __NIJI_D_monstartup 1
 extern void monstartup (long unsigned int, long unsigned int) __NIJI_NOTHROW;
 # endif
-# ifndef ARCDENSITY
-#  define ARCDENSITY 3
-# endif
-# ifndef GMON_PROF_BUSY
-#  define GMON_PROF_BUSY 1
-# endif
-# ifndef GMON_PROF_ERROR
-#  define GMON_PROF_ERROR 2
-# endif
-# ifndef GMON_PROF_OFF
-#  define GMON_PROF_OFF 3
-# endif
-# ifndef GMON_PROF_ON
-#  define GMON_PROF_ON 0
-# endif
-# ifndef GPROF_COUNT
-#  define GPROF_COUNT 1
-# endif
-# ifndef GPROF_FROMS
-#  define GPROF_FROMS 2
-# endif
-# ifndef GPROF_GMONPARAM
-#  define GPROF_GMONPARAM 4
-# endif
-# ifndef GPROF_STATE
-#  define GPROF_STATE 0
-# endif
-# ifndef GPROF_TOS
-#  define GPROF_TOS 3
-# endif
-# ifndef HASHFRACTION
-#  define HASHFRACTION 2
-# endif
-# ifndef HISTFRACTION
-#  define HISTFRACTION 2
-# endif
-# ifndef MAXARCS
-#  define MAXARCS 1048576
-# endif
-# ifndef MINARCS
-#  define MINARCS 50
-# endif
+# define ARCDENSITY 3
+# define GMON_PROF_BUSY 1
+# define GMON_PROF_ERROR 2
+# define GMON_PROF_OFF 3
+# define GMON_PROF_ON 0
+# define GPROF_COUNT 1
+# define GPROF_FROMS 2
+# define GPROF_GMONPARAM 4
+# define GPROF_STATE 0
+# define GPROF_TOS 3
+# define HASHFRACTION 2
+# define HISTFRACTION 2
+# define MAXARCS 1048576
+# define MINARCS 50
 #endif
 
 __NIJI_END_C

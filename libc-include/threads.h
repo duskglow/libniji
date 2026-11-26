@@ -199,9 +199,7 @@ enum {
 };
 #  endif
 # endif
-# ifndef TSS_DTOR_ITERATIONS
-#  define TSS_DTOR_ITERATIONS 4
-# endif
+# define TSS_DTOR_ITERATIONS 4
 #endif
 
 #if 1

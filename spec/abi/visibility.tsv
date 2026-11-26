@@ -12242,6 +12242,10 @@ fcntl.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+fcntl.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+fcntl.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+fcntl.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+fcntl.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_RDLCK	macro	!time64only
 fcntl.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 fcntl.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -14970,6 +14974,8 @@ lastlog.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dyns
 lastlog.h	OLD_TIME	macro	!time64only
 lastlog.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 lastlog.h	RUN_LVL	macro	!time64only
+lastlog.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+lastlog.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 lastlog.h	USER_PROCESS	macro	!time64only
 lastlog.h	UTMP_FILE	macro	!time64only
 lastlog.h	UTMP_FILENAME	macro	!time64only
@@ -21676,6 +21682,10 @@ mqueue.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+mqueue.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+mqueue.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+mqueue.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+mqueue.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_RDLCK	macro	!time64only
 mqueue.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 mqueue.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -26797,6 +26807,7 @@ netatalk/at.h	SOCK_STREAM	macro	!time64only
 netatalk/at.h	SOCK_STREAM	enumerator	!time64only
 netatalk/at.h	SOL_AAL	macro	!time64only
 netatalk/at.h	SOL_ALG	macro	!time64only
+netatalk/at.h	SOL_ATALK	macro	!time64only
 netatalk/at.h	SOL_ATM	macro	!time64only
 netatalk/at.h	SOL_BLUETOOTH	macro	!time64only
 netatalk/at.h	SOL_CAIF	macro	!time64only
@@ -39568,6 +39579,8 @@ proc_service.h	PAGE_MASK	macro	!time64only
 proc_service.h	PAGE_SHIFT	macro	!time64only
 proc_service.h	PAGE_SIZE	macro	!time64only
 proc_service.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+proc_service.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+proc_service.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 proc_service.h	UPAGES	macro	!time64only
 proc_service.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 proc_service.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41169,6 +41182,8 @@ protocols/timed.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob
 protocols/timed.h	MAXHOSTNAMELEN	macro	!time64only
 protocols/timed.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/timed.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/timed.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 protocols/timed.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	_BITS_ENDIANNESS_H	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -54879,6 +54894,10 @@ sys/fcntl.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/fcntl.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/fcntl.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/fcntl.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/fcntl.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_RDLCK	macro	!time64only
 sys/fcntl.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/fcntl.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -55160,6 +55179,10 @@ sys/file.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/file.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/file.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/file.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/file.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_RDLCK	macro	!time64only
 sys/file.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/file.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -56626,6 +56649,10 @@ sys/mount.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_RDLCK	macro	!time64only
 sys/mount.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -59513,6 +59540,10 @@ sys/pidfd.h	F_OFD_GETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OFD_SETLK	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OFD_SETLKW	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_OK	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/pidfd.h	F_OWNER_GID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/pidfd.h	F_OWNER_PGRP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/pidfd.h	F_OWNER_PID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/pidfd.h	F_OWNER_TID	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_RDLCK	macro	!time64only
 sys/pidfd.h	F_SEAL_EXEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/pidfd.h	F_SEAL_FUTURE_WRITE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -60087,6 +60118,8 @@ sys/procfs.h	PAGE_MASK	macro	!time64only
 sys/procfs.h	PAGE_SHIFT	macro	!time64only
 sys/procfs.h	PAGE_SIZE	macro	!time64only
 sys/procfs.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/procfs.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/procfs.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/procfs.h	UPAGES	macro	!time64only
 sys/procfs.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/procfs.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -60302,6 +60335,8 @@ sys/profil.h	ITIMER_VIRTUAL	enumerator	!time64only
 sys/profil.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/profil.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/profil.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/profil.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/profil.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/profil.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/profil.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/profil.h	_BITS_ENDIANNESS_H	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -65948,6 +65983,8 @@ sys/time.h	ITIMER_REAL	enumerator	!time64only
 sys/time.h	ITIMER_VIRTUAL	macro	!time64only
 sys/time.h	ITIMER_VIRTUAL	enumerator	!time64only
 sys/time.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/time.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/time.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/time.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/time.h	_BITS_ENDIANNESS_H	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/time.h	_BITS_ENDIAN_H	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -66442,6 +66479,8 @@ sys/timex.h	STA_PPSTIME	macro	!time64only
 sys/timex.h	STA_PPSWANDER	macro	!time64only
 sys/timex.h	STA_RONLY	macro	!time64only
 sys/timex.h	STA_UNSYNC	macro	!time64only
+sys/timex.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/timex.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/timex.h	TIME_BAD	macro	!time64only
 sys/timex.h	TIME_DEL	macro	!time64only
 sys/timex.h	TIME_ERROR	macro	!time64only
@@ -67079,6 +67118,7 @@ sys/uio.h	ushort	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dyn
 sys/uio.h	writev	function	!time64only
 sys/un.h	-	include-error	time64only
 sys/un.h	NULL	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/un.h	SUN_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/un.h	_BITS_SOCKADDR_H	macro	!time64only
 sys/un.h	_BITS_TYPES_LOCALE_T_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -74127,6 +74167,8 @@ thread_db.h	TD_SIGNO_MASK	macro	!time64only
 thread_db.h	TD_THR_ANY_USER_FLAGS	macro	!time64only
 thread_db.h	TD_THR_LOWEST_PRIORITY	macro	!time64only
 thread_db.h	TIMER_ABSTIME	macro	!c89,c99,c11,c17,c2x,posix1,posix2,xopen,xopenext,isoc99,isoc11,isoc2x,time64only
+thread_db.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+thread_db.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 thread_db.h	TIME_UTC	macro	!c89,c99,isoc99,time64only
 thread_db.h	UINT16_C	macro	!time64only
 thread_db.h	UINT16_MAX	macro	!time64only
@@ -76402,6 +76444,8 @@ utmp.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstac
 utmp.h	OLD_TIME	macro	!time64only
 utmp.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 utmp.h	RUN_LVL	macro	!time64only
+utmp.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+utmp.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 utmp.h	USER_PROCESS	macro	!time64only
 utmp.h	UTMP_FILE	macro	!time64only
 utmp.h	UTMP_FILENAME	macro	!time64only
@@ -76673,6 +76717,8 @@ utmpx.h	NEW_TIME	macro	!time64only
 utmpx.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 utmpx.h	OLD_TIME	macro	!time64only
 utmpx.h	RUN_LVL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+utmpx.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+utmpx.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 utmpx.h	USER_PROCESS	macro	!time64only
 utmpx.h	UTMPX_FILE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 utmpx.h	UTMPX_FILENAME	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23

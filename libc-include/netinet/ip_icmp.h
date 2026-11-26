@@ -9,10 +9,10 @@
 #include <stdint.h>
 /* netinet/in.h's and netinet/ip.h's names only where they are visible here (visibility.tsv): elsewhere the header
    leaves them out, and so does not clash with a kernel UAPI header (linux/in.h) included before it. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <netinet/in.h>
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <netinet/ip.h>
 #endif
 
@@ -33,7 +33,7 @@ struct icmphdr {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_in_addr
 #  define __NIJI_D_struct_in_addr 1
 struct in_addr {
@@ -121,7 +121,7 @@ struct icmp_ra_addr {
 };
 # endif
 #endif
-#if __NIJI_MISC && __NIJI_CXX < 1
+#if defined __USE_MISC && __NIJI_CXX < 1
 # ifndef __NIJI_D_struct_ih_idseq
 #  define __NIJI_D_struct_ih_idseq 1
 struct ih_idseq {
@@ -156,247 +156,91 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef ICMP_ADDRESS
-#  define ICMP_ADDRESS 17
-# endif
-# ifndef ICMP_ADDRESSREPLY
-#  define ICMP_ADDRESSREPLY 18
-# endif
-# ifndef ICMP_DEST_UNREACH
-#  define ICMP_DEST_UNREACH 3
-# endif
-# ifndef ICMP_ECHO
-#  define ICMP_ECHO 8
-# endif
-# ifndef ICMP_ECHOREPLY
-#  define ICMP_ECHOREPLY 0
-# endif
-# ifndef ICMP_EXC_FRAGTIME
-#  define ICMP_EXC_FRAGTIME 1
-# endif
-# ifndef ICMP_EXC_TTL
-#  define ICMP_EXC_TTL 0
-# endif
-# ifndef ICMP_EXT_ECHO
-#  define ICMP_EXT_ECHO 42
-# endif
-# ifndef ICMP_EXT_ECHOREPLY
-#  define ICMP_EXT_ECHOREPLY 43
-# endif
-# ifndef ICMP_FRAG_NEEDED
-#  define ICMP_FRAG_NEEDED 4
-# endif
-# ifndef ICMP_HOST_ANO
-#  define ICMP_HOST_ANO 10
-# endif
-# ifndef ICMP_HOST_ISOLATED
-#  define ICMP_HOST_ISOLATED 8
-# endif
-# ifndef ICMP_HOST_UNKNOWN
-#  define ICMP_HOST_UNKNOWN 7
-# endif
-# ifndef ICMP_HOST_UNREACH
-#  define ICMP_HOST_UNREACH 1
-# endif
-# ifndef ICMP_HOST_UNR_TOS
-#  define ICMP_HOST_UNR_TOS 12
-# endif
-# ifndef ICMP_INFO_REPLY
-#  define ICMP_INFO_REPLY 16
-# endif
-# ifndef ICMP_INFO_REQUEST
-#  define ICMP_INFO_REQUEST 15
-# endif
-# ifndef ICMP_NET_ANO
-#  define ICMP_NET_ANO 9
-# endif
-# ifndef ICMP_NET_UNKNOWN
-#  define ICMP_NET_UNKNOWN 6
-# endif
-# ifndef ICMP_NET_UNREACH
-#  define ICMP_NET_UNREACH 0
-# endif
-# ifndef ICMP_NET_UNR_TOS
-#  define ICMP_NET_UNR_TOS 11
-# endif
-# ifndef ICMP_PARAMETERPROB
-#  define ICMP_PARAMETERPROB 12
-# endif
-# ifndef ICMP_PKT_FILTERED
-#  define ICMP_PKT_FILTERED 13
-# endif
-# ifndef ICMP_PORT_UNREACH
-#  define ICMP_PORT_UNREACH 3
-# endif
-# ifndef ICMP_PREC_CUTOFF
-#  define ICMP_PREC_CUTOFF 15
-# endif
-# ifndef ICMP_PREC_VIOLATION
-#  define ICMP_PREC_VIOLATION 14
-# endif
-# ifndef ICMP_PROT_UNREACH
-#  define ICMP_PROT_UNREACH 2
-# endif
-# ifndef ICMP_REDIRECT
-#  define ICMP_REDIRECT 5
-# endif
-# ifndef ICMP_REDIR_HOST
-#  define ICMP_REDIR_HOST 1
-# endif
-# ifndef ICMP_REDIR_HOSTTOS
-#  define ICMP_REDIR_HOSTTOS 3
-# endif
-# ifndef ICMP_REDIR_NET
-#  define ICMP_REDIR_NET 0
-# endif
-# ifndef ICMP_REDIR_NETTOS
-#  define ICMP_REDIR_NETTOS 2
-# endif
-# ifndef ICMP_SOURCE_QUENCH
-#  define ICMP_SOURCE_QUENCH 4
-# endif
-# ifndef ICMP_SR_FAILED
-#  define ICMP_SR_FAILED 5
-# endif
-# ifndef ICMP_TIMESTAMP
-#  define ICMP_TIMESTAMP 13
-# endif
-# ifndef ICMP_TIMESTAMPREPLY
-#  define ICMP_TIMESTAMPREPLY 14
-# endif
-# ifndef ICMP_TIME_EXCEEDED
-#  define ICMP_TIME_EXCEEDED 11
-# endif
-# ifndef NR_ICMP_TYPES
-#  define NR_ICMP_TYPES 18
-# endif
-# ifndef NR_ICMP_UNREACH
-#  define NR_ICMP_UNREACH 15
-# endif
+# define ICMP_ADDRESS 17
+# define ICMP_ADDRESSREPLY 18
+# define ICMP_DEST_UNREACH 3
+# define ICMP_ECHO 8
+# define ICMP_ECHOREPLY 0
+# define ICMP_EXC_FRAGTIME 1
+# define ICMP_EXC_TTL 0
+# define ICMP_EXT_ECHO 42
+# define ICMP_EXT_ECHOREPLY 43
+# define ICMP_FRAG_NEEDED 4
+# define ICMP_HOST_ANO 10
+# define ICMP_HOST_ISOLATED 8
+# define ICMP_HOST_UNKNOWN 7
+# define ICMP_HOST_UNREACH 1
+# define ICMP_HOST_UNR_TOS 12
+# define ICMP_INFO_REPLY 16
+# define ICMP_INFO_REQUEST 15
+# define ICMP_NET_ANO 9
+# define ICMP_NET_UNKNOWN 6
+# define ICMP_NET_UNREACH 0
+# define ICMP_NET_UNR_TOS 11
+# define ICMP_PARAMETERPROB 12
+# define ICMP_PKT_FILTERED 13
+# define ICMP_PORT_UNREACH 3
+# define ICMP_PREC_CUTOFF 15
+# define ICMP_PREC_VIOLATION 14
+# define ICMP_PROT_UNREACH 2
+# define ICMP_REDIRECT 5
+# define ICMP_REDIR_HOST 1
+# define ICMP_REDIR_HOSTTOS 3
+# define ICMP_REDIR_NET 0
+# define ICMP_REDIR_NETTOS 2
+# define ICMP_SOURCE_QUENCH 4
+# define ICMP_SR_FAILED 5
+# define ICMP_TIMESTAMP 13
+# define ICMP_TIMESTAMPREPLY 14
+# define ICMP_TIME_EXCEEDED 11
+# define NR_ICMP_TYPES 18
+# define NR_ICMP_UNREACH 15
 #endif
-#if __NIJI_MISC
-# ifndef ICMP_ADVLENMIN
-#  define ICMP_ADVLENMIN 36UL
-# endif
-# ifndef ICMP_IREQ
-#  define ICMP_IREQ 15
-# endif
-# ifndef ICMP_IREQREPLY
-#  define ICMP_IREQREPLY 16
-# endif
-# ifndef ICMP_MASKLEN
-#  define ICMP_MASKLEN 12
-# endif
-# ifndef ICMP_MASKREPLY
-#  define ICMP_MASKREPLY 18
-# endif
-# ifndef ICMP_MASKREQ
-#  define ICMP_MASKREQ 17
-# endif
-# ifndef ICMP_MAXTYPE
-#  define ICMP_MAXTYPE 18
-# endif
-# ifndef ICMP_MINLEN
-#  define ICMP_MINLEN 8
-# endif
-# ifndef ICMP_PARAMPROB
-#  define ICMP_PARAMPROB 12
-# endif
-# ifndef ICMP_PARAMPROB_OPTABSENT
-#  define ICMP_PARAMPROB_OPTABSENT 1
-# endif
-# ifndef ICMP_REDIRECT_HOST
-#  define ICMP_REDIRECT_HOST 1
-# endif
-# ifndef ICMP_REDIRECT_NET
-#  define ICMP_REDIRECT_NET 0
-# endif
-# ifndef ICMP_REDIRECT_TOSHOST
-#  define ICMP_REDIRECT_TOSHOST 3
-# endif
-# ifndef ICMP_REDIRECT_TOSNET
-#  define ICMP_REDIRECT_TOSNET 2
-# endif
-# ifndef ICMP_ROUTERADVERT
-#  define ICMP_ROUTERADVERT 9
-# endif
-# ifndef ICMP_ROUTERSOLICIT
-#  define ICMP_ROUTERSOLICIT 10
-# endif
-# ifndef ICMP_SOURCEQUENCH
-#  define ICMP_SOURCEQUENCH 4
-# endif
-# ifndef ICMP_TIMXCEED
-#  define ICMP_TIMXCEED 11
-# endif
-# ifndef ICMP_TIMXCEED_INTRANS
-#  define ICMP_TIMXCEED_INTRANS 0
-# endif
-# ifndef ICMP_TIMXCEED_REASS
-#  define ICMP_TIMXCEED_REASS 1
-# endif
-# ifndef ICMP_TSTAMP
-#  define ICMP_TSTAMP 13
-# endif
-# ifndef ICMP_TSTAMPREPLY
-#  define ICMP_TSTAMPREPLY 14
-# endif
-# ifndef ICMP_UNREACH
-#  define ICMP_UNREACH 3
-# endif
-# ifndef ICMP_UNREACH_FILTER_PROHIB
-#  define ICMP_UNREACH_FILTER_PROHIB 13
-# endif
-# ifndef ICMP_UNREACH_HOST
-#  define ICMP_UNREACH_HOST 1
-# endif
-# ifndef ICMP_UNREACH_HOST_PRECEDENCE
-#  define ICMP_UNREACH_HOST_PRECEDENCE 14
-# endif
-# ifndef ICMP_UNREACH_HOST_PROHIB
-#  define ICMP_UNREACH_HOST_PROHIB 10
-# endif
-# ifndef ICMP_UNREACH_HOST_UNKNOWN
-#  define ICMP_UNREACH_HOST_UNKNOWN 7
-# endif
-# ifndef ICMP_UNREACH_ISOLATED
-#  define ICMP_UNREACH_ISOLATED 8
-# endif
-# ifndef ICMP_UNREACH_NEEDFRAG
-#  define ICMP_UNREACH_NEEDFRAG 4
-# endif
-# ifndef ICMP_UNREACH_NET
-#  define ICMP_UNREACH_NET 0
-# endif
-# ifndef ICMP_UNREACH_NET_PROHIB
-#  define ICMP_UNREACH_NET_PROHIB 9
-# endif
-# ifndef ICMP_UNREACH_NET_UNKNOWN
-#  define ICMP_UNREACH_NET_UNKNOWN 6
-# endif
-# ifndef ICMP_UNREACH_PORT
-#  define ICMP_UNREACH_PORT 3
-# endif
-# ifndef ICMP_UNREACH_PRECEDENCE_CUTOFF
-#  define ICMP_UNREACH_PRECEDENCE_CUTOFF 15
-# endif
-# ifndef ICMP_UNREACH_PROTOCOL
-#  define ICMP_UNREACH_PROTOCOL 2
-# endif
-# ifndef ICMP_UNREACH_SRCFAIL
-#  define ICMP_UNREACH_SRCFAIL 5
-# endif
-# ifndef ICMP_UNREACH_TOSHOST
-#  define ICMP_UNREACH_TOSHOST 12
-# endif
-# ifndef ICMP_UNREACH_TOSNET
-#  define ICMP_UNREACH_TOSNET 11
-# endif
+#if defined __USE_MISC
+# define ICMP_ADVLENMIN 36UL
+# define ICMP_IREQ 15
+# define ICMP_IREQREPLY 16
+# define ICMP_MASKLEN 12
+# define ICMP_MASKREPLY 18
+# define ICMP_MASKREQ 17
+# define ICMP_MAXTYPE 18
+# define ICMP_MINLEN 8
+# define ICMP_PARAMPROB 12
+# define ICMP_PARAMPROB_OPTABSENT 1
+# define ICMP_REDIRECT_HOST 1
+# define ICMP_REDIRECT_NET 0
+# define ICMP_REDIRECT_TOSHOST 3
+# define ICMP_REDIRECT_TOSNET 2
+# define ICMP_ROUTERADVERT 9
+# define ICMP_ROUTERSOLICIT 10
+# define ICMP_SOURCEQUENCH 4
+# define ICMP_TIMXCEED 11
+# define ICMP_TIMXCEED_INTRANS 0
+# define ICMP_TIMXCEED_REASS 1
+# define ICMP_TSTAMP 13
+# define ICMP_TSTAMPREPLY 14
+# define ICMP_UNREACH 3
+# define ICMP_UNREACH_FILTER_PROHIB 13
+# define ICMP_UNREACH_HOST 1
+# define ICMP_UNREACH_HOST_PRECEDENCE 14
+# define ICMP_UNREACH_HOST_PROHIB 10
+# define ICMP_UNREACH_HOST_UNKNOWN 7
+# define ICMP_UNREACH_ISOLATED 8
+# define ICMP_UNREACH_NEEDFRAG 4
+# define ICMP_UNREACH_NET 0
+# define ICMP_UNREACH_NET_PROHIB 9
+# define ICMP_UNREACH_NET_UNKNOWN 6
+# define ICMP_UNREACH_PORT 3
+# define ICMP_UNREACH_PRECEDENCE_CUTOFF 15
+# define ICMP_UNREACH_PROTOCOL 2
+# define ICMP_UNREACH_SRCFAIL 5
+# define ICMP_UNREACH_TOSHOST 12
+# define ICMP_UNREACH_TOSNET 11
 #endif
 
 /* The members of struct icmp's two unions by their message's field names (RFC 792, RFC 1191 for the path MTU, RFC 1256
    for router advertisements): each name is a macro for the nested member the layout table records. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define icmp_pptr icmp_hun.ih_pptr
 # define icmp_gwaddr icmp_hun.ih_gwaddr
 # define icmp_id icmp_hun.ih_idseq.icd_id

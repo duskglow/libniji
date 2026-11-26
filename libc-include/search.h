@@ -8,7 +8,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_hsearch_data
 #  define __NIJI_D_struct_hsearch_data 1
 struct hsearch_data {
@@ -128,7 +128,7 @@ typedef void (*__action_fn_t)(void const *, VISIT, int);
 extern void twalk (const void *, __action_fn_t);
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 struct hsearch_data;
 # ifndef __NIJI_D_hcreate_r
 #  define __NIJI_D_hcreate_r 1
@@ -157,7 +157,7 @@ extern void tdestroy (void *, __free_fn_t);
 extern void twalk_r (const void *, void (*) (const void *, VISIT, void *), void *);
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
+#if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_insque
 #  define __NIJI_D_insque 1
 extern void insque (void *, void *) __NIJI_NOTHROW;

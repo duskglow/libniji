@@ -72,7 +72,59 @@ struct stat {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_stat64
+#  define __NIJI_D_struct_stat64 1
+struct stat64 {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  struct timespec st_atim;
+  struct timespec st_mtim;
+  struct timespec st_ctim;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_statx_timestamp
 #  define __NIJI_D_struct_statx_timestamp 1
 struct statx_timestamp {
@@ -140,58 +192,6 @@ struct statx_timestamp {
   long long tv_sec;
   unsigned int tv_nsec;
   int __reserved;
-};
-# endif
-#endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-# ifndef __NIJI_D_struct_stat64
-#  define __NIJI_D_struct_stat64 1
-struct stat64 {
-  unsigned long st_dev;
-  unsigned long st_ino;
-  unsigned long st_nlink;
-  unsigned int st_mode;
-  unsigned int st_uid;
-  unsigned int st_gid;
-  int __pad0;
-  unsigned long st_rdev;
-  long st_size;
-  long st_blksize;
-  long st_blocks;
-  struct timespec st_atim;
-  struct timespec st_mtim;
-  struct timespec st_ctim;
-  long __glibc_reserved[3];
-};
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
 };
 # endif
 #endif
@@ -313,13 +313,6 @@ extern int stat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("stat64") 
 extern unsigned int umask (unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-struct statx;
-# ifndef __NIJI_D_statx
-#  define __NIJI_D_statx 1
-extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 5)));
-# endif
-#endif
 #if __NIJI_LFS64
 struct stat64;
 # ifndef __NIJI_D_fstat64
@@ -340,24 +333,6 @@ struct stat64;
 # ifndef __NIJI_D_stat64
 #  define __NIJI_D_stat64 1
 extern int stat64 (const char *, struct stat64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_lchmod
-#  define __NIJI_D_lchmod 1
-extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef __NIJI_D_mknod
-#  define __NIJI_D_mknod 1
-extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 700
-# ifndef __NIJI_D_mknodat
-#  define __NIJI_D_mknodat 1
-extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
@@ -414,6 +389,31 @@ struct timespec;
 extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
+#if defined __USE_GNU
+struct statx;
+# ifndef __NIJI_D_statx
+#  define __NIJI_D_statx 1
+extern int statx (int, const char *, int, unsigned int, struct statx *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 5)));
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_lchmod
+#  define __NIJI_D_lchmod 1
+extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# ifndef __NIJI_D_mknod
+#  define __NIJI_D_mknod 1
+extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 700
+# ifndef __NIJI_D_mknodat
+#  define __NIJI_D_mknodat 1
+extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+#endif
 #if 1
 # ifndef S_IRGRP
 #  define S_IRGRP 32
@@ -457,11 +457,13 @@ extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_
 # ifndef S_IXUSR
 #  define S_IXUSR 64
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200809
+# define UTIME_NOW 1073741823L
+# define UTIME_OMIT 1073741822L
+#endif
+#if defined __USE_GNU
 # ifndef STATX_ALL
 #  define STATX_ALL 4095U
 # endif
@@ -544,30 +546,16 @@ extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_
 #  define STATX__RESERVED 2147483648U
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef ACCESSPERMS
-#  define ACCESSPERMS 511
-# endif
-# ifndef ALLPERMS
-#  define ALLPERMS 4095
-# endif
-# ifndef DEFFILEMODE
-#  define DEFFILEMODE 438
-# endif
-# ifndef S_BLKSIZE
-#  define S_BLKSIZE 512
-# endif
-# ifndef S_IEXEC
-#  define S_IEXEC S_IXUSR
-# endif
-# ifndef S_IREAD
-#  define S_IREAD S_IRUSR
-# endif
-# ifndef S_IWRITE
-#  define S_IWRITE S_IWUSR
-# endif
+#if defined __USE_MISC
+# define ACCESSPERMS 511
+# define ALLPERMS 4095
+# define DEFFILEMODE 438
+# define S_BLKSIZE 512
+# define S_IEXEC S_IXUSR
+# define S_IREAD S_IRUSR
+# define S_IWRITE S_IWUSR
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # ifndef S_IFBLK
 #  define S_IFBLK 24576
 # endif
@@ -593,17 +581,9 @@ extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_
 #  define S_ISVTX 512
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
+#if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef S_IFSOCK
 #  define S_IFSOCK 49152
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef UTIME_NOW
-#  define UTIME_NOW 1073741823L
-# endif
-# ifndef UTIME_OMIT
-#  define UTIME_OMIT 1073741822L
 # endif
 #endif
 
@@ -626,7 +606,7 @@ extern int utimensat (int, const char *, const struct timespec [2], int) __NIJI_
 # define S_TYPEISSHM(buf) ((void) (buf), 0)
 #endif
 /* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
-# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC) && !defined st_atime
+# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC)
 #  define st_atime st_atim.tv_sec
 #  define st_mtime st_mtim.tv_sec
 #  define st_ctime st_ctim.tv_sec

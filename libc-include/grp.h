@@ -59,17 +59,17 @@ typedef unsigned short __u_short;
 typedef unsigned long size_t;
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_FILE
-#  define __NIJI_D_FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE FILE;
-# endif
-#endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_gid_t
 #  define __NIJI_D_gid_t 1
 typedef unsigned int gid_t;
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_FILE
+#  define __NIJI_D_FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE FILE;
 # endif
 #endif
 #if 1
@@ -84,7 +84,21 @@ struct group;
 extern struct group *getgrnam (const char *);
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 1
+struct group;
+struct group;
+# ifndef __NIJI_D_getgrgid_r
+#  define __NIJI_D_getgrgid_r 1
+extern int getgrgid_r (unsigned int, struct group *, char *, unsigned long, struct group **);
+# endif
+struct group;
+struct group;
+# ifndef __NIJI_D_getgrnam_r
+#  define __NIJI_D_getgrnam_r 1
+extern int getgrnam_r (const char *, struct group *, char *, unsigned long, struct group **);
+# endif
+#endif
+#if defined __USE_GNU
 struct group;
 struct group;
 # ifndef __NIJI_D_getgrent_r
@@ -97,7 +111,7 @@ struct group;
 extern int putgrent (const struct group *, FILE *);
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct group;
 # ifndef __NIJI_D_fgetgrent
 #  define __NIJI_D_fgetgrent 1
@@ -122,7 +136,7 @@ extern int initgroups (const char *, unsigned int);
 extern int setgroups (unsigned long, const unsigned int *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
+#if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_endgrent
 #  define __NIJI_D_endgrent 1
 extern void endgrent (void);
@@ -137,29 +151,11 @@ extern struct group *getgrent (void);
 extern void setgrent (void);
 # endif
 #endif
-#if __NIJI_POSIX >= 1
-struct group;
-struct group;
-# ifndef __NIJI_D_getgrgid_r
-#  define __NIJI_D_getgrgid_r 1
-extern int getgrgid_r (unsigned int, struct group *, char *, unsigned long, struct group **);
-# endif
-struct group;
-struct group;
-# ifndef __NIJI_D_getgrnam_r
-#  define __NIJI_D_getgrnam_r 1
-extern int getgrnam_r (const char *, struct group *, char *, unsigned long, struct group **);
-# endif
-#endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
-#if __NIJI_MISC
-# ifndef NSS_BUFLEN_GROUP
-#  define NSS_BUFLEN_GROUP 1024
-# endif
+#if defined __USE_MISC
+# define NSS_BUFLEN_GROUP 1024
 #endif
 
 __NIJI_END_C

@@ -107,7 +107,65 @@ extern char *strtok (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonn
 extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 1
+# ifndef __NIJI_D_strtok_r
+#  define __NIJI_D_strtok_r 1
+extern char *strtok_r (char *, const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_strerror_r
+#  define __NIJI_D_strerror_r 1
+#  if __NIJI_POSIX >= 200112 && !defined __USE_GNU
+extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+#  elif defined __USE_GNU
+extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+#  endif
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_stpcpy
+#  define __NIJI_D_stpcpy 1
+extern char *stpcpy (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+# ifndef __NIJI_D_stpncpy
+#  define __NIJI_D_stpncpy 1
+extern char *stpncpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+# ifndef __NIJI_D_strcoll_l
+#  define __NIJI_D_strcoll_l 1
+extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
+# endif
+# ifndef __NIJI_D_strerror_l
+#  define __NIJI_D_strerror_l 1
+extern char *strerror_l (int, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strnlen
+#  define __NIJI_D_strnlen 1
+extern unsigned long strnlen (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+# endif
+# ifndef __NIJI_D_strsignal
+#  define __NIJI_D_strsignal 1
+extern char *strsignal (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strxfrm_l
+#  define __NIJI_D_strxfrm_l 1
+extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
+# endif
+#endif
+#if __NIJI_POSIX >= 200809 || __NIJI_ISOC >= 2023
+# ifndef __NIJI_D_strndup
+#  define __NIJI_D_strndup 1
+extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
+# endif
+#endif
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450 || __NIJI_ISOC >= 2023
+# ifndef __NIJI_D_strdup
+#  define __NIJI_D_strdup 1
+extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_memfrob
 #  define __NIJI_D_memfrob 1
 extern void *memfrob (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
@@ -137,7 +195,7 @@ extern char *strfry (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 extern int strverscmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_bcmp
 #  define __NIJI_D_bcmp 1
 extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
@@ -203,68 +261,10 @@ extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) _
 extern char *strsep (char **, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400 || __NIJI_ISOC >= 2023
+#if defined __USE_MISC || __NIJI_XSI >= 400 || __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_memccpy
 #  define __NIJI_D_memccpy 1
 extern void *memccpy (void *, const void *, int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-#endif
-#if __NIJI_POSIX >= 1
-# ifndef __NIJI_D_strtok_r
-#  define __NIJI_D_strtok_r 1
-extern char *strtok_r (char *, const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
-# endif
-#endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_strerror_r
-#  define __NIJI_D_strerror_r 1
-#  if __NIJI_POSIX >= 200112 && !__NIJI_GNU
-extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
-#  elif __NIJI_GNU
-extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
-#  endif
-# endif
-#endif
-#if __NIJI_POSIX >= 200809
-# ifndef __NIJI_D_stpcpy
-#  define __NIJI_D_stpcpy 1
-extern char *stpcpy (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-# ifndef __NIJI_D_stpncpy
-#  define __NIJI_D_stpncpy 1
-extern char *stpncpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-# ifndef __NIJI_D_strcoll_l
-#  define __NIJI_D_strcoll_l 1
-extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __pure__));
-# endif
-# ifndef __NIJI_D_strerror_l
-#  define __NIJI_D_strerror_l 1
-extern char *strerror_l (int, locale_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_strnlen
-#  define __NIJI_D_strnlen 1
-extern unsigned long strnlen (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
-# endif
-# ifndef __NIJI_D_strsignal
-#  define __NIJI_D_strsignal 1
-extern char *strsignal (int) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_strxfrm_l
-#  define __NIJI_D_strxfrm_l 1
-extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_ISOC >= 2023
-# ifndef __NIJI_D_strndup
-#  define __NIJI_D_strndup 1
-extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450 || __NIJI_ISOC >= 2023
-# ifndef __NIJI_D_strdup
-#  define __NIJI_D_strdup 1
-extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
 # endif
 #endif
 #if __NIJI_FORTIFY > 0
@@ -282,7 +282,7 @@ extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1
 # endif
 #endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_bcopy
 #  define __NIJI_F_bcopy 1
 __NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) __NIJI_NOTHROW
@@ -291,7 +291,7 @@ __NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) 
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_bzero
 #  define __NIJI_F_bzero 1
 __NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
@@ -300,7 +300,7 @@ __NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_explicit_bzero
 #  define __NIJI_F_explicit_bzero 1
 #  ifndef __NIJI_D___explicit_bzero_chk
@@ -334,7 +334,7 @@ __NIJI_FORTIFY_FN void *memmove (void *__p0, const void *__p1, unsigned long __p
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_mempcpy
 #  define __NIJI_F_mempcpy 1
 __NIJI_FORTIFY_FN void *mempcpy (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
@@ -388,7 +388,7 @@ __NIJI_FORTIFY_FN char *strcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_strlcat
 #  define __NIJI_F_strlcat 1
 #  ifndef __NIJI_D___strlcat_chk
@@ -404,7 +404,7 @@ __NIJI_FORTIFY_FN unsigned long strlcat (char *__p0, const char *__p1, unsigned 
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_strlcpy
 #  define __NIJI_F_strlcpy 1
 #  ifndef __NIJI_D___strlcpy_chk
@@ -477,7 +477,7 @@ extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((_
 
 /* The GNU and BSD search functions take the same two overloads in C++ (black-box probe of the reference: `&F` is
    ambiguous, and a const argument gives a const result). index and rindex are <strings.h>'s too, under one guard. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifdef __cplusplus
 extern "C++" {
 extern const char *strchrnul (const char *, int) __NIJI_NOTHROW __asm__ ("strchrnul") __attribute__ ((__nonnull__ (1), __pure__));
@@ -490,7 +490,7 @@ extern char *strchrnul (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonn
 extern char *strcasestr (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 /* The GNU basename is declared only while <libgen.h> has not made basename name __xpg_basename (its macro would
    rename this declaration into a second, conflicting one of __xpg_basename); calls then reach the XPG form. */
 # ifdef __cplusplus
@@ -512,7 +512,7 @@ extern void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((
 extern void *rawmemchr (const void *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_index
 #  define __NIJI_D_index 1
 #  ifdef __cplusplus
@@ -530,7 +530,7 @@ extern char *rindex (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull
 #endif
 
 /* GNU: a copy on the caller's stack, as long as the calling function runs. */
-#if __NIJI_GNU
+#if defined __USE_GNU
 # define strdupa(s) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strlen (__old) + 1; char *__new = (char *) __builtin_alloca (__len); (char *) __builtin_memcpy (__new, __old, __len); }))
 # define strndupa(s, n) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strnlen (__old, (n)); char *__new = (char *) __builtin_alloca (__len + 1); __new[__len] = '\0'; (char *) __builtin_memcpy (__new, __old, __len); }))
 #endif

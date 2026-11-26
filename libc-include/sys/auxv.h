@@ -439,699 +439,257 @@ typedef struct {
 #  define __NIJI_D_getauxval 1
 extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # endif
-# ifndef AT_BASE
-#  define AT_BASE 7
-# endif
+# define AT_BASE 7
 # ifndef AT_BASE_PLATFORM
 #  define AT_BASE_PLATFORM 24
 # endif
-# ifndef AT_CLKTCK
-#  define AT_CLKTCK 17
-# endif
-# ifndef AT_DCACHEBSIZE
-#  define AT_DCACHEBSIZE 19
-# endif
-# ifndef AT_EGID
-#  define AT_EGID 14
-# endif
-# ifndef AT_ENTRY
-#  define AT_ENTRY 9
-# endif
-# ifndef AT_EUID
-#  define AT_EUID 12
-# endif
-# ifndef AT_EXECFD
-#  define AT_EXECFD 2
-# endif
-# ifndef AT_EXECFN
-#  define AT_EXECFN 31
-# endif
-# ifndef AT_FLAGS
-#  define AT_FLAGS 8
-# endif
-# ifndef AT_FPUCW
-#  define AT_FPUCW 18
-# endif
-# ifndef AT_GID
-#  define AT_GID 13
-# endif
-# ifndef AT_HWCAP
-#  define AT_HWCAP 16
-# endif
-# ifndef AT_HWCAP2
-#  define AT_HWCAP2 26
-# endif
-# ifndef AT_HWCAP3
-#  define AT_HWCAP3 29
-# endif
-# ifndef AT_HWCAP4
-#  define AT_HWCAP4 30
-# endif
-# ifndef AT_ICACHEBSIZE
-#  define AT_ICACHEBSIZE 20
-# endif
-# ifndef AT_IGNORE
-#  define AT_IGNORE 1
-# endif
-# ifndef AT_IGNOREPPC
-#  define AT_IGNOREPPC 22
-# endif
-# ifndef AT_L1D_CACHEGEOMETRY
-#  define AT_L1D_CACHEGEOMETRY 43
-# endif
-# ifndef AT_L1D_CACHESHAPE
-#  define AT_L1D_CACHESHAPE 35
-# endif
-# ifndef AT_L1D_CACHESIZE
-#  define AT_L1D_CACHESIZE 42
-# endif
-# ifndef AT_L1I_CACHEGEOMETRY
-#  define AT_L1I_CACHEGEOMETRY 41
-# endif
-# ifndef AT_L1I_CACHESHAPE
-#  define AT_L1I_CACHESHAPE 34
-# endif
-# ifndef AT_L1I_CACHESIZE
-#  define AT_L1I_CACHESIZE 40
-# endif
-# ifndef AT_L2_CACHEGEOMETRY
-#  define AT_L2_CACHEGEOMETRY 45
-# endif
-# ifndef AT_L2_CACHESHAPE
-#  define AT_L2_CACHESHAPE 36
-# endif
-# ifndef AT_L2_CACHESIZE
-#  define AT_L2_CACHESIZE 44
-# endif
-# ifndef AT_L3_CACHEGEOMETRY
-#  define AT_L3_CACHEGEOMETRY 47
-# endif
-# ifndef AT_L3_CACHESHAPE
-#  define AT_L3_CACHESHAPE 37
-# endif
-# ifndef AT_L3_CACHESIZE
-#  define AT_L3_CACHESIZE 46
-# endif
-# ifndef AT_MINSIGSTKSZ
-#  define AT_MINSIGSTKSZ 51
-# endif
-# ifndef AT_NOTELF
-#  define AT_NOTELF 10
-# endif
-# ifndef AT_NULL
-#  define AT_NULL 0
-# endif
-# ifndef AT_PAGESZ
-#  define AT_PAGESZ 6
-# endif
-# ifndef AT_PHDR
-#  define AT_PHDR 3
-# endif
-# ifndef AT_PHENT
-#  define AT_PHENT 4
-# endif
-# ifndef AT_PHNUM
-#  define AT_PHNUM 5
-# endif
-# ifndef AT_PLATFORM
-#  define AT_PLATFORM 15
-# endif
-# ifndef AT_RANDOM
-#  define AT_RANDOM 25
-# endif
-# ifndef AT_RSEQ_ALIGN
-#  define AT_RSEQ_ALIGN 28
-# endif
-# ifndef AT_RSEQ_FEATURE_SIZE
-#  define AT_RSEQ_FEATURE_SIZE 27
-# endif
-# ifndef AT_SECURE
-#  define AT_SECURE 23
-# endif
-# ifndef AT_SYSINFO
-#  define AT_SYSINFO 32
-# endif
-# ifndef AT_SYSINFO_EHDR
-#  define AT_SYSINFO_EHDR 33
-# endif
-# ifndef AT_UCACHEBSIZE
-#  define AT_UCACHEBSIZE 21
-# endif
-# ifndef AT_UID
-#  define AT_UID 11
-# endif
-# ifndef DF_1_CONFALT
-#  define DF_1_CONFALT 8192
-# endif
-# ifndef DF_1_DIRECT
-#  define DF_1_DIRECT 256
-# endif
-# ifndef DF_1_DISPRELDNE
-#  define DF_1_DISPRELDNE 32768
-# endif
-# ifndef DF_1_DISPRELPND
-#  define DF_1_DISPRELPND 65536
-# endif
-# ifndef DF_1_EDITED
-#  define DF_1_EDITED 2097152
-# endif
-# ifndef DF_1_ENDFILTEE
-#  define DF_1_ENDFILTEE 16384
-# endif
-# ifndef DF_1_GLOBAL
-#  define DF_1_GLOBAL 2
-# endif
-# ifndef DF_1_GLOBAUDIT
-#  define DF_1_GLOBAUDIT 16777216
-# endif
-# ifndef DF_1_GROUP
-#  define DF_1_GROUP 4
-# endif
-# ifndef DF_1_IGNMULDEF
-#  define DF_1_IGNMULDEF 262144
-# endif
-# ifndef DF_1_INITFIRST
-#  define DF_1_INITFIRST 32
-# endif
-# ifndef DF_1_INTERPOSE
-#  define DF_1_INTERPOSE 1024
-# endif
-# ifndef DF_1_KMOD
-#  define DF_1_KMOD 268435456
-# endif
-# ifndef DF_1_LOADFLTR
-#  define DF_1_LOADFLTR 16
-# endif
-# ifndef DF_1_NOCOMMON
-#  define DF_1_NOCOMMON 1073741824
-# endif
-# ifndef DF_1_NODEFLIB
-#  define DF_1_NODEFLIB 2048
-# endif
-# ifndef DF_1_NODELETE
-#  define DF_1_NODELETE 8
-# endif
-# ifndef DF_1_NODIRECT
-#  define DF_1_NODIRECT 131072
-# endif
-# ifndef DF_1_NODUMP
-#  define DF_1_NODUMP 4096
-# endif
-# ifndef DF_1_NOHDR
-#  define DF_1_NOHDR 1048576
-# endif
-# ifndef DF_1_NOKSYMS
-#  define DF_1_NOKSYMS 524288
-# endif
-# ifndef DF_1_NOOPEN
-#  define DF_1_NOOPEN 64
-# endif
-# ifndef DF_1_NORELOC
-#  define DF_1_NORELOC 4194304
-# endif
-# ifndef DF_1_NOW
-#  define DF_1_NOW 1
-# endif
-# ifndef DF_1_ORIGIN
-#  define DF_1_ORIGIN 128
-# endif
-# ifndef DF_1_PIE
-#  define DF_1_PIE 134217728
-# endif
-# ifndef DF_1_SINGLETON
-#  define DF_1_SINGLETON 33554432
-# endif
-# ifndef DF_1_STUB
-#  define DF_1_STUB 67108864
-# endif
-# ifndef DF_1_SYMINTPOSE
-#  define DF_1_SYMINTPOSE 8388608
-# endif
-# ifndef DF_1_TRANS
-#  define DF_1_TRANS 512
-# endif
-# ifndef DF_1_WEAKFILTER
-#  define DF_1_WEAKFILTER 536870912
-# endif
-# ifndef DF_BIND_NOW
-#  define DF_BIND_NOW 8
-# endif
-# ifndef DF_ORIGIN
-#  define DF_ORIGIN 1
-# endif
-# ifndef DF_P1_GROUPPERM
-#  define DF_P1_GROUPPERM 2
-# endif
-# ifndef DF_P1_LAZYLOAD
-#  define DF_P1_LAZYLOAD 1
-# endif
-# ifndef DF_STATIC_TLS
-#  define DF_STATIC_TLS 16
-# endif
-# ifndef DF_SYMBOLIC
-#  define DF_SYMBOLIC 2
-# endif
-# ifndef DF_TEXTREL
-#  define DF_TEXTREL 4
-# endif
-# ifndef DTF_1_CONFEXP
-#  define DTF_1_CONFEXP 2
-# endif
-# ifndef DTF_1_PARINIT
-#  define DTF_1_PARINIT 1
-# endif
-# ifndef DT_AARCH64_BTI_PLT
-#  define DT_AARCH64_BTI_PLT 1879048193
-# endif
-# ifndef DT_AARCH64_NUM
-#  define DT_AARCH64_NUM 6
-# endif
-# ifndef DT_AARCH64_PAC_PLT
-#  define DT_AARCH64_PAC_PLT 1879048195
-# endif
-# ifndef DT_AARCH64_VARIANT_PCS
-#  define DT_AARCH64_VARIANT_PCS 1879048197
-# endif
-# ifndef DT_ADDRNUM
-#  define DT_ADDRNUM 11
-# endif
+# define AT_CLKTCK 17
+# define AT_DCACHEBSIZE 19
+# define AT_EGID 14
+# define AT_ENTRY 9
+# define AT_EUID 12
+# define AT_EXECFD 2
+# define AT_EXECFN 31
+# define AT_FLAGS 8
+# define AT_FPUCW 18
+# define AT_GID 13
+# define AT_HWCAP 16
+# define AT_HWCAP2 26
+# define AT_HWCAP3 29
+# define AT_HWCAP4 30
+# define AT_ICACHEBSIZE 20
+# define AT_IGNORE 1
+# define AT_IGNOREPPC 22
+# define AT_L1D_CACHEGEOMETRY 43
+# define AT_L1D_CACHESHAPE 35
+# define AT_L1D_CACHESIZE 42
+# define AT_L1I_CACHEGEOMETRY 41
+# define AT_L1I_CACHESHAPE 34
+# define AT_L1I_CACHESIZE 40
+# define AT_L2_CACHEGEOMETRY 45
+# define AT_L2_CACHESHAPE 36
+# define AT_L2_CACHESIZE 44
+# define AT_L3_CACHEGEOMETRY 47
+# define AT_L3_CACHESHAPE 37
+# define AT_L3_CACHESIZE 46
+# define AT_MINSIGSTKSZ 51
+# define AT_NOTELF 10
+# define AT_NULL 0
+# define AT_PAGESZ 6
+# define AT_PHDR 3
+# define AT_PHENT 4
+# define AT_PHNUM 5
+# define AT_PLATFORM 15
+# define AT_RANDOM 25
+# define AT_RSEQ_ALIGN 28
+# define AT_RSEQ_FEATURE_SIZE 27
+# define AT_SECURE 23
+# define AT_SYSINFO 32
+# define AT_SYSINFO_EHDR 33
+# define AT_UCACHEBSIZE 21
+# define AT_UID 11
+# define DF_1_CONFALT 8192
+# define DF_1_DIRECT 256
+# define DF_1_DISPRELDNE 32768
+# define DF_1_DISPRELPND 65536
+# define DF_1_EDITED 2097152
+# define DF_1_ENDFILTEE 16384
+# define DF_1_GLOBAL 2
+# define DF_1_GLOBAUDIT 16777216
+# define DF_1_GROUP 4
+# define DF_1_IGNMULDEF 262144
+# define DF_1_INITFIRST 32
+# define DF_1_INTERPOSE 1024
+# define DF_1_KMOD 268435456
+# define DF_1_LOADFLTR 16
+# define DF_1_NOCOMMON 1073741824
+# define DF_1_NODEFLIB 2048
+# define DF_1_NODELETE 8
+# define DF_1_NODIRECT 131072
+# define DF_1_NODUMP 4096
+# define DF_1_NOHDR 1048576
+# define DF_1_NOKSYMS 524288
+# define DF_1_NOOPEN 64
+# define DF_1_NORELOC 4194304
+# define DF_1_NOW 1
+# define DF_1_ORIGIN 128
+# define DF_1_PIE 134217728
+# define DF_1_SINGLETON 33554432
+# define DF_1_STUB 67108864
+# define DF_1_SYMINTPOSE 8388608
+# define DF_1_TRANS 512
+# define DF_1_WEAKFILTER 536870912
+# define DF_BIND_NOW 8
+# define DF_ORIGIN 1
+# define DF_P1_GROUPPERM 2
+# define DF_P1_LAZYLOAD 1
+# define DF_STATIC_TLS 16
+# define DF_SYMBOLIC 2
+# define DF_TEXTREL 4
+# define DTF_1_CONFEXP 2
+# define DTF_1_PARINIT 1
+# define DT_AARCH64_BTI_PLT 1879048193
+# define DT_AARCH64_NUM 6
+# define DT_AARCH64_PAC_PLT 1879048195
+# define DT_AARCH64_VARIANT_PCS 1879048197
+# define DT_ADDRNUM 11
 # ifndef DT_ADDRRNGHI
 #  define DT_ADDRRNGHI 1879047935
 # endif
 # ifndef DT_ADDRRNGLO
 #  define DT_ADDRRNGLO 1879047680
 # endif
-# ifndef DT_ALPHA_NUM
-#  define DT_ALPHA_NUM 1
-# endif
-# ifndef DT_ALPHA_PLTRO
-#  define DT_ALPHA_PLTRO DT_LOPROC
-# endif
-# ifndef DT_AUDIT
-#  define DT_AUDIT 1879047932
-# endif
-# ifndef DT_AUXILIARY
-#  define DT_AUXILIARY 2147483645
-# endif
-# ifndef DT_BIND_NOW
-#  define DT_BIND_NOW 24
-# endif
-# ifndef DT_CHECKSUM
-#  define DT_CHECKSUM 1879047672
-# endif
-# ifndef DT_CONFIG
-#  define DT_CONFIG 1879047930
-# endif
-# ifndef DT_DEBUG
-#  define DT_DEBUG 21
-# endif
-# ifndef DT_DEPAUDIT
-#  define DT_DEPAUDIT 1879047931
-# endif
-# ifndef DT_ENCODING
-#  define DT_ENCODING 32
-# endif
-# ifndef DT_EXTRANUM
-#  define DT_EXTRANUM 3
-# endif
-# ifndef DT_FEATURE_1
-#  define DT_FEATURE_1 1879047676
-# endif
-# ifndef DT_FILTER
-#  define DT_FILTER 2147483647
-# endif
-# ifndef DT_FINI
-#  define DT_FINI 13
-# endif
-# ifndef DT_FINI_ARRAY
-#  define DT_FINI_ARRAY 26
-# endif
-# ifndef DT_FINI_ARRAYSZ
-#  define DT_FINI_ARRAYSZ 28
-# endif
-# ifndef DT_FLAGS
-#  define DT_FLAGS 30
-# endif
+# define DT_ALPHA_NUM 1
+# define DT_ALPHA_PLTRO DT_LOPROC
+# define DT_AUDIT 1879047932
+# define DT_AUXILIARY 2147483645
+# define DT_BIND_NOW 24
+# define DT_CHECKSUM 1879047672
+# define DT_CONFIG 1879047930
+# define DT_DEBUG 21
+# define DT_DEPAUDIT 1879047931
+# define DT_ENCODING 32
+# define DT_EXTRANUM 3
+# define DT_FEATURE_1 1879047676
+# define DT_FILTER 2147483647
+# define DT_FINI 13
+# define DT_FINI_ARRAY 26
+# define DT_FINI_ARRAYSZ 28
+# define DT_FLAGS 30
 # ifndef DT_FLAGS_1
 #  define DT_FLAGS_1 1879048187
 # endif
-# ifndef DT_GNU_CONFLICT
-#  define DT_GNU_CONFLICT 1879047928
-# endif
-# ifndef DT_GNU_CONFLICTSZ
-#  define DT_GNU_CONFLICTSZ 1879047670
-# endif
-# ifndef DT_GNU_HASH
-#  define DT_GNU_HASH 1879047925
-# endif
-# ifndef DT_GNU_LIBLIST
-#  define DT_GNU_LIBLIST 1879047929
-# endif
-# ifndef DT_GNU_LIBLISTSZ
-#  define DT_GNU_LIBLISTSZ 1879047671
-# endif
-# ifndef DT_GNU_PRELINKED
-#  define DT_GNU_PRELINKED 1879047669
-# endif
-# ifndef DT_HASH
-#  define DT_HASH 4
-# endif
+# define DT_GNU_CONFLICT 1879047928
+# define DT_GNU_CONFLICTSZ 1879047670
+# define DT_GNU_HASH 1879047925
+# define DT_GNU_LIBLIST 1879047929
+# define DT_GNU_LIBLISTSZ 1879047671
+# define DT_GNU_PRELINKED 1879047669
+# define DT_HASH 4
 # ifndef DT_HIOS
 #  define DT_HIOS 1879044096
 # endif
 # ifndef DT_HIPROC
 #  define DT_HIPROC 2147483647
 # endif
-# ifndef DT_IA_64_NUM
-#  define DT_IA_64_NUM 1
-# endif
-# ifndef DT_IA_64_PLT_RESERVE
-#  define DT_IA_64_PLT_RESERVE DT_LOPROC
-# endif
-# ifndef DT_INIT
-#  define DT_INIT 12
-# endif
-# ifndef DT_INIT_ARRAY
-#  define DT_INIT_ARRAY 25
-# endif
-# ifndef DT_INIT_ARRAYSZ
-#  define DT_INIT_ARRAYSZ 27
-# endif
-# ifndef DT_JMPREL
-#  define DT_JMPREL 23
-# endif
+# define DT_IA_64_NUM 1
+# define DT_IA_64_PLT_RESERVE DT_LOPROC
+# define DT_INIT 12
+# define DT_INIT_ARRAY 25
+# define DT_INIT_ARRAYSZ 27
+# define DT_JMPREL 23
 # ifndef DT_LOOS
 #  define DT_LOOS 1610612749
 # endif
 # ifndef DT_LOPROC
 #  define DT_LOPROC 1879048192
 # endif
-# ifndef DT_MIPS_AUX_DYNAMIC
-#  define DT_MIPS_AUX_DYNAMIC 1879048241
-# endif
-# ifndef DT_MIPS_BASE_ADDRESS
-#  define DT_MIPS_BASE_ADDRESS 1879048198
-# endif
-# ifndef DT_MIPS_COMPACT_SIZE
-#  define DT_MIPS_COMPACT_SIZE 1879048239
-# endif
-# ifndef DT_MIPS_CONFLICT
-#  define DT_MIPS_CONFLICT 1879048200
-# endif
-# ifndef DT_MIPS_CONFLICTNO
-#  define DT_MIPS_CONFLICTNO 1879048203
-# endif
-# ifndef DT_MIPS_CXX_FLAGS
-#  define DT_MIPS_CXX_FLAGS 1879048226
-# endif
-# ifndef DT_MIPS_DELTA_CLASS
-#  define DT_MIPS_DELTA_CLASS 1879048215
-# endif
-# ifndef DT_MIPS_DELTA_CLASSSYM
-#  define DT_MIPS_DELTA_CLASSSYM 1879048224
-# endif
-# ifndef DT_MIPS_DELTA_CLASSSYM_NO
-#  define DT_MIPS_DELTA_CLASSSYM_NO 1879048225
-# endif
-# ifndef DT_MIPS_DELTA_CLASS_NO
-#  define DT_MIPS_DELTA_CLASS_NO 1879048216
-# endif
-# ifndef DT_MIPS_DELTA_INSTANCE
-#  define DT_MIPS_DELTA_INSTANCE 1879048217
-# endif
-# ifndef DT_MIPS_DELTA_INSTANCE_NO
-#  define DT_MIPS_DELTA_INSTANCE_NO 1879048218
-# endif
-# ifndef DT_MIPS_DELTA_RELOC
-#  define DT_MIPS_DELTA_RELOC 1879048219
-# endif
-# ifndef DT_MIPS_DELTA_RELOC_NO
-#  define DT_MIPS_DELTA_RELOC_NO 1879048220
-# endif
-# ifndef DT_MIPS_DELTA_SYM
-#  define DT_MIPS_DELTA_SYM 1879048221
-# endif
-# ifndef DT_MIPS_DELTA_SYM_NO
-#  define DT_MIPS_DELTA_SYM_NO 1879048222
-# endif
-# ifndef DT_MIPS_DYNSTR_ALIGN
-#  define DT_MIPS_DYNSTR_ALIGN 1879048235
-# endif
-# ifndef DT_MIPS_FLAGS
-#  define DT_MIPS_FLAGS 1879048197
-# endif
-# ifndef DT_MIPS_GOTSYM
-#  define DT_MIPS_GOTSYM 1879048211
-# endif
-# ifndef DT_MIPS_GP_VALUE
-#  define DT_MIPS_GP_VALUE 1879048240
-# endif
-# ifndef DT_MIPS_HIDDEN_GOTIDX
-#  define DT_MIPS_HIDDEN_GOTIDX 1879048231
-# endif
-# ifndef DT_MIPS_HIPAGENO
-#  define DT_MIPS_HIPAGENO 1879048212
-# endif
-# ifndef DT_MIPS_ICHECKSUM
-#  define DT_MIPS_ICHECKSUM 1879048195
-# endif
-# ifndef DT_MIPS_INTERFACE
-#  define DT_MIPS_INTERFACE 1879048234
-# endif
-# ifndef DT_MIPS_INTERFACE_SIZE
-#  define DT_MIPS_INTERFACE_SIZE 1879048236
-# endif
-# ifndef DT_MIPS_IVERSION
-#  define DT_MIPS_IVERSION 1879048196
-# endif
-# ifndef DT_MIPS_LIBLIST
-#  define DT_MIPS_LIBLIST 1879048201
-# endif
-# ifndef DT_MIPS_LIBLISTNO
-#  define DT_MIPS_LIBLISTNO 1879048208
-# endif
-# ifndef DT_MIPS_LOCALPAGE_GOTIDX
-#  define DT_MIPS_LOCALPAGE_GOTIDX 1879048229
-# endif
-# ifndef DT_MIPS_LOCAL_GOTIDX
-#  define DT_MIPS_LOCAL_GOTIDX 1879048230
-# endif
-# ifndef DT_MIPS_LOCAL_GOTNO
-#  define DT_MIPS_LOCAL_GOTNO 1879048202
-# endif
-# ifndef DT_MIPS_MSYM
-#  define DT_MIPS_MSYM 1879048199
-# endif
-# ifndef DT_MIPS_NUM
-#  define DT_MIPS_NUM 55
-# endif
-# ifndef DT_MIPS_OPTIONS
-#  define DT_MIPS_OPTIONS 1879048233
-# endif
-# ifndef DT_MIPS_PERF_SUFFIX
-#  define DT_MIPS_PERF_SUFFIX 1879048238
-# endif
-# ifndef DT_MIPS_PIXIE_INIT
-#  define DT_MIPS_PIXIE_INIT 1879048227
-# endif
-# ifndef DT_MIPS_PLTGOT
-#  define DT_MIPS_PLTGOT 1879048242
-# endif
-# ifndef DT_MIPS_PROTECTED_GOTIDX
-#  define DT_MIPS_PROTECTED_GOTIDX 1879048232
-# endif
-# ifndef DT_MIPS_RLD_MAP
-#  define DT_MIPS_RLD_MAP 1879048214
-# endif
-# ifndef DT_MIPS_RLD_MAP_REL
-#  define DT_MIPS_RLD_MAP_REL 1879048245
-# endif
-# ifndef DT_MIPS_RLD_TEXT_RESOLVE_ADDR
-#  define DT_MIPS_RLD_TEXT_RESOLVE_ADDR 1879048237
-# endif
-# ifndef DT_MIPS_RLD_VERSION
-#  define DT_MIPS_RLD_VERSION 1879048193
-# endif
-# ifndef DT_MIPS_RWPLT
-#  define DT_MIPS_RWPLT 1879048244
-# endif
-# ifndef DT_MIPS_SYMBOL_LIB
-#  define DT_MIPS_SYMBOL_LIB 1879048228
-# endif
-# ifndef DT_MIPS_SYMTABNO
-#  define DT_MIPS_SYMTABNO 1879048209
-# endif
-# ifndef DT_MIPS_TIME_STAMP
-#  define DT_MIPS_TIME_STAMP 1879048194
-# endif
-# ifndef DT_MIPS_UNREFEXTNO
-#  define DT_MIPS_UNREFEXTNO 1879048210
-# endif
-# ifndef DT_MIPS_XHASH
-#  define DT_MIPS_XHASH 1879048246
-# endif
-# ifndef DT_MOVEENT
-#  define DT_MOVEENT 1879047674
-# endif
-# ifndef DT_MOVESZ
-#  define DT_MOVESZ 1879047675
-# endif
-# ifndef DT_MOVETAB
-#  define DT_MOVETAB 1879047934
-# endif
-# ifndef DT_NEEDED
-#  define DT_NEEDED 1
-# endif
-# ifndef DT_NIOS2_GP
-#  define DT_NIOS2_GP 1879048194
-# endif
-# ifndef DT_NULL
-#  define DT_NULL 0
-# endif
-# ifndef DT_NUM
-#  define DT_NUM 38
-# endif
-# ifndef DT_PLTGOT
-#  define DT_PLTGOT 3
-# endif
-# ifndef DT_PLTPAD
-#  define DT_PLTPAD 1879047933
-# endif
-# ifndef DT_PLTPADSZ
-#  define DT_PLTPADSZ 1879047673
-# endif
-# ifndef DT_PLTREL
-#  define DT_PLTREL 20
-# endif
-# ifndef DT_PLTRELSZ
-#  define DT_PLTRELSZ 2
-# endif
-# ifndef DT_POSFLAG_1
-#  define DT_POSFLAG_1 1879047677
-# endif
-# ifndef DT_PPC64_GLINK
-#  define DT_PPC64_GLINK DT_LOPROC
-# endif
-# ifndef DT_PPC64_NUM
-#  define DT_PPC64_NUM 4
-# endif
-# ifndef DT_PPC64_OPD
-#  define DT_PPC64_OPD 1879048193
-# endif
-# ifndef DT_PPC64_OPDSZ
-#  define DT_PPC64_OPDSZ 1879048194
-# endif
-# ifndef DT_PPC64_OPT
-#  define DT_PPC64_OPT 1879048195
-# endif
-# ifndef DT_PPC_GOT
-#  define DT_PPC_GOT DT_LOPROC
-# endif
-# ifndef DT_PPC_NUM
-#  define DT_PPC_NUM 2
-# endif
-# ifndef DT_PPC_OPT
-#  define DT_PPC_OPT 1879048193
-# endif
-# ifndef DT_PREINIT_ARRAY
-#  define DT_PREINIT_ARRAY 32
-# endif
-# ifndef DT_PREINIT_ARRAYSZ
-#  define DT_PREINIT_ARRAYSZ 33
-# endif
-# ifndef DT_PROCNUM
-#  define DT_PROCNUM DT_MIPS_NUM
-# endif
-# ifndef DT_REL
-#  define DT_REL 17
-# endif
-# ifndef DT_RELA
-#  define DT_RELA 7
-# endif
+# define DT_MIPS_AUX_DYNAMIC 1879048241
+# define DT_MIPS_BASE_ADDRESS 1879048198
+# define DT_MIPS_COMPACT_SIZE 1879048239
+# define DT_MIPS_CONFLICT 1879048200
+# define DT_MIPS_CONFLICTNO 1879048203
+# define DT_MIPS_CXX_FLAGS 1879048226
+# define DT_MIPS_DELTA_CLASS 1879048215
+# define DT_MIPS_DELTA_CLASSSYM 1879048224
+# define DT_MIPS_DELTA_CLASSSYM_NO 1879048225
+# define DT_MIPS_DELTA_CLASS_NO 1879048216
+# define DT_MIPS_DELTA_INSTANCE 1879048217
+# define DT_MIPS_DELTA_INSTANCE_NO 1879048218
+# define DT_MIPS_DELTA_RELOC 1879048219
+# define DT_MIPS_DELTA_RELOC_NO 1879048220
+# define DT_MIPS_DELTA_SYM 1879048221
+# define DT_MIPS_DELTA_SYM_NO 1879048222
+# define DT_MIPS_DYNSTR_ALIGN 1879048235
+# define DT_MIPS_FLAGS 1879048197
+# define DT_MIPS_GOTSYM 1879048211
+# define DT_MIPS_GP_VALUE 1879048240
+# define DT_MIPS_HIDDEN_GOTIDX 1879048231
+# define DT_MIPS_HIPAGENO 1879048212
+# define DT_MIPS_ICHECKSUM 1879048195
+# define DT_MIPS_INTERFACE 1879048234
+# define DT_MIPS_INTERFACE_SIZE 1879048236
+# define DT_MIPS_IVERSION 1879048196
+# define DT_MIPS_LIBLIST 1879048201
+# define DT_MIPS_LIBLISTNO 1879048208
+# define DT_MIPS_LOCALPAGE_GOTIDX 1879048229
+# define DT_MIPS_LOCAL_GOTIDX 1879048230
+# define DT_MIPS_LOCAL_GOTNO 1879048202
+# define DT_MIPS_MSYM 1879048199
+# define DT_MIPS_NUM 55
+# define DT_MIPS_OPTIONS 1879048233
+# define DT_MIPS_PERF_SUFFIX 1879048238
+# define DT_MIPS_PIXIE_INIT 1879048227
+# define DT_MIPS_PLTGOT 1879048242
+# define DT_MIPS_PROTECTED_GOTIDX 1879048232
+# define DT_MIPS_RLD_MAP 1879048214
+# define DT_MIPS_RLD_MAP_REL 1879048245
+# define DT_MIPS_RLD_TEXT_RESOLVE_ADDR 1879048237
+# define DT_MIPS_RLD_VERSION 1879048193
+# define DT_MIPS_RWPLT 1879048244
+# define DT_MIPS_SYMBOL_LIB 1879048228
+# define DT_MIPS_SYMTABNO 1879048209
+# define DT_MIPS_TIME_STAMP 1879048194
+# define DT_MIPS_UNREFEXTNO 1879048210
+# define DT_MIPS_XHASH 1879048246
+# define DT_MOVEENT 1879047674
+# define DT_MOVESZ 1879047675
+# define DT_MOVETAB 1879047934
+# define DT_NEEDED 1
+# define DT_NIOS2_GP 1879048194
+# define DT_NULL 0
+# define DT_NUM 38
+# define DT_PLTGOT 3
+# define DT_PLTPAD 1879047933
+# define DT_PLTPADSZ 1879047673
+# define DT_PLTREL 20
+# define DT_PLTRELSZ 2
+# define DT_POSFLAG_1 1879047677
+# define DT_PPC64_GLINK DT_LOPROC
+# define DT_PPC64_NUM 4
+# define DT_PPC64_OPD 1879048193
+# define DT_PPC64_OPDSZ 1879048194
+# define DT_PPC64_OPT 1879048195
+# define DT_PPC_GOT DT_LOPROC
+# define DT_PPC_NUM 2
+# define DT_PPC_OPT 1879048193
+# define DT_PREINIT_ARRAY 32
+# define DT_PREINIT_ARRAYSZ 33
+# define DT_PROCNUM DT_MIPS_NUM
+# define DT_REL 17
+# define DT_RELA 7
 # ifndef DT_RELACOUNT
 #  define DT_RELACOUNT 1879048185
 # endif
-# ifndef DT_RELAENT
-#  define DT_RELAENT 9
-# endif
-# ifndef DT_RELASZ
-#  define DT_RELASZ 8
-# endif
+# define DT_RELAENT 9
+# define DT_RELASZ 8
 # ifndef DT_RELCOUNT
 #  define DT_RELCOUNT 1879048186
 # endif
-# ifndef DT_RELENT
-#  define DT_RELENT 19
-# endif
-# ifndef DT_RELR
-#  define DT_RELR 36
-# endif
-# ifndef DT_RELRENT
-#  define DT_RELRENT 37
-# endif
-# ifndef DT_RELRSZ
-#  define DT_RELRSZ 35
-# endif
-# ifndef DT_RELSZ
-#  define DT_RELSZ 18
-# endif
-# ifndef DT_RISCV_VARIANT_CC
-#  define DT_RISCV_VARIANT_CC 1879048193
-# endif
-# ifndef DT_RPATH
-#  define DT_RPATH 15
-# endif
-# ifndef DT_RUNPATH
-#  define DT_RUNPATH 29
-# endif
-# ifndef DT_SONAME
-#  define DT_SONAME 14
-# endif
-# ifndef DT_SPARC_NUM
-#  define DT_SPARC_NUM 2
-# endif
-# ifndef DT_SPARC_REGISTER
-#  define DT_SPARC_REGISTER 1879048193
-# endif
-# ifndef DT_STRSZ
-#  define DT_STRSZ 10
-# endif
-# ifndef DT_STRTAB
-#  define DT_STRTAB 5
-# endif
-# ifndef DT_SYMBOLIC
-#  define DT_SYMBOLIC 16
-# endif
-# ifndef DT_SYMENT
-#  define DT_SYMENT 11
-# endif
-# ifndef DT_SYMINENT
-#  define DT_SYMINENT 1879047679
-# endif
-# ifndef DT_SYMINFO
-#  define DT_SYMINFO 1879047935
-# endif
-# ifndef DT_SYMINSZ
-#  define DT_SYMINSZ 1879047678
-# endif
-# ifndef DT_SYMTAB
-#  define DT_SYMTAB 6
-# endif
-# ifndef DT_SYMTAB_SHNDX
-#  define DT_SYMTAB_SHNDX 34
-# endif
-# ifndef DT_TEXTREL
-#  define DT_TEXTREL 22
-# endif
-# ifndef DT_TLSDESC_GOT
-#  define DT_TLSDESC_GOT 1879047927
-# endif
-# ifndef DT_TLSDESC_PLT
-#  define DT_TLSDESC_PLT 1879047926
-# endif
-# ifndef DT_VALNUM
-#  define DT_VALNUM 12
-# endif
+# define DT_RELENT 19
+# define DT_RELR 36
+# define DT_RELRENT 37
+# define DT_RELRSZ 35
+# define DT_RELSZ 18
+# define DT_RISCV_VARIANT_CC 1879048193
+# define DT_RPATH 15
+# define DT_RUNPATH 29
+# define DT_SONAME 14
+# define DT_SPARC_NUM 2
+# define DT_SPARC_REGISTER 1879048193
+# define DT_STRSZ 10
+# define DT_STRTAB 5
+# define DT_SYMBOLIC 16
+# define DT_SYMENT 11
+# define DT_SYMINENT 1879047679
+# define DT_SYMINFO 1879047935
+# define DT_SYMINSZ 1879047678
+# define DT_SYMTAB 6
+# define DT_SYMTAB_SHNDX 34
+# define DT_TEXTREL 22
+# define DT_TLSDESC_GOT 1879047927
+# define DT_TLSDESC_PLT 1879047926
+# define DT_VALNUM 12
 # ifndef DT_VALRNGHI
 #  define DT_VALRNGHI 1879047679
 # endif
@@ -1150,1482 +708,518 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef DT_VERNEEDNUM
 #  define DT_VERNEEDNUM 1879048191
 # endif
-# ifndef DT_VERSIONTAGNUM
-#  define DT_VERSIONTAGNUM 16
-# endif
+# define DT_VERSIONTAGNUM 16
 # ifndef DT_VERSYM
 #  define DT_VERSYM 1879048176
 # endif
-# ifndef DT_X86_64_NUM
-#  define DT_X86_64_NUM 4
-# endif
-# ifndef DT_X86_64_PLT
-#  define DT_X86_64_PLT DT_LOPROC
-# endif
-# ifndef DT_X86_64_PLTENT
-#  define DT_X86_64_PLTENT 1879048195
-# endif
-# ifndef DT_X86_64_PLTSZ
-#  define DT_X86_64_PLTSZ 1879048193
-# endif
-# ifndef EFA_PARISC_1_0
-#  define EFA_PARISC_1_0 523
-# endif
-# ifndef EFA_PARISC_1_1
-#  define EFA_PARISC_1_1 528
-# endif
-# ifndef EFA_PARISC_2_0
-#  define EFA_PARISC_2_0 532
-# endif
-# ifndef EF_ALPHA_32BIT
-#  define EF_ALPHA_32BIT 1
-# endif
-# ifndef EF_ALPHA_CANRELAX
-#  define EF_ALPHA_CANRELAX 2
-# endif
-# ifndef EF_ARC_ALL_MSK
-#  define EF_ARC_ALL_MSK 4095
-# endif
-# ifndef EF_ARC_MACH_MSK
-#  define EF_ARC_MACH_MSK 255
-# endif
-# ifndef EF_ARC_OSABI_MSK
-#  define EF_ARC_OSABI_MSK 3840
-# endif
-# ifndef EF_ARM_ABI_FLOAT_HARD
-#  define EF_ARM_ABI_FLOAT_HARD 1024
-# endif
-# ifndef EF_ARM_ABI_FLOAT_SOFT
-#  define EF_ARM_ABI_FLOAT_SOFT 512
-# endif
-# ifndef EF_ARM_ALIGN8
-#  define EF_ARM_ALIGN8 64
-# endif
-# ifndef EF_ARM_APCS_26
-#  define EF_ARM_APCS_26 8
-# endif
-# ifndef EF_ARM_APCS_FLOAT
-#  define EF_ARM_APCS_FLOAT 16
-# endif
-# ifndef EF_ARM_BE8
-#  define EF_ARM_BE8 8388608
-# endif
-# ifndef EF_ARM_DYNSYMSUSESEGIDX
-#  define EF_ARM_DYNSYMSUSESEGIDX 8
-# endif
-# ifndef EF_ARM_EABIMASK
-#  define EF_ARM_EABIMASK 4278190080U
-# endif
-# ifndef EF_ARM_EABI_UNKNOWN
-#  define EF_ARM_EABI_UNKNOWN 0
-# endif
-# ifndef EF_ARM_EABI_VER1
-#  define EF_ARM_EABI_VER1 16777216
-# endif
-# ifndef EF_ARM_EABI_VER2
-#  define EF_ARM_EABI_VER2 33554432
-# endif
-# ifndef EF_ARM_EABI_VER3
-#  define EF_ARM_EABI_VER3 50331648
-# endif
-# ifndef EF_ARM_EABI_VER4
-#  define EF_ARM_EABI_VER4 67108864
-# endif
-# ifndef EF_ARM_EABI_VER5
-#  define EF_ARM_EABI_VER5 83886080
-# endif
-# ifndef EF_ARM_HASENTRY
-#  define EF_ARM_HASENTRY 2
-# endif
-# ifndef EF_ARM_INTERWORK
-#  define EF_ARM_INTERWORK 4
-# endif
-# ifndef EF_ARM_LE8
-#  define EF_ARM_LE8 4194304
-# endif
-# ifndef EF_ARM_MAPSYMSFIRST
-#  define EF_ARM_MAPSYMSFIRST 16
-# endif
-# ifndef EF_ARM_MAVERICK_FLOAT
-#  define EF_ARM_MAVERICK_FLOAT 2048
-# endif
-# ifndef EF_ARM_NEW_ABI
-#  define EF_ARM_NEW_ABI 128
-# endif
-# ifndef EF_ARM_OLD_ABI
-#  define EF_ARM_OLD_ABI 256
-# endif
-# ifndef EF_ARM_PIC
-#  define EF_ARM_PIC 32
-# endif
-# ifndef EF_ARM_RELEXEC
-#  define EF_ARM_RELEXEC 1
-# endif
-# ifndef EF_ARM_SOFT_FLOAT
-#  define EF_ARM_SOFT_FLOAT 512
-# endif
-# ifndef EF_ARM_SYMSARESORTED
-#  define EF_ARM_SYMSARESORTED 4
-# endif
-# ifndef EF_ARM_VFP_FLOAT
-#  define EF_ARM_VFP_FLOAT 1024
-# endif
-# ifndef EF_CPU32
-#  define EF_CPU32 8454144
-# endif
-# ifndef EF_CSKY_ABIMASK
-#  define EF_CSKY_ABIMASK 4026531840U
-# endif
-# ifndef EF_CSKY_ABIV1
-#  define EF_CSKY_ABIV1 268435456
-# endif
-# ifndef EF_CSKY_ABIV2
-#  define EF_CSKY_ABIV2 536870912
-# endif
-# ifndef EF_CSKY_OTHER
-#  define EF_CSKY_OTHER 268369920
-# endif
-# ifndef EF_CSKY_PROCESSOR
-#  define EF_CSKY_PROCESSOR 65535
-# endif
-# ifndef EF_IA_64_ABI64
-#  define EF_IA_64_ABI64 16
-# endif
-# ifndef EF_IA_64_ARCH
-#  define EF_IA_64_ARCH 4278190080U
-# endif
-# ifndef EF_IA_64_MASKOS
-#  define EF_IA_64_MASKOS 15
-# endif
-# ifndef EF_LARCH_ABI_DOUBLE_FLOAT
-#  define EF_LARCH_ABI_DOUBLE_FLOAT 3
-# endif
-# ifndef EF_LARCH_ABI_MODIFIER_MASK
-#  define EF_LARCH_ABI_MODIFIER_MASK 7
-# endif
-# ifndef EF_LARCH_ABI_SINGLE_FLOAT
-#  define EF_LARCH_ABI_SINGLE_FLOAT 2
-# endif
-# ifndef EF_LARCH_ABI_SOFT_FLOAT
-#  define EF_LARCH_ABI_SOFT_FLOAT 1
-# endif
-# ifndef EF_LARCH_OBJABI_V1
-#  define EF_LARCH_OBJABI_V1 64
-# endif
-# ifndef EF_MIPS_32BITMODE
-#  define EF_MIPS_32BITMODE 256
-# endif
-# ifndef EF_MIPS_ABI
-#  define EF_MIPS_ABI 61440
-# endif
-# ifndef EF_MIPS_ABI2
-#  define EF_MIPS_ABI2 32
-# endif
-# ifndef EF_MIPS_ABI_EABI32
-#  define EF_MIPS_ABI_EABI32 12288
-# endif
-# ifndef EF_MIPS_ABI_EABI64
-#  define EF_MIPS_ABI_EABI64 16384
-# endif
-# ifndef EF_MIPS_ABI_O32
-#  define EF_MIPS_ABI_O32 4096
-# endif
-# ifndef EF_MIPS_ABI_O64
-#  define EF_MIPS_ABI_O64 8192
-# endif
-# ifndef EF_MIPS_ABI_ON32
-#  define EF_MIPS_ABI_ON32 64
-# endif
-# ifndef EF_MIPS_ARCH
-#  define EF_MIPS_ARCH 4026531840U
-# endif
-# ifndef EF_MIPS_ARCH_1
-#  define EF_MIPS_ARCH_1 0
-# endif
-# ifndef EF_MIPS_ARCH_2
-#  define EF_MIPS_ARCH_2 268435456
-# endif
-# ifndef EF_MIPS_ARCH_3
-#  define EF_MIPS_ARCH_3 536870912
-# endif
-# ifndef EF_MIPS_ARCH_32
-#  define EF_MIPS_ARCH_32 1342177280
-# endif
-# ifndef EF_MIPS_ARCH_32R2
-#  define EF_MIPS_ARCH_32R2 1879048192
-# endif
-# ifndef EF_MIPS_ARCH_32R6
-#  define EF_MIPS_ARCH_32R6 2415919104U
-# endif
-# ifndef EF_MIPS_ARCH_4
-#  define EF_MIPS_ARCH_4 805306368
-# endif
-# ifndef EF_MIPS_ARCH_5
-#  define EF_MIPS_ARCH_5 1073741824
-# endif
-# ifndef EF_MIPS_ARCH_64
-#  define EF_MIPS_ARCH_64 1610612736
-# endif
-# ifndef EF_MIPS_ARCH_64R2
-#  define EF_MIPS_ARCH_64R2 2147483648U
-# endif
-# ifndef EF_MIPS_ARCH_64R6
-#  define EF_MIPS_ARCH_64R6 2684354560U
-# endif
-# ifndef EF_MIPS_ARCH_ASE
-#  define EF_MIPS_ARCH_ASE 251658240
-# endif
-# ifndef EF_MIPS_ARCH_ASE_M16
-#  define EF_MIPS_ARCH_ASE_M16 67108864
-# endif
-# ifndef EF_MIPS_ARCH_ASE_MDMX
-#  define EF_MIPS_ARCH_ASE_MDMX 134217728
-# endif
-# ifndef EF_MIPS_ARCH_ASE_MICROMIPS
-#  define EF_MIPS_ARCH_ASE_MICROMIPS 33554432
-# endif
-# ifndef EF_MIPS_CPIC
-#  define EF_MIPS_CPIC 4
-# endif
-# ifndef EF_MIPS_FP64
-#  define EF_MIPS_FP64 512
-# endif
-# ifndef EF_MIPS_MACH
-#  define EF_MIPS_MACH 16711680
-# endif
-# ifndef EF_MIPS_MACH_3900
-#  define EF_MIPS_MACH_3900 8454144
-# endif
-# ifndef EF_MIPS_MACH_4010
-#  define EF_MIPS_MACH_4010 8519680
-# endif
-# ifndef EF_MIPS_MACH_4100
-#  define EF_MIPS_MACH_4100 8585216
-# endif
-# ifndef EF_MIPS_MACH_4111
-#  define EF_MIPS_MACH_4111 8912896
-# endif
-# ifndef EF_MIPS_MACH_4120
-#  define EF_MIPS_MACH_4120 8847360
-# endif
-# ifndef EF_MIPS_MACH_4650
-#  define EF_MIPS_MACH_4650 8716288
-# endif
-# ifndef EF_MIPS_MACH_5400
-#  define EF_MIPS_MACH_5400 9502720
-# endif
-# ifndef EF_MIPS_MACH_5500
-#  define EF_MIPS_MACH_5500 9961472
-# endif
-# ifndef EF_MIPS_MACH_5900
-#  define EF_MIPS_MACH_5900 9568256
-# endif
-# ifndef EF_MIPS_MACH_9000
-#  define EF_MIPS_MACH_9000 10027008
-# endif
-# ifndef EF_MIPS_MACH_ALLEGREX
-#  define EF_MIPS_MACH_ALLEGREX 8650752
-# endif
-# ifndef EF_MIPS_MACH_GS264E
-#  define EF_MIPS_MACH_GS264E 10747904
-# endif
-# ifndef EF_MIPS_MACH_GS464
-#  define EF_MIPS_MACH_GS464 10616832
-# endif
-# ifndef EF_MIPS_MACH_GS464E
-#  define EF_MIPS_MACH_GS464E 10682368
-# endif
-# ifndef EF_MIPS_MACH_IAMR2
-#  define EF_MIPS_MACH_IAMR2 9633792
-# endif
-# ifndef EF_MIPS_MACH_LS2E
-#  define EF_MIPS_MACH_LS2E 10485760
-# endif
-# ifndef EF_MIPS_MACH_LS2F
-#  define EF_MIPS_MACH_LS2F 10551296
-# endif
-# ifndef EF_MIPS_MACH_OCTEON
-#  define EF_MIPS_MACH_OCTEON 9109504
-# endif
-# ifndef EF_MIPS_MACH_OCTEON2
-#  define EF_MIPS_MACH_OCTEON2 9240576
-# endif
-# ifndef EF_MIPS_MACH_OCTEON3
-#  define EF_MIPS_MACH_OCTEON3 9306112
-# endif
-# ifndef EF_MIPS_MACH_SB1
-#  define EF_MIPS_MACH_SB1 9043968
-# endif
-# ifndef EF_MIPS_MACH_XLR
-#  define EF_MIPS_MACH_XLR 9175040
-# endif
-# ifndef EF_MIPS_NAN2008
-#  define EF_MIPS_NAN2008 1024
-# endif
-# ifndef EF_MIPS_NOREORDER
-#  define EF_MIPS_NOREORDER 1
-# endif
-# ifndef EF_MIPS_OPTIONS_FIRST
-#  define EF_MIPS_OPTIONS_FIRST 128
-# endif
-# ifndef EF_MIPS_PIC
-#  define EF_MIPS_PIC 2
-# endif
-# ifndef EF_MIPS_UCODE
-#  define EF_MIPS_UCODE 16
-# endif
-# ifndef EF_MIPS_XGOT
-#  define EF_MIPS_XGOT 8
-# endif
-# ifndef EF_PARISC_ARCH
-#  define EF_PARISC_ARCH 65535
-# endif
-# ifndef EF_PARISC_EXT
-#  define EF_PARISC_EXT 131072
-# endif
-# ifndef EF_PARISC_LAZYSWAP
-#  define EF_PARISC_LAZYSWAP 4194304
-# endif
-# ifndef EF_PARISC_LSB
-#  define EF_PARISC_LSB 262144
-# endif
-# ifndef EF_PARISC_NO_KABP
-#  define EF_PARISC_NO_KABP 1048576
-# endif
-# ifndef EF_PARISC_TRAPNIL
-#  define EF_PARISC_TRAPNIL 65536
-# endif
-# ifndef EF_PARISC_WIDE
-#  define EF_PARISC_WIDE 524288
-# endif
-# ifndef EF_PPC64_ABI
-#  define EF_PPC64_ABI 3
-# endif
-# ifndef EF_PPC_EMB
-#  define EF_PPC_EMB 2147483648U
-# endif
-# ifndef EF_PPC_RELOCATABLE
-#  define EF_PPC_RELOCATABLE 65536
-# endif
-# ifndef EF_PPC_RELOCATABLE_LIB
-#  define EF_PPC_RELOCATABLE_LIB 32768
-# endif
-# ifndef EF_RISCV_FLOAT_ABI
-#  define EF_RISCV_FLOAT_ABI 6
-# endif
-# ifndef EF_RISCV_FLOAT_ABI_DOUBLE
-#  define EF_RISCV_FLOAT_ABI_DOUBLE 4
-# endif
-# ifndef EF_RISCV_FLOAT_ABI_QUAD
-#  define EF_RISCV_FLOAT_ABI_QUAD 6
-# endif
-# ifndef EF_RISCV_FLOAT_ABI_SINGLE
-#  define EF_RISCV_FLOAT_ABI_SINGLE 2
-# endif
-# ifndef EF_RISCV_FLOAT_ABI_SOFT
-#  define EF_RISCV_FLOAT_ABI_SOFT 0
-# endif
-# ifndef EF_RISCV_RVC
-#  define EF_RISCV_RVC 1
-# endif
-# ifndef EF_RISCV_RVE
-#  define EF_RISCV_RVE 8
-# endif
-# ifndef EF_RISCV_TSO
-#  define EF_RISCV_TSO 16
-# endif
-# ifndef EF_S390_HIGH_GPRS
-#  define EF_S390_HIGH_GPRS 1
-# endif
-# ifndef EF_SH1
-#  define EF_SH1 1
-# endif
-# ifndef EF_SH2
-#  define EF_SH2 2
-# endif
-# ifndef EF_SH2A
-#  define EF_SH2A 13
-# endif
-# ifndef EF_SH2A_NOFPU
-#  define EF_SH2A_NOFPU 19
-# endif
-# ifndef EF_SH2A_SH3E
-#  define EF_SH2A_SH3E 24
-# endif
-# ifndef EF_SH2A_SH3_NOFPU
-#  define EF_SH2A_SH3_NOFPU 22
-# endif
-# ifndef EF_SH2A_SH4
-#  define EF_SH2A_SH4 23
-# endif
-# ifndef EF_SH2A_SH4_NOFPU
-#  define EF_SH2A_SH4_NOFPU 21
-# endif
-# ifndef EF_SH2E
-#  define EF_SH2E 11
-# endif
-# ifndef EF_SH3
-#  define EF_SH3 3
-# endif
-# ifndef EF_SH3E
-#  define EF_SH3E 8
-# endif
-# ifndef EF_SH3_DSP
-#  define EF_SH3_DSP 5
-# endif
-# ifndef EF_SH3_NOMMU
-#  define EF_SH3_NOMMU 20
-# endif
-# ifndef EF_SH4
-#  define EF_SH4 9
-# endif
-# ifndef EF_SH4A
-#  define EF_SH4A 12
-# endif
-# ifndef EF_SH4AL_DSP
-#  define EF_SH4AL_DSP 6
-# endif
-# ifndef EF_SH4A_NOFPU
-#  define EF_SH4A_NOFPU 17
-# endif
-# ifndef EF_SH4_NOFPU
-#  define EF_SH4_NOFPU 16
-# endif
-# ifndef EF_SH4_NOMMU_NOFPU
-#  define EF_SH4_NOMMU_NOFPU 18
-# endif
-# ifndef EF_SH_DSP
-#  define EF_SH_DSP 4
-# endif
-# ifndef EF_SH_MACH_MASK
-#  define EF_SH_MACH_MASK 31
-# endif
-# ifndef EF_SH_UNKNOWN
-#  define EF_SH_UNKNOWN 0
-# endif
-# ifndef EF_SPARCV9_MM
-#  define EF_SPARCV9_MM 3
-# endif
-# ifndef EF_SPARCV9_PSO
-#  define EF_SPARCV9_PSO 1
-# endif
-# ifndef EF_SPARCV9_RMO
-#  define EF_SPARCV9_RMO 2
-# endif
-# ifndef EF_SPARCV9_TSO
-#  define EF_SPARCV9_TSO 0
-# endif
-# ifndef EF_SPARC_32PLUS
-#  define EF_SPARC_32PLUS 256
-# endif
-# ifndef EF_SPARC_EXT_MASK
-#  define EF_SPARC_EXT_MASK 16776960
-# endif
-# ifndef EF_SPARC_HAL_R1
-#  define EF_SPARC_HAL_R1 1024
-# endif
-# ifndef EF_SPARC_LEDATA
-#  define EF_SPARC_LEDATA 8388608
-# endif
-# ifndef EF_SPARC_SUN_US1
-#  define EF_SPARC_SUN_US1 512
-# endif
-# ifndef EF_SPARC_SUN_US3
-#  define EF_SPARC_SUN_US3 2048
-# endif
-# ifndef EI_ABIVERSION
-#  define EI_ABIVERSION 8
-# endif
-# ifndef EI_CLASS
-#  define EI_CLASS 4
-# endif
-# ifndef EI_DATA
-#  define EI_DATA 5
-# endif
-# ifndef EI_MAG0
-#  define EI_MAG0 0
-# endif
-# ifndef EI_MAG1
-#  define EI_MAG1 1
-# endif
-# ifndef EI_MAG2
-#  define EI_MAG2 2
-# endif
-# ifndef EI_MAG3
-#  define EI_MAG3 3
-# endif
-# ifndef EI_NIDENT
-#  define EI_NIDENT 16
-# endif
-# ifndef EI_OSABI
-#  define EI_OSABI 7
-# endif
+# define DT_X86_64_NUM 4
+# define DT_X86_64_PLT DT_LOPROC
+# define DT_X86_64_PLTENT 1879048195
+# define DT_X86_64_PLTSZ 1879048193
+# define EFA_PARISC_1_0 523
+# define EFA_PARISC_1_1 528
+# define EFA_PARISC_2_0 532
+# define EF_ALPHA_32BIT 1
+# define EF_ALPHA_CANRELAX 2
+# define EF_ARC_ALL_MSK 4095
+# define EF_ARC_MACH_MSK 255
+# define EF_ARC_OSABI_MSK 3840
+# define EF_ARM_ABI_FLOAT_HARD 1024
+# define EF_ARM_ABI_FLOAT_SOFT 512
+# define EF_ARM_ALIGN8 64
+# define EF_ARM_APCS_26 8
+# define EF_ARM_APCS_FLOAT 16
+# define EF_ARM_BE8 8388608
+# define EF_ARM_DYNSYMSUSESEGIDX 8
+# define EF_ARM_EABIMASK 4278190080U
+# define EF_ARM_EABI_UNKNOWN 0
+# define EF_ARM_EABI_VER1 16777216
+# define EF_ARM_EABI_VER2 33554432
+# define EF_ARM_EABI_VER3 50331648
+# define EF_ARM_EABI_VER4 67108864
+# define EF_ARM_EABI_VER5 83886080
+# define EF_ARM_HASENTRY 2
+# define EF_ARM_INTERWORK 4
+# define EF_ARM_LE8 4194304
+# define EF_ARM_MAPSYMSFIRST 16
+# define EF_ARM_MAVERICK_FLOAT 2048
+# define EF_ARM_NEW_ABI 128
+# define EF_ARM_OLD_ABI 256
+# define EF_ARM_PIC 32
+# define EF_ARM_RELEXEC 1
+# define EF_ARM_SOFT_FLOAT 512
+# define EF_ARM_SYMSARESORTED 4
+# define EF_ARM_VFP_FLOAT 1024
+# define EF_CPU32 8454144
+# define EF_CSKY_ABIMASK 4026531840U
+# define EF_CSKY_ABIV1 268435456
+# define EF_CSKY_ABIV2 536870912
+# define EF_CSKY_OTHER 268369920
+# define EF_CSKY_PROCESSOR 65535
+# define EF_IA_64_ABI64 16
+# define EF_IA_64_ARCH 4278190080U
+# define EF_IA_64_MASKOS 15
+# define EF_LARCH_ABI_DOUBLE_FLOAT 3
+# define EF_LARCH_ABI_MODIFIER_MASK 7
+# define EF_LARCH_ABI_SINGLE_FLOAT 2
+# define EF_LARCH_ABI_SOFT_FLOAT 1
+# define EF_LARCH_OBJABI_V1 64
+# define EF_MIPS_32BITMODE 256
+# define EF_MIPS_ABI 61440
+# define EF_MIPS_ABI2 32
+# define EF_MIPS_ABI_EABI32 12288
+# define EF_MIPS_ABI_EABI64 16384
+# define EF_MIPS_ABI_O32 4096
+# define EF_MIPS_ABI_O64 8192
+# define EF_MIPS_ABI_ON32 64
+# define EF_MIPS_ARCH 4026531840U
+# define EF_MIPS_ARCH_1 0
+# define EF_MIPS_ARCH_2 268435456
+# define EF_MIPS_ARCH_3 536870912
+# define EF_MIPS_ARCH_32 1342177280
+# define EF_MIPS_ARCH_32R2 1879048192
+# define EF_MIPS_ARCH_32R6 2415919104U
+# define EF_MIPS_ARCH_4 805306368
+# define EF_MIPS_ARCH_5 1073741824
+# define EF_MIPS_ARCH_64 1610612736
+# define EF_MIPS_ARCH_64R2 2147483648U
+# define EF_MIPS_ARCH_64R6 2684354560U
+# define EF_MIPS_ARCH_ASE 251658240
+# define EF_MIPS_ARCH_ASE_M16 67108864
+# define EF_MIPS_ARCH_ASE_MDMX 134217728
+# define EF_MIPS_ARCH_ASE_MICROMIPS 33554432
+# define EF_MIPS_CPIC 4
+# define EF_MIPS_FP64 512
+# define EF_MIPS_MACH 16711680
+# define EF_MIPS_MACH_3900 8454144
+# define EF_MIPS_MACH_4010 8519680
+# define EF_MIPS_MACH_4100 8585216
+# define EF_MIPS_MACH_4111 8912896
+# define EF_MIPS_MACH_4120 8847360
+# define EF_MIPS_MACH_4650 8716288
+# define EF_MIPS_MACH_5400 9502720
+# define EF_MIPS_MACH_5500 9961472
+# define EF_MIPS_MACH_5900 9568256
+# define EF_MIPS_MACH_9000 10027008
+# define EF_MIPS_MACH_ALLEGREX 8650752
+# define EF_MIPS_MACH_GS264E 10747904
+# define EF_MIPS_MACH_GS464 10616832
+# define EF_MIPS_MACH_GS464E 10682368
+# define EF_MIPS_MACH_IAMR2 9633792
+# define EF_MIPS_MACH_LS2E 10485760
+# define EF_MIPS_MACH_LS2F 10551296
+# define EF_MIPS_MACH_OCTEON 9109504
+# define EF_MIPS_MACH_OCTEON2 9240576
+# define EF_MIPS_MACH_OCTEON3 9306112
+# define EF_MIPS_MACH_SB1 9043968
+# define EF_MIPS_MACH_XLR 9175040
+# define EF_MIPS_NAN2008 1024
+# define EF_MIPS_NOREORDER 1
+# define EF_MIPS_OPTIONS_FIRST 128
+# define EF_MIPS_PIC 2
+# define EF_MIPS_UCODE 16
+# define EF_MIPS_XGOT 8
+# define EF_PARISC_ARCH 65535
+# define EF_PARISC_EXT 131072
+# define EF_PARISC_LAZYSWAP 4194304
+# define EF_PARISC_LSB 262144
+# define EF_PARISC_NO_KABP 1048576
+# define EF_PARISC_TRAPNIL 65536
+# define EF_PARISC_WIDE 524288
+# define EF_PPC64_ABI 3
+# define EF_PPC_EMB 2147483648U
+# define EF_PPC_RELOCATABLE 65536
+# define EF_PPC_RELOCATABLE_LIB 32768
+# define EF_RISCV_FLOAT_ABI 6
+# define EF_RISCV_FLOAT_ABI_DOUBLE 4
+# define EF_RISCV_FLOAT_ABI_QUAD 6
+# define EF_RISCV_FLOAT_ABI_SINGLE 2
+# define EF_RISCV_FLOAT_ABI_SOFT 0
+# define EF_RISCV_RVC 1
+# define EF_RISCV_RVE 8
+# define EF_RISCV_TSO 16
+# define EF_S390_HIGH_GPRS 1
+# define EF_SH1 1
+# define EF_SH2 2
+# define EF_SH2A 13
+# define EF_SH2A_NOFPU 19
+# define EF_SH2A_SH3E 24
+# define EF_SH2A_SH3_NOFPU 22
+# define EF_SH2A_SH4 23
+# define EF_SH2A_SH4_NOFPU 21
+# define EF_SH2E 11
+# define EF_SH3 3
+# define EF_SH3E 8
+# define EF_SH3_DSP 5
+# define EF_SH3_NOMMU 20
+# define EF_SH4 9
+# define EF_SH4A 12
+# define EF_SH4AL_DSP 6
+# define EF_SH4A_NOFPU 17
+# define EF_SH4_NOFPU 16
+# define EF_SH4_NOMMU_NOFPU 18
+# define EF_SH_DSP 4
+# define EF_SH_MACH_MASK 31
+# define EF_SH_UNKNOWN 0
+# define EF_SPARCV9_MM 3
+# define EF_SPARCV9_PSO 1
+# define EF_SPARCV9_RMO 2
+# define EF_SPARCV9_TSO 0
+# define EF_SPARC_32PLUS 256
+# define EF_SPARC_EXT_MASK 16776960
+# define EF_SPARC_HAL_R1 1024
+# define EF_SPARC_LEDATA 8388608
+# define EF_SPARC_SUN_US1 512
+# define EF_SPARC_SUN_US3 2048
+# define EI_ABIVERSION 8
+# define EI_CLASS 4
+# define EI_DATA 5
+# define EI_MAG0 0
+# define EI_MAG1 1
+# define EI_MAG2 2
+# define EI_MAG3 3
+# define EI_NIDENT 16
+# define EI_OSABI 7
 # ifndef EI_PAD
 #  define EI_PAD 9
 # endif
-# ifndef EI_VERSION
-#  define EI_VERSION 6
-# endif
-# ifndef ELFCLASS32
-#  define ELFCLASS32 1
-# endif
-# ifndef ELFCLASS64
-#  define ELFCLASS64 2
-# endif
-# ifndef ELFCLASSNONE
-#  define ELFCLASSNONE 0
-# endif
-# ifndef ELFCLASSNUM
-#  define ELFCLASSNUM 3
-# endif
-# ifndef ELFCOMPRESS_HIOS
-#  define ELFCOMPRESS_HIOS 1879048191
-# endif
-# ifndef ELFCOMPRESS_HIPROC
-#  define ELFCOMPRESS_HIPROC 2147483647
-# endif
-# ifndef ELFCOMPRESS_LOOS
-#  define ELFCOMPRESS_LOOS 1610612736
-# endif
-# ifndef ELFCOMPRESS_LOPROC
-#  define ELFCOMPRESS_LOPROC 1879048192
-# endif
-# ifndef ELFCOMPRESS_ZLIB
-#  define ELFCOMPRESS_ZLIB 1
-# endif
-# ifndef ELFCOMPRESS_ZSTD
-#  define ELFCOMPRESS_ZSTD 2
-# endif
-# ifndef ELFDATA2LSB
-#  define ELFDATA2LSB 1
-# endif
-# ifndef ELFDATA2MSB
-#  define ELFDATA2MSB 2
-# endif
-# ifndef ELFDATANONE
-#  define ELFDATANONE 0
-# endif
-# ifndef ELFDATANUM
-#  define ELFDATANUM 3
-# endif
-# ifndef ELFMAG
-#  define ELFMAG "\177ELF"
-# endif
+# define EI_VERSION 6
+# define ELFCLASS32 1
+# define ELFCLASS64 2
+# define ELFCLASSNONE 0
+# define ELFCLASSNUM 3
+# define ELFCOMPRESS_HIOS 1879048191
+# define ELFCOMPRESS_HIPROC 2147483647
+# define ELFCOMPRESS_LOOS 1610612736
+# define ELFCOMPRESS_LOPROC 1879048192
+# define ELFCOMPRESS_ZLIB 1
+# define ELFCOMPRESS_ZSTD 2
+# define ELFDATA2LSB 1
+# define ELFDATA2MSB 2
+# define ELFDATANONE 0
+# define ELFDATANUM 3
+# define ELFMAG "\177ELF"
 # ifndef ELFMAG0
 #  define ELFMAG0 127
 # endif
-# ifndef ELFMAG1
-#  define ELFMAG1 'E'
-# endif
-# ifndef ELFMAG2
-#  define ELFMAG2 'L'
-# endif
-# ifndef ELFMAG3
-#  define ELFMAG3 'F'
-# endif
-# ifndef ELFOSABI_AIX
-#  define ELFOSABI_AIX 7
-# endif
-# ifndef ELFOSABI_ARM
-#  define ELFOSABI_ARM 97
-# endif
-# ifndef ELFOSABI_ARM_AEABI
-#  define ELFOSABI_ARM_AEABI 64
-# endif
-# ifndef ELFOSABI_FREEBSD
-#  define ELFOSABI_FREEBSD 9
-# endif
-# ifndef ELFOSABI_GNU
-#  define ELFOSABI_GNU 3
-# endif
-# ifndef ELFOSABI_HPUX
-#  define ELFOSABI_HPUX 1
-# endif
-# ifndef ELFOSABI_IRIX
-#  define ELFOSABI_IRIX 8
-# endif
+# define ELFMAG1 'E'
+# define ELFMAG2 'L'
+# define ELFMAG3 'F'
+# define ELFOSABI_AIX 7
+# define ELFOSABI_ARM 97
+# define ELFOSABI_ARM_AEABI 64
+# define ELFOSABI_FREEBSD 9
+# define ELFOSABI_GNU 3
+# define ELFOSABI_HPUX 1
+# define ELFOSABI_IRIX 8
 # ifndef ELFOSABI_LINUX
 #  define ELFOSABI_LINUX ELFOSABI_GNU
 # endif
-# ifndef ELFOSABI_MODESTO
-#  define ELFOSABI_MODESTO 11
-# endif
-# ifndef ELFOSABI_NETBSD
-#  define ELFOSABI_NETBSD 2
-# endif
-# ifndef ELFOSABI_NONE
-#  define ELFOSABI_NONE 0
-# endif
-# ifndef ELFOSABI_OPENBSD
-#  define ELFOSABI_OPENBSD 12
-# endif
-# ifndef ELFOSABI_SOLARIS
-#  define ELFOSABI_SOLARIS 6
-# endif
-# ifndef ELFOSABI_STANDALONE
-#  define ELFOSABI_STANDALONE 255
-# endif
-# ifndef ELFOSABI_SYSV
-#  define ELFOSABI_SYSV 0
-# endif
-# ifndef ELFOSABI_TRU64
-#  define ELFOSABI_TRU64 10
-# endif
-# ifndef ELF_NOTE_ABI
-#  define ELF_NOTE_ABI NT_GNU_ABI_TAG
-# endif
-# ifndef ELF_NOTE_OS_FREEBSD
-#  define ELF_NOTE_OS_FREEBSD 3
-# endif
-# ifndef ELF_NOTE_OS_GNU
-#  define ELF_NOTE_OS_GNU 1
-# endif
-# ifndef ELF_NOTE_OS_LINUX
-#  define ELF_NOTE_OS_LINUX 0
-# endif
-# ifndef ELF_NOTE_OS_SOLARIS2
-#  define ELF_NOTE_OS_SOLARIS2 2
-# endif
-# ifndef ELF_NOTE_PAGESIZE_HINT
-#  define ELF_NOTE_PAGESIZE_HINT 1
-# endif
-# ifndef EM_386
-#  define EM_386 3
-# endif
-# ifndef EM_56800EX
-#  define EM_56800EX 200
-# endif
-# ifndef EM_68HC05
-#  define EM_68HC05 72
-# endif
-# ifndef EM_68HC08
-#  define EM_68HC08 71
-# endif
-# ifndef EM_68HC11
-#  define EM_68HC11 70
-# endif
-# ifndef EM_68HC12
-#  define EM_68HC12 53
-# endif
-# ifndef EM_68HC16
-#  define EM_68HC16 69
-# endif
-# ifndef EM_68K
-#  define EM_68K 4
-# endif
-# ifndef EM_78KOR
-#  define EM_78KOR 199
-# endif
-# ifndef EM_8051
-#  define EM_8051 165
-# endif
-# ifndef EM_860
-#  define EM_860 7
-# endif
-# ifndef EM_88K
-#  define EM_88K 5
-# endif
-# ifndef EM_960
-#  define EM_960 19
-# endif
-# ifndef EM_AARCH64
-#  define EM_AARCH64 183
-# endif
+# define ELFOSABI_MODESTO 11
+# define ELFOSABI_NETBSD 2
+# define ELFOSABI_NONE 0
+# define ELFOSABI_OPENBSD 12
+# define ELFOSABI_SOLARIS 6
+# define ELFOSABI_STANDALONE 255
+# define ELFOSABI_SYSV 0
+# define ELFOSABI_TRU64 10
+# define ELF_NOTE_ABI NT_GNU_ABI_TAG
+# define ELF_NOTE_OS_FREEBSD 3
+# define ELF_NOTE_OS_GNU 1
+# define ELF_NOTE_OS_LINUX 0
+# define ELF_NOTE_OS_SOLARIS2 2
+# define ELF_NOTE_PAGESIZE_HINT 1
+# define EM_386 3
+# define EM_56800EX 200
+# define EM_68HC05 72
+# define EM_68HC08 71
+# define EM_68HC11 70
+# define EM_68HC12 53
+# define EM_68HC16 69
+# define EM_68K 4
+# define EM_78KOR 199
+# define EM_8051 165
+# define EM_860 7
+# define EM_88K 5
+# define EM_960 19
+# define EM_AARCH64 183
 # ifndef EM_ALPHA
 #  define EM_ALPHA 36902
 # endif
-# ifndef EM_ALTERA_NIOS2
-#  define EM_ALTERA_NIOS2 113
-# endif
-# ifndef EM_AMDGPU
-#  define EM_AMDGPU 224
-# endif
-# ifndef EM_ARC
-#  define EM_ARC 45
-# endif
-# ifndef EM_ARCA
-#  define EM_ARCA 109
-# endif
-# ifndef EM_ARCV2
-#  define EM_ARCV2 195
-# endif
-# ifndef EM_ARC_A5
-#  define EM_ARC_A5 EM_ARC_COMPACT
-# endif
-# ifndef EM_ARC_COMPACT
-#  define EM_ARC_COMPACT 93
-# endif
-# ifndef EM_ARM
-#  define EM_ARM 40
-# endif
-# ifndef EM_AVR
-#  define EM_AVR 83
-# endif
-# ifndef EM_AVR32
-#  define EM_AVR32 185
-# endif
-# ifndef EM_BA1
-#  define EM_BA1 201
-# endif
-# ifndef EM_BA2
-#  define EM_BA2 202
-# endif
-# ifndef EM_BLACKFIN
-#  define EM_BLACKFIN 106
-# endif
-# ifndef EM_BPF
-#  define EM_BPF 247
-# endif
-# ifndef EM_C166
-#  define EM_C166 116
-# endif
-# ifndef EM_CDP
-#  define EM_CDP 215
-# endif
-# ifndef EM_CE
-#  define EM_CE 119
-# endif
-# ifndef EM_CLOUDSHIELD
-#  define EM_CLOUDSHIELD 192
-# endif
-# ifndef EM_COGE
-#  define EM_COGE 216
-# endif
-# ifndef EM_COLDFIRE
-#  define EM_COLDFIRE 52
-# endif
-# ifndef EM_COOL
-#  define EM_COOL 217
-# endif
-# ifndef EM_COREA_1ST
-#  define EM_COREA_1ST 193
-# endif
-# ifndef EM_COREA_2ND
-#  define EM_COREA_2ND 194
-# endif
-# ifndef EM_CR
-#  define EM_CR 103
-# endif
-# ifndef EM_CR16
-#  define EM_CR16 177
-# endif
-# ifndef EM_CRAYNV2
-#  define EM_CRAYNV2 172
-# endif
-# ifndef EM_CRIS
-#  define EM_CRIS 76
-# endif
-# ifndef EM_CRX
-#  define EM_CRX 114
-# endif
-# ifndef EM_CSKY
-#  define EM_CSKY 252
-# endif
-# ifndef EM_CSR_KALIMBA
-#  define EM_CSR_KALIMBA 219
-# endif
-# ifndef EM_CUDA
-#  define EM_CUDA 190
-# endif
-# ifndef EM_CYPRESS_M8C
-#  define EM_CYPRESS_M8C 161
-# endif
-# ifndef EM_D10V
-#  define EM_D10V 85
-# endif
-# ifndef EM_D30V
-#  define EM_D30V 86
-# endif
-# ifndef EM_DSP24
-#  define EM_DSP24 136
-# endif
-# ifndef EM_DSPIC30F
-#  define EM_DSPIC30F 118
-# endif
-# ifndef EM_DXP
-#  define EM_DXP 112
-# endif
-# ifndef EM_ECOG16
-#  define EM_ECOG16 176
-# endif
-# ifndef EM_ECOG1X
-#  define EM_ECOG1X 168
-# endif
-# ifndef EM_ECOG2
-#  define EM_ECOG2 134
-# endif
-# ifndef EM_EMX16
-#  define EM_EMX16 212
-# endif
-# ifndef EM_EMX8
-#  define EM_EMX8 213
-# endif
-# ifndef EM_ETPU
-#  define EM_ETPU 178
-# endif
-# ifndef EM_EXCESS
-#  define EM_EXCESS 111
-# endif
-# ifndef EM_F2MC16
-#  define EM_F2MC16 104
-# endif
-# ifndef EM_FAKE_ALPHA
-#  define EM_FAKE_ALPHA 41
-# endif
-# ifndef EM_FIREPATH
-#  define EM_FIREPATH 78
-# endif
-# ifndef EM_FR20
-#  define EM_FR20 37
-# endif
-# ifndef EM_FR30
-#  define EM_FR30 84
-# endif
-# ifndef EM_FT32
-#  define EM_FT32 222
-# endif
-# ifndef EM_FX66
-#  define EM_FX66 66
-# endif
-# ifndef EM_H8S
-#  define EM_H8S 48
-# endif
-# ifndef EM_H8_300
-#  define EM_H8_300 46
-# endif
-# ifndef EM_H8_300H
-#  define EM_H8_300H 47
-# endif
-# ifndef EM_H8_500
-#  define EM_H8_500 49
-# endif
-# ifndef EM_HUANY
-#  define EM_HUANY 81
-# endif
-# ifndef EM_IAMCU
-#  define EM_IAMCU 6
-# endif
-# ifndef EM_IA_64
-#  define EM_IA_64 50
-# endif
-# ifndef EM_INTELGT
-#  define EM_INTELGT 205
-# endif
-# ifndef EM_IP2K
-#  define EM_IP2K 101
-# endif
-# ifndef EM_JAVELIN
-#  define EM_JAVELIN 77
-# endif
-# ifndef EM_K10M
-#  define EM_K10M 181
-# endif
-# ifndef EM_KM32
-#  define EM_KM32 210
-# endif
-# ifndef EM_KMX32
-#  define EM_KMX32 211
-# endif
-# ifndef EM_KVARC
-#  define EM_KVARC 214
-# endif
-# ifndef EM_L10M
-#  define EM_L10M 180
-# endif
-# ifndef EM_LATTICEMICO32
-#  define EM_LATTICEMICO32 138
-# endif
-# ifndef EM_LOONGARCH
-#  define EM_LOONGARCH 258
-# endif
-# ifndef EM_M16C
-#  define EM_M16C 117
-# endif
-# ifndef EM_M32
-#  define EM_M32 1
-# endif
-# ifndef EM_M32C
-#  define EM_M32C 120
-# endif
-# ifndef EM_M32R
-#  define EM_M32R 88
-# endif
-# ifndef EM_MANIK
-#  define EM_MANIK 171
-# endif
-# ifndef EM_MAX
-#  define EM_MAX 102
-# endif
-# ifndef EM_MAXQ30
-#  define EM_MAXQ30 169
-# endif
-# ifndef EM_MCHP_PIC
-#  define EM_MCHP_PIC 204
-# endif
-# ifndef EM_MCST_ELBRUS
-#  define EM_MCST_ELBRUS 175
-# endif
-# ifndef EM_ME16
-#  define EM_ME16 59
-# endif
-# ifndef EM_METAG
-#  define EM_METAG 174
-# endif
-# ifndef EM_MICROBLAZE
-#  define EM_MICROBLAZE 189
-# endif
-# ifndef EM_MIPS
-#  define EM_MIPS 8
-# endif
-# ifndef EM_MIPS_RS3_LE
-#  define EM_MIPS_RS3_LE 10
-# endif
-# ifndef EM_MIPS_X
-#  define EM_MIPS_X 51
-# endif
-# ifndef EM_MMA
-#  define EM_MMA 54
-# endif
-# ifndef EM_MMDSP_PLUS
-#  define EM_MMDSP_PLUS 160
-# endif
-# ifndef EM_MMIX
-#  define EM_MMIX 80
-# endif
-# ifndef EM_MN10200
-#  define EM_MN10200 90
-# endif
-# ifndef EM_MN10300
-#  define EM_MN10300 89
-# endif
-# ifndef EM_MOXIE
-#  define EM_MOXIE 223
-# endif
-# ifndef EM_MSP430
-#  define EM_MSP430 105
-# endif
-# ifndef EM_NCPU
-#  define EM_NCPU 56
-# endif
-# ifndef EM_NDR1
-#  define EM_NDR1 57
-# endif
+# define EM_ALTERA_NIOS2 113
+# define EM_AMDGPU 224
+# define EM_ARC 45
+# define EM_ARCA 109
+# define EM_ARCV2 195
+# define EM_ARC_A5 EM_ARC_COMPACT
+# define EM_ARC_COMPACT 93
+# define EM_ARM 40
+# define EM_AVR 83
+# define EM_AVR32 185
+# define EM_BA1 201
+# define EM_BA2 202
+# define EM_BLACKFIN 106
+# define EM_BPF 247
+# define EM_C166 116
+# define EM_CDP 215
+# define EM_CE 119
+# define EM_CLOUDSHIELD 192
+# define EM_COGE 216
+# define EM_COLDFIRE 52
+# define EM_COOL 217
+# define EM_COREA_1ST 193
+# define EM_COREA_2ND 194
+# define EM_CR 103
+# define EM_CR16 177
+# define EM_CRAYNV2 172
+# define EM_CRIS 76
+# define EM_CRX 114
+# define EM_CSKY 252
+# define EM_CSR_KALIMBA 219
+# define EM_CUDA 190
+# define EM_CYPRESS_M8C 161
+# define EM_D10V 85
+# define EM_D30V 86
+# define EM_DSP24 136
+# define EM_DSPIC30F 118
+# define EM_DXP 112
+# define EM_ECOG16 176
+# define EM_ECOG1X 168
+# define EM_ECOG2 134
+# define EM_EMX16 212
+# define EM_EMX8 213
+# define EM_ETPU 178
+# define EM_EXCESS 111
+# define EM_F2MC16 104
+# define EM_FAKE_ALPHA 41
+# define EM_FIREPATH 78
+# define EM_FR20 37
+# define EM_FR30 84
+# define EM_FT32 222
+# define EM_FX66 66
+# define EM_H8S 48
+# define EM_H8_300 46
+# define EM_H8_300H 47
+# define EM_H8_500 49
+# define EM_HUANY 81
+# define EM_IAMCU 6
+# define EM_IA_64 50
+# define EM_INTELGT 205
+# define EM_IP2K 101
+# define EM_JAVELIN 77
+# define EM_K10M 181
+# define EM_KM32 210
+# define EM_KMX32 211
+# define EM_KVARC 214
+# define EM_L10M 180
+# define EM_LATTICEMICO32 138
+# define EM_LOONGARCH 258
+# define EM_M16C 117
+# define EM_M32 1
+# define EM_M32C 120
+# define EM_M32R 88
+# define EM_MANIK 171
+# define EM_MAX 102
+# define EM_MAXQ30 169
+# define EM_MCHP_PIC 204
+# define EM_MCST_ELBRUS 175
+# define EM_ME16 59
+# define EM_METAG 174
+# define EM_MICROBLAZE 189
+# define EM_MIPS 8
+# define EM_MIPS_RS3_LE 10
+# define EM_MIPS_X 51
+# define EM_MMA 54
+# define EM_MMDSP_PLUS 160
+# define EM_MMIX 80
+# define EM_MN10200 90
+# define EM_MN10300 89
+# define EM_MOXIE 223
+# define EM_MSP430 105
+# define EM_NCPU 56
+# define EM_NDR1 57
 # ifndef EM_NDS32
 #  define EM_NDS32 167
 # endif
-# ifndef EM_NONE
-#  define EM_NONE 0
-# endif
-# ifndef EM_NORC
-#  define EM_NORC 218
-# endif
-# ifndef EM_NS32K
-#  define EM_NS32K 97
-# endif
-# ifndef EM_NUM
-#  define EM_NUM 259
-# endif
-# ifndef EM_OPEN8
-#  define EM_OPEN8 196
-# endif
-# ifndef EM_OPENRISC
-#  define EM_OPENRISC 92
-# endif
-# ifndef EM_PARISC
-#  define EM_PARISC 15
-# endif
-# ifndef EM_PCP
-#  define EM_PCP 55
-# endif
-# ifndef EM_PDP10
-#  define EM_PDP10 64
-# endif
-# ifndef EM_PDP11
-#  define EM_PDP11 65
-# endif
-# ifndef EM_PDSP
-#  define EM_PDSP 63
-# endif
-# ifndef EM_PJ
-#  define EM_PJ 91
-# endif
-# ifndef EM_PPC
-#  define EM_PPC 20
-# endif
-# ifndef EM_PPC64
-#  define EM_PPC64 21
-# endif
-# ifndef EM_PRISM
-#  define EM_PRISM 82
-# endif
-# ifndef EM_QDSP6
-#  define EM_QDSP6 164
-# endif
-# ifndef EM_R32C
-#  define EM_R32C 162
-# endif
-# ifndef EM_RCE
-#  define EM_RCE 39
-# endif
-# ifndef EM_RH32
-#  define EM_RH32 38
-# endif
-# ifndef EM_RISCV
-#  define EM_RISCV 243
-# endif
-# ifndef EM_RL78
-#  define EM_RL78 197
-# endif
-# ifndef EM_RS08
-#  define EM_RS08 132
-# endif
-# ifndef EM_RX
-#  define EM_RX 173
-# endif
-# ifndef EM_S370
-#  define EM_S370 9
-# endif
-# ifndef EM_S390
-#  define EM_S390 22
-# endif
-# ifndef EM_SCORE7
-#  define EM_SCORE7 135
-# endif
-# ifndef EM_SEP
-#  define EM_SEP 108
-# endif
-# ifndef EM_SE_C17
-#  define EM_SE_C17 139
-# endif
-# ifndef EM_SE_C33
-#  define EM_SE_C33 107
-# endif
-# ifndef EM_SH
-#  define EM_SH 42
-# endif
-# ifndef EM_SHARC
-#  define EM_SHARC 133
-# endif
-# ifndef EM_SLE9X
-#  define EM_SLE9X 179
-# endif
-# ifndef EM_SNP1K
-#  define EM_SNP1K 99
-# endif
-# ifndef EM_SPARC
-#  define EM_SPARC 2
-# endif
-# ifndef EM_SPARC32PLUS
-#  define EM_SPARC32PLUS 18
-# endif
-# ifndef EM_SPARCV9
-#  define EM_SPARCV9 43
-# endif
-# ifndef EM_SPU
-#  define EM_SPU 23
-# endif
-# ifndef EM_ST100
-#  define EM_ST100 60
-# endif
-# ifndef EM_ST19
-#  define EM_ST19 74
-# endif
-# ifndef EM_ST200
-#  define EM_ST200 100
-# endif
-# ifndef EM_ST7
-#  define EM_ST7 68
-# endif
-# ifndef EM_ST9PLUS
-#  define EM_ST9PLUS 67
-# endif
-# ifndef EM_STARCORE
-#  define EM_STARCORE 58
-# endif
-# ifndef EM_STM8
-#  define EM_STM8 186
-# endif
-# ifndef EM_STXP7X
-#  define EM_STXP7X 166
-# endif
-# ifndef EM_SVX
-#  define EM_SVX 73
-# endif
-# ifndef EM_TILE64
-#  define EM_TILE64 187
-# endif
-# ifndef EM_TILEGX
-#  define EM_TILEGX 191
-# endif
-# ifndef EM_TILEPRO
-#  define EM_TILEPRO 188
-# endif
-# ifndef EM_TINYJ
-#  define EM_TINYJ 61
-# endif
-# ifndef EM_TI_ARP32
-#  define EM_TI_ARP32 143
-# endif
-# ifndef EM_TI_C2000
-#  define EM_TI_C2000 141
-# endif
-# ifndef EM_TI_C5500
-#  define EM_TI_C5500 142
-# endif
-# ifndef EM_TI_C6000
-#  define EM_TI_C6000 140
-# endif
-# ifndef EM_TI_PRU
-#  define EM_TI_PRU 144
-# endif
-# ifndef EM_TMM_GPP
-#  define EM_TMM_GPP 96
-# endif
-# ifndef EM_TPC
-#  define EM_TPC 98
-# endif
-# ifndef EM_TRICORE
-#  define EM_TRICORE 44
-# endif
-# ifndef EM_TRIMEDIA
-#  define EM_TRIMEDIA 163
-# endif
-# ifndef EM_TSK3000
-#  define EM_TSK3000 131
-# endif
-# ifndef EM_UNICORE
-#  define EM_UNICORE 110
-# endif
-# ifndef EM_V800
-#  define EM_V800 36
-# endif
-# ifndef EM_V850
-#  define EM_V850 87
-# endif
-# ifndef EM_VAX
-#  define EM_VAX 75
-# endif
-# ifndef EM_VIDEOCORE
-#  define EM_VIDEOCORE 95
-# endif
-# ifndef EM_VIDEOCORE3
-#  define EM_VIDEOCORE3 137
-# endif
-# ifndef EM_VIDEOCORE5
-#  define EM_VIDEOCORE5 198
-# endif
-# ifndef EM_VISIUM
-#  define EM_VISIUM 221
-# endif
-# ifndef EM_VPP500
-#  define EM_VPP500 17
-# endif
-# ifndef EM_X86_64
-#  define EM_X86_64 62
-# endif
-# ifndef EM_XCORE
-#  define EM_XCORE 203
-# endif
-# ifndef EM_XGATE
-#  define EM_XGATE 115
-# endif
-# ifndef EM_XIMO16
-#  define EM_XIMO16 170
-# endif
-# ifndef EM_XTENSA
-#  define EM_XTENSA 94
-# endif
-# ifndef EM_Z80
-#  define EM_Z80 220
-# endif
-# ifndef EM_ZSP
-#  define EM_ZSP 79
-# endif
-# ifndef ET_CORE
-#  define ET_CORE 4
-# endif
-# ifndef ET_DYN
-#  define ET_DYN 3
-# endif
-# ifndef ET_EXEC
-#  define ET_EXEC 2
-# endif
-# ifndef ET_HIOS
-#  define ET_HIOS 65279
-# endif
+# define EM_NONE 0
+# define EM_NORC 218
+# define EM_NS32K 97
+# define EM_NUM 259
+# define EM_OPEN8 196
+# define EM_OPENRISC 92
+# define EM_PARISC 15
+# define EM_PCP 55
+# define EM_PDP10 64
+# define EM_PDP11 65
+# define EM_PDSP 63
+# define EM_PJ 91
+# define EM_PPC 20
+# define EM_PPC64 21
+# define EM_PRISM 82
+# define EM_QDSP6 164
+# define EM_R32C 162
+# define EM_RCE 39
+# define EM_RH32 38
+# define EM_RISCV 243
+# define EM_RL78 197
+# define EM_RS08 132
+# define EM_RX 173
+# define EM_S370 9
+# define EM_S390 22
+# define EM_SCORE7 135
+# define EM_SEP 108
+# define EM_SE_C17 139
+# define EM_SE_C33 107
+# define EM_SH 42
+# define EM_SHARC 133
+# define EM_SLE9X 179
+# define EM_SNP1K 99
+# define EM_SPARC 2
+# define EM_SPARC32PLUS 18
+# define EM_SPARCV9 43
+# define EM_SPU 23
+# define EM_ST100 60
+# define EM_ST19 74
+# define EM_ST200 100
+# define EM_ST7 68
+# define EM_ST9PLUS 67
+# define EM_STARCORE 58
+# define EM_STM8 186
+# define EM_STXP7X 166
+# define EM_SVX 73
+# define EM_TILE64 187
+# define EM_TILEGX 191
+# define EM_TILEPRO 188
+# define EM_TINYJ 61
+# define EM_TI_ARP32 143
+# define EM_TI_C2000 141
+# define EM_TI_C5500 142
+# define EM_TI_C6000 140
+# define EM_TI_PRU 144
+# define EM_TMM_GPP 96
+# define EM_TPC 98
+# define EM_TRICORE 44
+# define EM_TRIMEDIA 163
+# define EM_TSK3000 131
+# define EM_UNICORE 110
+# define EM_V800 36
+# define EM_V850 87
+# define EM_VAX 75
+# define EM_VIDEOCORE 95
+# define EM_VIDEOCORE3 137
+# define EM_VIDEOCORE5 198
+# define EM_VISIUM 221
+# define EM_VPP500 17
+# define EM_X86_64 62
+# define EM_XCORE 203
+# define EM_XGATE 115
+# define EM_XIMO16 170
+# define EM_XTENSA 94
+# define EM_Z80 220
+# define EM_ZSP 79
+# define ET_CORE 4
+# define ET_DYN 3
+# define ET_EXEC 2
+# define ET_HIOS 65279
 # ifndef ET_HIPROC
 #  define ET_HIPROC 65535
 # endif
-# ifndef ET_LOOS
-#  define ET_LOOS 65024
-# endif
+# define ET_LOOS 65024
 # ifndef ET_LOPROC
 #  define ET_LOPROC 65280
 # endif
-# ifndef ET_NONE
-#  define ET_NONE 0
-# endif
-# ifndef ET_NUM
-#  define ET_NUM 5
-# endif
-# ifndef ET_REL
-#  define ET_REL 1
-# endif
-# ifndef EV_CURRENT
-#  define EV_CURRENT 1
-# endif
-# ifndef EV_NONE
-#  define EV_NONE 0
-# endif
-# ifndef EV_NUM
-#  define EV_NUM 2
-# endif
-# ifndef E_MIPS_ARCH_1
-#  define E_MIPS_ARCH_1 EF_MIPS_ARCH_1
-# endif
-# ifndef E_MIPS_ARCH_2
-#  define E_MIPS_ARCH_2 EF_MIPS_ARCH_2
-# endif
-# ifndef E_MIPS_ARCH_3
-#  define E_MIPS_ARCH_3 EF_MIPS_ARCH_3
-# endif
-# ifndef E_MIPS_ARCH_32
-#  define E_MIPS_ARCH_32 EF_MIPS_ARCH_32
-# endif
-# ifndef E_MIPS_ARCH_4
-#  define E_MIPS_ARCH_4 EF_MIPS_ARCH_4
-# endif
-# ifndef E_MIPS_ARCH_5
-#  define E_MIPS_ARCH_5 EF_MIPS_ARCH_5
-# endif
-# ifndef E_MIPS_ARCH_64
-#  define E_MIPS_ARCH_64 EF_MIPS_ARCH_64
-# endif
-# ifndef GNU_PROPERTY_1_NEEDED
-#  define GNU_PROPERTY_1_NEEDED GNU_PROPERTY_UINT32_OR_LO
-# endif
-# ifndef GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS
-#  define GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS 1U
-# endif
+# define ET_NONE 0
+# define ET_NUM 5
+# define ET_REL 1
+# define EV_CURRENT 1
+# define EV_NONE 0
+# define EV_NUM 2
+# define E_MIPS_ARCH_1 EF_MIPS_ARCH_1
+# define E_MIPS_ARCH_2 EF_MIPS_ARCH_2
+# define E_MIPS_ARCH_3 EF_MIPS_ARCH_3
+# define E_MIPS_ARCH_32 EF_MIPS_ARCH_32
+# define E_MIPS_ARCH_4 EF_MIPS_ARCH_4
+# define E_MIPS_ARCH_5 EF_MIPS_ARCH_5
+# define E_MIPS_ARCH_64 EF_MIPS_ARCH_64
+# define GNU_PROPERTY_1_NEEDED GNU_PROPERTY_UINT32_OR_LO
+# define GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS 1U
 # ifndef GNU_PROPERTY_AARCH64_FEATURE_1_AND
 #  define GNU_PROPERTY_AARCH64_FEATURE_1_AND 3221225472U
 # endif
 # ifndef GNU_PROPERTY_AARCH64_FEATURE_1_BTI
 #  define GNU_PROPERTY_AARCH64_FEATURE_1_BTI 1U
 # endif
-# ifndef GNU_PROPERTY_AARCH64_FEATURE_1_PAC
-#  define GNU_PROPERTY_AARCH64_FEATURE_1_PAC 2U
-# endif
-# ifndef GNU_PROPERTY_HIPROC
-#  define GNU_PROPERTY_HIPROC 3758096383U
-# endif
-# ifndef GNU_PROPERTY_HIUSER
-#  define GNU_PROPERTY_HIUSER 4294967295U
-# endif
-# ifndef GNU_PROPERTY_LOPROC
-#  define GNU_PROPERTY_LOPROC 3221225472U
-# endif
-# ifndef GNU_PROPERTY_LOUSER
-#  define GNU_PROPERTY_LOUSER 3758096384U
-# endif
-# ifndef GNU_PROPERTY_NO_COPY_ON_PROTECTED
-#  define GNU_PROPERTY_NO_COPY_ON_PROTECTED 2
-# endif
-# ifndef GNU_PROPERTY_STACK_SIZE
-#  define GNU_PROPERTY_STACK_SIZE 1
-# endif
-# ifndef GNU_PROPERTY_UINT32_AND_HI
-#  define GNU_PROPERTY_UINT32_AND_HI 2952822783U
-# endif
-# ifndef GNU_PROPERTY_UINT32_AND_LO
-#  define GNU_PROPERTY_UINT32_AND_LO 2952790016U
-# endif
-# ifndef GNU_PROPERTY_UINT32_OR_HI
-#  define GNU_PROPERTY_UINT32_OR_HI 2952855551U
-# endif
-# ifndef GNU_PROPERTY_UINT32_OR_LO
-#  define GNU_PROPERTY_UINT32_OR_LO 2952822784U
-# endif
-# ifndef GNU_PROPERTY_X86_FEATURE_1_AND
-#  define GNU_PROPERTY_X86_FEATURE_1_AND 3221225474U
-# endif
-# ifndef GNU_PROPERTY_X86_FEATURE_1_IBT
-#  define GNU_PROPERTY_X86_FEATURE_1_IBT 1U
-# endif
-# ifndef GNU_PROPERTY_X86_FEATURE_1_SHSTK
-#  define GNU_PROPERTY_X86_FEATURE_1_SHSTK 2U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_BASELINE
-#  define GNU_PROPERTY_X86_ISA_1_BASELINE 1U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_NEEDED
-#  define GNU_PROPERTY_X86_ISA_1_NEEDED 3221258242U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_USED
-#  define GNU_PROPERTY_X86_ISA_1_USED 3221291010U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_V2
-#  define GNU_PROPERTY_X86_ISA_1_V2 2U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_V3
-#  define GNU_PROPERTY_X86_ISA_1_V3 4U
-# endif
-# ifndef GNU_PROPERTY_X86_ISA_1_V4
-#  define GNU_PROPERTY_X86_ISA_1_V4 8U
-# endif
-# ifndef GRP_COMDAT
-#  define GRP_COMDAT 1
-# endif
-# ifndef LITUSE_ALPHA_ADDR
-#  define LITUSE_ALPHA_ADDR 0
-# endif
-# ifndef LITUSE_ALPHA_BASE
-#  define LITUSE_ALPHA_BASE 1
-# endif
-# ifndef LITUSE_ALPHA_BYTOFF
-#  define LITUSE_ALPHA_BYTOFF 2
-# endif
-# ifndef LITUSE_ALPHA_JSR
-#  define LITUSE_ALPHA_JSR 3
-# endif
-# ifndef LITUSE_ALPHA_TLS_GD
-#  define LITUSE_ALPHA_TLS_GD 4
-# endif
-# ifndef LITUSE_ALPHA_TLS_LDM
-#  define LITUSE_ALPHA_TLS_LDM 5
-# endif
-# ifndef LL_DELAY_LOAD
-#  define LL_DELAY_LOAD 16
-# endif
-# ifndef LL_DELTA
-#  define LL_DELTA 32
-# endif
-# ifndef LL_EXACT_MATCH
-#  define LL_EXACT_MATCH 1
-# endif
-# ifndef LL_EXPORTS
-#  define LL_EXPORTS 8
-# endif
-# ifndef LL_IGNORE_INT_VER
-#  define LL_IGNORE_INT_VER 2
-# endif
-# ifndef LL_NONE
-#  define LL_NONE 0
-# endif
-# ifndef LL_REQUIRE_MINOR
-#  define LL_REQUIRE_MINOR 4
-# endif
-# ifndef MIPS_AFL_ASE_DSP
-#  define MIPS_AFL_ASE_DSP 1
-# endif
-# ifndef MIPS_AFL_ASE_DSPR2
-#  define MIPS_AFL_ASE_DSPR2 2
-# endif
-# ifndef MIPS_AFL_ASE_EVA
-#  define MIPS_AFL_ASE_EVA 4
-# endif
-# ifndef MIPS_AFL_ASE_MASK
-#  define MIPS_AFL_ASE_MASK 8191
-# endif
-# ifndef MIPS_AFL_ASE_MCU
-#  define MIPS_AFL_ASE_MCU 8
-# endif
-# ifndef MIPS_AFL_ASE_MDMX
-#  define MIPS_AFL_ASE_MDMX 16
-# endif
-# ifndef MIPS_AFL_ASE_MICROMIPS
-#  define MIPS_AFL_ASE_MICROMIPS 2048
-# endif
-# ifndef MIPS_AFL_ASE_MIPS16
-#  define MIPS_AFL_ASE_MIPS16 1024
-# endif
-# ifndef MIPS_AFL_ASE_MIPS3D
-#  define MIPS_AFL_ASE_MIPS3D 32
-# endif
-# ifndef MIPS_AFL_ASE_MSA
-#  define MIPS_AFL_ASE_MSA 512
-# endif
-# ifndef MIPS_AFL_ASE_MT
-#  define MIPS_AFL_ASE_MT 64
-# endif
-# ifndef MIPS_AFL_ASE_SMARTMIPS
-#  define MIPS_AFL_ASE_SMARTMIPS 128
-# endif
-# ifndef MIPS_AFL_ASE_VIRT
-#  define MIPS_AFL_ASE_VIRT 256
-# endif
-# ifndef MIPS_AFL_ASE_XPA
-#  define MIPS_AFL_ASE_XPA 4096
-# endif
-# ifndef MIPS_AFL_EXT_10000
-#  define MIPS_AFL_EXT_10000 11
-# endif
-# ifndef MIPS_AFL_EXT_3900
-#  define MIPS_AFL_EXT_3900 10
-# endif
-# ifndef MIPS_AFL_EXT_4010
-#  define MIPS_AFL_EXT_4010 8
-# endif
-# ifndef MIPS_AFL_EXT_4100
-#  define MIPS_AFL_EXT_4100 9
-# endif
-# ifndef MIPS_AFL_EXT_4111
-#  define MIPS_AFL_EXT_4111 13
-# endif
-# ifndef MIPS_AFL_EXT_4120
-#  define MIPS_AFL_EXT_4120 14
-# endif
-# ifndef MIPS_AFL_EXT_4650
-#  define MIPS_AFL_EXT_4650 7
-# endif
-# ifndef MIPS_AFL_EXT_5400
-#  define MIPS_AFL_EXT_5400 15
-# endif
-# ifndef MIPS_AFL_EXT_5500
-#  define MIPS_AFL_EXT_5500 16
-# endif
-# ifndef MIPS_AFL_EXT_5900
-#  define MIPS_AFL_EXT_5900 6
-# endif
-# ifndef MIPS_AFL_EXT_LOONGSON_2E
-#  define MIPS_AFL_EXT_LOONGSON_2E 17
-# endif
-# ifndef MIPS_AFL_EXT_LOONGSON_2F
-#  define MIPS_AFL_EXT_LOONGSON_2F 18
-# endif
-# ifndef MIPS_AFL_EXT_LOONGSON_3A
-#  define MIPS_AFL_EXT_LOONGSON_3A 4
-# endif
-# ifndef MIPS_AFL_EXT_OCTEON
-#  define MIPS_AFL_EXT_OCTEON 5
-# endif
-# ifndef MIPS_AFL_EXT_OCTEON2
-#  define MIPS_AFL_EXT_OCTEON2 2
-# endif
-# ifndef MIPS_AFL_EXT_OCTEONP
-#  define MIPS_AFL_EXT_OCTEONP 3
-# endif
-# ifndef MIPS_AFL_EXT_SB1
-#  define MIPS_AFL_EXT_SB1 12
-# endif
-# ifndef MIPS_AFL_EXT_XLR
-#  define MIPS_AFL_EXT_XLR 1
-# endif
-# ifndef MIPS_AFL_FLAGS1_ODDSPREG
-#  define MIPS_AFL_FLAGS1_ODDSPREG 1
-# endif
-# ifndef MIPS_AFL_REG_128
-#  define MIPS_AFL_REG_128 3
-# endif
-# ifndef MIPS_AFL_REG_32
-#  define MIPS_AFL_REG_32 1
-# endif
-# ifndef MIPS_AFL_REG_64
-#  define MIPS_AFL_REG_64 2
-# endif
-# ifndef MIPS_AFL_REG_NONE
-#  define MIPS_AFL_REG_NONE 0
-# endif
+# define GNU_PROPERTY_AARCH64_FEATURE_1_PAC 2U
+# define GNU_PROPERTY_HIPROC 3758096383U
+# define GNU_PROPERTY_HIUSER 4294967295U
+# define GNU_PROPERTY_LOPROC 3221225472U
+# define GNU_PROPERTY_LOUSER 3758096384U
+# define GNU_PROPERTY_NO_COPY_ON_PROTECTED 2
+# define GNU_PROPERTY_STACK_SIZE 1
+# define GNU_PROPERTY_UINT32_AND_HI 2952822783U
+# define GNU_PROPERTY_UINT32_AND_LO 2952790016U
+# define GNU_PROPERTY_UINT32_OR_HI 2952855551U
+# define GNU_PROPERTY_UINT32_OR_LO 2952822784U
+# define GNU_PROPERTY_X86_FEATURE_1_AND 3221225474U
+# define GNU_PROPERTY_X86_FEATURE_1_IBT 1U
+# define GNU_PROPERTY_X86_FEATURE_1_SHSTK 2U
+# define GNU_PROPERTY_X86_ISA_1_BASELINE 1U
+# define GNU_PROPERTY_X86_ISA_1_NEEDED 3221258242U
+# define GNU_PROPERTY_X86_ISA_1_USED 3221291010U
+# define GNU_PROPERTY_X86_ISA_1_V2 2U
+# define GNU_PROPERTY_X86_ISA_1_V3 4U
+# define GNU_PROPERTY_X86_ISA_1_V4 8U
+# define GRP_COMDAT 1
+# define LITUSE_ALPHA_ADDR 0
+# define LITUSE_ALPHA_BASE 1
+# define LITUSE_ALPHA_BYTOFF 2
+# define LITUSE_ALPHA_JSR 3
+# define LITUSE_ALPHA_TLS_GD 4
+# define LITUSE_ALPHA_TLS_LDM 5
+# define LL_DELAY_LOAD 16
+# define LL_DELTA 32
+# define LL_EXACT_MATCH 1
+# define LL_EXPORTS 8
+# define LL_IGNORE_INT_VER 2
+# define LL_NONE 0
+# define LL_REQUIRE_MINOR 4
+# define MIPS_AFL_ASE_DSP 1
+# define MIPS_AFL_ASE_DSPR2 2
+# define MIPS_AFL_ASE_EVA 4
+# define MIPS_AFL_ASE_MASK 8191
+# define MIPS_AFL_ASE_MCU 8
+# define MIPS_AFL_ASE_MDMX 16
+# define MIPS_AFL_ASE_MICROMIPS 2048
+# define MIPS_AFL_ASE_MIPS16 1024
+# define MIPS_AFL_ASE_MIPS3D 32
+# define MIPS_AFL_ASE_MSA 512
+# define MIPS_AFL_ASE_MT 64
+# define MIPS_AFL_ASE_SMARTMIPS 128
+# define MIPS_AFL_ASE_VIRT 256
+# define MIPS_AFL_ASE_XPA 4096
+# define MIPS_AFL_EXT_10000 11
+# define MIPS_AFL_EXT_3900 10
+# define MIPS_AFL_EXT_4010 8
+# define MIPS_AFL_EXT_4100 9
+# define MIPS_AFL_EXT_4111 13
+# define MIPS_AFL_EXT_4120 14
+# define MIPS_AFL_EXT_4650 7
+# define MIPS_AFL_EXT_5400 15
+# define MIPS_AFL_EXT_5500 16
+# define MIPS_AFL_EXT_5900 6
+# define MIPS_AFL_EXT_LOONGSON_2E 17
+# define MIPS_AFL_EXT_LOONGSON_2F 18
+# define MIPS_AFL_EXT_LOONGSON_3A 4
+# define MIPS_AFL_EXT_OCTEON 5
+# define MIPS_AFL_EXT_OCTEON2 2
+# define MIPS_AFL_EXT_OCTEONP 3
+# define MIPS_AFL_EXT_SB1 12
+# define MIPS_AFL_EXT_XLR 1
+# define MIPS_AFL_FLAGS1_ODDSPREG 1
+# define MIPS_AFL_REG_128 3
+# define MIPS_AFL_REG_32 1
+# define MIPS_AFL_REG_64 2
+# define MIPS_AFL_REG_NONE 0
 # ifndef NT_386_IOPERM
 #  define NT_386_IOPERM 513
 # endif
@@ -2665,39 +1259,19 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_ARM_VFP
 #  define NT_ARM_VFP 1024
 # endif
-# ifndef NT_ASRS
-#  define NT_ASRS 8
-# endif
-# ifndef NT_AUXV
-#  define NT_AUXV 6
-# endif
-# ifndef NT_FDO_PACKAGING_METADATA
-#  define NT_FDO_PACKAGING_METADATA 3405650558U
-# endif
+# define NT_ASRS 8
+# define NT_AUXV 6
+# define NT_FDO_PACKAGING_METADATA 3405650558U
 # ifndef NT_FILE
 #  define NT_FILE 1179208773
 # endif
-# ifndef NT_FPREGSET
-#  define NT_FPREGSET 2
-# endif
-# ifndef NT_GNU_ABI_TAG
-#  define NT_GNU_ABI_TAG 1
-# endif
-# ifndef NT_GNU_BUILD_ID
-#  define NT_GNU_BUILD_ID 3
-# endif
-# ifndef NT_GNU_GOLD_VERSION
-#  define NT_GNU_GOLD_VERSION 4
-# endif
-# ifndef NT_GNU_HWCAP
-#  define NT_GNU_HWCAP 2
-# endif
-# ifndef NT_GNU_PROPERTY_TYPE_0
-#  define NT_GNU_PROPERTY_TYPE_0 5
-# endif
-# ifndef NT_GWINDOWS
-#  define NT_GWINDOWS 7
-# endif
+# define NT_FPREGSET 2
+# define NT_GNU_ABI_TAG 1
+# define NT_GNU_BUILD_ID 3
+# define NT_GNU_GOLD_VERSION 4
+# define NT_GNU_HWCAP 2
+# define NT_GNU_PROPERTY_TYPE_0 5
+# define NT_GWINDOWS 7
 # ifndef NT_LOONGARCH_CPUCFG
 #  define NT_LOONGARCH_CPUCFG 2560
 # endif
@@ -2719,12 +1293,8 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_LOONGARCH_LSX
 #  define NT_LOONGARCH_LSX 2562
 # endif
-# ifndef NT_LWPSINFO
-#  define NT_LWPSINFO 17
-# endif
-# ifndef NT_LWPSTATUS
-#  define NT_LWPSTATUS 16
-# endif
+# define NT_LWPSINFO 17
+# define NT_LWPSTATUS 16
 # ifndef NT_MIPS_DSP
 #  define NT_MIPS_DSP 2048
 # endif
@@ -2734,9 +1304,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_MIPS_MSA
 #  define NT_MIPS_MSA 2050
 # endif
-# ifndef NT_PLATFORM
-#  define NT_PLATFORM 5
-# endif
+# define NT_PLATFORM 5
 # ifndef NT_PPC_DEXCR
 #  define NT_PPC_DEXCR 273
 # endif
@@ -2794,33 +1362,17 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_PPC_VSX
 #  define NT_PPC_VSX 258
 # endif
-# ifndef NT_PRCRED
-#  define NT_PRCRED 14
-# endif
-# ifndef NT_PRFPREG
-#  define NT_PRFPREG 2
-# endif
-# ifndef NT_PRFPXREG
-#  define NT_PRFPXREG 20
-# endif
-# ifndef NT_PRPSINFO
-#  define NT_PRPSINFO 3
-# endif
-# ifndef NT_PRSTATUS
-#  define NT_PRSTATUS 1
-# endif
+# define NT_PRCRED 14
+# define NT_PRFPREG 2
+# define NT_PRFPXREG 20
+# define NT_PRPSINFO 3
+# define NT_PRSTATUS 1
 # ifndef NT_PRXFPREG
 #  define NT_PRXFPREG 1189489535
 # endif
-# ifndef NT_PRXREG
-#  define NT_PRXREG 4
-# endif
-# ifndef NT_PSINFO
-#  define NT_PSINFO 13
-# endif
-# ifndef NT_PSTATUS
-#  define NT_PSTATUS 10
-# endif
+# define NT_PRXREG 4
+# define NT_PSINFO 13
+# define NT_PSTATUS 10
 # ifndef NT_RISCV_CSR
 #  define NT_RISCV_CSR 2304
 # endif
@@ -2875,15 +1427,9 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_SIGINFO
 #  define NT_SIGINFO 1397311305
 # endif
-# ifndef NT_TASKSTRUCT
-#  define NT_TASKSTRUCT 4
-# endif
-# ifndef NT_UTSNAME
-#  define NT_UTSNAME 15
-# endif
-# ifndef NT_VERSION
-#  define NT_VERSION 1
-# endif
+# define NT_TASKSTRUCT 4
+# define NT_UTSNAME 15
+# define NT_VERSION 1
 # ifndef NT_VMCOREDD
 #  define NT_VMCOREDD 1792
 # endif
@@ -2893,141 +1439,51 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef NT_X86_XSTATE
 #  define NT_X86_XSTATE 514
 # endif
-# ifndef ODK_EXCEPTIONS
-#  define ODK_EXCEPTIONS 2
-# endif
-# ifndef ODK_FILL
-#  define ODK_FILL 5
-# endif
-# ifndef ODK_HWAND
-#  define ODK_HWAND 7
-# endif
-# ifndef ODK_HWOR
-#  define ODK_HWOR 8
-# endif
-# ifndef ODK_HWPATCH
-#  define ODK_HWPATCH 4
-# endif
-# ifndef ODK_NULL
-#  define ODK_NULL 0
-# endif
-# ifndef ODK_PAD
-#  define ODK_PAD 3
-# endif
-# ifndef ODK_REGINFO
-#  define ODK_REGINFO 1
-# endif
-# ifndef ODK_TAGS
-#  define ODK_TAGS 6
-# endif
-# ifndef OEX_DISMISS
-#  define OEX_DISMISS 524288
-# endif
-# ifndef OEX_FPDBUG
-#  define OEX_FPDBUG 262144
-# endif
-# ifndef OEX_FPU_DIV0
-#  define OEX_FPU_DIV0 8
-# endif
-# ifndef OEX_FPU_INEX
-#  define OEX_FPU_INEX 1
-# endif
-# ifndef OEX_FPU_INVAL
-#  define OEX_FPU_INVAL 16
-# endif
-# ifndef OEX_FPU_MAX
-#  define OEX_FPU_MAX 7936
-# endif
-# ifndef OEX_FPU_MIN
-#  define OEX_FPU_MIN 31
-# endif
-# ifndef OEX_FPU_OFLO
-#  define OEX_FPU_OFLO 4
-# endif
-# ifndef OEX_FPU_UFLO
-#  define OEX_FPU_UFLO 2
-# endif
-# ifndef OEX_PAGE0
-#  define OEX_PAGE0 65536
-# endif
-# ifndef OEX_PRECISEFP
-#  define OEX_PRECISEFP OEX_FPDBUG
-# endif
-# ifndef OEX_SMM
-#  define OEX_SMM 131072
-# endif
-# ifndef OHWA0_R4KEOP_CHECKED
-#  define OHWA0_R4KEOP_CHECKED 1
-# endif
-# ifndef OHWA1_R4KEOP_CLEAN
-#  define OHWA1_R4KEOP_CLEAN 2
-# endif
-# ifndef OHW_R4KEOP
-#  define OHW_R4KEOP 1
-# endif
-# ifndef OHW_R5KCVTL
-#  define OHW_R5KCVTL 8
-# endif
-# ifndef OHW_R5KEOP
-#  define OHW_R5KEOP 4
-# endif
-# ifndef OHW_R8KPFETCH
-#  define OHW_R8KPFETCH 2
-# endif
-# ifndef OPAD_POSTFIX
-#  define OPAD_POSTFIX 2
-# endif
-# ifndef OPAD_PREFIX
-#  define OPAD_PREFIX 1
-# endif
-# ifndef OPAD_SYMBOL
-#  define OPAD_SYMBOL 4
-# endif
-# ifndef PF_ARM_ABS
-#  define PF_ARM_ABS 1073741824
-# endif
-# ifndef PF_ARM_PI
-#  define PF_ARM_PI 536870912
-# endif
-# ifndef PF_ARM_SB
-#  define PF_ARM_SB 268435456
-# endif
-# ifndef PF_HP_CODE
-#  define PF_HP_CODE 16777216
-# endif
-# ifndef PF_HP_FAR_SHARED
-#  define PF_HP_FAR_SHARED 2097152
-# endif
-# ifndef PF_HP_LAZYSWAP
-#  define PF_HP_LAZYSWAP 67108864
-# endif
-# ifndef PF_HP_MODIFY
-#  define PF_HP_MODIFY 33554432
-# endif
-# ifndef PF_HP_NEAR_SHARED
-#  define PF_HP_NEAR_SHARED 4194304
-# endif
-# ifndef PF_HP_PAGE_SIZE
-#  define PF_HP_PAGE_SIZE 1048576
-# endif
-# ifndef PF_HP_SBP
-#  define PF_HP_SBP 134217728
-# endif
-# ifndef PF_IA_64_NORECOV
-#  define PF_IA_64_NORECOV 2147483648U
-# endif
-# ifndef PF_MASKOS
-#  define PF_MASKOS 267386880
-# endif
-# ifndef PF_MASKPROC
-#  define PF_MASKPROC 4026531840U
-# endif
-# ifndef PF_MIPS_LOCAL
-#  define PF_MIPS_LOCAL 268435456
-# endif
-# ifndef PF_PARISC_SBP
-#  define PF_PARISC_SBP 134217728
-# endif
+# define ODK_EXCEPTIONS 2
+# define ODK_FILL 5
+# define ODK_HWAND 7
+# define ODK_HWOR 8
+# define ODK_HWPATCH 4
+# define ODK_NULL 0
+# define ODK_PAD 3
+# define ODK_REGINFO 1
+# define ODK_TAGS 6
+# define OEX_DISMISS 524288
+# define OEX_FPDBUG 262144
+# define OEX_FPU_DIV0 8
+# define OEX_FPU_INEX 1
+# define OEX_FPU_INVAL 16
+# define OEX_FPU_MAX 7936
+# define OEX_FPU_MIN 31
+# define OEX_FPU_OFLO 4
+# define OEX_FPU_UFLO 2
+# define OEX_PAGE0 65536
+# define OEX_PRECISEFP OEX_FPDBUG
+# define OEX_SMM 131072
+# define OHWA0_R4KEOP_CHECKED 1
+# define OHWA1_R4KEOP_CLEAN 2
+# define OHW_R4KEOP 1
+# define OHW_R5KCVTL 8
+# define OHW_R5KEOP 4
+# define OHW_R8KPFETCH 2
+# define OPAD_POSTFIX 2
+# define OPAD_PREFIX 1
+# define OPAD_SYMBOL 4
+# define PF_ARM_ABS 1073741824
+# define PF_ARM_PI 536870912
+# define PF_ARM_SB 268435456
+# define PF_HP_CODE 16777216
+# define PF_HP_FAR_SHARED 2097152
+# define PF_HP_LAZYSWAP 67108864
+# define PF_HP_MODIFY 33554432
+# define PF_HP_NEAR_SHARED 4194304
+# define PF_HP_PAGE_SIZE 1048576
+# define PF_HP_SBP 134217728
+# define PF_IA_64_NORECOV 2147483648U
+# define PF_MASKOS 267386880
+# define PF_MASKPROC 4026531840U
+# define PF_MIPS_LOCAL 268435456
+# define PF_PARISC_SBP 134217728
 # ifndef PF_R
 #  define PF_R 4
 # endif
@@ -3040,27 +1496,15 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef PN_XNUM
 #  define PN_XNUM 65535
 # endif
-# ifndef PPC64_OPT_LOCALENTRY
-#  define PPC64_OPT_LOCALENTRY 4
-# endif
-# ifndef PPC64_OPT_MULTI_TOC
-#  define PPC64_OPT_MULTI_TOC 2
-# endif
-# ifndef PPC64_OPT_TLS
-#  define PPC64_OPT_TLS 1
-# endif
-# ifndef PPC_OPT_TLS
-#  define PPC_OPT_TLS 1
-# endif
+# define PPC64_OPT_LOCALENTRY 4
+# define PPC64_OPT_MULTI_TOC 2
+# define PPC64_OPT_TLS 1
+# define PPC_OPT_TLS 1
 # ifndef PT_AARCH64_MEMTAG_MTE
 #  define PT_AARCH64_MEMTAG_MTE 1879048194
 # endif
-# ifndef PT_ARM_EXIDX
-#  define PT_ARM_EXIDX 1879048193
-# endif
-# ifndef PT_DYNAMIC
-#  define PT_DYNAMIC 2
-# endif
+# define PT_ARM_EXIDX 1879048193
+# define PT_DYNAMIC 2
 # ifndef PT_GNU_EH_FRAME
 #  define PT_GNU_EH_FRAME 1685382480
 # endif
@@ -3070,9 +1514,7 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef PT_GNU_RELRO
 #  define PT_GNU_RELRO 1685382482
 # endif
-# ifndef PT_GNU_SFRAME
-#  define PT_GNU_SFRAME 1685382484
-# endif
+# define PT_GNU_SFRAME 1685382484
 # ifndef PT_GNU_STACK
 #  define PT_GNU_STACK 1685382481
 # endif
@@ -3082,6519 +1524,2211 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # ifndef PT_HIPROC
 #  define PT_HIPROC 2147483647
 # endif
-# ifndef PT_HISUNW
-#  define PT_HISUNW 1879048191
-# endif
-# ifndef PT_HP_CORE_COMM
-#  define PT_HP_CORE_COMM 1610612740
-# endif
-# ifndef PT_HP_CORE_KERNEL
-#  define PT_HP_CORE_KERNEL 1610612739
-# endif
-# ifndef PT_HP_CORE_LOADABLE
-#  define PT_HP_CORE_LOADABLE 1610612742
-# endif
-# ifndef PT_HP_CORE_MMF
-#  define PT_HP_CORE_MMF 1610612745
-# endif
-# ifndef PT_HP_CORE_NONE
-#  define PT_HP_CORE_NONE 1610612737
-# endif
-# ifndef PT_HP_CORE_PROC
-#  define PT_HP_CORE_PROC 1610612741
-# endif
-# ifndef PT_HP_CORE_SHM
-#  define PT_HP_CORE_SHM 1610612744
-# endif
-# ifndef PT_HP_CORE_STACK
-#  define PT_HP_CORE_STACK 1610612743
-# endif
-# ifndef PT_HP_CORE_VERSION
-#  define PT_HP_CORE_VERSION 1610612738
-# endif
-# ifndef PT_HP_FASTBIND
-#  define PT_HP_FASTBIND 1610612753
-# endif
-# ifndef PT_HP_HSL_ANNOT
-#  define PT_HP_HSL_ANNOT 1610612755
-# endif
-# ifndef PT_HP_OPT_ANNOT
-#  define PT_HP_OPT_ANNOT 1610612754
-# endif
-# ifndef PT_HP_PARALLEL
-#  define PT_HP_PARALLEL 1610612752
-# endif
-# ifndef PT_HP_STACK
-#  define PT_HP_STACK 1610612756
-# endif
-# ifndef PT_HP_TLS
-#  define PT_HP_TLS PT_LOOS
-# endif
-# ifndef PT_IA_64_ARCHEXT
-#  define PT_IA_64_ARCHEXT PT_LOPROC
-# endif
-# ifndef PT_IA_64_HP_HSL_ANOT
-#  define PT_IA_64_HP_HSL_ANOT 1610612755
-# endif
-# ifndef PT_IA_64_HP_OPT_ANOT
-#  define PT_IA_64_HP_OPT_ANOT 1610612754
-# endif
-# ifndef PT_IA_64_HP_STACK
-#  define PT_IA_64_HP_STACK 1610612756
-# endif
-# ifndef PT_IA_64_UNWIND
-#  define PT_IA_64_UNWIND 1879048193
-# endif
-# ifndef PT_INTERP
-#  define PT_INTERP 3
-# endif
-# ifndef PT_LOAD
-#  define PT_LOAD 1
-# endif
+# define PT_HISUNW 1879048191
+# define PT_HP_CORE_COMM 1610612740
+# define PT_HP_CORE_KERNEL 1610612739
+# define PT_HP_CORE_LOADABLE 1610612742
+# define PT_HP_CORE_MMF 1610612745
+# define PT_HP_CORE_NONE 1610612737
+# define PT_HP_CORE_PROC 1610612741
+# define PT_HP_CORE_SHM 1610612744
+# define PT_HP_CORE_STACK 1610612743
+# define PT_HP_CORE_VERSION 1610612738
+# define PT_HP_FASTBIND 1610612753
+# define PT_HP_HSL_ANNOT 1610612755
+# define PT_HP_OPT_ANNOT 1610612754
+# define PT_HP_PARALLEL 1610612752
+# define PT_HP_STACK 1610612756
+# define PT_HP_TLS PT_LOOS
+# define PT_IA_64_ARCHEXT PT_LOPROC
+# define PT_IA_64_HP_HSL_ANOT 1610612755
+# define PT_IA_64_HP_OPT_ANOT 1610612754
+# define PT_IA_64_HP_STACK 1610612756
+# define PT_IA_64_UNWIND 1879048193
+# define PT_INTERP 3
+# define PT_LOAD 1
 # ifndef PT_LOOS
 #  define PT_LOOS 1610612736
 # endif
 # ifndef PT_LOPROC
 #  define PT_LOPROC 1879048192
 # endif
-# ifndef PT_LOSUNW
-#  define PT_LOSUNW 1879048186
-# endif
-# ifndef PT_MIPS_ABIFLAGS
-#  define PT_MIPS_ABIFLAGS 1879048195
-# endif
-# ifndef PT_MIPS_OPTIONS
-#  define PT_MIPS_OPTIONS 1879048194
-# endif
-# ifndef PT_MIPS_REGINFO
-#  define PT_MIPS_REGINFO 1879048192
-# endif
-# ifndef PT_MIPS_RTPROC
-#  define PT_MIPS_RTPROC 1879048193
-# endif
-# ifndef PT_NOTE
-#  define PT_NOTE 4
-# endif
-# ifndef PT_NULL
-#  define PT_NULL 0
-# endif
-# ifndef PT_NUM
-#  define PT_NUM 8
-# endif
-# ifndef PT_PARISC_ARCHEXT
-#  define PT_PARISC_ARCHEXT 1879048192
-# endif
-# ifndef PT_PARISC_UNWIND
-#  define PT_PARISC_UNWIND 1879048193
-# endif
-# ifndef PT_PHDR
-#  define PT_PHDR 6
-# endif
-# ifndef PT_RISCV_ATTRIBUTES
-#  define PT_RISCV_ATTRIBUTES 1879048195
-# endif
-# ifndef PT_SHLIB
-#  define PT_SHLIB 5
-# endif
-# ifndef PT_SUNWBSS
-#  define PT_SUNWBSS 1879048186
-# endif
-# ifndef PT_SUNWSTACK
-#  define PT_SUNWSTACK 1879048187
-# endif
-# ifndef PT_TLS
-#  define PT_TLS 7
-# endif
-# ifndef RHF_CORD
-#  define RHF_CORD 4096
-# endif
-# ifndef RHF_DEFAULT_DELAY_LOAD
-#  define RHF_DEFAULT_DELAY_LOAD 512
-# endif
-# ifndef RHF_DELTA_C_PLUS_PLUS
-#  define RHF_DELTA_C_PLUS_PLUS 64
-# endif
-# ifndef RHF_GUARANTEE_INIT
-#  define RHF_GUARANTEE_INIT 32
-# endif
-# ifndef RHF_GUARANTEE_START_INIT
-#  define RHF_GUARANTEE_START_INIT 128
-# endif
-# ifndef RHF_NONE
-#  define RHF_NONE 0
-# endif
-# ifndef RHF_NOTPOT
-#  define RHF_NOTPOT 2
-# endif
-# ifndef RHF_NO_LIBRARY_REPLACEMENT
-#  define RHF_NO_LIBRARY_REPLACEMENT 4
-# endif
-# ifndef RHF_NO_MOVE
-#  define RHF_NO_MOVE 8
-# endif
-# ifndef RHF_NO_UNRES_UNDEF
-#  define RHF_NO_UNRES_UNDEF 8192
-# endif
-# ifndef RHF_PIXIE
-#  define RHF_PIXIE 256
-# endif
-# ifndef RHF_QUICKSTART
-#  define RHF_QUICKSTART 1
-# endif
-# ifndef RHF_REQUICKSTART
-#  define RHF_REQUICKSTART 1024
-# endif
-# ifndef RHF_REQUICKSTARTED
-#  define RHF_REQUICKSTARTED 2048
-# endif
-# ifndef RHF_RLD_ORDER_SAFE
-#  define RHF_RLD_ORDER_SAFE 16384
-# endif
-# ifndef RHF_SGI_ONLY
-#  define RHF_SGI_ONLY 16
-# endif
-# ifndef R_386_16
-#  define R_386_16 20
-# endif
-# ifndef R_386_32
-#  define R_386_32 1
-# endif
-# ifndef R_386_32PLT
-#  define R_386_32PLT 11
-# endif
-# ifndef R_386_8
-#  define R_386_8 22
-# endif
-# ifndef R_386_COPY
-#  define R_386_COPY 5
-# endif
-# ifndef R_386_GLOB_DAT
-#  define R_386_GLOB_DAT 6
-# endif
-# ifndef R_386_GOT32
-#  define R_386_GOT32 3
-# endif
-# ifndef R_386_GOT32X
-#  define R_386_GOT32X 43
-# endif
-# ifndef R_386_GOTOFF
-#  define R_386_GOTOFF 9
-# endif
-# ifndef R_386_GOTPC
-#  define R_386_GOTPC 10
-# endif
-# ifndef R_386_IRELATIVE
-#  define R_386_IRELATIVE 42
-# endif
-# ifndef R_386_JMP_SLOT
-#  define R_386_JMP_SLOT 7
-# endif
-# ifndef R_386_NONE
-#  define R_386_NONE 0
-# endif
-# ifndef R_386_NUM
-#  define R_386_NUM 44
-# endif
-# ifndef R_386_PC16
-#  define R_386_PC16 21
-# endif
-# ifndef R_386_PC32
-#  define R_386_PC32 2
-# endif
-# ifndef R_386_PC8
-#  define R_386_PC8 23
-# endif
-# ifndef R_386_PLT32
-#  define R_386_PLT32 4
-# endif
-# ifndef R_386_RELATIVE
-#  define R_386_RELATIVE 8
-# endif
-# ifndef R_386_SIZE32
-#  define R_386_SIZE32 38
-# endif
-# ifndef R_386_TLS_DESC
-#  define R_386_TLS_DESC 41
-# endif
-# ifndef R_386_TLS_DESC_CALL
-#  define R_386_TLS_DESC_CALL 40
-# endif
-# ifndef R_386_TLS_DTPMOD32
-#  define R_386_TLS_DTPMOD32 35
-# endif
-# ifndef R_386_TLS_DTPOFF32
-#  define R_386_TLS_DTPOFF32 36
-# endif
-# ifndef R_386_TLS_GD
-#  define R_386_TLS_GD 18
-# endif
-# ifndef R_386_TLS_GD_32
-#  define R_386_TLS_GD_32 24
-# endif
-# ifndef R_386_TLS_GD_CALL
-#  define R_386_TLS_GD_CALL 26
-# endif
-# ifndef R_386_TLS_GD_POP
-#  define R_386_TLS_GD_POP 27
-# endif
-# ifndef R_386_TLS_GD_PUSH
-#  define R_386_TLS_GD_PUSH 25
-# endif
-# ifndef R_386_TLS_GOTDESC
-#  define R_386_TLS_GOTDESC 39
-# endif
-# ifndef R_386_TLS_GOTIE
-#  define R_386_TLS_GOTIE 16
-# endif
-# ifndef R_386_TLS_IE
-#  define R_386_TLS_IE 15
-# endif
-# ifndef R_386_TLS_IE_32
-#  define R_386_TLS_IE_32 33
-# endif
-# ifndef R_386_TLS_LDM
-#  define R_386_TLS_LDM 19
-# endif
-# ifndef R_386_TLS_LDM_32
-#  define R_386_TLS_LDM_32 28
-# endif
-# ifndef R_386_TLS_LDM_CALL
-#  define R_386_TLS_LDM_CALL 30
-# endif
-# ifndef R_386_TLS_LDM_POP
-#  define R_386_TLS_LDM_POP 31
-# endif
-# ifndef R_386_TLS_LDM_PUSH
-#  define R_386_TLS_LDM_PUSH 29
-# endif
-# ifndef R_386_TLS_LDO_32
-#  define R_386_TLS_LDO_32 32
-# endif
-# ifndef R_386_TLS_LE
-#  define R_386_TLS_LE 17
-# endif
-# ifndef R_386_TLS_LE_32
-#  define R_386_TLS_LE_32 34
-# endif
-# ifndef R_386_TLS_TPOFF
-#  define R_386_TLS_TPOFF 14
-# endif
-# ifndef R_386_TLS_TPOFF32
-#  define R_386_TLS_TPOFF32 37
-# endif
-# ifndef R_390_12
-#  define R_390_12 2
-# endif
-# ifndef R_390_16
-#  define R_390_16 3
-# endif
-# ifndef R_390_20
-#  define R_390_20 57
-# endif
-# ifndef R_390_32
-#  define R_390_32 4
-# endif
-# ifndef R_390_64
-#  define R_390_64 22
-# endif
-# ifndef R_390_8
-#  define R_390_8 1
-# endif
-# ifndef R_390_COPY
-#  define R_390_COPY 9
-# endif
-# ifndef R_390_GLOB_DAT
-#  define R_390_GLOB_DAT 10
-# endif
-# ifndef R_390_GOT12
-#  define R_390_GOT12 6
-# endif
-# ifndef R_390_GOT16
-#  define R_390_GOT16 15
-# endif
-# ifndef R_390_GOT20
-#  define R_390_GOT20 58
-# endif
-# ifndef R_390_GOT32
-#  define R_390_GOT32 7
-# endif
-# ifndef R_390_GOT64
-#  define R_390_GOT64 24
-# endif
-# ifndef R_390_GOTENT
-#  define R_390_GOTENT 26
-# endif
-# ifndef R_390_GOTOFF16
-#  define R_390_GOTOFF16 27
-# endif
-# ifndef R_390_GOTOFF32
-#  define R_390_GOTOFF32 13
-# endif
-# ifndef R_390_GOTOFF64
-#  define R_390_GOTOFF64 28
-# endif
-# ifndef R_390_GOTPC
-#  define R_390_GOTPC 14
-# endif
-# ifndef R_390_GOTPCDBL
-#  define R_390_GOTPCDBL 21
-# endif
-# ifndef R_390_GOTPLT12
-#  define R_390_GOTPLT12 29
-# endif
-# ifndef R_390_GOTPLT16
-#  define R_390_GOTPLT16 30
-# endif
-# ifndef R_390_GOTPLT20
-#  define R_390_GOTPLT20 59
-# endif
-# ifndef R_390_GOTPLT32
-#  define R_390_GOTPLT32 31
-# endif
-# ifndef R_390_GOTPLT64
-#  define R_390_GOTPLT64 32
-# endif
-# ifndef R_390_GOTPLTENT
-#  define R_390_GOTPLTENT 33
-# endif
-# ifndef R_390_IRELATIVE
-#  define R_390_IRELATIVE 61
-# endif
-# ifndef R_390_JMP_SLOT
-#  define R_390_JMP_SLOT 11
-# endif
-# ifndef R_390_NONE
-#  define R_390_NONE 0
-# endif
-# ifndef R_390_NUM
-#  define R_390_NUM 62
-# endif
-# ifndef R_390_PC16
-#  define R_390_PC16 16
-# endif
-# ifndef R_390_PC16DBL
-#  define R_390_PC16DBL 17
-# endif
-# ifndef R_390_PC32
-#  define R_390_PC32 5
-# endif
-# ifndef R_390_PC32DBL
-#  define R_390_PC32DBL 19
-# endif
-# ifndef R_390_PC64
-#  define R_390_PC64 23
-# endif
-# ifndef R_390_PLT16DBL
-#  define R_390_PLT16DBL 18
-# endif
-# ifndef R_390_PLT32
-#  define R_390_PLT32 8
-# endif
-# ifndef R_390_PLT32DBL
-#  define R_390_PLT32DBL 20
-# endif
-# ifndef R_390_PLT64
-#  define R_390_PLT64 25
-# endif
-# ifndef R_390_PLTOFF16
-#  define R_390_PLTOFF16 34
-# endif
-# ifndef R_390_PLTOFF32
-#  define R_390_PLTOFF32 35
-# endif
-# ifndef R_390_PLTOFF64
-#  define R_390_PLTOFF64 36
-# endif
-# ifndef R_390_RELATIVE
-#  define R_390_RELATIVE 12
-# endif
-# ifndef R_390_TLS_DTPMOD
-#  define R_390_TLS_DTPMOD 54
-# endif
-# ifndef R_390_TLS_DTPOFF
-#  define R_390_TLS_DTPOFF 55
-# endif
-# ifndef R_390_TLS_GD32
-#  define R_390_TLS_GD32 40
-# endif
-# ifndef R_390_TLS_GD64
-#  define R_390_TLS_GD64 41
-# endif
-# ifndef R_390_TLS_GDCALL
-#  define R_390_TLS_GDCALL 38
-# endif
-# ifndef R_390_TLS_GOTIE12
-#  define R_390_TLS_GOTIE12 42
-# endif
-# ifndef R_390_TLS_GOTIE20
-#  define R_390_TLS_GOTIE20 60
-# endif
-# ifndef R_390_TLS_GOTIE32
-#  define R_390_TLS_GOTIE32 43
-# endif
-# ifndef R_390_TLS_GOTIE64
-#  define R_390_TLS_GOTIE64 44
-# endif
-# ifndef R_390_TLS_IE32
-#  define R_390_TLS_IE32 47
-# endif
-# ifndef R_390_TLS_IE64
-#  define R_390_TLS_IE64 48
-# endif
-# ifndef R_390_TLS_IEENT
-#  define R_390_TLS_IEENT 49
-# endif
-# ifndef R_390_TLS_LDCALL
-#  define R_390_TLS_LDCALL 39
-# endif
-# ifndef R_390_TLS_LDM32
-#  define R_390_TLS_LDM32 45
-# endif
-# ifndef R_390_TLS_LDM64
-#  define R_390_TLS_LDM64 46
-# endif
-# ifndef R_390_TLS_LDO32
-#  define R_390_TLS_LDO32 52
-# endif
-# ifndef R_390_TLS_LDO64
-#  define R_390_TLS_LDO64 53
-# endif
-# ifndef R_390_TLS_LE32
-#  define R_390_TLS_LE32 50
-# endif
-# ifndef R_390_TLS_LE64
-#  define R_390_TLS_LE64 51
-# endif
-# ifndef R_390_TLS_LOAD
-#  define R_390_TLS_LOAD 37
-# endif
-# ifndef R_390_TLS_TPOFF
-#  define R_390_TLS_TPOFF 56
-# endif
-# ifndef R_68K_16
-#  define R_68K_16 2
-# endif
-# ifndef R_68K_32
-#  define R_68K_32 1
-# endif
-# ifndef R_68K_8
-#  define R_68K_8 3
-# endif
-# ifndef R_68K_COPY
-#  define R_68K_COPY 19
-# endif
-# ifndef R_68K_GLOB_DAT
-#  define R_68K_GLOB_DAT 20
-# endif
-# ifndef R_68K_GOT16
-#  define R_68K_GOT16 8
-# endif
-# ifndef R_68K_GOT16O
-#  define R_68K_GOT16O 11
-# endif
-# ifndef R_68K_GOT32
-#  define R_68K_GOT32 7
-# endif
-# ifndef R_68K_GOT32O
-#  define R_68K_GOT32O 10
-# endif
-# ifndef R_68K_GOT8
-#  define R_68K_GOT8 9
-# endif
-# ifndef R_68K_GOT8O
-#  define R_68K_GOT8O 12
-# endif
-# ifndef R_68K_JMP_SLOT
-#  define R_68K_JMP_SLOT 21
-# endif
-# ifndef R_68K_NONE
-#  define R_68K_NONE 0
-# endif
-# ifndef R_68K_NUM
-#  define R_68K_NUM 43
-# endif
-# ifndef R_68K_PC16
-#  define R_68K_PC16 5
-# endif
-# ifndef R_68K_PC32
-#  define R_68K_PC32 4
-# endif
-# ifndef R_68K_PC8
-#  define R_68K_PC8 6
-# endif
-# ifndef R_68K_PLT16
-#  define R_68K_PLT16 14
-# endif
-# ifndef R_68K_PLT16O
-#  define R_68K_PLT16O 17
-# endif
-# ifndef R_68K_PLT32
-#  define R_68K_PLT32 13
-# endif
-# ifndef R_68K_PLT32O
-#  define R_68K_PLT32O 16
-# endif
-# ifndef R_68K_PLT8
-#  define R_68K_PLT8 15
-# endif
-# ifndef R_68K_PLT8O
-#  define R_68K_PLT8O 18
-# endif
-# ifndef R_68K_RELATIVE
-#  define R_68K_RELATIVE 22
-# endif
-# ifndef R_68K_TLS_DTPMOD32
-#  define R_68K_TLS_DTPMOD32 40
-# endif
-# ifndef R_68K_TLS_DTPREL32
-#  define R_68K_TLS_DTPREL32 41
-# endif
-# ifndef R_68K_TLS_GD16
-#  define R_68K_TLS_GD16 26
-# endif
-# ifndef R_68K_TLS_GD32
-#  define R_68K_TLS_GD32 25
-# endif
-# ifndef R_68K_TLS_GD8
-#  define R_68K_TLS_GD8 27
-# endif
-# ifndef R_68K_TLS_IE16
-#  define R_68K_TLS_IE16 35
-# endif
-# ifndef R_68K_TLS_IE32
-#  define R_68K_TLS_IE32 34
-# endif
-# ifndef R_68K_TLS_IE8
-#  define R_68K_TLS_IE8 36
-# endif
-# ifndef R_68K_TLS_LDM16
-#  define R_68K_TLS_LDM16 29
-# endif
-# ifndef R_68K_TLS_LDM32
-#  define R_68K_TLS_LDM32 28
-# endif
-# ifndef R_68K_TLS_LDM8
-#  define R_68K_TLS_LDM8 30
-# endif
-# ifndef R_68K_TLS_LDO16
-#  define R_68K_TLS_LDO16 32
-# endif
-# ifndef R_68K_TLS_LDO32
-#  define R_68K_TLS_LDO32 31
-# endif
-# ifndef R_68K_TLS_LDO8
-#  define R_68K_TLS_LDO8 33
-# endif
-# ifndef R_68K_TLS_LE16
-#  define R_68K_TLS_LE16 38
-# endif
-# ifndef R_68K_TLS_LE32
-#  define R_68K_TLS_LE32 37
-# endif
-# ifndef R_68K_TLS_LE8
-#  define R_68K_TLS_LE8 39
-# endif
-# ifndef R_68K_TLS_TPREL32
-#  define R_68K_TLS_TPREL32 42
-# endif
-# ifndef R_AARCH64_ABS16
-#  define R_AARCH64_ABS16 259
-# endif
-# ifndef R_AARCH64_ABS32
-#  define R_AARCH64_ABS32 258
-# endif
-# ifndef R_AARCH64_ABS64
-#  define R_AARCH64_ABS64 257
-# endif
-# ifndef R_AARCH64_ADD_ABS_LO12_NC
-#  define R_AARCH64_ADD_ABS_LO12_NC 277
-# endif
-# ifndef R_AARCH64_ADR_GOT_PAGE
-#  define R_AARCH64_ADR_GOT_PAGE 311
-# endif
-# ifndef R_AARCH64_ADR_PREL_LO21
-#  define R_AARCH64_ADR_PREL_LO21 274
-# endif
-# ifndef R_AARCH64_ADR_PREL_PG_HI21
-#  define R_AARCH64_ADR_PREL_PG_HI21 275
-# endif
-# ifndef R_AARCH64_ADR_PREL_PG_HI21_NC
-#  define R_AARCH64_ADR_PREL_PG_HI21_NC 276
-# endif
-# ifndef R_AARCH64_CALL26
-#  define R_AARCH64_CALL26 283
-# endif
-# ifndef R_AARCH64_CONDBR19
-#  define R_AARCH64_CONDBR19 280
-# endif
-# ifndef R_AARCH64_COPY
-#  define R_AARCH64_COPY 1024
-# endif
-# ifndef R_AARCH64_GLOB_DAT
-#  define R_AARCH64_GLOB_DAT 1025
-# endif
-# ifndef R_AARCH64_GOTREL32
-#  define R_AARCH64_GOTREL32 308
-# endif
-# ifndef R_AARCH64_GOTREL64
-#  define R_AARCH64_GOTREL64 307
-# endif
-# ifndef R_AARCH64_GOT_LD_PREL19
-#  define R_AARCH64_GOT_LD_PREL19 309
-# endif
-# ifndef R_AARCH64_IRELATIVE
-#  define R_AARCH64_IRELATIVE 1032
-# endif
-# ifndef R_AARCH64_JUMP26
-#  define R_AARCH64_JUMP26 282
-# endif
-# ifndef R_AARCH64_JUMP_SLOT
-#  define R_AARCH64_JUMP_SLOT 1026
-# endif
-# ifndef R_AARCH64_LD64_GOTOFF_LO15
-#  define R_AARCH64_LD64_GOTOFF_LO15 310
-# endif
-# ifndef R_AARCH64_LD64_GOTPAGE_LO15
-#  define R_AARCH64_LD64_GOTPAGE_LO15 313
-# endif
-# ifndef R_AARCH64_LD64_GOT_LO12_NC
-#  define R_AARCH64_LD64_GOT_LO12_NC 312
-# endif
-# ifndef R_AARCH64_LDST128_ABS_LO12_NC
-#  define R_AARCH64_LDST128_ABS_LO12_NC 299
-# endif
-# ifndef R_AARCH64_LDST16_ABS_LO12_NC
-#  define R_AARCH64_LDST16_ABS_LO12_NC 284
-# endif
-# ifndef R_AARCH64_LDST32_ABS_LO12_NC
-#  define R_AARCH64_LDST32_ABS_LO12_NC 285
-# endif
-# ifndef R_AARCH64_LDST64_ABS_LO12_NC
-#  define R_AARCH64_LDST64_ABS_LO12_NC 286
-# endif
-# ifndef R_AARCH64_LDST8_ABS_LO12_NC
-#  define R_AARCH64_LDST8_ABS_LO12_NC 278
-# endif
-# ifndef R_AARCH64_LD_PREL_LO19
-#  define R_AARCH64_LD_PREL_LO19 273
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G0
-#  define R_AARCH64_MOVW_GOTOFF_G0 300
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G0_NC
-#  define R_AARCH64_MOVW_GOTOFF_G0_NC 301
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G1
-#  define R_AARCH64_MOVW_GOTOFF_G1 302
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G1_NC
-#  define R_AARCH64_MOVW_GOTOFF_G1_NC 303
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G2
-#  define R_AARCH64_MOVW_GOTOFF_G2 304
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G2_NC
-#  define R_AARCH64_MOVW_GOTOFF_G2_NC 305
-# endif
-# ifndef R_AARCH64_MOVW_GOTOFF_G3
-#  define R_AARCH64_MOVW_GOTOFF_G3 306
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G0
-#  define R_AARCH64_MOVW_PREL_G0 287
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G0_NC
-#  define R_AARCH64_MOVW_PREL_G0_NC 288
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G1
-#  define R_AARCH64_MOVW_PREL_G1 289
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G1_NC
-#  define R_AARCH64_MOVW_PREL_G1_NC 290
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G2
-#  define R_AARCH64_MOVW_PREL_G2 291
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G2_NC
-#  define R_AARCH64_MOVW_PREL_G2_NC 292
-# endif
-# ifndef R_AARCH64_MOVW_PREL_G3
-#  define R_AARCH64_MOVW_PREL_G3 293
-# endif
-# ifndef R_AARCH64_MOVW_SABS_G0
-#  define R_AARCH64_MOVW_SABS_G0 270
-# endif
-# ifndef R_AARCH64_MOVW_SABS_G1
-#  define R_AARCH64_MOVW_SABS_G1 271
-# endif
-# ifndef R_AARCH64_MOVW_SABS_G2
-#  define R_AARCH64_MOVW_SABS_G2 272
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G0
-#  define R_AARCH64_MOVW_UABS_G0 263
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G0_NC
-#  define R_AARCH64_MOVW_UABS_G0_NC 264
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G1
-#  define R_AARCH64_MOVW_UABS_G1 265
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G1_NC
-#  define R_AARCH64_MOVW_UABS_G1_NC 266
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G2
-#  define R_AARCH64_MOVW_UABS_G2 267
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G2_NC
-#  define R_AARCH64_MOVW_UABS_G2_NC 268
-# endif
-# ifndef R_AARCH64_MOVW_UABS_G3
-#  define R_AARCH64_MOVW_UABS_G3 269
-# endif
-# ifndef R_AARCH64_NONE
-#  define R_AARCH64_NONE 0
-# endif
-# ifndef R_AARCH64_P32_ABS32
-#  define R_AARCH64_P32_ABS32 1
-# endif
-# ifndef R_AARCH64_P32_COPY
-#  define R_AARCH64_P32_COPY 180
-# endif
-# ifndef R_AARCH64_P32_GLOB_DAT
-#  define R_AARCH64_P32_GLOB_DAT 181
-# endif
-# ifndef R_AARCH64_P32_IRELATIVE
-#  define R_AARCH64_P32_IRELATIVE 188
-# endif
-# ifndef R_AARCH64_P32_JUMP_SLOT
-#  define R_AARCH64_P32_JUMP_SLOT 182
-# endif
-# ifndef R_AARCH64_P32_RELATIVE
-#  define R_AARCH64_P32_RELATIVE 183
-# endif
-# ifndef R_AARCH64_P32_TLSDESC
-#  define R_AARCH64_P32_TLSDESC 187
-# endif
-# ifndef R_AARCH64_P32_TLS_DTPMOD
-#  define R_AARCH64_P32_TLS_DTPMOD 184
-# endif
-# ifndef R_AARCH64_P32_TLS_DTPREL
-#  define R_AARCH64_P32_TLS_DTPREL 185
-# endif
-# ifndef R_AARCH64_P32_TLS_TPREL
-#  define R_AARCH64_P32_TLS_TPREL 186
-# endif
-# ifndef R_AARCH64_PREL16
-#  define R_AARCH64_PREL16 262
-# endif
-# ifndef R_AARCH64_PREL32
-#  define R_AARCH64_PREL32 261
-# endif
-# ifndef R_AARCH64_PREL64
-#  define R_AARCH64_PREL64 260
-# endif
-# ifndef R_AARCH64_RELATIVE
-#  define R_AARCH64_RELATIVE 1027
-# endif
-# ifndef R_AARCH64_TLSDESC
-#  define R_AARCH64_TLSDESC 1031
-# endif
-# ifndef R_AARCH64_TLSDESC_ADD
-#  define R_AARCH64_TLSDESC_ADD 568
-# endif
-# ifndef R_AARCH64_TLSDESC_ADD_LO12
-#  define R_AARCH64_TLSDESC_ADD_LO12 564
-# endif
-# ifndef R_AARCH64_TLSDESC_ADR_PAGE21
-#  define R_AARCH64_TLSDESC_ADR_PAGE21 562
-# endif
-# ifndef R_AARCH64_TLSDESC_ADR_PREL21
-#  define R_AARCH64_TLSDESC_ADR_PREL21 561
-# endif
-# ifndef R_AARCH64_TLSDESC_CALL
-#  define R_AARCH64_TLSDESC_CALL 569
-# endif
-# ifndef R_AARCH64_TLSDESC_LD64_LO12
-#  define R_AARCH64_TLSDESC_LD64_LO12 563
-# endif
-# ifndef R_AARCH64_TLSDESC_LDR
-#  define R_AARCH64_TLSDESC_LDR 567
-# endif
-# ifndef R_AARCH64_TLSDESC_LD_PREL19
-#  define R_AARCH64_TLSDESC_LD_PREL19 560
-# endif
-# ifndef R_AARCH64_TLSDESC_OFF_G0_NC
-#  define R_AARCH64_TLSDESC_OFF_G0_NC 566
-# endif
-# ifndef R_AARCH64_TLSDESC_OFF_G1
-#  define R_AARCH64_TLSDESC_OFF_G1 565
-# endif
-# ifndef R_AARCH64_TLSGD_ADD_LO12_NC
-#  define R_AARCH64_TLSGD_ADD_LO12_NC 514
-# endif
-# ifndef R_AARCH64_TLSGD_ADR_PAGE21
-#  define R_AARCH64_TLSGD_ADR_PAGE21 513
-# endif
-# ifndef R_AARCH64_TLSGD_ADR_PREL21
-#  define R_AARCH64_TLSGD_ADR_PREL21 512
-# endif
-# ifndef R_AARCH64_TLSGD_MOVW_G0_NC
-#  define R_AARCH64_TLSGD_MOVW_G0_NC 516
-# endif
-# ifndef R_AARCH64_TLSGD_MOVW_G1
-#  define R_AARCH64_TLSGD_MOVW_G1 515
-# endif
-# ifndef R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21
-#  define R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 541
-# endif
-# ifndef R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC
-#  define R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC 542
-# endif
-# ifndef R_AARCH64_TLSIE_LD_GOTTPREL_PREL19
-#  define R_AARCH64_TLSIE_LD_GOTTPREL_PREL19 543
-# endif
-# ifndef R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC
-#  define R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC 540
-# endif
-# ifndef R_AARCH64_TLSIE_MOVW_GOTTPREL_G1
-#  define R_AARCH64_TLSIE_MOVW_GOTTPREL_G1 539
-# endif
-# ifndef R_AARCH64_TLSLD_ADD_DTPREL_HI12
-#  define R_AARCH64_TLSLD_ADD_DTPREL_HI12 528
-# endif
-# ifndef R_AARCH64_TLSLD_ADD_DTPREL_LO12
-#  define R_AARCH64_TLSLD_ADD_DTPREL_LO12 529
-# endif
-# ifndef R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC 530
-# endif
-# ifndef R_AARCH64_TLSLD_ADD_LO12_NC
-#  define R_AARCH64_TLSLD_ADD_LO12_NC 519
-# endif
-# ifndef R_AARCH64_TLSLD_ADR_PAGE21
-#  define R_AARCH64_TLSLD_ADR_PAGE21 518
-# endif
-# ifndef R_AARCH64_TLSLD_ADR_PREL21
-#  define R_AARCH64_TLSLD_ADR_PREL21 517
-# endif
-# ifndef R_AARCH64_TLSLD_LDST128_DTPREL_LO12
-#  define R_AARCH64_TLSLD_LDST128_DTPREL_LO12 572
-# endif
-# ifndef R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC 573
-# endif
-# ifndef R_AARCH64_TLSLD_LDST16_DTPREL_LO12
-#  define R_AARCH64_TLSLD_LDST16_DTPREL_LO12 533
-# endif
-# ifndef R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC 534
-# endif
-# ifndef R_AARCH64_TLSLD_LDST32_DTPREL_LO12
-#  define R_AARCH64_TLSLD_LDST32_DTPREL_LO12 535
-# endif
-# ifndef R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC 536
-# endif
-# ifndef R_AARCH64_TLSLD_LDST64_DTPREL_LO12
-#  define R_AARCH64_TLSLD_LDST64_DTPREL_LO12 537
-# endif
-# ifndef R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC 538
-# endif
-# ifndef R_AARCH64_TLSLD_LDST8_DTPREL_LO12
-#  define R_AARCH64_TLSLD_LDST8_DTPREL_LO12 531
-# endif
-# ifndef R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC
-#  define R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC 532
-# endif
-# ifndef R_AARCH64_TLSLD_LD_PREL19
-#  define R_AARCH64_TLSLD_LD_PREL19 522
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_DTPREL_G0
-#  define R_AARCH64_TLSLD_MOVW_DTPREL_G0 526
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC
-#  define R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC 527
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_DTPREL_G1
-#  define R_AARCH64_TLSLD_MOVW_DTPREL_G1 524
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC
-#  define R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC 525
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_DTPREL_G2
-#  define R_AARCH64_TLSLD_MOVW_DTPREL_G2 523
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_G0_NC
-#  define R_AARCH64_TLSLD_MOVW_G0_NC 521
-# endif
-# ifndef R_AARCH64_TLSLD_MOVW_G1
-#  define R_AARCH64_TLSLD_MOVW_G1 520
-# endif
-# ifndef R_AARCH64_TLSLE_ADD_TPREL_HI12
-#  define R_AARCH64_TLSLE_ADD_TPREL_HI12 549
-# endif
-# ifndef R_AARCH64_TLSLE_ADD_TPREL_LO12
-#  define R_AARCH64_TLSLE_ADD_TPREL_LO12 550
-# endif
-# ifndef R_AARCH64_TLSLE_ADD_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_ADD_TPREL_LO12_NC 551
-# endif
-# ifndef R_AARCH64_TLSLE_LDST128_TPREL_LO12
-#  define R_AARCH64_TLSLE_LDST128_TPREL_LO12 570
-# endif
-# ifndef R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC 571
-# endif
-# ifndef R_AARCH64_TLSLE_LDST16_TPREL_LO12
-#  define R_AARCH64_TLSLE_LDST16_TPREL_LO12 554
-# endif
-# ifndef R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC 555
-# endif
-# ifndef R_AARCH64_TLSLE_LDST32_TPREL_LO12
-#  define R_AARCH64_TLSLE_LDST32_TPREL_LO12 556
-# endif
-# ifndef R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC 557
-# endif
-# ifndef R_AARCH64_TLSLE_LDST64_TPREL_LO12
-#  define R_AARCH64_TLSLE_LDST64_TPREL_LO12 558
-# endif
-# ifndef R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC 559
-# endif
-# ifndef R_AARCH64_TLSLE_LDST8_TPREL_LO12
-#  define R_AARCH64_TLSLE_LDST8_TPREL_LO12 552
-# endif
-# ifndef R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC
-#  define R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC 553
-# endif
-# ifndef R_AARCH64_TLSLE_MOVW_TPREL_G0
-#  define R_AARCH64_TLSLE_MOVW_TPREL_G0 547
-# endif
-# ifndef R_AARCH64_TLSLE_MOVW_TPREL_G0_NC
-#  define R_AARCH64_TLSLE_MOVW_TPREL_G0_NC 548
-# endif
-# ifndef R_AARCH64_TLSLE_MOVW_TPREL_G1
-#  define R_AARCH64_TLSLE_MOVW_TPREL_G1 545
-# endif
-# ifndef R_AARCH64_TLSLE_MOVW_TPREL_G1_NC
-#  define R_AARCH64_TLSLE_MOVW_TPREL_G1_NC 546
-# endif
-# ifndef R_AARCH64_TLSLE_MOVW_TPREL_G2
-#  define R_AARCH64_TLSLE_MOVW_TPREL_G2 544
-# endif
-# ifndef R_AARCH64_TLS_DTPMOD
-#  define R_AARCH64_TLS_DTPMOD 1028
-# endif
-# ifndef R_AARCH64_TLS_DTPREL
-#  define R_AARCH64_TLS_DTPREL 1029
-# endif
-# ifndef R_AARCH64_TLS_TPREL
-#  define R_AARCH64_TLS_TPREL 1030
-# endif
-# ifndef R_AARCH64_TSTBR14
-#  define R_AARCH64_TSTBR14 279
-# endif
-# ifndef R_AC_SECTOFF_S9
-#  define R_AC_SECTOFF_S9 38
-# endif
-# ifndef R_AC_SECTOFF_S9_1
-#  define R_AC_SECTOFF_S9_1 39
-# endif
-# ifndef R_AC_SECTOFF_S9_2
-#  define R_AC_SECTOFF_S9_2 40
-# endif
-# ifndef R_AC_SECTOFF_U8
-#  define R_AC_SECTOFF_U8 35
-# endif
-# ifndef R_AC_SECTOFF_U8_1
-#  define R_AC_SECTOFF_U8_1 36
-# endif
-# ifndef R_AC_SECTOFF_U8_2
-#  define R_AC_SECTOFF_U8_2 37
-# endif
-# ifndef R_ALPHA_BRADDR
-#  define R_ALPHA_BRADDR 7
-# endif
-# ifndef R_ALPHA_COPY
-#  define R_ALPHA_COPY 24
-# endif
-# ifndef R_ALPHA_DTPMOD64
-#  define R_ALPHA_DTPMOD64 31
-# endif
-# ifndef R_ALPHA_DTPREL16
-#  define R_ALPHA_DTPREL16 36
-# endif
-# ifndef R_ALPHA_DTPREL64
-#  define R_ALPHA_DTPREL64 33
-# endif
-# ifndef R_ALPHA_DTPRELHI
-#  define R_ALPHA_DTPRELHI 34
-# endif
-# ifndef R_ALPHA_DTPRELLO
-#  define R_ALPHA_DTPRELLO 35
-# endif
-# ifndef R_ALPHA_GLOB_DAT
-#  define R_ALPHA_GLOB_DAT 25
-# endif
-# ifndef R_ALPHA_GOTDTPREL
-#  define R_ALPHA_GOTDTPREL 32
-# endif
-# ifndef R_ALPHA_GOTTPREL
-#  define R_ALPHA_GOTTPREL 37
-# endif
-# ifndef R_ALPHA_GPDISP
-#  define R_ALPHA_GPDISP 6
-# endif
-# ifndef R_ALPHA_GPREL16
-#  define R_ALPHA_GPREL16 19
-# endif
-# ifndef R_ALPHA_GPREL32
-#  define R_ALPHA_GPREL32 3
-# endif
-# ifndef R_ALPHA_GPRELHIGH
-#  define R_ALPHA_GPRELHIGH 17
-# endif
-# ifndef R_ALPHA_GPRELLOW
-#  define R_ALPHA_GPRELLOW 18
-# endif
-# ifndef R_ALPHA_HINT
-#  define R_ALPHA_HINT 8
-# endif
-# ifndef R_ALPHA_JMP_SLOT
-#  define R_ALPHA_JMP_SLOT 26
-# endif
-# ifndef R_ALPHA_LITERAL
-#  define R_ALPHA_LITERAL 4
-# endif
-# ifndef R_ALPHA_LITUSE
-#  define R_ALPHA_LITUSE 5
-# endif
-# ifndef R_ALPHA_NONE
-#  define R_ALPHA_NONE 0
-# endif
-# ifndef R_ALPHA_NUM
-#  define R_ALPHA_NUM 46
-# endif
-# ifndef R_ALPHA_REFLONG
-#  define R_ALPHA_REFLONG 1
-# endif
-# ifndef R_ALPHA_REFQUAD
-#  define R_ALPHA_REFQUAD 2
-# endif
-# ifndef R_ALPHA_RELATIVE
-#  define R_ALPHA_RELATIVE 27
-# endif
-# ifndef R_ALPHA_SREL16
-#  define R_ALPHA_SREL16 9
-# endif
-# ifndef R_ALPHA_SREL32
-#  define R_ALPHA_SREL32 10
-# endif
-# ifndef R_ALPHA_SREL64
-#  define R_ALPHA_SREL64 11
-# endif
-# ifndef R_ALPHA_TLSGD
-#  define R_ALPHA_TLSGD 29
-# endif
-# ifndef R_ALPHA_TLS_GD_HI
-#  define R_ALPHA_TLS_GD_HI 28
-# endif
-# ifndef R_ALPHA_TLS_LDM
-#  define R_ALPHA_TLS_LDM 30
-# endif
-# ifndef R_ALPHA_TPREL16
-#  define R_ALPHA_TPREL16 41
-# endif
-# ifndef R_ALPHA_TPREL64
-#  define R_ALPHA_TPREL64 38
-# endif
-# ifndef R_ALPHA_TPRELHI
-#  define R_ALPHA_TPRELHI 39
-# endif
-# ifndef R_ALPHA_TPRELLO
-#  define R_ALPHA_TPRELLO 40
-# endif
-# ifndef R_ARC_16
-#  define R_ARC_16 2
-# endif
-# ifndef R_ARC_24
-#  define R_ARC_24 3
-# endif
-# ifndef R_ARC_32
-#  define R_ARC_32 4
-# endif
-# ifndef R_ARC_32_ME
-#  define R_ARC_32_ME 27
-# endif
-# ifndef R_ARC_32_PCREL
-#  define R_ARC_32_PCREL 49
-# endif
-# ifndef R_ARC_8
-#  define R_ARC_8 1
-# endif
-# ifndef R_ARC_B22_PCREL
-#  define R_ARC_B22_PCREL 6
-# endif
-# ifndef R_ARC_COPY
-#  define R_ARC_COPY 53
-# endif
-# ifndef R_ARC_GLOB_DAT
-#  define R_ARC_GLOB_DAT 54
-# endif
-# ifndef R_ARC_GOT32
-#  define R_ARC_GOT32 59
-# endif
-# ifndef R_ARC_GOTOFF
-#  define R_ARC_GOTOFF 57
-# endif
-# ifndef R_ARC_GOTPC
-#  define R_ARC_GOTPC 58
-# endif
-# ifndef R_ARC_GOTPC32
-#  define R_ARC_GOTPC32 51
-# endif
-# ifndef R_ARC_H30
-#  define R_ARC_H30 7
-# endif
-# ifndef R_ARC_H30_ME
-#  define R_ARC_H30_ME 32
-# endif
-# ifndef R_ARC_JLI_SECTOFF
-#  define R_ARC_JLI_SECTOFF 63
-# endif
-# ifndef R_ARC_JMP_SLOT
-#  define R_ARC_JMP_SLOT 55
-# endif
-# ifndef R_ARC_N16
-#  define R_ARC_N16 9
-# endif
-# ifndef R_ARC_N24
-#  define R_ARC_N24 10
-# endif
-# ifndef R_ARC_N32
-#  define R_ARC_N32 11
-# endif
-# ifndef R_ARC_N32_ME
-#  define R_ARC_N32_ME 28
-# endif
-# ifndef R_ARC_N8
-#  define R_ARC_N8 8
-# endif
-# ifndef R_ARC_NONE
-#  define R_ARC_NONE 0
-# endif
-# ifndef R_ARC_NPS_CMEM16
-#  define R_ARC_NPS_CMEM16 78
-# endif
-# ifndef R_ARC_PC32
-#  define R_ARC_PC32 50
-# endif
-# ifndef R_ARC_PLT32
-#  define R_ARC_PLT32 52
-# endif
-# ifndef R_ARC_RELATIVE
-#  define R_ARC_RELATIVE 56
-# endif
-# ifndef R_ARC_S13_PCREL
-#  define R_ARC_S13_PCREL 25
-# endif
-# ifndef R_ARC_S21H_PCREL
-#  define R_ARC_S21H_PCREL 14
-# endif
-# ifndef R_ARC_S21H_PCREL_PLT
-#  define R_ARC_S21H_PCREL_PLT 77
-# endif
-# ifndef R_ARC_S21W_PCREL
-#  define R_ARC_S21W_PCREL 15
-# endif
-# ifndef R_ARC_S21W_PCREL_PLT
-#  define R_ARC_S21W_PCREL_PLT 60
-# endif
-# ifndef R_ARC_S25H_PCREL
-#  define R_ARC_S25H_PCREL 16
-# endif
-# ifndef R_ARC_S25H_PCREL_PLT
-#  define R_ARC_S25H_PCREL_PLT 61
-# endif
-# ifndef R_ARC_S25W_PCREL
-#  define R_ARC_S25W_PCREL 17
-# endif
-# ifndef R_ARC_S25W_PCREL_PLT
-#  define R_ARC_S25W_PCREL_PLT 76
-# endif
-# ifndef R_ARC_SDA
-#  define R_ARC_SDA 12
-# endif
-# ifndef R_ARC_SDA16_LD
-#  define R_ARC_SDA16_LD 22
-# endif
-# ifndef R_ARC_SDA16_LD1
-#  define R_ARC_SDA16_LD1 23
-# endif
-# ifndef R_ARC_SDA16_LD2
-#  define R_ARC_SDA16_LD2 24
-# endif
-# ifndef R_ARC_SDA16_ST2
-#  define R_ARC_SDA16_ST2 48
-# endif
-# ifndef R_ARC_SDA32
-#  define R_ARC_SDA32 18
-# endif
-# ifndef R_ARC_SDA32_ME
-#  define R_ARC_SDA32_ME 30
-# endif
-# ifndef R_ARC_SDA_12
-#  define R_ARC_SDA_12 45
-# endif
-# ifndef R_ARC_SDA_LDST
-#  define R_ARC_SDA_LDST 19
-# endif
-# ifndef R_ARC_SDA_LDST1
-#  define R_ARC_SDA_LDST1 20
-# endif
-# ifndef R_ARC_SDA_LDST2
-#  define R_ARC_SDA_LDST2 21
-# endif
-# ifndef R_ARC_SECTOFF
-#  define R_ARC_SECTOFF 13
-# endif
-# ifndef R_ARC_SECTOFF_1
-#  define R_ARC_SECTOFF_1 43
-# endif
-# ifndef R_ARC_SECTOFF_2
-#  define R_ARC_SECTOFF_2 44
-# endif
-# ifndef R_ARC_SECTOFF_ME
-#  define R_ARC_SECTOFF_ME 29
-# endif
-# ifndef R_ARC_SECTOFF_ME_1
-#  define R_ARC_SECTOFF_ME_1 41
-# endif
-# ifndef R_ARC_SECTOFF_ME_2
-#  define R_ARC_SECTOFF_ME_2 42
-# endif
-# ifndef R_ARC_SECTOFF_S9
-#  define R_ARC_SECTOFF_S9 34
-# endif
-# ifndef R_ARC_SECTOFF_U8
-#  define R_ARC_SECTOFF_U8 33
-# endif
-# ifndef R_ARC_TLS_DTPMOD
-#  define R_ARC_TLS_DTPMOD 66
-# endif
-# ifndef R_ARC_TLS_DTPOFF
-#  define R_ARC_TLS_DTPOFF 67
-# endif
-# ifndef R_ARC_TLS_DTPOFF_S9
-#  define R_ARC_TLS_DTPOFF_S9 73
-# endif
-# ifndef R_ARC_TLS_GD_CALL
-#  define R_ARC_TLS_GD_CALL 71
-# endif
-# ifndef R_ARC_TLS_GD_GOT
-#  define R_ARC_TLS_GD_GOT 69
-# endif
-# ifndef R_ARC_TLS_GD_LD
-#  define R_ARC_TLS_GD_LD 70
-# endif
-# ifndef R_ARC_TLS_IE_GOT
-#  define R_ARC_TLS_IE_GOT 72
-# endif
-# ifndef R_ARC_TLS_LE_32
-#  define R_ARC_TLS_LE_32 75
-# endif
-# ifndef R_ARC_TLS_LE_S9
-#  define R_ARC_TLS_LE_S9 74
-# endif
-# ifndef R_ARC_TLS_TPOFF
-#  define R_ARC_TLS_TPOFF 68
-# endif
-# ifndef R_ARC_W
-#  define R_ARC_W 26
-# endif
-# ifndef R_ARC_W_ME
-#  define R_ARC_W_ME 31
-# endif
-# ifndef R_ARM_ABS12
-#  define R_ARM_ABS12 6
-# endif
-# ifndef R_ARM_ABS16
-#  define R_ARM_ABS16 5
-# endif
-# ifndef R_ARM_ABS32
-#  define R_ARM_ABS32 2
-# endif
-# ifndef R_ARM_ABS32_NOI
-#  define R_ARM_ABS32_NOI 55
-# endif
-# ifndef R_ARM_ABS8
-#  define R_ARM_ABS8 8
-# endif
-# ifndef R_ARM_ALU_PCREL_15_8
-#  define R_ARM_ALU_PCREL_15_8 33
-# endif
-# ifndef R_ARM_ALU_PCREL_23_15
-#  define R_ARM_ALU_PCREL_23_15 34
-# endif
-# ifndef R_ARM_ALU_PCREL_7_0
-#  define R_ARM_ALU_PCREL_7_0 32
-# endif
-# ifndef R_ARM_ALU_PC_G0
-#  define R_ARM_ALU_PC_G0 58
-# endif
-# ifndef R_ARM_ALU_PC_G0_NC
-#  define R_ARM_ALU_PC_G0_NC 57
-# endif
-# ifndef R_ARM_ALU_PC_G1
-#  define R_ARM_ALU_PC_G1 60
-# endif
-# ifndef R_ARM_ALU_PC_G1_NC
-#  define R_ARM_ALU_PC_G1_NC 59
-# endif
-# ifndef R_ARM_ALU_PC_G2
-#  define R_ARM_ALU_PC_G2 61
-# endif
-# ifndef R_ARM_ALU_SBREL_19_12
-#  define R_ARM_ALU_SBREL_19_12 36
-# endif
-# ifndef R_ARM_ALU_SBREL_27_20
-#  define R_ARM_ALU_SBREL_27_20 37
-# endif
-# ifndef R_ARM_ALU_SB_G0
-#  define R_ARM_ALU_SB_G0 71
-# endif
-# ifndef R_ARM_ALU_SB_G0_NC
-#  define R_ARM_ALU_SB_G0_NC 70
-# endif
-# ifndef R_ARM_ALU_SB_G1
-#  define R_ARM_ALU_SB_G1 73
-# endif
-# ifndef R_ARM_ALU_SB_G1_NC
-#  define R_ARM_ALU_SB_G1_NC 72
-# endif
-# ifndef R_ARM_ALU_SB_G2
-#  define R_ARM_ALU_SB_G2 74
-# endif
-# ifndef R_ARM_AMP_VCALL9
-#  define R_ARM_AMP_VCALL9 12
-# endif
-# ifndef R_ARM_BASE_ABS
-#  define R_ARM_BASE_ABS 31
-# endif
-# ifndef R_ARM_CALL
-#  define R_ARM_CALL 28
-# endif
-# ifndef R_ARM_COPY
-#  define R_ARM_COPY 20
-# endif
-# ifndef R_ARM_GLOB_DAT
-#  define R_ARM_GLOB_DAT 21
-# endif
-# ifndef R_ARM_GNU_VTENTRY
-#  define R_ARM_GNU_VTENTRY 100
-# endif
-# ifndef R_ARM_GNU_VTINHERIT
-#  define R_ARM_GNU_VTINHERIT 101
-# endif
-# ifndef R_ARM_GOT32
-#  define R_ARM_GOT32 26
-# endif
-# ifndef R_ARM_GOTOFF
-#  define R_ARM_GOTOFF 24
-# endif
-# ifndef R_ARM_GOTOFF12
-#  define R_ARM_GOTOFF12 98
-# endif
-# ifndef R_ARM_GOTPC
-#  define R_ARM_GOTPC 25
-# endif
-# ifndef R_ARM_GOTRELAX
-#  define R_ARM_GOTRELAX 99
-# endif
-# ifndef R_ARM_GOT_ABS
-#  define R_ARM_GOT_ABS 95
-# endif
-# ifndef R_ARM_GOT_BREL12
-#  define R_ARM_GOT_BREL12 97
-# endif
-# ifndef R_ARM_GOT_PREL
-#  define R_ARM_GOT_PREL 96
-# endif
-# ifndef R_ARM_IRELATIVE
-#  define R_ARM_IRELATIVE 160
-# endif
-# ifndef R_ARM_JUMP24
-#  define R_ARM_JUMP24 29
-# endif
-# ifndef R_ARM_JUMP_SLOT
-#  define R_ARM_JUMP_SLOT 22
-# endif
-# ifndef R_ARM_LDC_PC_G0
-#  define R_ARM_LDC_PC_G0 67
-# endif
-# ifndef R_ARM_LDC_PC_G1
-#  define R_ARM_LDC_PC_G1 68
-# endif
-# ifndef R_ARM_LDC_PC_G2
-#  define R_ARM_LDC_PC_G2 69
-# endif
-# ifndef R_ARM_LDC_SB_G0
-#  define R_ARM_LDC_SB_G0 81
-# endif
-# ifndef R_ARM_LDC_SB_G1
-#  define R_ARM_LDC_SB_G1 82
-# endif
-# ifndef R_ARM_LDC_SB_G2
-#  define R_ARM_LDC_SB_G2 83
-# endif
-# ifndef R_ARM_LDRS_PC_G0
-#  define R_ARM_LDRS_PC_G0 64
-# endif
-# ifndef R_ARM_LDRS_PC_G1
-#  define R_ARM_LDRS_PC_G1 65
-# endif
-# ifndef R_ARM_LDRS_PC_G2
-#  define R_ARM_LDRS_PC_G2 66
-# endif
-# ifndef R_ARM_LDRS_SB_G0
-#  define R_ARM_LDRS_SB_G0 78
-# endif
-# ifndef R_ARM_LDRS_SB_G1
-#  define R_ARM_LDRS_SB_G1 79
-# endif
-# ifndef R_ARM_LDRS_SB_G2
-#  define R_ARM_LDRS_SB_G2 80
-# endif
-# ifndef R_ARM_LDR_PC_G1
-#  define R_ARM_LDR_PC_G1 62
-# endif
-# ifndef R_ARM_LDR_PC_G2
-#  define R_ARM_LDR_PC_G2 63
-# endif
-# ifndef R_ARM_LDR_SBREL_11_0
-#  define R_ARM_LDR_SBREL_11_0 35
-# endif
-# ifndef R_ARM_LDR_SB_G0
-#  define R_ARM_LDR_SB_G0 75
-# endif
-# ifndef R_ARM_LDR_SB_G1
-#  define R_ARM_LDR_SB_G1 76
-# endif
-# ifndef R_ARM_LDR_SB_G2
-#  define R_ARM_LDR_SB_G2 77
-# endif
-# ifndef R_ARM_ME_TOO
-#  define R_ARM_ME_TOO 128
-# endif
-# ifndef R_ARM_MOVT_ABS
-#  define R_ARM_MOVT_ABS 44
-# endif
-# ifndef R_ARM_MOVT_BREL
-#  define R_ARM_MOVT_BREL 85
-# endif
-# ifndef R_ARM_MOVT_PREL
-#  define R_ARM_MOVT_PREL 46
-# endif
-# ifndef R_ARM_MOVW_ABS_NC
-#  define R_ARM_MOVW_ABS_NC 43
-# endif
-# ifndef R_ARM_MOVW_BREL
-#  define R_ARM_MOVW_BREL 86
-# endif
-# ifndef R_ARM_MOVW_BREL_NC
-#  define R_ARM_MOVW_BREL_NC 84
-# endif
-# ifndef R_ARM_MOVW_PREL_NC
-#  define R_ARM_MOVW_PREL_NC 45
-# endif
-# ifndef R_ARM_NONE
-#  define R_ARM_NONE 0
-# endif
-# ifndef R_ARM_NUM
-#  define R_ARM_NUM 256
-# endif
-# ifndef R_ARM_PC13
-#  define R_ARM_PC13 4
-# endif
-# ifndef R_ARM_PC24
-#  define R_ARM_PC24 1
-# endif
-# ifndef R_ARM_PLT32
-#  define R_ARM_PLT32 27
-# endif
-# ifndef R_ARM_PLT32_ABS
-#  define R_ARM_PLT32_ABS 94
-# endif
-# ifndef R_ARM_PREL31
-#  define R_ARM_PREL31 42
-# endif
-# ifndef R_ARM_RABS22
-#  define R_ARM_RABS22 253
-# endif
-# ifndef R_ARM_RBASE
-#  define R_ARM_RBASE 255
-# endif
-# ifndef R_ARM_REL32
-#  define R_ARM_REL32 3
-# endif
-# ifndef R_ARM_REL32_NOI
-#  define R_ARM_REL32_NOI 56
-# endif
-# ifndef R_ARM_RELATIVE
-#  define R_ARM_RELATIVE 23
-# endif
-# ifndef R_ARM_RPC24
-#  define R_ARM_RPC24 254
-# endif
-# ifndef R_ARM_RREL32
-#  define R_ARM_RREL32 252
-# endif
-# ifndef R_ARM_RSBREL32
-#  define R_ARM_RSBREL32 250
-# endif
-# ifndef R_ARM_RXPC25
-#  define R_ARM_RXPC25 249
-# endif
-# ifndef R_ARM_SBREL31
-#  define R_ARM_SBREL31 39
-# endif
-# ifndef R_ARM_SBREL32
-#  define R_ARM_SBREL32 9
-# endif
-# ifndef R_ARM_SWI24
-#  define R_ARM_SWI24 13
-# endif
-# ifndef R_ARM_TARGET1
-#  define R_ARM_TARGET1 38
-# endif
-# ifndef R_ARM_TARGET2
-#  define R_ARM_TARGET2 41
-# endif
-# ifndef R_ARM_THM_ABS5
-#  define R_ARM_THM_ABS5 7
-# endif
-# ifndef R_ARM_THM_ALU_PREL_11_0
-#  define R_ARM_THM_ALU_PREL_11_0 53
-# endif
-# ifndef R_ARM_THM_GOT_BREL12
-#  define R_ARM_THM_GOT_BREL12 131
-# endif
-# ifndef R_ARM_THM_JUMP19
-#  define R_ARM_THM_JUMP19 51
-# endif
-# ifndef R_ARM_THM_JUMP24
-#  define R_ARM_THM_JUMP24 30
-# endif
-# ifndef R_ARM_THM_JUMP6
-#  define R_ARM_THM_JUMP6 52
-# endif
-# ifndef R_ARM_THM_MOVT_ABS
-#  define R_ARM_THM_MOVT_ABS 48
-# endif
-# ifndef R_ARM_THM_MOVT_BREL
-#  define R_ARM_THM_MOVT_BREL 88
-# endif
-# ifndef R_ARM_THM_MOVT_PREL
-#  define R_ARM_THM_MOVT_PREL 50
-# endif
-# ifndef R_ARM_THM_MOVW_ABS_NC
-#  define R_ARM_THM_MOVW_ABS_NC 47
-# endif
-# ifndef R_ARM_THM_MOVW_BREL
-#  define R_ARM_THM_MOVW_BREL 89
-# endif
-# ifndef R_ARM_THM_MOVW_BREL_NC
-#  define R_ARM_THM_MOVW_BREL_NC 87
-# endif
-# ifndef R_ARM_THM_MOVW_PREL_NC
-#  define R_ARM_THM_MOVW_PREL_NC 49
-# endif
-# ifndef R_ARM_THM_PC11
-#  define R_ARM_THM_PC11 102
-# endif
-# ifndef R_ARM_THM_PC12
-#  define R_ARM_THM_PC12 54
-# endif
-# ifndef R_ARM_THM_PC22
-#  define R_ARM_THM_PC22 10
-# endif
-# ifndef R_ARM_THM_PC8
-#  define R_ARM_THM_PC8 11
-# endif
-# ifndef R_ARM_THM_PC9
-#  define R_ARM_THM_PC9 103
-# endif
-# ifndef R_ARM_THM_RPC22
-#  define R_ARM_THM_RPC22 251
-# endif
-# ifndef R_ARM_THM_SWI8
-#  define R_ARM_THM_SWI8 14
-# endif
-# ifndef R_ARM_THM_TLS_CALL
-#  define R_ARM_THM_TLS_CALL 93
-# endif
-# ifndef R_ARM_THM_TLS_DESCSEQ
-#  define R_ARM_THM_TLS_DESCSEQ 129
-# endif
-# ifndef R_ARM_THM_TLS_DESCSEQ16
-#  define R_ARM_THM_TLS_DESCSEQ16 129
-# endif
-# ifndef R_ARM_THM_TLS_DESCSEQ32
-#  define R_ARM_THM_TLS_DESCSEQ32 130
-# endif
-# ifndef R_ARM_THM_XPC22
-#  define R_ARM_THM_XPC22 16
-# endif
-# ifndef R_ARM_TLS_CALL
-#  define R_ARM_TLS_CALL 91
-# endif
-# ifndef R_ARM_TLS_DESC
-#  define R_ARM_TLS_DESC 13
-# endif
-# ifndef R_ARM_TLS_DESCSEQ
-#  define R_ARM_TLS_DESCSEQ 92
-# endif
-# ifndef R_ARM_TLS_DTPMOD32
-#  define R_ARM_TLS_DTPMOD32 17
-# endif
-# ifndef R_ARM_TLS_DTPOFF32
-#  define R_ARM_TLS_DTPOFF32 18
-# endif
-# ifndef R_ARM_TLS_GD32
-#  define R_ARM_TLS_GD32 104
-# endif
-# ifndef R_ARM_TLS_GOTDESC
-#  define R_ARM_TLS_GOTDESC 90
-# endif
-# ifndef R_ARM_TLS_IE12GP
-#  define R_ARM_TLS_IE12GP 111
-# endif
-# ifndef R_ARM_TLS_IE32
-#  define R_ARM_TLS_IE32 107
-# endif
-# ifndef R_ARM_TLS_LDM32
-#  define R_ARM_TLS_LDM32 105
-# endif
-# ifndef R_ARM_TLS_LDO12
-#  define R_ARM_TLS_LDO12 109
-# endif
-# ifndef R_ARM_TLS_LDO32
-#  define R_ARM_TLS_LDO32 106
-# endif
-# ifndef R_ARM_TLS_LE12
-#  define R_ARM_TLS_LE12 110
-# endif
-# ifndef R_ARM_TLS_LE32
-#  define R_ARM_TLS_LE32 108
-# endif
-# ifndef R_ARM_TLS_TPOFF32
-#  define R_ARM_TLS_TPOFF32 19
-# endif
-# ifndef R_ARM_V4BX
-#  define R_ARM_V4BX 40
-# endif
-# ifndef R_ARM_XPC25
-#  define R_ARM_XPC25 15
-# endif
-# ifndef R_BPF_64_32
-#  define R_BPF_64_32 10
-# endif
-# ifndef R_BPF_64_64
-#  define R_BPF_64_64 1
-# endif
-# ifndef R_BPF_NONE
-#  define R_BPF_NONE 0
-# endif
-# ifndef R_CKCORE_ADDR32
-#  define R_CKCORE_ADDR32 1
-# endif
-# ifndef R_CKCORE_ADDRGOT
-#  define R_CKCORE_ADDRGOT 17
-# endif
-# ifndef R_CKCORE_ADDRGOT_HI16
-#  define R_CKCORE_ADDRGOT_HI16 36
-# endif
-# ifndef R_CKCORE_ADDRGOT_LO16
-#  define R_CKCORE_ADDRGOT_LO16 37
-# endif
-# ifndef R_CKCORE_ADDRPLT
-#  define R_CKCORE_ADDRPLT 18
-# endif
-# ifndef R_CKCORE_ADDRPLT_HI16
-#  define R_CKCORE_ADDRPLT_HI16 38
-# endif
-# ifndef R_CKCORE_ADDRPLT_LO16
-#  define R_CKCORE_ADDRPLT_LO16 39
-# endif
-# ifndef R_CKCORE_ADDR_HI16
-#  define R_CKCORE_ADDR_HI16 24
-# endif
-# ifndef R_CKCORE_ADDR_LO16
-#  define R_CKCORE_ADDR_LO16 25
-# endif
-# ifndef R_CKCORE_COPY
-#  define R_CKCORE_COPY 10
-# endif
-# ifndef R_CKCORE_DOFFSET_IMM18
-#  define R_CKCORE_DOFFSET_IMM18 44
-# endif
-# ifndef R_CKCORE_DOFFSET_IMM18BY2
-#  define R_CKCORE_DOFFSET_IMM18BY2 45
-# endif
-# ifndef R_CKCORE_DOFFSET_IMM18BY4
-#  define R_CKCORE_DOFFSET_IMM18BY4 46
-# endif
-# ifndef R_CKCORE_DOFFSET_LO16
-#  define R_CKCORE_DOFFSET_LO16 42
-# endif
-# ifndef R_CKCORE_GLOB_DAT
-#  define R_CKCORE_GLOB_DAT 11
-# endif
-# ifndef R_CKCORE_GOT12
-#  define R_CKCORE_GOT12 30
-# endif
-# ifndef R_CKCORE_GOT32
-#  define R_CKCORE_GOT32 15
-# endif
-# ifndef R_CKCORE_GOTOFF
-#  define R_CKCORE_GOTOFF 13
-# endif
-# ifndef R_CKCORE_GOTOFF_HI16
-#  define R_CKCORE_GOTOFF_HI16 28
-# endif
-# ifndef R_CKCORE_GOTOFF_LO16
-#  define R_CKCORE_GOTOFF_LO16 29
-# endif
-# ifndef R_CKCORE_GOTPC
-#  define R_CKCORE_GOTPC 14
-# endif
-# ifndef R_CKCORE_GOTPC_HI16
-#  define R_CKCORE_GOTPC_HI16 26
-# endif
-# ifndef R_CKCORE_GOTPC_LO16
-#  define R_CKCORE_GOTPC_LO16 27
-# endif
-# ifndef R_CKCORE_GOT_HI16
-#  define R_CKCORE_GOT_HI16 31
-# endif
-# ifndef R_CKCORE_GOT_IMM18BY4
-#  define R_CKCORE_GOT_IMM18BY4 48
-# endif
-# ifndef R_CKCORE_GOT_LO16
-#  define R_CKCORE_GOT_LO16 32
-# endif
-# ifndef R_CKCORE_JUMP_SLOT
-#  define R_CKCORE_JUMP_SLOT 12
-# endif
-# ifndef R_CKCORE_NONE
-#  define R_CKCORE_NONE 0
-# endif
-# ifndef R_CKCORE_PCREL32
-#  define R_CKCORE_PCREL32 5
-# endif
-# ifndef R_CKCORE_PCRELIMM11BY2
-#  define R_CKCORE_PCRELIMM11BY2 3
-# endif
-# ifndef R_CKCORE_PCRELIMM8BY4
-#  define R_CKCORE_PCRELIMM8BY4 2
-# endif
-# ifndef R_CKCORE_PCRELJSR_IMM11BY2
-#  define R_CKCORE_PCRELJSR_IMM11BY2 6
-# endif
-# ifndef R_CKCORE_PCREL_IMM10BY2
-#  define R_CKCORE_PCREL_IMM10BY2 22
-# endif
-# ifndef R_CKCORE_PCREL_IMM10BY4
-#  define R_CKCORE_PCREL_IMM10BY4 23
-# endif
-# ifndef R_CKCORE_PCREL_IMM16BY2
-#  define R_CKCORE_PCREL_IMM16BY2 20
-# endif
-# ifndef R_CKCORE_PCREL_IMM16BY4
-#  define R_CKCORE_PCREL_IMM16BY4 21
-# endif
-# ifndef R_CKCORE_PCREL_IMM18BY2
-#  define R_CKCORE_PCREL_IMM18BY2 43
-# endif
-# ifndef R_CKCORE_PCREL_IMM26BY2
-#  define R_CKCORE_PCREL_IMM26BY2 19
-# endif
-# ifndef R_CKCORE_PCREL_IMM7BY4
-#  define R_CKCORE_PCREL_IMM7BY4 50
-# endif
-# ifndef R_CKCORE_PCREL_JSR_IMM26BY2
-#  define R_CKCORE_PCREL_JSR_IMM26BY2 40
-# endif
-# ifndef R_CKCORE_PLT12
-#  define R_CKCORE_PLT12 33
-# endif
-# ifndef R_CKCORE_PLT32
-#  define R_CKCORE_PLT32 16
-# endif
-# ifndef R_CKCORE_PLT_HI16
-#  define R_CKCORE_PLT_HI16 34
-# endif
-# ifndef R_CKCORE_PLT_IMM18BY4
-#  define R_CKCORE_PLT_IMM18BY4 49
-# endif
-# ifndef R_CKCORE_PLT_LO16
-#  define R_CKCORE_PLT_LO16 35
-# endif
-# ifndef R_CKCORE_RELATIVE
-#  define R_CKCORE_RELATIVE 9
-# endif
-# ifndef R_CKCORE_TLS_DTPMOD32
-#  define R_CKCORE_TLS_DTPMOD32 56
-# endif
-# ifndef R_CKCORE_TLS_DTPOFF32
-#  define R_CKCORE_TLS_DTPOFF32 57
-# endif
-# ifndef R_CKCORE_TLS_GD32
-#  define R_CKCORE_TLS_GD32 53
-# endif
-# ifndef R_CKCORE_TLS_IE32
-#  define R_CKCORE_TLS_IE32 52
-# endif
-# ifndef R_CKCORE_TLS_LDM32
-#  define R_CKCORE_TLS_LDM32 54
-# endif
-# ifndef R_CKCORE_TLS_LDO32
-#  define R_CKCORE_TLS_LDO32 55
-# endif
-# ifndef R_CKCORE_TLS_LE32
-#  define R_CKCORE_TLS_LE32 51
-# endif
-# ifndef R_CKCORE_TLS_TPOFF32
-#  define R_CKCORE_TLS_TPOFF32 58
-# endif
-# ifndef R_CKCORE_TOFFSET_LO16
-#  define R_CKCORE_TOFFSET_LO16 41
-# endif
-# ifndef R_CRIS_16
-#  define R_CRIS_16 2
-# endif
-# ifndef R_CRIS_16_GOT
-#  define R_CRIS_16_GOT 13
-# endif
-# ifndef R_CRIS_16_GOTPLT
-#  define R_CRIS_16_GOTPLT 15
-# endif
-# ifndef R_CRIS_16_PCREL
-#  define R_CRIS_16_PCREL 5
-# endif
-# ifndef R_CRIS_32
-#  define R_CRIS_32 3
-# endif
-# ifndef R_CRIS_32_GOT
-#  define R_CRIS_32_GOT 14
-# endif
-# ifndef R_CRIS_32_GOTPLT
-#  define R_CRIS_32_GOTPLT 16
-# endif
-# ifndef R_CRIS_32_GOTREL
-#  define R_CRIS_32_GOTREL 17
-# endif
-# ifndef R_CRIS_32_PCREL
-#  define R_CRIS_32_PCREL 6
-# endif
-# ifndef R_CRIS_32_PLT_GOTREL
-#  define R_CRIS_32_PLT_GOTREL 18
-# endif
-# ifndef R_CRIS_32_PLT_PCREL
-#  define R_CRIS_32_PLT_PCREL 19
-# endif
-# ifndef R_CRIS_8
-#  define R_CRIS_8 1
-# endif
-# ifndef R_CRIS_8_PCREL
-#  define R_CRIS_8_PCREL 4
-# endif
-# ifndef R_CRIS_COPY
-#  define R_CRIS_COPY 9
-# endif
-# ifndef R_CRIS_GLOB_DAT
-#  define R_CRIS_GLOB_DAT 10
-# endif
-# ifndef R_CRIS_GNU_VTENTRY
-#  define R_CRIS_GNU_VTENTRY 8
-# endif
-# ifndef R_CRIS_GNU_VTINHERIT
-#  define R_CRIS_GNU_VTINHERIT 7
-# endif
-# ifndef R_CRIS_JUMP_SLOT
-#  define R_CRIS_JUMP_SLOT 11
-# endif
-# ifndef R_CRIS_NONE
-#  define R_CRIS_NONE 0
-# endif
-# ifndef R_CRIS_NUM
-#  define R_CRIS_NUM 20
-# endif
-# ifndef R_CRIS_RELATIVE
-#  define R_CRIS_RELATIVE 12
-# endif
-# ifndef R_IA64_COPY
-#  define R_IA64_COPY 132
-# endif
-# ifndef R_IA64_DIR32LSB
-#  define R_IA64_DIR32LSB 37
-# endif
-# ifndef R_IA64_DIR32MSB
-#  define R_IA64_DIR32MSB 36
-# endif
-# ifndef R_IA64_DIR64LSB
-#  define R_IA64_DIR64LSB 39
-# endif
-# ifndef R_IA64_DIR64MSB
-#  define R_IA64_DIR64MSB 38
-# endif
-# ifndef R_IA64_DTPMOD64LSB
-#  define R_IA64_DTPMOD64LSB 167
-# endif
-# ifndef R_IA64_DTPMOD64MSB
-#  define R_IA64_DTPMOD64MSB 166
-# endif
-# ifndef R_IA64_DTPREL14
-#  define R_IA64_DTPREL14 177
-# endif
-# ifndef R_IA64_DTPREL22
-#  define R_IA64_DTPREL22 178
-# endif
-# ifndef R_IA64_DTPREL32LSB
-#  define R_IA64_DTPREL32LSB 181
-# endif
-# ifndef R_IA64_DTPREL32MSB
-#  define R_IA64_DTPREL32MSB 180
-# endif
-# ifndef R_IA64_DTPREL64I
-#  define R_IA64_DTPREL64I 179
-# endif
-# ifndef R_IA64_DTPREL64LSB
-#  define R_IA64_DTPREL64LSB 183
-# endif
-# ifndef R_IA64_DTPREL64MSB
-#  define R_IA64_DTPREL64MSB 182
-# endif
-# ifndef R_IA64_FPTR32LSB
-#  define R_IA64_FPTR32LSB 69
-# endif
-# ifndef R_IA64_FPTR32MSB
-#  define R_IA64_FPTR32MSB 68
-# endif
-# ifndef R_IA64_FPTR64I
-#  define R_IA64_FPTR64I 67
-# endif
-# ifndef R_IA64_FPTR64LSB
-#  define R_IA64_FPTR64LSB 71
-# endif
-# ifndef R_IA64_FPTR64MSB
-#  define R_IA64_FPTR64MSB 70
-# endif
-# ifndef R_IA64_GPREL22
-#  define R_IA64_GPREL22 42
-# endif
-# ifndef R_IA64_GPREL32LSB
-#  define R_IA64_GPREL32LSB 45
-# endif
-# ifndef R_IA64_GPREL32MSB
-#  define R_IA64_GPREL32MSB 44
-# endif
-# ifndef R_IA64_GPREL64I
-#  define R_IA64_GPREL64I 43
-# endif
-# ifndef R_IA64_GPREL64LSB
-#  define R_IA64_GPREL64LSB 47
-# endif
-# ifndef R_IA64_GPREL64MSB
-#  define R_IA64_GPREL64MSB 46
-# endif
-# ifndef R_IA64_IMM14
-#  define R_IA64_IMM14 33
-# endif
-# ifndef R_IA64_IMM22
-#  define R_IA64_IMM22 34
-# endif
-# ifndef R_IA64_IMM64
-#  define R_IA64_IMM64 35
-# endif
-# ifndef R_IA64_IPLTLSB
-#  define R_IA64_IPLTLSB 129
-# endif
-# ifndef R_IA64_IPLTMSB
-#  define R_IA64_IPLTMSB 128
-# endif
-# ifndef R_IA64_LDXMOV
-#  define R_IA64_LDXMOV 135
-# endif
-# ifndef R_IA64_LTOFF22
-#  define R_IA64_LTOFF22 50
-# endif
-# ifndef R_IA64_LTOFF22X
-#  define R_IA64_LTOFF22X 134
-# endif
-# ifndef R_IA64_LTOFF64I
-#  define R_IA64_LTOFF64I 51
-# endif
-# ifndef R_IA64_LTOFF_DTPMOD22
-#  define R_IA64_LTOFF_DTPMOD22 170
-# endif
-# ifndef R_IA64_LTOFF_DTPREL22
-#  define R_IA64_LTOFF_DTPREL22 186
-# endif
-# ifndef R_IA64_LTOFF_FPTR22
-#  define R_IA64_LTOFF_FPTR22 82
-# endif
-# ifndef R_IA64_LTOFF_FPTR32LSB
-#  define R_IA64_LTOFF_FPTR32LSB 85
-# endif
-# ifndef R_IA64_LTOFF_FPTR32MSB
-#  define R_IA64_LTOFF_FPTR32MSB 84
-# endif
-# ifndef R_IA64_LTOFF_FPTR64I
-#  define R_IA64_LTOFF_FPTR64I 83
-# endif
-# ifndef R_IA64_LTOFF_FPTR64LSB
-#  define R_IA64_LTOFF_FPTR64LSB 87
-# endif
-# ifndef R_IA64_LTOFF_FPTR64MSB
-#  define R_IA64_LTOFF_FPTR64MSB 86
-# endif
-# ifndef R_IA64_LTOFF_TPREL22
-#  define R_IA64_LTOFF_TPREL22 154
-# endif
-# ifndef R_IA64_LTV32LSB
-#  define R_IA64_LTV32LSB 117
-# endif
-# ifndef R_IA64_LTV32MSB
-#  define R_IA64_LTV32MSB 116
-# endif
-# ifndef R_IA64_LTV64LSB
-#  define R_IA64_LTV64LSB 119
-# endif
-# ifndef R_IA64_LTV64MSB
-#  define R_IA64_LTV64MSB 118
-# endif
-# ifndef R_IA64_NONE
-#  define R_IA64_NONE 0
-# endif
-# ifndef R_IA64_PCREL21B
-#  define R_IA64_PCREL21B 73
-# endif
-# ifndef R_IA64_PCREL21BI
-#  define R_IA64_PCREL21BI 121
-# endif
-# ifndef R_IA64_PCREL21F
-#  define R_IA64_PCREL21F 75
-# endif
-# ifndef R_IA64_PCREL21M
-#  define R_IA64_PCREL21M 74
-# endif
-# ifndef R_IA64_PCREL22
-#  define R_IA64_PCREL22 122
-# endif
-# ifndef R_IA64_PCREL32LSB
-#  define R_IA64_PCREL32LSB 77
-# endif
-# ifndef R_IA64_PCREL32MSB
-#  define R_IA64_PCREL32MSB 76
-# endif
-# ifndef R_IA64_PCREL60B
-#  define R_IA64_PCREL60B 72
-# endif
-# ifndef R_IA64_PCREL64I
-#  define R_IA64_PCREL64I 123
-# endif
-# ifndef R_IA64_PCREL64LSB
-#  define R_IA64_PCREL64LSB 79
-# endif
-# ifndef R_IA64_PCREL64MSB
-#  define R_IA64_PCREL64MSB 78
-# endif
-# ifndef R_IA64_PLTOFF22
-#  define R_IA64_PLTOFF22 58
-# endif
-# ifndef R_IA64_PLTOFF64I
-#  define R_IA64_PLTOFF64I 59
-# endif
-# ifndef R_IA64_PLTOFF64LSB
-#  define R_IA64_PLTOFF64LSB 63
-# endif
-# ifndef R_IA64_PLTOFF64MSB
-#  define R_IA64_PLTOFF64MSB 62
-# endif
-# ifndef R_IA64_REL32LSB
-#  define R_IA64_REL32LSB 109
-# endif
-# ifndef R_IA64_REL32MSB
-#  define R_IA64_REL32MSB 108
-# endif
-# ifndef R_IA64_REL64LSB
-#  define R_IA64_REL64LSB 111
-# endif
-# ifndef R_IA64_REL64MSB
-#  define R_IA64_REL64MSB 110
-# endif
-# ifndef R_IA64_SECREL32LSB
-#  define R_IA64_SECREL32LSB 101
-# endif
-# ifndef R_IA64_SECREL32MSB
-#  define R_IA64_SECREL32MSB 100
-# endif
-# ifndef R_IA64_SECREL64LSB
-#  define R_IA64_SECREL64LSB 103
-# endif
-# ifndef R_IA64_SECREL64MSB
-#  define R_IA64_SECREL64MSB 102
-# endif
-# ifndef R_IA64_SEGREL32LSB
-#  define R_IA64_SEGREL32LSB 93
-# endif
-# ifndef R_IA64_SEGREL32MSB
-#  define R_IA64_SEGREL32MSB 92
-# endif
-# ifndef R_IA64_SEGREL64LSB
-#  define R_IA64_SEGREL64LSB 95
-# endif
-# ifndef R_IA64_SEGREL64MSB
-#  define R_IA64_SEGREL64MSB 94
-# endif
-# ifndef R_IA64_SUB
-#  define R_IA64_SUB 133
-# endif
-# ifndef R_IA64_TPREL14
-#  define R_IA64_TPREL14 145
-# endif
-# ifndef R_IA64_TPREL22
-#  define R_IA64_TPREL22 146
-# endif
-# ifndef R_IA64_TPREL64I
-#  define R_IA64_TPREL64I 147
-# endif
-# ifndef R_IA64_TPREL64LSB
-#  define R_IA64_TPREL64LSB 151
-# endif
-# ifndef R_IA64_TPREL64MSB
-#  define R_IA64_TPREL64MSB 150
-# endif
-# ifndef R_LARCH_32
-#  define R_LARCH_32 1
-# endif
-# ifndef R_LARCH_32_PCREL
-#  define R_LARCH_32_PCREL 99
-# endif
-# ifndef R_LARCH_64
-#  define R_LARCH_64 2
-# endif
-# ifndef R_LARCH_64_PCREL
-#  define R_LARCH_64_PCREL 109
-# endif
-# ifndef R_LARCH_ABS64_HI12
-#  define R_LARCH_ABS64_HI12 70
-# endif
-# ifndef R_LARCH_ABS64_LO20
-#  define R_LARCH_ABS64_LO20 69
-# endif
-# ifndef R_LARCH_ABS_HI20
-#  define R_LARCH_ABS_HI20 67
-# endif
-# ifndef R_LARCH_ABS_LO12
-#  define R_LARCH_ABS_LO12 68
-# endif
-# ifndef R_LARCH_ADD16
-#  define R_LARCH_ADD16 48
-# endif
-# ifndef R_LARCH_ADD24
-#  define R_LARCH_ADD24 49
-# endif
-# ifndef R_LARCH_ADD32
-#  define R_LARCH_ADD32 50
-# endif
-# ifndef R_LARCH_ADD6
-#  define R_LARCH_ADD6 105
-# endif
-# ifndef R_LARCH_ADD64
-#  define R_LARCH_ADD64 51
-# endif
-# ifndef R_LARCH_ADD8
-#  define R_LARCH_ADD8 47
-# endif
-# ifndef R_LARCH_ADD_ULEB128
-#  define R_LARCH_ADD_ULEB128 107
-# endif
-# ifndef R_LARCH_ALIGN
-#  define R_LARCH_ALIGN 102
-# endif
-# ifndef R_LARCH_B16
-#  define R_LARCH_B16 64
-# endif
-# ifndef R_LARCH_B21
-#  define R_LARCH_B21 65
-# endif
-# ifndef R_LARCH_B26
-#  define R_LARCH_B26 66
-# endif
-# ifndef R_LARCH_CFA
-#  define R_LARCH_CFA 104
-# endif
-# ifndef R_LARCH_COPY
-#  define R_LARCH_COPY 4
-# endif
-# ifndef R_LARCH_DELETE
-#  define R_LARCH_DELETE 101
-# endif
-# ifndef R_LARCH_GNU_VTENTRY
-#  define R_LARCH_GNU_VTENTRY 58
-# endif
-# ifndef R_LARCH_GNU_VTINHERIT
-#  define R_LARCH_GNU_VTINHERIT 57
-# endif
-# ifndef R_LARCH_GOT64_HI12
-#  define R_LARCH_GOT64_HI12 82
-# endif
-# ifndef R_LARCH_GOT64_LO20
-#  define R_LARCH_GOT64_LO20 81
-# endif
-# ifndef R_LARCH_GOT64_PC_HI12
-#  define R_LARCH_GOT64_PC_HI12 78
-# endif
-# ifndef R_LARCH_GOT64_PC_LO20
-#  define R_LARCH_GOT64_PC_LO20 77
-# endif
-# ifndef R_LARCH_GOT_HI20
-#  define R_LARCH_GOT_HI20 79
-# endif
-# ifndef R_LARCH_GOT_LO12
-#  define R_LARCH_GOT_LO12 80
-# endif
-# ifndef R_LARCH_GOT_PC_HI20
-#  define R_LARCH_GOT_PC_HI20 75
-# endif
-# ifndef R_LARCH_GOT_PC_LO12
-#  define R_LARCH_GOT_PC_LO12 76
-# endif
-# ifndef R_LARCH_IRELATIVE
-#  define R_LARCH_IRELATIVE 12
-# endif
-# ifndef R_LARCH_JUMP_SLOT
-#  define R_LARCH_JUMP_SLOT 5
-# endif
-# ifndef R_LARCH_MARK_LA
-#  define R_LARCH_MARK_LA 20
-# endif
-# ifndef R_LARCH_MARK_PCREL
-#  define R_LARCH_MARK_PCREL 21
-# endif
-# ifndef R_LARCH_NONE
-#  define R_LARCH_NONE 0
-# endif
-# ifndef R_LARCH_PCALA64_HI12
-#  define R_LARCH_PCALA64_HI12 74
-# endif
-# ifndef R_LARCH_PCALA64_LO20
-#  define R_LARCH_PCALA64_LO20 73
-# endif
-# ifndef R_LARCH_PCALA_HI20
-#  define R_LARCH_PCALA_HI20 71
-# endif
-# ifndef R_LARCH_PCALA_LO12
-#  define R_LARCH_PCALA_LO12 72
-# endif
-# ifndef R_LARCH_PCREL20_S2
-#  define R_LARCH_PCREL20_S2 103
-# endif
-# ifndef R_LARCH_RELATIVE
-#  define R_LARCH_RELATIVE 3
-# endif
-# ifndef R_LARCH_RELAX
-#  define R_LARCH_RELAX 100
-# endif
-# ifndef R_LARCH_SOP_ADD
-#  define R_LARCH_SOP_ADD 35
-# endif
-# ifndef R_LARCH_SOP_AND
-#  define R_LARCH_SOP_AND 36
-# endif
-# ifndef R_LARCH_SOP_ASSERT
-#  define R_LARCH_SOP_ASSERT 30
-# endif
-# ifndef R_LARCH_SOP_IF_ELSE
-#  define R_LARCH_SOP_IF_ELSE 37
-# endif
-# ifndef R_LARCH_SOP_NOT
-#  define R_LARCH_SOP_NOT 31
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_0_10_10_16_S2
-#  define R_LARCH_SOP_POP_32_S_0_10_10_16_S2 45
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_0_5_10_16_S2
-#  define R_LARCH_SOP_POP_32_S_0_5_10_16_S2 44
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_10_12
-#  define R_LARCH_SOP_POP_32_S_10_12 40
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_10_16
-#  define R_LARCH_SOP_POP_32_S_10_16 41
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_10_16_S2
-#  define R_LARCH_SOP_POP_32_S_10_16_S2 42
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_10_5
-#  define R_LARCH_SOP_POP_32_S_10_5 38
-# endif
-# ifndef R_LARCH_SOP_POP_32_S_5_20
-#  define R_LARCH_SOP_POP_32_S_5_20 43
-# endif
-# ifndef R_LARCH_SOP_POP_32_U
-#  define R_LARCH_SOP_POP_32_U 46
-# endif
-# ifndef R_LARCH_SOP_POP_32_U_10_12
-#  define R_LARCH_SOP_POP_32_U_10_12 39
-# endif
-# ifndef R_LARCH_SOP_PUSH_ABSOLUTE
-#  define R_LARCH_SOP_PUSH_ABSOLUTE 23
-# endif
-# ifndef R_LARCH_SOP_PUSH_DUP
-#  define R_LARCH_SOP_PUSH_DUP 24
-# endif
-# ifndef R_LARCH_SOP_PUSH_GPREL
-#  define R_LARCH_SOP_PUSH_GPREL 25
-# endif
-# ifndef R_LARCH_SOP_PUSH_PCREL
-#  define R_LARCH_SOP_PUSH_PCREL 22
-# endif
-# ifndef R_LARCH_SOP_PUSH_PLT_PCREL
-#  define R_LARCH_SOP_PUSH_PLT_PCREL 29
-# endif
-# ifndef R_LARCH_SOP_PUSH_TLS_GD
-#  define R_LARCH_SOP_PUSH_TLS_GD 28
-# endif
-# ifndef R_LARCH_SOP_PUSH_TLS_GOT
-#  define R_LARCH_SOP_PUSH_TLS_GOT 27
-# endif
-# ifndef R_LARCH_SOP_PUSH_TLS_TPREL
-#  define R_LARCH_SOP_PUSH_TLS_TPREL 26
-# endif
-# ifndef R_LARCH_SOP_SL
-#  define R_LARCH_SOP_SL 33
-# endif
-# ifndef R_LARCH_SOP_SR
-#  define R_LARCH_SOP_SR 34
-# endif
-# ifndef R_LARCH_SOP_SUB
-#  define R_LARCH_SOP_SUB 32
-# endif
-# ifndef R_LARCH_SUB16
-#  define R_LARCH_SUB16 53
-# endif
-# ifndef R_LARCH_SUB24
-#  define R_LARCH_SUB24 54
-# endif
-# ifndef R_LARCH_SUB32
-#  define R_LARCH_SUB32 55
-# endif
-# ifndef R_LARCH_SUB6
-#  define R_LARCH_SUB6 106
-# endif
-# ifndef R_LARCH_SUB64
-#  define R_LARCH_SUB64 56
-# endif
-# ifndef R_LARCH_SUB8
-#  define R_LARCH_SUB8 52
-# endif
-# ifndef R_LARCH_SUB_ULEB128
-#  define R_LARCH_SUB_ULEB128 108
-# endif
-# ifndef R_LARCH_TLS_DTPMOD32
-#  define R_LARCH_TLS_DTPMOD32 6
-# endif
-# ifndef R_LARCH_TLS_DTPMOD64
-#  define R_LARCH_TLS_DTPMOD64 7
-# endif
-# ifndef R_LARCH_TLS_DTPREL32
-#  define R_LARCH_TLS_DTPREL32 8
-# endif
-# ifndef R_LARCH_TLS_DTPREL64
-#  define R_LARCH_TLS_DTPREL64 9
-# endif
-# ifndef R_LARCH_TLS_GD_HI20
-#  define R_LARCH_TLS_GD_HI20 98
-# endif
-# ifndef R_LARCH_TLS_GD_PC_HI20
-#  define R_LARCH_TLS_GD_PC_HI20 97
-# endif
-# ifndef R_LARCH_TLS_IE64_HI12
-#  define R_LARCH_TLS_IE64_HI12 94
-# endif
-# ifndef R_LARCH_TLS_IE64_LO20
-#  define R_LARCH_TLS_IE64_LO20 93
-# endif
-# ifndef R_LARCH_TLS_IE64_PC_HI12
-#  define R_LARCH_TLS_IE64_PC_HI12 90
-# endif
-# ifndef R_LARCH_TLS_IE64_PC_LO20
-#  define R_LARCH_TLS_IE64_PC_LO20 89
-# endif
-# ifndef R_LARCH_TLS_IE_HI20
-#  define R_LARCH_TLS_IE_HI20 91
-# endif
-# ifndef R_LARCH_TLS_IE_LO12
-#  define R_LARCH_TLS_IE_LO12 92
-# endif
-# ifndef R_LARCH_TLS_IE_PC_HI20
-#  define R_LARCH_TLS_IE_PC_HI20 87
-# endif
-# ifndef R_LARCH_TLS_IE_PC_LO12
-#  define R_LARCH_TLS_IE_PC_LO12 88
-# endif
-# ifndef R_LARCH_TLS_LD_HI20
-#  define R_LARCH_TLS_LD_HI20 96
-# endif
-# ifndef R_LARCH_TLS_LD_PC_HI20
-#  define R_LARCH_TLS_LD_PC_HI20 95
-# endif
-# ifndef R_LARCH_TLS_LE64_HI12
-#  define R_LARCH_TLS_LE64_HI12 86
-# endif
-# ifndef R_LARCH_TLS_LE64_LO20
-#  define R_LARCH_TLS_LE64_LO20 85
-# endif
-# ifndef R_LARCH_TLS_LE_HI20
-#  define R_LARCH_TLS_LE_HI20 83
-# endif
-# ifndef R_LARCH_TLS_LE_LO12
-#  define R_LARCH_TLS_LE_LO12 84
-# endif
-# ifndef R_LARCH_TLS_TPREL32
-#  define R_LARCH_TLS_TPREL32 10
-# endif
-# ifndef R_LARCH_TLS_TPREL64
-#  define R_LARCH_TLS_TPREL64 11
-# endif
-# ifndef R_M32R_10_PCREL
-#  define R_M32R_10_PCREL 4
-# endif
-# ifndef R_M32R_10_PCREL_RELA
-#  define R_M32R_10_PCREL_RELA 36
-# endif
-# ifndef R_M32R_16
-#  define R_M32R_16 1
-# endif
-# ifndef R_M32R_16_RELA
-#  define R_M32R_16_RELA 33
-# endif
-# ifndef R_M32R_18_PCREL
-#  define R_M32R_18_PCREL 5
-# endif
-# ifndef R_M32R_18_PCREL_RELA
-#  define R_M32R_18_PCREL_RELA 37
-# endif
-# ifndef R_M32R_24
-#  define R_M32R_24 3
-# endif
-# ifndef R_M32R_24_RELA
-#  define R_M32R_24_RELA 35
-# endif
-# ifndef R_M32R_26_PCREL
-#  define R_M32R_26_PCREL 6
-# endif
-# ifndef R_M32R_26_PCREL_RELA
-#  define R_M32R_26_PCREL_RELA 38
-# endif
-# ifndef R_M32R_26_PLTREL
-#  define R_M32R_26_PLTREL 49
-# endif
-# ifndef R_M32R_32
-#  define R_M32R_32 2
-# endif
-# ifndef R_M32R_32_RELA
-#  define R_M32R_32_RELA 34
-# endif
-# ifndef R_M32R_COPY
-#  define R_M32R_COPY 50
-# endif
-# ifndef R_M32R_GLOB_DAT
-#  define R_M32R_GLOB_DAT 51
-# endif
-# ifndef R_M32R_GNU_VTENTRY
-#  define R_M32R_GNU_VTENTRY 12
-# endif
-# ifndef R_M32R_GNU_VTINHERIT
-#  define R_M32R_GNU_VTINHERIT 11
-# endif
-# ifndef R_M32R_GOT16_HI_SLO
-#  define R_M32R_GOT16_HI_SLO 57
-# endif
-# ifndef R_M32R_GOT16_HI_ULO
-#  define R_M32R_GOT16_HI_ULO 56
-# endif
-# ifndef R_M32R_GOT16_LO
-#  define R_M32R_GOT16_LO 58
-# endif
-# ifndef R_M32R_GOT24
-#  define R_M32R_GOT24 48
-# endif
-# ifndef R_M32R_GOTOFF
-#  define R_M32R_GOTOFF 54
-# endif
-# ifndef R_M32R_GOTOFF_HI_SLO
-#  define R_M32R_GOTOFF_HI_SLO 63
-# endif
-# ifndef R_M32R_GOTOFF_HI_ULO
-#  define R_M32R_GOTOFF_HI_ULO 62
-# endif
-# ifndef R_M32R_GOTOFF_LO
-#  define R_M32R_GOTOFF_LO 64
-# endif
-# ifndef R_M32R_GOTPC24
-#  define R_M32R_GOTPC24 55
-# endif
-# ifndef R_M32R_GOTPC_HI_SLO
-#  define R_M32R_GOTPC_HI_SLO 60
-# endif
-# ifndef R_M32R_GOTPC_HI_ULO
-#  define R_M32R_GOTPC_HI_ULO 59
-# endif
-# ifndef R_M32R_GOTPC_LO
-#  define R_M32R_GOTPC_LO 61
-# endif
-# ifndef R_M32R_HI16_SLO
-#  define R_M32R_HI16_SLO 8
-# endif
-# ifndef R_M32R_HI16_SLO_RELA
-#  define R_M32R_HI16_SLO_RELA 40
-# endif
-# ifndef R_M32R_HI16_ULO
-#  define R_M32R_HI16_ULO 7
-# endif
-# ifndef R_M32R_HI16_ULO_RELA
-#  define R_M32R_HI16_ULO_RELA 39
-# endif
-# ifndef R_M32R_JMP_SLOT
-#  define R_M32R_JMP_SLOT 52
-# endif
-# ifndef R_M32R_LO16
-#  define R_M32R_LO16 9
-# endif
-# ifndef R_M32R_LO16_RELA
-#  define R_M32R_LO16_RELA 41
-# endif
-# ifndef R_M32R_NONE
-#  define R_M32R_NONE 0
-# endif
-# ifndef R_M32R_NUM
-#  define R_M32R_NUM 256
-# endif
-# ifndef R_M32R_REL32
-#  define R_M32R_REL32 45
-# endif
-# ifndef R_M32R_RELATIVE
-#  define R_M32R_RELATIVE 53
-# endif
-# ifndef R_M32R_RELA_GNU_VTENTRY
-#  define R_M32R_RELA_GNU_VTENTRY 44
-# endif
-# ifndef R_M32R_RELA_GNU_VTINHERIT
-#  define R_M32R_RELA_GNU_VTINHERIT 43
-# endif
-# ifndef R_M32R_SDA16
-#  define R_M32R_SDA16 10
-# endif
-# ifndef R_M32R_SDA16_RELA
-#  define R_M32R_SDA16_RELA 42
-# endif
-# ifndef R_METAG_ADDR32
-#  define R_METAG_ADDR32 2
-# endif
-# ifndef R_METAG_COPY
-#  define R_METAG_COPY 43
-# endif
-# ifndef R_METAG_GETSETOFF
-#  define R_METAG_GETSETOFF 5
-# endif
-# ifndef R_METAG_GETSET_GOT
-#  define R_METAG_GETSET_GOT 35
-# endif
-# ifndef R_METAG_GETSET_GOTOFF
-#  define R_METAG_GETSET_GOTOFF 34
-# endif
-# ifndef R_METAG_GLOB_DAT
-#  define R_METAG_GLOB_DAT 46
-# endif
-# ifndef R_METAG_GNU_VTENTRY
-#  define R_METAG_GNU_VTENTRY 31
-# endif
-# ifndef R_METAG_GNU_VTINHERIT
-#  define R_METAG_GNU_VTINHERIT 30
-# endif
-# ifndef R_METAG_GOTOFF
-#  define R_METAG_GOTOFF 41
-# endif
-# ifndef R_METAG_HI16_GOTOFF
-#  define R_METAG_HI16_GOTOFF 32
-# endif
-# ifndef R_METAG_HI16_GOTPC
-#  define R_METAG_HI16_GOTPC 36
-# endif
-# ifndef R_METAG_HI16_PLT
-#  define R_METAG_HI16_PLT 38
-# endif
-# ifndef R_METAG_HIADDR16
-#  define R_METAG_HIADDR16 0
-# endif
-# ifndef R_METAG_HIOG
-#  define R_METAG_HIOG 13
-# endif
-# ifndef R_METAG_JMP_SLOT
-#  define R_METAG_JMP_SLOT 44
-# endif
-# ifndef R_METAG_LO16_GOTOFF
-#  define R_METAG_LO16_GOTOFF 33
-# endif
-# ifndef R_METAG_LO16_GOTPC
-#  define R_METAG_LO16_GOTPC 37
-# endif
-# ifndef R_METAG_LO16_PLT
-#  define R_METAG_LO16_PLT 39
-# endif
-# ifndef R_METAG_LOADDR16
-#  define R_METAG_LOADDR16 1
-# endif
-# ifndef R_METAG_LOOG
-#  define R_METAG_LOOG 14
-# endif
-# ifndef R_METAG_NONE
-#  define R_METAG_NONE 3
-# endif
-# ifndef R_METAG_PLT
-#  define R_METAG_PLT 42
-# endif
-# ifndef R_METAG_REG16OP1
-#  define R_METAG_REG16OP1 9
-# endif
-# ifndef R_METAG_REG16OP2
-#  define R_METAG_REG16OP2 10
-# endif
-# ifndef R_METAG_REG16OP3
-#  define R_METAG_REG16OP3 11
-# endif
-# ifndef R_METAG_REG32OP1
-#  define R_METAG_REG32OP1 6
-# endif
-# ifndef R_METAG_REG32OP2
-#  define R_METAG_REG32OP2 7
-# endif
-# ifndef R_METAG_REG32OP3
-#  define R_METAG_REG32OP3 8
-# endif
-# ifndef R_METAG_REG32OP4
-#  define R_METAG_REG32OP4 12
-# endif
-# ifndef R_METAG_REL16
-#  define R_METAG_REL16 16
-# endif
-# ifndef R_METAG_REL8
-#  define R_METAG_REL8 15
-# endif
-# ifndef R_METAG_RELATIVE
-#  define R_METAG_RELATIVE 45
-# endif
-# ifndef R_METAG_RELBRANCH
-#  define R_METAG_RELBRANCH 4
-# endif
-# ifndef R_METAG_RELBRANCH_PLT
-#  define R_METAG_RELBRANCH_PLT 40
-# endif
-# ifndef R_METAG_TLS_DTPMOD
-#  define R_METAG_TLS_DTPMOD 57
-# endif
-# ifndef R_METAG_TLS_DTPOFF
-#  define R_METAG_TLS_DTPOFF 58
-# endif
-# ifndef R_METAG_TLS_GD
-#  define R_METAG_TLS_GD 47
-# endif
-# ifndef R_METAG_TLS_IE
-#  define R_METAG_TLS_IE 52
-# endif
-# ifndef R_METAG_TLS_IENONPIC
-#  define R_METAG_TLS_IENONPIC 53
-# endif
-# ifndef R_METAG_TLS_IENONPIC_HI16
-#  define R_METAG_TLS_IENONPIC_HI16 54
-# endif
-# ifndef R_METAG_TLS_IENONPIC_LO16
-#  define R_METAG_TLS_IENONPIC_LO16 55
-# endif
-# ifndef R_METAG_TLS_LDM
-#  define R_METAG_TLS_LDM 48
-# endif
-# ifndef R_METAG_TLS_LDO
-#  define R_METAG_TLS_LDO 51
-# endif
-# ifndef R_METAG_TLS_LDO_HI16
-#  define R_METAG_TLS_LDO_HI16 49
-# endif
-# ifndef R_METAG_TLS_LDO_LO16
-#  define R_METAG_TLS_LDO_LO16 50
-# endif
-# ifndef R_METAG_TLS_LE
-#  define R_METAG_TLS_LE 59
-# endif
-# ifndef R_METAG_TLS_LE_HI16
-#  define R_METAG_TLS_LE_HI16 60
-# endif
-# ifndef R_METAG_TLS_LE_LO16
-#  define R_METAG_TLS_LE_LO16 61
-# endif
-# ifndef R_METAG_TLS_TPOFF
-#  define R_METAG_TLS_TPOFF 56
-# endif
-# ifndef R_MICROBLAZE_32
-#  define R_MICROBLAZE_32 1
-# endif
-# ifndef R_MICROBLAZE_32_LO
-#  define R_MICROBLAZE_32_LO 6
-# endif
-# ifndef R_MICROBLAZE_32_PCREL
-#  define R_MICROBLAZE_32_PCREL 2
-# endif
-# ifndef R_MICROBLAZE_32_PCREL_LO
-#  define R_MICROBLAZE_32_PCREL_LO 4
-# endif
-# ifndef R_MICROBLAZE_32_SYM_OP_SYM
-#  define R_MICROBLAZE_32_SYM_OP_SYM 10
-# endif
-# ifndef R_MICROBLAZE_64
-#  define R_MICROBLAZE_64 5
-# endif
-# ifndef R_MICROBLAZE_64_NONE
-#  define R_MICROBLAZE_64_NONE 9
-# endif
-# ifndef R_MICROBLAZE_64_PCREL
-#  define R_MICROBLAZE_64_PCREL 3
-# endif
-# ifndef R_MICROBLAZE_COPY
-#  define R_MICROBLAZE_COPY 21
-# endif
-# ifndef R_MICROBLAZE_GLOB_DAT
-#  define R_MICROBLAZE_GLOB_DAT 18
-# endif
-# ifndef R_MICROBLAZE_GNU_VTENTRY
-#  define R_MICROBLAZE_GNU_VTENTRY 12
-# endif
-# ifndef R_MICROBLAZE_GNU_VTINHERIT
-#  define R_MICROBLAZE_GNU_VTINHERIT 11
-# endif
-# ifndef R_MICROBLAZE_GOTOFF_32
-#  define R_MICROBLAZE_GOTOFF_32 20
-# endif
-# ifndef R_MICROBLAZE_GOTOFF_64
-#  define R_MICROBLAZE_GOTOFF_64 19
-# endif
-# ifndef R_MICROBLAZE_GOTPC_64
-#  define R_MICROBLAZE_GOTPC_64 13
-# endif
-# ifndef R_MICROBLAZE_GOT_64
-#  define R_MICROBLAZE_GOT_64 14
-# endif
-# ifndef R_MICROBLAZE_JUMP_SLOT
-#  define R_MICROBLAZE_JUMP_SLOT 17
-# endif
-# ifndef R_MICROBLAZE_NONE
-#  define R_MICROBLAZE_NONE 0
-# endif
-# ifndef R_MICROBLAZE_PLT_64
-#  define R_MICROBLAZE_PLT_64 15
-# endif
-# ifndef R_MICROBLAZE_REL
-#  define R_MICROBLAZE_REL 16
-# endif
-# ifndef R_MICROBLAZE_SRO32
-#  define R_MICROBLAZE_SRO32 7
-# endif
-# ifndef R_MICROBLAZE_SRW32
-#  define R_MICROBLAZE_SRW32 8
-# endif
-# ifndef R_MICROBLAZE_TLS
-#  define R_MICROBLAZE_TLS 22
-# endif
-# ifndef R_MICROBLAZE_TLSDTPMOD32
-#  define R_MICROBLAZE_TLSDTPMOD32 25
-# endif
-# ifndef R_MICROBLAZE_TLSDTPREL32
-#  define R_MICROBLAZE_TLSDTPREL32 26
-# endif
-# ifndef R_MICROBLAZE_TLSDTPREL64
-#  define R_MICROBLAZE_TLSDTPREL64 27
-# endif
-# ifndef R_MICROBLAZE_TLSGD
-#  define R_MICROBLAZE_TLSGD 23
-# endif
-# ifndef R_MICROBLAZE_TLSGOTTPREL32
-#  define R_MICROBLAZE_TLSGOTTPREL32 28
-# endif
-# ifndef R_MICROBLAZE_TLSLD
-#  define R_MICROBLAZE_TLSLD 24
-# endif
-# ifndef R_MICROBLAZE_TLSTPREL32
-#  define R_MICROBLAZE_TLSTPREL32 29
-# endif
-# ifndef R_MICROMIPS_26_S1
-#  define R_MICROMIPS_26_S1 133
-# endif
-# ifndef R_MICROMIPS_CALL16
-#  define R_MICROMIPS_CALL16 142
-# endif
-# ifndef R_MICROMIPS_CALL_HI16
-#  define R_MICROMIPS_CALL_HI16 153
-# endif
-# ifndef R_MICROMIPS_CALL_LO16
-#  define R_MICROMIPS_CALL_LO16 154
-# endif
-# ifndef R_MICROMIPS_GOT16
-#  define R_MICROMIPS_GOT16 138
-# endif
-# ifndef R_MICROMIPS_GOT_DISP
-#  define R_MICROMIPS_GOT_DISP 145
-# endif
-# ifndef R_MICROMIPS_GOT_HI16
-#  define R_MICROMIPS_GOT_HI16 148
-# endif
-# ifndef R_MICROMIPS_GOT_LO16
-#  define R_MICROMIPS_GOT_LO16 149
-# endif
-# ifndef R_MICROMIPS_GOT_OFST
-#  define R_MICROMIPS_GOT_OFST 147
-# endif
-# ifndef R_MICROMIPS_GOT_PAGE
-#  define R_MICROMIPS_GOT_PAGE 146
-# endif
-# ifndef R_MICROMIPS_GPREL16
-#  define R_MICROMIPS_GPREL16 136
-# endif
-# ifndef R_MICROMIPS_GPREL7_S2
-#  define R_MICROMIPS_GPREL7_S2 172
-# endif
-# ifndef R_MICROMIPS_HI0_LO16
-#  define R_MICROMIPS_HI0_LO16 157
-# endif
-# ifndef R_MICROMIPS_HI16
-#  define R_MICROMIPS_HI16 134
-# endif
-# ifndef R_MICROMIPS_HIGHER
-#  define R_MICROMIPS_HIGHER 151
-# endif
-# ifndef R_MICROMIPS_HIGHEST
-#  define R_MICROMIPS_HIGHEST 152
-# endif
-# ifndef R_MICROMIPS_JALR
-#  define R_MICROMIPS_JALR 156
-# endif
-# ifndef R_MICROMIPS_LITERAL
-#  define R_MICROMIPS_LITERAL 137
-# endif
-# ifndef R_MICROMIPS_LO16
-#  define R_MICROMIPS_LO16 135
-# endif
-# ifndef R_MICROMIPS_PC10_S1
-#  define R_MICROMIPS_PC10_S1 140
-# endif
-# ifndef R_MICROMIPS_PC16_S1
-#  define R_MICROMIPS_PC16_S1 141
-# endif
-# ifndef R_MICROMIPS_PC23_S2
-#  define R_MICROMIPS_PC23_S2 173
-# endif
-# ifndef R_MICROMIPS_PC7_S1
-#  define R_MICROMIPS_PC7_S1 139
-# endif
-# ifndef R_MICROMIPS_SCN_DISP
-#  define R_MICROMIPS_SCN_DISP 155
-# endif
-# ifndef R_MICROMIPS_SUB
-#  define R_MICROMIPS_SUB 150
-# endif
-# ifndef R_MICROMIPS_TLS_DTPREL_HI16
-#  define R_MICROMIPS_TLS_DTPREL_HI16 164
-# endif
-# ifndef R_MICROMIPS_TLS_DTPREL_LO16
-#  define R_MICROMIPS_TLS_DTPREL_LO16 165
-# endif
-# ifndef R_MICROMIPS_TLS_GD
-#  define R_MICROMIPS_TLS_GD 162
-# endif
-# ifndef R_MICROMIPS_TLS_GOTTPREL
-#  define R_MICROMIPS_TLS_GOTTPREL 166
-# endif
-# ifndef R_MICROMIPS_TLS_LDM
-#  define R_MICROMIPS_TLS_LDM 163
-# endif
-# ifndef R_MICROMIPS_TLS_TPREL_HI16
-#  define R_MICROMIPS_TLS_TPREL_HI16 169
-# endif
-# ifndef R_MICROMIPS_TLS_TPREL_LO16
-#  define R_MICROMIPS_TLS_TPREL_LO16 170
-# endif
-# ifndef R_MIPS16_26
-#  define R_MIPS16_26 100
-# endif
-# ifndef R_MIPS16_CALL16
-#  define R_MIPS16_CALL16 103
-# endif
-# ifndef R_MIPS16_GOT16
-#  define R_MIPS16_GOT16 102
-# endif
-# ifndef R_MIPS16_GPREL
-#  define R_MIPS16_GPREL 101
-# endif
-# ifndef R_MIPS16_HI16
-#  define R_MIPS16_HI16 104
-# endif
-# ifndef R_MIPS16_LO16
-#  define R_MIPS16_LO16 105
-# endif
-# ifndef R_MIPS16_PC16_S1
-#  define R_MIPS16_PC16_S1 113
-# endif
-# ifndef R_MIPS16_TLS_DTPREL_HI16
-#  define R_MIPS16_TLS_DTPREL_HI16 108
-# endif
-# ifndef R_MIPS16_TLS_DTPREL_LO16
-#  define R_MIPS16_TLS_DTPREL_LO16 109
-# endif
-# ifndef R_MIPS16_TLS_GD
-#  define R_MIPS16_TLS_GD 106
-# endif
-# ifndef R_MIPS16_TLS_GOTTPREL
-#  define R_MIPS16_TLS_GOTTPREL 110
-# endif
-# ifndef R_MIPS16_TLS_LDM
-#  define R_MIPS16_TLS_LDM 107
-# endif
-# ifndef R_MIPS16_TLS_TPREL_HI16
-#  define R_MIPS16_TLS_TPREL_HI16 111
-# endif
-# ifndef R_MIPS16_TLS_TPREL_LO16
-#  define R_MIPS16_TLS_TPREL_LO16 112
-# endif
-# ifndef R_MIPS_16
-#  define R_MIPS_16 1
-# endif
-# ifndef R_MIPS_26
-#  define R_MIPS_26 4
-# endif
-# ifndef R_MIPS_32
-#  define R_MIPS_32 2
-# endif
-# ifndef R_MIPS_64
-#  define R_MIPS_64 18
-# endif
-# ifndef R_MIPS_ADD_IMMEDIATE
-#  define R_MIPS_ADD_IMMEDIATE 34
-# endif
-# ifndef R_MIPS_CALL16
-#  define R_MIPS_CALL16 11
-# endif
-# ifndef R_MIPS_CALL_HI16
-#  define R_MIPS_CALL_HI16 30
-# endif
-# ifndef R_MIPS_CALL_LO16
-#  define R_MIPS_CALL_LO16 31
-# endif
-# ifndef R_MIPS_COPY
-#  define R_MIPS_COPY 126
-# endif
-# ifndef R_MIPS_DELETE
-#  define R_MIPS_DELETE 27
-# endif
-# ifndef R_MIPS_EH
-#  define R_MIPS_EH 249
-# endif
-# ifndef R_MIPS_GLOB_DAT
-#  define R_MIPS_GLOB_DAT 51
-# endif
-# ifndef R_MIPS_GNU_REL16_S2
-#  define R_MIPS_GNU_REL16_S2 250
-# endif
-# ifndef R_MIPS_GNU_VTENTRY
-#  define R_MIPS_GNU_VTENTRY 254
-# endif
-# ifndef R_MIPS_GNU_VTINHERIT
-#  define R_MIPS_GNU_VTINHERIT 253
-# endif
-# ifndef R_MIPS_GOT16
-#  define R_MIPS_GOT16 9
-# endif
-# ifndef R_MIPS_GOT_DISP
-#  define R_MIPS_GOT_DISP 19
-# endif
-# ifndef R_MIPS_GOT_HI16
-#  define R_MIPS_GOT_HI16 22
-# endif
-# ifndef R_MIPS_GOT_LO16
-#  define R_MIPS_GOT_LO16 23
-# endif
-# ifndef R_MIPS_GOT_OFST
-#  define R_MIPS_GOT_OFST 21
-# endif
-# ifndef R_MIPS_GOT_PAGE
-#  define R_MIPS_GOT_PAGE 20
-# endif
-# ifndef R_MIPS_GPREL16
-#  define R_MIPS_GPREL16 7
-# endif
-# ifndef R_MIPS_GPREL32
-#  define R_MIPS_GPREL32 12
-# endif
-# ifndef R_MIPS_HI16
-#  define R_MIPS_HI16 5
-# endif
-# ifndef R_MIPS_HIGHER
-#  define R_MIPS_HIGHER 28
-# endif
-# ifndef R_MIPS_HIGHEST
-#  define R_MIPS_HIGHEST 29
-# endif
-# ifndef R_MIPS_INSERT_A
-#  define R_MIPS_INSERT_A 25
-# endif
-# ifndef R_MIPS_INSERT_B
-#  define R_MIPS_INSERT_B 26
-# endif
-# ifndef R_MIPS_JALR
-#  define R_MIPS_JALR 37
-# endif
-# ifndef R_MIPS_JUMP_SLOT
-#  define R_MIPS_JUMP_SLOT 127
-# endif
-# ifndef R_MIPS_LITERAL
-#  define R_MIPS_LITERAL 8
-# endif
-# ifndef R_MIPS_LO16
-#  define R_MIPS_LO16 6
-# endif
-# ifndef R_MIPS_NONE
-#  define R_MIPS_NONE 0
-# endif
-# ifndef R_MIPS_NUM
-#  define R_MIPS_NUM 255
-# endif
-# ifndef R_MIPS_PC16
-#  define R_MIPS_PC16 10
-# endif
-# ifndef R_MIPS_PC18_S3
-#  define R_MIPS_PC18_S3 62
-# endif
-# ifndef R_MIPS_PC19_S2
-#  define R_MIPS_PC19_S2 63
-# endif
-# ifndef R_MIPS_PC21_S2
-#  define R_MIPS_PC21_S2 60
-# endif
-# ifndef R_MIPS_PC26_S2
-#  define R_MIPS_PC26_S2 61
-# endif
-# ifndef R_MIPS_PC32
-#  define R_MIPS_PC32 248
-# endif
-# ifndef R_MIPS_PCHI16
-#  define R_MIPS_PCHI16 64
-# endif
-# ifndef R_MIPS_PCLO16
-#  define R_MIPS_PCLO16 65
-# endif
-# ifndef R_MIPS_PJUMP
-#  define R_MIPS_PJUMP 35
-# endif
-# ifndef R_MIPS_REL16
-#  define R_MIPS_REL16 33
-# endif
-# ifndef R_MIPS_REL32
-#  define R_MIPS_REL32 3
-# endif
-# ifndef R_MIPS_RELATIVE
-#  define R_MIPS_RELATIVE 128
-# endif
-# ifndef R_MIPS_RELGOT
-#  define R_MIPS_RELGOT 36
-# endif
-# ifndef R_MIPS_SCN_DISP
-#  define R_MIPS_SCN_DISP 32
-# endif
-# ifndef R_MIPS_SHIFT5
-#  define R_MIPS_SHIFT5 16
-# endif
-# ifndef R_MIPS_SHIFT6
-#  define R_MIPS_SHIFT6 17
-# endif
-# ifndef R_MIPS_SUB
-#  define R_MIPS_SUB 24
-# endif
-# ifndef R_MIPS_TLS_DTPMOD32
-#  define R_MIPS_TLS_DTPMOD32 38
-# endif
-# ifndef R_MIPS_TLS_DTPMOD64
-#  define R_MIPS_TLS_DTPMOD64 40
-# endif
-# ifndef R_MIPS_TLS_DTPREL32
-#  define R_MIPS_TLS_DTPREL32 39
-# endif
-# ifndef R_MIPS_TLS_DTPREL64
-#  define R_MIPS_TLS_DTPREL64 41
-# endif
-# ifndef R_MIPS_TLS_DTPREL_HI16
-#  define R_MIPS_TLS_DTPREL_HI16 44
-# endif
-# ifndef R_MIPS_TLS_DTPREL_LO16
-#  define R_MIPS_TLS_DTPREL_LO16 45
-# endif
-# ifndef R_MIPS_TLS_GD
-#  define R_MIPS_TLS_GD 42
-# endif
-# ifndef R_MIPS_TLS_GOTTPREL
-#  define R_MIPS_TLS_GOTTPREL 46
-# endif
-# ifndef R_MIPS_TLS_LDM
-#  define R_MIPS_TLS_LDM 43
-# endif
-# ifndef R_MIPS_TLS_TPREL32
-#  define R_MIPS_TLS_TPREL32 47
-# endif
-# ifndef R_MIPS_TLS_TPREL64
-#  define R_MIPS_TLS_TPREL64 48
-# endif
-# ifndef R_MIPS_TLS_TPREL_HI16
-#  define R_MIPS_TLS_TPREL_HI16 49
-# endif
-# ifndef R_MIPS_TLS_TPREL_LO16
-#  define R_MIPS_TLS_TPREL_LO16 50
-# endif
-# ifndef R_MN10300_16
-#  define R_MN10300_16 2
-# endif
-# ifndef R_MN10300_24
-#  define R_MN10300_24 9
-# endif
-# ifndef R_MN10300_32
-#  define R_MN10300_32 1
-# endif
-# ifndef R_MN10300_8
-#  define R_MN10300_8 3
-# endif
-# ifndef R_MN10300_ALIGN
-#  define R_MN10300_ALIGN 34
-# endif
-# ifndef R_MN10300_COPY
-#  define R_MN10300_COPY 20
-# endif
-# ifndef R_MN10300_GLOB_DAT
-#  define R_MN10300_GLOB_DAT 21
-# endif
-# ifndef R_MN10300_GNU_VTENTRY
-#  define R_MN10300_GNU_VTENTRY 8
-# endif
-# ifndef R_MN10300_GNU_VTINHERIT
-#  define R_MN10300_GNU_VTINHERIT 7
-# endif
-# ifndef R_MN10300_GOT16
-#  define R_MN10300_GOT16 19
-# endif
-# ifndef R_MN10300_GOT24
-#  define R_MN10300_GOT24 18
-# endif
-# ifndef R_MN10300_GOT32
-#  define R_MN10300_GOT32 17
-# endif
-# ifndef R_MN10300_GOTOFF16
-#  define R_MN10300_GOTOFF16 14
-# endif
-# ifndef R_MN10300_GOTOFF24
-#  define R_MN10300_GOTOFF24 13
-# endif
-# ifndef R_MN10300_GOTOFF32
-#  define R_MN10300_GOTOFF32 12
-# endif
-# ifndef R_MN10300_GOTPC16
-#  define R_MN10300_GOTPC16 11
-# endif
-# ifndef R_MN10300_GOTPC32
-#  define R_MN10300_GOTPC32 10
-# endif
-# ifndef R_MN10300_JMP_SLOT
-#  define R_MN10300_JMP_SLOT 22
-# endif
-# ifndef R_MN10300_NONE
-#  define R_MN10300_NONE 0
-# endif
-# ifndef R_MN10300_NUM
-#  define R_MN10300_NUM 35
-# endif
-# ifndef R_MN10300_PCREL16
-#  define R_MN10300_PCREL16 5
-# endif
-# ifndef R_MN10300_PCREL32
-#  define R_MN10300_PCREL32 4
-# endif
-# ifndef R_MN10300_PCREL8
-#  define R_MN10300_PCREL8 6
-# endif
-# ifndef R_MN10300_PLT16
-#  define R_MN10300_PLT16 16
-# endif
-# ifndef R_MN10300_PLT32
-#  define R_MN10300_PLT32 15
-# endif
-# ifndef R_MN10300_RELATIVE
-#  define R_MN10300_RELATIVE 23
-# endif
-# ifndef R_MN10300_SYM_DIFF
-#  define R_MN10300_SYM_DIFF 33
-# endif
-# ifndef R_MN10300_TLS_DTPMOD
-#  define R_MN10300_TLS_DTPMOD 30
-# endif
-# ifndef R_MN10300_TLS_DTPOFF
-#  define R_MN10300_TLS_DTPOFF 31
-# endif
-# ifndef R_MN10300_TLS_GD
-#  define R_MN10300_TLS_GD 24
-# endif
-# ifndef R_MN10300_TLS_GOTIE
-#  define R_MN10300_TLS_GOTIE 27
-# endif
-# ifndef R_MN10300_TLS_IE
-#  define R_MN10300_TLS_IE 28
-# endif
-# ifndef R_MN10300_TLS_LD
-#  define R_MN10300_TLS_LD 25
-# endif
-# ifndef R_MN10300_TLS_LDO
-#  define R_MN10300_TLS_LDO 26
-# endif
-# ifndef R_MN10300_TLS_LE
-#  define R_MN10300_TLS_LE 29
-# endif
-# ifndef R_MN10300_TLS_TPOFF
-#  define R_MN10300_TLS_TPOFF 32
-# endif
-# ifndef R_NDS32_32_RELA
-#  define R_NDS32_32_RELA 20
-# endif
-# ifndef R_NDS32_COPY
-#  define R_NDS32_COPY 39
-# endif
-# ifndef R_NDS32_GLOB_DAT
-#  define R_NDS32_GLOB_DAT 40
-# endif
-# ifndef R_NDS32_JMP_SLOT
-#  define R_NDS32_JMP_SLOT 41
-# endif
-# ifndef R_NDS32_NONE
-#  define R_NDS32_NONE 0
-# endif
-# ifndef R_NDS32_RELATIVE
-#  define R_NDS32_RELATIVE 42
-# endif
-# ifndef R_NDS32_TLS_DESC
-#  define R_NDS32_TLS_DESC 119
-# endif
-# ifndef R_NDS32_TLS_TPOFF
-#  define R_NDS32_TLS_TPOFF 102
-# endif
-# ifndef R_NIOS2_ALIGN
-#  define R_NIOS2_ALIGN 21
-# endif
-# ifndef R_NIOS2_BFD_RELOC_16
-#  define R_NIOS2_BFD_RELOC_16 13
-# endif
-# ifndef R_NIOS2_BFD_RELOC_32
-#  define R_NIOS2_BFD_RELOC_32 12
-# endif
-# ifndef R_NIOS2_BFD_RELOC_8
-#  define R_NIOS2_BFD_RELOC_8 14
-# endif
-# ifndef R_NIOS2_CACHE_OPX
-#  define R_NIOS2_CACHE_OPX 6
-# endif
-# ifndef R_NIOS2_CALL16
-#  define R_NIOS2_CALL16 23
-# endif
-# ifndef R_NIOS2_CALL26
-#  define R_NIOS2_CALL26 4
-# endif
-# ifndef R_NIOS2_CALL26_NOAT
-#  define R_NIOS2_CALL26_NOAT 41
-# endif
-# ifndef R_NIOS2_CALLR
-#  define R_NIOS2_CALLR 20
-# endif
-# ifndef R_NIOS2_CALL_HA
-#  define R_NIOS2_CALL_HA 45
-# endif
-# ifndef R_NIOS2_CALL_LO
-#  define R_NIOS2_CALL_LO 44
-# endif
-# ifndef R_NIOS2_CJMP
-#  define R_NIOS2_CJMP 19
-# endif
-# ifndef R_NIOS2_COPY
-#  define R_NIOS2_COPY 36
-# endif
-# ifndef R_NIOS2_GLOB_DAT
-#  define R_NIOS2_GLOB_DAT 37
-# endif
-# ifndef R_NIOS2_GNU_VTENTRY
-#  define R_NIOS2_GNU_VTENTRY 17
-# endif
-# ifndef R_NIOS2_GNU_VTINHERIT
-#  define R_NIOS2_GNU_VTINHERIT 16
-# endif
-# ifndef R_NIOS2_GOT16
-#  define R_NIOS2_GOT16 22
-# endif
-# ifndef R_NIOS2_GOTOFF
-#  define R_NIOS2_GOTOFF 40
-# endif
-# ifndef R_NIOS2_GOTOFF_HA
-#  define R_NIOS2_GOTOFF_HA 25
-# endif
-# ifndef R_NIOS2_GOTOFF_LO
-#  define R_NIOS2_GOTOFF_LO 24
-# endif
-# ifndef R_NIOS2_GOT_HA
-#  define R_NIOS2_GOT_HA 43
-# endif
-# ifndef R_NIOS2_GOT_LO
-#  define R_NIOS2_GOT_LO 42
-# endif
-# ifndef R_NIOS2_GPREL
-#  define R_NIOS2_GPREL 15
-# endif
-# ifndef R_NIOS2_HI16
-#  define R_NIOS2_HI16 9
-# endif
-# ifndef R_NIOS2_HIADJ16
-#  define R_NIOS2_HIADJ16 11
-# endif
-# ifndef R_NIOS2_IMM5
-#  define R_NIOS2_IMM5 5
-# endif
-# ifndef R_NIOS2_IMM6
-#  define R_NIOS2_IMM6 7
-# endif
-# ifndef R_NIOS2_IMM8
-#  define R_NIOS2_IMM8 8
-# endif
-# ifndef R_NIOS2_JUMP_SLOT
-#  define R_NIOS2_JUMP_SLOT 38
-# endif
-# ifndef R_NIOS2_LO16
-#  define R_NIOS2_LO16 10
-# endif
-# ifndef R_NIOS2_NONE
-#  define R_NIOS2_NONE 0
-# endif
-# ifndef R_NIOS2_PCREL16
-#  define R_NIOS2_PCREL16 3
-# endif
-# ifndef R_NIOS2_PCREL_HA
-#  define R_NIOS2_PCREL_HA 27
-# endif
-# ifndef R_NIOS2_PCREL_LO
-#  define R_NIOS2_PCREL_LO 26
-# endif
-# ifndef R_NIOS2_RELATIVE
-#  define R_NIOS2_RELATIVE 39
-# endif
-# ifndef R_NIOS2_S16
-#  define R_NIOS2_S16 1
-# endif
-# ifndef R_NIOS2_TLS_DTPMOD
-#  define R_NIOS2_TLS_DTPMOD 33
-# endif
-# ifndef R_NIOS2_TLS_DTPREL
-#  define R_NIOS2_TLS_DTPREL 34
-# endif
-# ifndef R_NIOS2_TLS_GD16
-#  define R_NIOS2_TLS_GD16 28
-# endif
-# ifndef R_NIOS2_TLS_IE16
-#  define R_NIOS2_TLS_IE16 31
-# endif
-# ifndef R_NIOS2_TLS_LDM16
-#  define R_NIOS2_TLS_LDM16 29
-# endif
-# ifndef R_NIOS2_TLS_LDO16
-#  define R_NIOS2_TLS_LDO16 30
-# endif
-# ifndef R_NIOS2_TLS_LE16
-#  define R_NIOS2_TLS_LE16 32
-# endif
-# ifndef R_NIOS2_TLS_TPREL
-#  define R_NIOS2_TLS_TPREL 35
-# endif
-# ifndef R_NIOS2_U16
-#  define R_NIOS2_U16 2
-# endif
-# ifndef R_NIOS2_UJMP
-#  define R_NIOS2_UJMP 18
-# endif
-# ifndef R_OR1K_16
-#  define R_OR1K_16 2
-# endif
-# ifndef R_OR1K_16_PCREL
-#  define R_OR1K_16_PCREL 10
-# endif
-# ifndef R_OR1K_32
-#  define R_OR1K_32 1
-# endif
-# ifndef R_OR1K_32_PCREL
-#  define R_OR1K_32_PCREL 9
-# endif
-# ifndef R_OR1K_8
-#  define R_OR1K_8 3
-# endif
-# ifndef R_OR1K_8_PCREL
-#  define R_OR1K_8_PCREL 11
-# endif
-# ifndef R_OR1K_COPY
-#  define R_OR1K_COPY 18
-# endif
-# ifndef R_OR1K_GLOB_DAT
-#  define R_OR1K_GLOB_DAT 19
-# endif
-# ifndef R_OR1K_GNU_VTENTRY
-#  define R_OR1K_GNU_VTENTRY 7
-# endif
-# ifndef R_OR1K_GNU_VTINHERIT
-#  define R_OR1K_GNU_VTINHERIT 8
-# endif
-# ifndef R_OR1K_GOT16
-#  define R_OR1K_GOT16 14
-# endif
-# ifndef R_OR1K_GOTOFF_HI16
-#  define R_OR1K_GOTOFF_HI16 16
-# endif
-# ifndef R_OR1K_GOTOFF_LO16
-#  define R_OR1K_GOTOFF_LO16 17
-# endif
-# ifndef R_OR1K_GOTPC_HI16
-#  define R_OR1K_GOTPC_HI16 12
-# endif
-# ifndef R_OR1K_GOTPC_LO16
-#  define R_OR1K_GOTPC_LO16 13
-# endif
-# ifndef R_OR1K_HI_16_IN_INSN
-#  define R_OR1K_HI_16_IN_INSN 5
-# endif
-# ifndef R_OR1K_INSN_REL_26
-#  define R_OR1K_INSN_REL_26 6
-# endif
-# ifndef R_OR1K_JMP_SLOT
-#  define R_OR1K_JMP_SLOT 20
-# endif
-# ifndef R_OR1K_LO_16_IN_INSN
-#  define R_OR1K_LO_16_IN_INSN 4
-# endif
-# ifndef R_OR1K_NONE
-#  define R_OR1K_NONE 0
-# endif
-# ifndef R_OR1K_PLT26
-#  define R_OR1K_PLT26 15
-# endif
-# ifndef R_OR1K_RELATIVE
-#  define R_OR1K_RELATIVE 21
-# endif
-# ifndef R_OR1K_TLS_DTPMOD
-#  define R_OR1K_TLS_DTPMOD 34
-# endif
-# ifndef R_OR1K_TLS_DTPOFF
-#  define R_OR1K_TLS_DTPOFF 33
-# endif
-# ifndef R_OR1K_TLS_GD_HI16
-#  define R_OR1K_TLS_GD_HI16 22
-# endif
-# ifndef R_OR1K_TLS_GD_LO16
-#  define R_OR1K_TLS_GD_LO16 23
-# endif
-# ifndef R_OR1K_TLS_IE_HI16
-#  define R_OR1K_TLS_IE_HI16 28
-# endif
-# ifndef R_OR1K_TLS_IE_LO16
-#  define R_OR1K_TLS_IE_LO16 29
-# endif
-# ifndef R_OR1K_TLS_LDM_HI16
-#  define R_OR1K_TLS_LDM_HI16 24
-# endif
-# ifndef R_OR1K_TLS_LDM_LO16
-#  define R_OR1K_TLS_LDM_LO16 25
-# endif
-# ifndef R_OR1K_TLS_LDO_HI16
-#  define R_OR1K_TLS_LDO_HI16 26
-# endif
-# ifndef R_OR1K_TLS_LDO_LO16
-#  define R_OR1K_TLS_LDO_LO16 27
-# endif
-# ifndef R_OR1K_TLS_LE_HI16
-#  define R_OR1K_TLS_LE_HI16 30
-# endif
-# ifndef R_OR1K_TLS_LE_LO16
-#  define R_OR1K_TLS_LE_LO16 31
-# endif
-# ifndef R_OR1K_TLS_TPOFF
-#  define R_OR1K_TLS_TPOFF 32
-# endif
-# ifndef R_PARISC_COPY
-#  define R_PARISC_COPY 128
-# endif
-# ifndef R_PARISC_DIR14DR
-#  define R_PARISC_DIR14DR 84
-# endif
-# ifndef R_PARISC_DIR14R
-#  define R_PARISC_DIR14R 6
-# endif
-# ifndef R_PARISC_DIR14WR
-#  define R_PARISC_DIR14WR 83
-# endif
-# ifndef R_PARISC_DIR16DF
-#  define R_PARISC_DIR16DF 87
-# endif
-# ifndef R_PARISC_DIR16F
-#  define R_PARISC_DIR16F 85
-# endif
-# ifndef R_PARISC_DIR16WF
-#  define R_PARISC_DIR16WF 86
-# endif
-# ifndef R_PARISC_DIR17F
-#  define R_PARISC_DIR17F 4
-# endif
-# ifndef R_PARISC_DIR17R
-#  define R_PARISC_DIR17R 3
-# endif
-# ifndef R_PARISC_DIR21L
-#  define R_PARISC_DIR21L 2
-# endif
-# ifndef R_PARISC_DIR32
-#  define R_PARISC_DIR32 1
-# endif
-# ifndef R_PARISC_DIR64
-#  define R_PARISC_DIR64 80
-# endif
-# ifndef R_PARISC_DPREL14R
-#  define R_PARISC_DPREL14R 22
-# endif
-# ifndef R_PARISC_DPREL21L
-#  define R_PARISC_DPREL21L 18
-# endif
-# ifndef R_PARISC_EPLT
-#  define R_PARISC_EPLT 130
-# endif
-# ifndef R_PARISC_FPTR64
-#  define R_PARISC_FPTR64 64
-# endif
-# ifndef R_PARISC_GNU_VTENTRY
-#  define R_PARISC_GNU_VTENTRY 232
-# endif
-# ifndef R_PARISC_GNU_VTINHERIT
-#  define R_PARISC_GNU_VTINHERIT 233
-# endif
-# ifndef R_PARISC_GPREL14DR
-#  define R_PARISC_GPREL14DR 92
-# endif
-# ifndef R_PARISC_GPREL14R
-#  define R_PARISC_GPREL14R 30
-# endif
-# ifndef R_PARISC_GPREL14WR
-#  define R_PARISC_GPREL14WR 91
-# endif
-# ifndef R_PARISC_GPREL16DF
-#  define R_PARISC_GPREL16DF 95
-# endif
-# ifndef R_PARISC_GPREL16F
-#  define R_PARISC_GPREL16F 93
-# endif
-# ifndef R_PARISC_GPREL16WF
-#  define R_PARISC_GPREL16WF 94
-# endif
-# ifndef R_PARISC_GPREL21L
-#  define R_PARISC_GPREL21L 26
-# endif
-# ifndef R_PARISC_GPREL64
-#  define R_PARISC_GPREL64 88
-# endif
-# ifndef R_PARISC_HIRESERVE
-#  define R_PARISC_HIRESERVE 255
-# endif
-# ifndef R_PARISC_IPLT
-#  define R_PARISC_IPLT 129
-# endif
-# ifndef R_PARISC_LORESERVE
-#  define R_PARISC_LORESERVE 128
-# endif
-# ifndef R_PARISC_LTOFF14DR
-#  define R_PARISC_LTOFF14DR 100
-# endif
-# ifndef R_PARISC_LTOFF14R
-#  define R_PARISC_LTOFF14R 38
-# endif
-# ifndef R_PARISC_LTOFF14WR
-#  define R_PARISC_LTOFF14WR 99
-# endif
-# ifndef R_PARISC_LTOFF16DF
-#  define R_PARISC_LTOFF16DF 103
-# endif
-# ifndef R_PARISC_LTOFF16F
-#  define R_PARISC_LTOFF16F 101
-# endif
-# ifndef R_PARISC_LTOFF16WF
-#  define R_PARISC_LTOFF16WF 102
-# endif
-# ifndef R_PARISC_LTOFF21L
-#  define R_PARISC_LTOFF21L 34
-# endif
-# ifndef R_PARISC_LTOFF64
-#  define R_PARISC_LTOFF64 96
-# endif
-# ifndef R_PARISC_LTOFF_FPTR14DR
-#  define R_PARISC_LTOFF_FPTR14DR 124
-# endif
-# ifndef R_PARISC_LTOFF_FPTR14R
-#  define R_PARISC_LTOFF_FPTR14R 62
-# endif
-# ifndef R_PARISC_LTOFF_FPTR14WR
-#  define R_PARISC_LTOFF_FPTR14WR 123
-# endif
-# ifndef R_PARISC_LTOFF_FPTR16DF
-#  define R_PARISC_LTOFF_FPTR16DF 127
-# endif
-# ifndef R_PARISC_LTOFF_FPTR16F
-#  define R_PARISC_LTOFF_FPTR16F 125
-# endif
-# ifndef R_PARISC_LTOFF_FPTR16WF
-#  define R_PARISC_LTOFF_FPTR16WF 126
-# endif
-# ifndef R_PARISC_LTOFF_FPTR21L
-#  define R_PARISC_LTOFF_FPTR21L 58
-# endif
-# ifndef R_PARISC_LTOFF_FPTR32
-#  define R_PARISC_LTOFF_FPTR32 57
-# endif
-# ifndef R_PARISC_LTOFF_FPTR64
-#  define R_PARISC_LTOFF_FPTR64 120
-# endif
-# ifndef R_PARISC_LTOFF_TP14DR
-#  define R_PARISC_LTOFF_TP14DR 228
-# endif
-# ifndef R_PARISC_LTOFF_TP14F
-#  define R_PARISC_LTOFF_TP14F 167
-# endif
-# ifndef R_PARISC_LTOFF_TP14R
-#  define R_PARISC_LTOFF_TP14R 166
-# endif
-# ifndef R_PARISC_LTOFF_TP14WR
-#  define R_PARISC_LTOFF_TP14WR 227
-# endif
-# ifndef R_PARISC_LTOFF_TP16DF
-#  define R_PARISC_LTOFF_TP16DF 231
-# endif
-# ifndef R_PARISC_LTOFF_TP16F
-#  define R_PARISC_LTOFF_TP16F 229
-# endif
-# ifndef R_PARISC_LTOFF_TP16WF
-#  define R_PARISC_LTOFF_TP16WF 230
-# endif
-# ifndef R_PARISC_LTOFF_TP21L
-#  define R_PARISC_LTOFF_TP21L 162
-# endif
-# ifndef R_PARISC_LTOFF_TP64
-#  define R_PARISC_LTOFF_TP64 224
-# endif
-# ifndef R_PARISC_NONE
-#  define R_PARISC_NONE 0
-# endif
-# ifndef R_PARISC_PCREL14DR
-#  define R_PARISC_PCREL14DR 76
-# endif
-# ifndef R_PARISC_PCREL14R
-#  define R_PARISC_PCREL14R 14
-# endif
-# ifndef R_PARISC_PCREL14WR
-#  define R_PARISC_PCREL14WR 75
-# endif
-# ifndef R_PARISC_PCREL16DF
-#  define R_PARISC_PCREL16DF 79
-# endif
-# ifndef R_PARISC_PCREL16F
-#  define R_PARISC_PCREL16F 77
-# endif
-# ifndef R_PARISC_PCREL16WF
-#  define R_PARISC_PCREL16WF 78
-# endif
-# ifndef R_PARISC_PCREL17F
-#  define R_PARISC_PCREL17F 12
-# endif
-# ifndef R_PARISC_PCREL17R
-#  define R_PARISC_PCREL17R 11
-# endif
-# ifndef R_PARISC_PCREL21L
-#  define R_PARISC_PCREL21L 10
-# endif
-# ifndef R_PARISC_PCREL22F
-#  define R_PARISC_PCREL22F 74
-# endif
-# ifndef R_PARISC_PCREL32
-#  define R_PARISC_PCREL32 9
-# endif
-# ifndef R_PARISC_PCREL64
-#  define R_PARISC_PCREL64 72
-# endif
-# ifndef R_PARISC_PLABEL14R
-#  define R_PARISC_PLABEL14R 70
-# endif
-# ifndef R_PARISC_PLABEL21L
-#  define R_PARISC_PLABEL21L 66
-# endif
-# ifndef R_PARISC_PLABEL32
-#  define R_PARISC_PLABEL32 65
-# endif
-# ifndef R_PARISC_PLTOFF14DR
-#  define R_PARISC_PLTOFF14DR 116
-# endif
-# ifndef R_PARISC_PLTOFF14R
-#  define R_PARISC_PLTOFF14R 54
-# endif
-# ifndef R_PARISC_PLTOFF14WR
-#  define R_PARISC_PLTOFF14WR 115
-# endif
-# ifndef R_PARISC_PLTOFF16DF
-#  define R_PARISC_PLTOFF16DF 119
-# endif
-# ifndef R_PARISC_PLTOFF16F
-#  define R_PARISC_PLTOFF16F 117
-# endif
-# ifndef R_PARISC_PLTOFF16WF
-#  define R_PARISC_PLTOFF16WF 118
-# endif
-# ifndef R_PARISC_PLTOFF21L
-#  define R_PARISC_PLTOFF21L 50
-# endif
-# ifndef R_PARISC_SECREL32
-#  define R_PARISC_SECREL32 41
-# endif
-# ifndef R_PARISC_SECREL64
-#  define R_PARISC_SECREL64 104
-# endif
-# ifndef R_PARISC_SEGBASE
-#  define R_PARISC_SEGBASE 48
-# endif
-# ifndef R_PARISC_SEGREL32
-#  define R_PARISC_SEGREL32 49
-# endif
-# ifndef R_PARISC_SEGREL64
-#  define R_PARISC_SEGREL64 112
-# endif
-# ifndef R_PARISC_TLS_DTPMOD32
-#  define R_PARISC_TLS_DTPMOD32 242
-# endif
-# ifndef R_PARISC_TLS_DTPMOD64
-#  define R_PARISC_TLS_DTPMOD64 243
-# endif
-# ifndef R_PARISC_TLS_DTPOFF32
-#  define R_PARISC_TLS_DTPOFF32 244
-# endif
-# ifndef R_PARISC_TLS_DTPOFF64
-#  define R_PARISC_TLS_DTPOFF64 245
-# endif
-# ifndef R_PARISC_TLS_GD14R
-#  define R_PARISC_TLS_GD14R 235
-# endif
-# ifndef R_PARISC_TLS_GD21L
-#  define R_PARISC_TLS_GD21L 234
-# endif
-# ifndef R_PARISC_TLS_GDCALL
-#  define R_PARISC_TLS_GDCALL 236
-# endif
-# ifndef R_PARISC_TLS_IE14R
-#  define R_PARISC_TLS_IE14R R_PARISC_LTOFF_TP14R
-# endif
-# ifndef R_PARISC_TLS_IE21L
-#  define R_PARISC_TLS_IE21L R_PARISC_LTOFF_TP21L
-# endif
-# ifndef R_PARISC_TLS_LDM14R
-#  define R_PARISC_TLS_LDM14R 238
-# endif
-# ifndef R_PARISC_TLS_LDM21L
-#  define R_PARISC_TLS_LDM21L 237
-# endif
-# ifndef R_PARISC_TLS_LDMCALL
-#  define R_PARISC_TLS_LDMCALL 239
-# endif
-# ifndef R_PARISC_TLS_LDO14R
-#  define R_PARISC_TLS_LDO14R 241
-# endif
-# ifndef R_PARISC_TLS_LDO21L
-#  define R_PARISC_TLS_LDO21L 240
-# endif
-# ifndef R_PARISC_TLS_LE14R
-#  define R_PARISC_TLS_LE14R R_PARISC_TPREL14R
-# endif
-# ifndef R_PARISC_TLS_LE21L
-#  define R_PARISC_TLS_LE21L R_PARISC_TPREL21L
-# endif
-# ifndef R_PARISC_TLS_TPREL32
-#  define R_PARISC_TLS_TPREL32 R_PARISC_TPREL32
-# endif
-# ifndef R_PARISC_TLS_TPREL64
-#  define R_PARISC_TLS_TPREL64 R_PARISC_TPREL64
-# endif
-# ifndef R_PARISC_TPREL14DR
-#  define R_PARISC_TPREL14DR 220
-# endif
-# ifndef R_PARISC_TPREL14R
-#  define R_PARISC_TPREL14R 158
-# endif
-# ifndef R_PARISC_TPREL14WR
-#  define R_PARISC_TPREL14WR 219
-# endif
-# ifndef R_PARISC_TPREL16DF
-#  define R_PARISC_TPREL16DF 223
-# endif
-# ifndef R_PARISC_TPREL16F
-#  define R_PARISC_TPREL16F 221
-# endif
-# ifndef R_PARISC_TPREL16WF
-#  define R_PARISC_TPREL16WF 222
-# endif
-# ifndef R_PARISC_TPREL21L
-#  define R_PARISC_TPREL21L 154
-# endif
-# ifndef R_PARISC_TPREL32
-#  define R_PARISC_TPREL32 153
-# endif
-# ifndef R_PARISC_TPREL64
-#  define R_PARISC_TPREL64 216
-# endif
-# ifndef R_PPC64_ADDR14
-#  define R_PPC64_ADDR14 R_PPC_ADDR14
-# endif
-# ifndef R_PPC64_ADDR14_BRNTAKEN
-#  define R_PPC64_ADDR14_BRNTAKEN R_PPC_ADDR14_BRNTAKEN
-# endif
-# ifndef R_PPC64_ADDR14_BRTAKEN
-#  define R_PPC64_ADDR14_BRTAKEN R_PPC_ADDR14_BRTAKEN
-# endif
-# ifndef R_PPC64_ADDR16
-#  define R_PPC64_ADDR16 R_PPC_ADDR16
-# endif
-# ifndef R_PPC64_ADDR16_DS
-#  define R_PPC64_ADDR16_DS 56
-# endif
-# ifndef R_PPC64_ADDR16_HA
-#  define R_PPC64_ADDR16_HA R_PPC_ADDR16_HA
-# endif
-# ifndef R_PPC64_ADDR16_HI
-#  define R_PPC64_ADDR16_HI R_PPC_ADDR16_HI
-# endif
-# ifndef R_PPC64_ADDR16_HIGH
-#  define R_PPC64_ADDR16_HIGH 110
-# endif
-# ifndef R_PPC64_ADDR16_HIGHA
-#  define R_PPC64_ADDR16_HIGHA 111
-# endif
-# ifndef R_PPC64_ADDR16_HIGHER
-#  define R_PPC64_ADDR16_HIGHER 39
-# endif
-# ifndef R_PPC64_ADDR16_HIGHERA
-#  define R_PPC64_ADDR16_HIGHERA 40
-# endif
-# ifndef R_PPC64_ADDR16_HIGHEST
-#  define R_PPC64_ADDR16_HIGHEST 41
-# endif
-# ifndef R_PPC64_ADDR16_HIGHESTA
-#  define R_PPC64_ADDR16_HIGHESTA 42
-# endif
-# ifndef R_PPC64_ADDR16_LO
-#  define R_PPC64_ADDR16_LO R_PPC_ADDR16_LO
-# endif
-# ifndef R_PPC64_ADDR16_LO_DS
-#  define R_PPC64_ADDR16_LO_DS 57
-# endif
-# ifndef R_PPC64_ADDR24
-#  define R_PPC64_ADDR24 R_PPC_ADDR24
-# endif
-# ifndef R_PPC64_ADDR30
-#  define R_PPC64_ADDR30 37
-# endif
-# ifndef R_PPC64_ADDR32
-#  define R_PPC64_ADDR32 R_PPC_ADDR32
-# endif
-# ifndef R_PPC64_ADDR64
-#  define R_PPC64_ADDR64 38
-# endif
-# ifndef R_PPC64_COPY
-#  define R_PPC64_COPY R_PPC_COPY
-# endif
-# ifndef R_PPC64_DTPMOD64
-#  define R_PPC64_DTPMOD64 68
-# endif
-# ifndef R_PPC64_DTPREL16
-#  define R_PPC64_DTPREL16 74
-# endif
-# ifndef R_PPC64_DTPREL16_DS
-#  define R_PPC64_DTPREL16_DS 101
-# endif
-# ifndef R_PPC64_DTPREL16_HA
-#  define R_PPC64_DTPREL16_HA 77
-# endif
-# ifndef R_PPC64_DTPREL16_HI
-#  define R_PPC64_DTPREL16_HI 76
-# endif
-# ifndef R_PPC64_DTPREL16_HIGH
-#  define R_PPC64_DTPREL16_HIGH 114
-# endif
-# ifndef R_PPC64_DTPREL16_HIGHA
-#  define R_PPC64_DTPREL16_HIGHA 115
-# endif
-# ifndef R_PPC64_DTPREL16_HIGHER
-#  define R_PPC64_DTPREL16_HIGHER 103
-# endif
-# ifndef R_PPC64_DTPREL16_HIGHERA
-#  define R_PPC64_DTPREL16_HIGHERA 104
-# endif
-# ifndef R_PPC64_DTPREL16_HIGHEST
-#  define R_PPC64_DTPREL16_HIGHEST 105
-# endif
-# ifndef R_PPC64_DTPREL16_HIGHESTA
-#  define R_PPC64_DTPREL16_HIGHESTA 106
-# endif
-# ifndef R_PPC64_DTPREL16_LO
-#  define R_PPC64_DTPREL16_LO 75
-# endif
-# ifndef R_PPC64_DTPREL16_LO_DS
-#  define R_PPC64_DTPREL16_LO_DS 102
-# endif
-# ifndef R_PPC64_DTPREL64
-#  define R_PPC64_DTPREL64 78
-# endif
-# ifndef R_PPC64_GLOB_DAT
-#  define R_PPC64_GLOB_DAT R_PPC_GLOB_DAT
-# endif
-# ifndef R_PPC64_GOT16
-#  define R_PPC64_GOT16 R_PPC_GOT16
-# endif
-# ifndef R_PPC64_GOT16_DS
-#  define R_PPC64_GOT16_DS 58
-# endif
-# ifndef R_PPC64_GOT16_HA
-#  define R_PPC64_GOT16_HA R_PPC_GOT16_HA
-# endif
-# ifndef R_PPC64_GOT16_HI
-#  define R_PPC64_GOT16_HI R_PPC_GOT16_HI
-# endif
-# ifndef R_PPC64_GOT16_LO
-#  define R_PPC64_GOT16_LO R_PPC_GOT16_LO
-# endif
-# ifndef R_PPC64_GOT16_LO_DS
-#  define R_PPC64_GOT16_LO_DS 59
-# endif
-# ifndef R_PPC64_GOT_DTPREL16_DS
-#  define R_PPC64_GOT_DTPREL16_DS 91
-# endif
-# ifndef R_PPC64_GOT_DTPREL16_HA
-#  define R_PPC64_GOT_DTPREL16_HA 94
-# endif
-# ifndef R_PPC64_GOT_DTPREL16_HI
-#  define R_PPC64_GOT_DTPREL16_HI 93
-# endif
-# ifndef R_PPC64_GOT_DTPREL16_LO_DS
-#  define R_PPC64_GOT_DTPREL16_LO_DS 92
-# endif
-# ifndef R_PPC64_GOT_TLSGD16
-#  define R_PPC64_GOT_TLSGD16 79
-# endif
-# ifndef R_PPC64_GOT_TLSGD16_HA
-#  define R_PPC64_GOT_TLSGD16_HA 82
-# endif
-# ifndef R_PPC64_GOT_TLSGD16_HI
-#  define R_PPC64_GOT_TLSGD16_HI 81
-# endif
-# ifndef R_PPC64_GOT_TLSGD16_LO
-#  define R_PPC64_GOT_TLSGD16_LO 80
-# endif
-# ifndef R_PPC64_GOT_TLSLD16
-#  define R_PPC64_GOT_TLSLD16 83
-# endif
-# ifndef R_PPC64_GOT_TLSLD16_HA
-#  define R_PPC64_GOT_TLSLD16_HA 86
-# endif
-# ifndef R_PPC64_GOT_TLSLD16_HI
-#  define R_PPC64_GOT_TLSLD16_HI 85
-# endif
-# ifndef R_PPC64_GOT_TLSLD16_LO
-#  define R_PPC64_GOT_TLSLD16_LO 84
-# endif
-# ifndef R_PPC64_GOT_TPREL16_DS
-#  define R_PPC64_GOT_TPREL16_DS 87
-# endif
-# ifndef R_PPC64_GOT_TPREL16_HA
-#  define R_PPC64_GOT_TPREL16_HA 90
-# endif
-# ifndef R_PPC64_GOT_TPREL16_HI
-#  define R_PPC64_GOT_TPREL16_HI 89
-# endif
-# ifndef R_PPC64_GOT_TPREL16_LO_DS
-#  define R_PPC64_GOT_TPREL16_LO_DS 88
-# endif
-# ifndef R_PPC64_IRELATIVE
-#  define R_PPC64_IRELATIVE 248
-# endif
-# ifndef R_PPC64_JMP_IREL
-#  define R_PPC64_JMP_IREL 247
-# endif
-# ifndef R_PPC64_JMP_SLOT
-#  define R_PPC64_JMP_SLOT R_PPC_JMP_SLOT
-# endif
-# ifndef R_PPC64_NONE
-#  define R_PPC64_NONE R_PPC_NONE
-# endif
-# ifndef R_PPC64_PLT16_HA
-#  define R_PPC64_PLT16_HA R_PPC_PLT16_HA
-# endif
-# ifndef R_PPC64_PLT16_HI
-#  define R_PPC64_PLT16_HI R_PPC_PLT16_HI
-# endif
-# ifndef R_PPC64_PLT16_LO
-#  define R_PPC64_PLT16_LO R_PPC_PLT16_LO
-# endif
-# ifndef R_PPC64_PLT16_LO_DS
-#  define R_PPC64_PLT16_LO_DS 60
-# endif
-# ifndef R_PPC64_PLT32
-#  define R_PPC64_PLT32 R_PPC_PLT32
-# endif
-# ifndef R_PPC64_PLT64
-#  define R_PPC64_PLT64 45
-# endif
-# ifndef R_PPC64_PLTGOT16
-#  define R_PPC64_PLTGOT16 52
-# endif
-# ifndef R_PPC64_PLTGOT16_DS
-#  define R_PPC64_PLTGOT16_DS 65
-# endif
-# ifndef R_PPC64_PLTGOT16_HA
-#  define R_PPC64_PLTGOT16_HA 55
-# endif
-# ifndef R_PPC64_PLTGOT16_HI
-#  define R_PPC64_PLTGOT16_HI 54
-# endif
-# ifndef R_PPC64_PLTGOT16_LO
-#  define R_PPC64_PLTGOT16_LO 53
-# endif
-# ifndef R_PPC64_PLTGOT16_LO_DS
-#  define R_PPC64_PLTGOT16_LO_DS 66
-# endif
-# ifndef R_PPC64_PLTREL32
-#  define R_PPC64_PLTREL32 R_PPC_PLTREL32
-# endif
-# ifndef R_PPC64_PLTREL64
-#  define R_PPC64_PLTREL64 46
-# endif
-# ifndef R_PPC64_REL14
-#  define R_PPC64_REL14 R_PPC_REL14
-# endif
-# ifndef R_PPC64_REL14_BRNTAKEN
-#  define R_PPC64_REL14_BRNTAKEN R_PPC_REL14_BRNTAKEN
-# endif
-# ifndef R_PPC64_REL14_BRTAKEN
-#  define R_PPC64_REL14_BRTAKEN R_PPC_REL14_BRTAKEN
-# endif
-# ifndef R_PPC64_REL16
-#  define R_PPC64_REL16 249
-# endif
-# ifndef R_PPC64_REL16_HA
-#  define R_PPC64_REL16_HA 252
-# endif
-# ifndef R_PPC64_REL16_HI
-#  define R_PPC64_REL16_HI 251
-# endif
-# ifndef R_PPC64_REL16_LO
-#  define R_PPC64_REL16_LO 250
-# endif
-# ifndef R_PPC64_REL24
-#  define R_PPC64_REL24 R_PPC_REL24
-# endif
-# ifndef R_PPC64_REL32
-#  define R_PPC64_REL32 R_PPC_REL32
-# endif
-# ifndef R_PPC64_REL64
-#  define R_PPC64_REL64 44
-# endif
-# ifndef R_PPC64_RELATIVE
-#  define R_PPC64_RELATIVE R_PPC_RELATIVE
-# endif
-# ifndef R_PPC64_SECTOFF
-#  define R_PPC64_SECTOFF R_PPC_SECTOFF
-# endif
-# ifndef R_PPC64_SECTOFF_DS
-#  define R_PPC64_SECTOFF_DS 61
-# endif
-# ifndef R_PPC64_SECTOFF_HA
-#  define R_PPC64_SECTOFF_HA R_PPC_SECTOFF_HA
-# endif
-# ifndef R_PPC64_SECTOFF_HI
-#  define R_PPC64_SECTOFF_HI R_PPC_SECTOFF_HI
-# endif
-# ifndef R_PPC64_SECTOFF_LO
-#  define R_PPC64_SECTOFF_LO R_PPC_SECTOFF_LO
-# endif
-# ifndef R_PPC64_SECTOFF_LO_DS
-#  define R_PPC64_SECTOFF_LO_DS 62
-# endif
-# ifndef R_PPC64_TLS
-#  define R_PPC64_TLS 67
-# endif
-# ifndef R_PPC64_TLSGD
-#  define R_PPC64_TLSGD 107
-# endif
-# ifndef R_PPC64_TLSLD
-#  define R_PPC64_TLSLD 108
-# endif
-# ifndef R_PPC64_TOC
-#  define R_PPC64_TOC 51
-# endif
-# ifndef R_PPC64_TOC16
-#  define R_PPC64_TOC16 47
-# endif
-# ifndef R_PPC64_TOC16_DS
-#  define R_PPC64_TOC16_DS 63
-# endif
-# ifndef R_PPC64_TOC16_HA
-#  define R_PPC64_TOC16_HA 50
-# endif
-# ifndef R_PPC64_TOC16_HI
-#  define R_PPC64_TOC16_HI 49
-# endif
-# ifndef R_PPC64_TOC16_LO
-#  define R_PPC64_TOC16_LO 48
-# endif
-# ifndef R_PPC64_TOC16_LO_DS
-#  define R_PPC64_TOC16_LO_DS 64
-# endif
-# ifndef R_PPC64_TOCSAVE
-#  define R_PPC64_TOCSAVE 109
-# endif
-# ifndef R_PPC64_TPREL16
-#  define R_PPC64_TPREL16 69
-# endif
-# ifndef R_PPC64_TPREL16_DS
-#  define R_PPC64_TPREL16_DS 95
-# endif
-# ifndef R_PPC64_TPREL16_HA
-#  define R_PPC64_TPREL16_HA 72
-# endif
-# ifndef R_PPC64_TPREL16_HI
-#  define R_PPC64_TPREL16_HI 71
-# endif
-# ifndef R_PPC64_TPREL16_HIGH
-#  define R_PPC64_TPREL16_HIGH 112
-# endif
-# ifndef R_PPC64_TPREL16_HIGHA
-#  define R_PPC64_TPREL16_HIGHA 113
-# endif
-# ifndef R_PPC64_TPREL16_HIGHER
-#  define R_PPC64_TPREL16_HIGHER 97
-# endif
-# ifndef R_PPC64_TPREL16_HIGHERA
-#  define R_PPC64_TPREL16_HIGHERA 98
-# endif
-# ifndef R_PPC64_TPREL16_HIGHEST
-#  define R_PPC64_TPREL16_HIGHEST 99
-# endif
-# ifndef R_PPC64_TPREL16_HIGHESTA
-#  define R_PPC64_TPREL16_HIGHESTA 100
-# endif
-# ifndef R_PPC64_TPREL16_LO
-#  define R_PPC64_TPREL16_LO 70
-# endif
-# ifndef R_PPC64_TPREL16_LO_DS
-#  define R_PPC64_TPREL16_LO_DS 96
-# endif
-# ifndef R_PPC64_TPREL64
-#  define R_PPC64_TPREL64 73
-# endif
-# ifndef R_PPC64_UADDR16
-#  define R_PPC64_UADDR16 R_PPC_UADDR16
-# endif
-# ifndef R_PPC64_UADDR32
-#  define R_PPC64_UADDR32 R_PPC_UADDR32
-# endif
-# ifndef R_PPC64_UADDR64
-#  define R_PPC64_UADDR64 43
-# endif
-# ifndef R_PPC_ADDR14
-#  define R_PPC_ADDR14 7
-# endif
-# ifndef R_PPC_ADDR14_BRNTAKEN
-#  define R_PPC_ADDR14_BRNTAKEN 9
-# endif
-# ifndef R_PPC_ADDR14_BRTAKEN
-#  define R_PPC_ADDR14_BRTAKEN 8
-# endif
-# ifndef R_PPC_ADDR16
-#  define R_PPC_ADDR16 3
-# endif
-# ifndef R_PPC_ADDR16_HA
-#  define R_PPC_ADDR16_HA 6
-# endif
-# ifndef R_PPC_ADDR16_HI
-#  define R_PPC_ADDR16_HI 5
-# endif
-# ifndef R_PPC_ADDR16_LO
-#  define R_PPC_ADDR16_LO 4
-# endif
-# ifndef R_PPC_ADDR24
-#  define R_PPC_ADDR24 2
-# endif
-# ifndef R_PPC_ADDR32
-#  define R_PPC_ADDR32 1
-# endif
-# ifndef R_PPC_COPY
-#  define R_PPC_COPY 19
-# endif
-# ifndef R_PPC_DIAB_RELSDA_HA
-#  define R_PPC_DIAB_RELSDA_HA 185
-# endif
-# ifndef R_PPC_DIAB_RELSDA_HI
-#  define R_PPC_DIAB_RELSDA_HI 184
-# endif
-# ifndef R_PPC_DIAB_RELSDA_LO
-#  define R_PPC_DIAB_RELSDA_LO 183
-# endif
-# ifndef R_PPC_DIAB_SDA21_HA
-#  define R_PPC_DIAB_SDA21_HA 182
-# endif
-# ifndef R_PPC_DIAB_SDA21_HI
-#  define R_PPC_DIAB_SDA21_HI 181
-# endif
-# ifndef R_PPC_DIAB_SDA21_LO
-#  define R_PPC_DIAB_SDA21_LO 180
-# endif
-# ifndef R_PPC_DTPMOD32
-#  define R_PPC_DTPMOD32 68
-# endif
-# ifndef R_PPC_DTPREL16
-#  define R_PPC_DTPREL16 74
-# endif
-# ifndef R_PPC_DTPREL16_HA
-#  define R_PPC_DTPREL16_HA 77
-# endif
-# ifndef R_PPC_DTPREL16_HI
-#  define R_PPC_DTPREL16_HI 76
-# endif
-# ifndef R_PPC_DTPREL16_LO
-#  define R_PPC_DTPREL16_LO 75
-# endif
-# ifndef R_PPC_DTPREL32
-#  define R_PPC_DTPREL32 78
-# endif
-# ifndef R_PPC_EMB_BIT_FLD
-#  define R_PPC_EMB_BIT_FLD 115
-# endif
-# ifndef R_PPC_EMB_MRKREF
-#  define R_PPC_EMB_MRKREF 110
-# endif
-# ifndef R_PPC_EMB_NADDR16
-#  define R_PPC_EMB_NADDR16 102
-# endif
-# ifndef R_PPC_EMB_NADDR16_HA
-#  define R_PPC_EMB_NADDR16_HA 105
-# endif
-# ifndef R_PPC_EMB_NADDR16_HI
-#  define R_PPC_EMB_NADDR16_HI 104
-# endif
-# ifndef R_PPC_EMB_NADDR16_LO
-#  define R_PPC_EMB_NADDR16_LO 103
-# endif
-# ifndef R_PPC_EMB_NADDR32
-#  define R_PPC_EMB_NADDR32 101
-# endif
-# ifndef R_PPC_EMB_RELSDA
-#  define R_PPC_EMB_RELSDA 116
-# endif
-# ifndef R_PPC_EMB_RELSEC16
-#  define R_PPC_EMB_RELSEC16 111
-# endif
-# ifndef R_PPC_EMB_RELST_HA
-#  define R_PPC_EMB_RELST_HA 114
-# endif
-# ifndef R_PPC_EMB_RELST_HI
-#  define R_PPC_EMB_RELST_HI 113
-# endif
-# ifndef R_PPC_EMB_RELST_LO
-#  define R_PPC_EMB_RELST_LO 112
-# endif
-# ifndef R_PPC_EMB_SDA21
-#  define R_PPC_EMB_SDA21 109
-# endif
-# ifndef R_PPC_EMB_SDA2I16
-#  define R_PPC_EMB_SDA2I16 107
-# endif
-# ifndef R_PPC_EMB_SDA2REL
-#  define R_PPC_EMB_SDA2REL 108
-# endif
-# ifndef R_PPC_EMB_SDAI16
-#  define R_PPC_EMB_SDAI16 106
-# endif
-# ifndef R_PPC_GLOB_DAT
-#  define R_PPC_GLOB_DAT 20
-# endif
-# ifndef R_PPC_GOT16
-#  define R_PPC_GOT16 14
-# endif
-# ifndef R_PPC_GOT16_HA
-#  define R_PPC_GOT16_HA 17
-# endif
-# ifndef R_PPC_GOT16_HI
-#  define R_PPC_GOT16_HI 16
-# endif
-# ifndef R_PPC_GOT16_LO
-#  define R_PPC_GOT16_LO 15
-# endif
-# ifndef R_PPC_GOT_DTPREL16
-#  define R_PPC_GOT_DTPREL16 91
-# endif
-# ifndef R_PPC_GOT_DTPREL16_HA
-#  define R_PPC_GOT_DTPREL16_HA 94
-# endif
-# ifndef R_PPC_GOT_DTPREL16_HI
-#  define R_PPC_GOT_DTPREL16_HI 93
-# endif
-# ifndef R_PPC_GOT_DTPREL16_LO
-#  define R_PPC_GOT_DTPREL16_LO 92
-# endif
-# ifndef R_PPC_GOT_TLSGD16
-#  define R_PPC_GOT_TLSGD16 79
-# endif
-# ifndef R_PPC_GOT_TLSGD16_HA
-#  define R_PPC_GOT_TLSGD16_HA 82
-# endif
-# ifndef R_PPC_GOT_TLSGD16_HI
-#  define R_PPC_GOT_TLSGD16_HI 81
-# endif
-# ifndef R_PPC_GOT_TLSGD16_LO
-#  define R_PPC_GOT_TLSGD16_LO 80
-# endif
-# ifndef R_PPC_GOT_TLSLD16
-#  define R_PPC_GOT_TLSLD16 83
-# endif
-# ifndef R_PPC_GOT_TLSLD16_HA
-#  define R_PPC_GOT_TLSLD16_HA 86
-# endif
-# ifndef R_PPC_GOT_TLSLD16_HI
-#  define R_PPC_GOT_TLSLD16_HI 85
-# endif
-# ifndef R_PPC_GOT_TLSLD16_LO
-#  define R_PPC_GOT_TLSLD16_LO 84
-# endif
-# ifndef R_PPC_GOT_TPREL16
-#  define R_PPC_GOT_TPREL16 87
-# endif
-# ifndef R_PPC_GOT_TPREL16_HA
-#  define R_PPC_GOT_TPREL16_HA 90
-# endif
-# ifndef R_PPC_GOT_TPREL16_HI
-#  define R_PPC_GOT_TPREL16_HI 89
-# endif
-# ifndef R_PPC_GOT_TPREL16_LO
-#  define R_PPC_GOT_TPREL16_LO 88
-# endif
-# ifndef R_PPC_IRELATIVE
-#  define R_PPC_IRELATIVE 248
-# endif
-# ifndef R_PPC_JMP_SLOT
-#  define R_PPC_JMP_SLOT 21
-# endif
-# ifndef R_PPC_LOCAL24PC
-#  define R_PPC_LOCAL24PC 23
-# endif
-# ifndef R_PPC_NONE
-#  define R_PPC_NONE 0
-# endif
-# ifndef R_PPC_PLT16_HA
-#  define R_PPC_PLT16_HA 31
-# endif
-# ifndef R_PPC_PLT16_HI
-#  define R_PPC_PLT16_HI 30
-# endif
-# ifndef R_PPC_PLT16_LO
-#  define R_PPC_PLT16_LO 29
-# endif
-# ifndef R_PPC_PLT32
-#  define R_PPC_PLT32 27
-# endif
-# ifndef R_PPC_PLTREL24
-#  define R_PPC_PLTREL24 18
-# endif
-# ifndef R_PPC_PLTREL32
-#  define R_PPC_PLTREL32 28
-# endif
-# ifndef R_PPC_REL14
-#  define R_PPC_REL14 11
-# endif
-# ifndef R_PPC_REL14_BRNTAKEN
-#  define R_PPC_REL14_BRNTAKEN 13
-# endif
-# ifndef R_PPC_REL14_BRTAKEN
-#  define R_PPC_REL14_BRTAKEN 12
-# endif
-# ifndef R_PPC_REL16
-#  define R_PPC_REL16 249
-# endif
-# ifndef R_PPC_REL16_HA
-#  define R_PPC_REL16_HA 252
-# endif
-# ifndef R_PPC_REL16_HI
-#  define R_PPC_REL16_HI 251
-# endif
-# ifndef R_PPC_REL16_LO
-#  define R_PPC_REL16_LO 250
-# endif
-# ifndef R_PPC_REL24
-#  define R_PPC_REL24 10
-# endif
-# ifndef R_PPC_REL32
-#  define R_PPC_REL32 26
-# endif
-# ifndef R_PPC_RELATIVE
-#  define R_PPC_RELATIVE 22
-# endif
-# ifndef R_PPC_SDAREL16
-#  define R_PPC_SDAREL16 32
-# endif
-# ifndef R_PPC_SECTOFF
-#  define R_PPC_SECTOFF 33
-# endif
-# ifndef R_PPC_SECTOFF_HA
-#  define R_PPC_SECTOFF_HA 36
-# endif
-# ifndef R_PPC_SECTOFF_HI
-#  define R_PPC_SECTOFF_HI 35
-# endif
-# ifndef R_PPC_SECTOFF_LO
-#  define R_PPC_SECTOFF_LO 34
-# endif
-# ifndef R_PPC_TLS
-#  define R_PPC_TLS 67
-# endif
-# ifndef R_PPC_TLSGD
-#  define R_PPC_TLSGD 95
-# endif
-# ifndef R_PPC_TLSLD
-#  define R_PPC_TLSLD 96
-# endif
-# ifndef R_PPC_TOC16
-#  define R_PPC_TOC16 255
-# endif
-# ifndef R_PPC_TPREL16
-#  define R_PPC_TPREL16 69
-# endif
-# ifndef R_PPC_TPREL16_HA
-#  define R_PPC_TPREL16_HA 72
-# endif
-# ifndef R_PPC_TPREL16_HI
-#  define R_PPC_TPREL16_HI 71
-# endif
-# ifndef R_PPC_TPREL16_LO
-#  define R_PPC_TPREL16_LO 70
-# endif
-# ifndef R_PPC_TPREL32
-#  define R_PPC_TPREL32 73
-# endif
-# ifndef R_PPC_UADDR16
-#  define R_PPC_UADDR16 25
-# endif
-# ifndef R_PPC_UADDR32
-#  define R_PPC_UADDR32 24
-# endif
-# ifndef R_RISCV_32
-#  define R_RISCV_32 1
-# endif
-# ifndef R_RISCV_32_PCREL
-#  define R_RISCV_32_PCREL 57
-# endif
-# ifndef R_RISCV_64
-#  define R_RISCV_64 2
-# endif
-# ifndef R_RISCV_ADD16
-#  define R_RISCV_ADD16 34
-# endif
-# ifndef R_RISCV_ADD32
-#  define R_RISCV_ADD32 35
-# endif
-# ifndef R_RISCV_ADD64
-#  define R_RISCV_ADD64 36
-# endif
-# ifndef R_RISCV_ADD8
-#  define R_RISCV_ADD8 33
-# endif
-# ifndef R_RISCV_ALIGN
-#  define R_RISCV_ALIGN 43
-# endif
-# ifndef R_RISCV_BRANCH
-#  define R_RISCV_BRANCH 16
-# endif
-# ifndef R_RISCV_CALL
-#  define R_RISCV_CALL 18
-# endif
-# ifndef R_RISCV_CALL_PLT
-#  define R_RISCV_CALL_PLT 19
-# endif
-# ifndef R_RISCV_COPY
-#  define R_RISCV_COPY 4
-# endif
-# ifndef R_RISCV_GNU_VTENTRY
-#  define R_RISCV_GNU_VTENTRY 42
-# endif
-# ifndef R_RISCV_GNU_VTINHERIT
-#  define R_RISCV_GNU_VTINHERIT 41
-# endif
-# ifndef R_RISCV_GOT_HI20
-#  define R_RISCV_GOT_HI20 20
-# endif
-# ifndef R_RISCV_GPREL_I
-#  define R_RISCV_GPREL_I 47
-# endif
-# ifndef R_RISCV_GPREL_S
-#  define R_RISCV_GPREL_S 48
-# endif
-# ifndef R_RISCV_HI20
-#  define R_RISCV_HI20 26
-# endif
-# ifndef R_RISCV_IRELATIVE
-#  define R_RISCV_IRELATIVE 58
-# endif
-# ifndef R_RISCV_JAL
-#  define R_RISCV_JAL 17
-# endif
-# ifndef R_RISCV_JUMP_SLOT
-#  define R_RISCV_JUMP_SLOT 5
-# endif
-# ifndef R_RISCV_LO12_I
-#  define R_RISCV_LO12_I 27
-# endif
-# ifndef R_RISCV_LO12_S
-#  define R_RISCV_LO12_S 28
-# endif
-# ifndef R_RISCV_NONE
-#  define R_RISCV_NONE 0
-# endif
-# ifndef R_RISCV_NUM
-#  define R_RISCV_NUM 62
-# endif
-# ifndef R_RISCV_PCREL_HI20
-#  define R_RISCV_PCREL_HI20 23
-# endif
-# ifndef R_RISCV_PCREL_LO12_I
-#  define R_RISCV_PCREL_LO12_I 24
-# endif
-# ifndef R_RISCV_PCREL_LO12_S
-#  define R_RISCV_PCREL_LO12_S 25
-# endif
-# ifndef R_RISCV_PLT32
-#  define R_RISCV_PLT32 59
-# endif
-# ifndef R_RISCV_RELATIVE
-#  define R_RISCV_RELATIVE 3
-# endif
-# ifndef R_RISCV_RELAX
-#  define R_RISCV_RELAX 51
-# endif
-# ifndef R_RISCV_RVC_BRANCH
-#  define R_RISCV_RVC_BRANCH 44
-# endif
-# ifndef R_RISCV_RVC_JUMP
-#  define R_RISCV_RVC_JUMP 45
-# endif
-# ifndef R_RISCV_RVC_LUI
-#  define R_RISCV_RVC_LUI 46
-# endif
-# ifndef R_RISCV_SET16
-#  define R_RISCV_SET16 55
-# endif
-# ifndef R_RISCV_SET32
-#  define R_RISCV_SET32 56
-# endif
-# ifndef R_RISCV_SET6
-#  define R_RISCV_SET6 53
-# endif
-# ifndef R_RISCV_SET8
-#  define R_RISCV_SET8 54
-# endif
-# ifndef R_RISCV_SET_ULEB128
-#  define R_RISCV_SET_ULEB128 60
-# endif
-# ifndef R_RISCV_SUB16
-#  define R_RISCV_SUB16 38
-# endif
-# ifndef R_RISCV_SUB32
-#  define R_RISCV_SUB32 39
-# endif
-# ifndef R_RISCV_SUB6
-#  define R_RISCV_SUB6 52
-# endif
-# ifndef R_RISCV_SUB64
-#  define R_RISCV_SUB64 40
-# endif
-# ifndef R_RISCV_SUB8
-#  define R_RISCV_SUB8 37
-# endif
-# ifndef R_RISCV_SUB_ULEB128
-#  define R_RISCV_SUB_ULEB128 61
-# endif
-# ifndef R_RISCV_TLS_DTPMOD32
-#  define R_RISCV_TLS_DTPMOD32 6
-# endif
-# ifndef R_RISCV_TLS_DTPMOD64
-#  define R_RISCV_TLS_DTPMOD64 7
-# endif
-# ifndef R_RISCV_TLS_DTPREL32
-#  define R_RISCV_TLS_DTPREL32 8
-# endif
-# ifndef R_RISCV_TLS_DTPREL64
-#  define R_RISCV_TLS_DTPREL64 9
-# endif
-# ifndef R_RISCV_TLS_GD_HI20
-#  define R_RISCV_TLS_GD_HI20 22
-# endif
-# ifndef R_RISCV_TLS_GOT_HI20
-#  define R_RISCV_TLS_GOT_HI20 21
-# endif
-# ifndef R_RISCV_TLS_TPREL32
-#  define R_RISCV_TLS_TPREL32 10
-# endif
-# ifndef R_RISCV_TLS_TPREL64
-#  define R_RISCV_TLS_TPREL64 11
-# endif
-# ifndef R_RISCV_TPREL_ADD
-#  define R_RISCV_TPREL_ADD 32
-# endif
-# ifndef R_RISCV_TPREL_HI20
-#  define R_RISCV_TPREL_HI20 29
-# endif
-# ifndef R_RISCV_TPREL_I
-#  define R_RISCV_TPREL_I 49
-# endif
-# ifndef R_RISCV_TPREL_LO12_I
-#  define R_RISCV_TPREL_LO12_I 30
-# endif
-# ifndef R_RISCV_TPREL_LO12_S
-#  define R_RISCV_TPREL_LO12_S 31
-# endif
-# ifndef R_RISCV_TPREL_S
-#  define R_RISCV_TPREL_S 50
-# endif
-# ifndef R_SH_ALIGN
-#  define R_SH_ALIGN 29
-# endif
-# ifndef R_SH_CODE
-#  define R_SH_CODE 30
-# endif
-# ifndef R_SH_COPY
-#  define R_SH_COPY 162
-# endif
-# ifndef R_SH_COUNT
-#  define R_SH_COUNT 28
-# endif
-# ifndef R_SH_DATA
-#  define R_SH_DATA 31
-# endif
-# ifndef R_SH_DIR32
-#  define R_SH_DIR32 1
-# endif
-# ifndef R_SH_DIR8BP
-#  define R_SH_DIR8BP 7
-# endif
-# ifndef R_SH_DIR8L
-#  define R_SH_DIR8L 9
-# endif
-# ifndef R_SH_DIR8W
-#  define R_SH_DIR8W 8
-# endif
-# ifndef R_SH_DIR8WPL
-#  define R_SH_DIR8WPL 5
-# endif
-# ifndef R_SH_DIR8WPN
-#  define R_SH_DIR8WPN 3
-# endif
-# ifndef R_SH_DIR8WPZ
-#  define R_SH_DIR8WPZ 6
-# endif
-# ifndef R_SH_GLOB_DAT
-#  define R_SH_GLOB_DAT 163
-# endif
-# ifndef R_SH_GNU_VTENTRY
-#  define R_SH_GNU_VTENTRY 35
-# endif
-# ifndef R_SH_GNU_VTINHERIT
-#  define R_SH_GNU_VTINHERIT 34
-# endif
-# ifndef R_SH_GOT32
-#  define R_SH_GOT32 160
-# endif
-# ifndef R_SH_GOTOFF
-#  define R_SH_GOTOFF 166
-# endif
-# ifndef R_SH_GOTPC
-#  define R_SH_GOTPC 167
-# endif
-# ifndef R_SH_IND12W
-#  define R_SH_IND12W 4
-# endif
-# ifndef R_SH_JMP_SLOT
-#  define R_SH_JMP_SLOT 164
-# endif
-# ifndef R_SH_LABEL
-#  define R_SH_LABEL 32
-# endif
-# ifndef R_SH_NONE
-#  define R_SH_NONE 0
-# endif
-# ifndef R_SH_NUM
-#  define R_SH_NUM 256
-# endif
-# ifndef R_SH_PLT32
-#  define R_SH_PLT32 161
-# endif
-# ifndef R_SH_REL32
-#  define R_SH_REL32 2
-# endif
-# ifndef R_SH_RELATIVE
-#  define R_SH_RELATIVE 165
-# endif
-# ifndef R_SH_SWITCH16
-#  define R_SH_SWITCH16 25
-# endif
-# ifndef R_SH_SWITCH32
-#  define R_SH_SWITCH32 26
-# endif
-# ifndef R_SH_SWITCH8
-#  define R_SH_SWITCH8 33
-# endif
-# ifndef R_SH_TLS_DTPMOD32
-#  define R_SH_TLS_DTPMOD32 149
-# endif
-# ifndef R_SH_TLS_DTPOFF32
-#  define R_SH_TLS_DTPOFF32 150
-# endif
-# ifndef R_SH_TLS_GD_32
-#  define R_SH_TLS_GD_32 144
-# endif
-# ifndef R_SH_TLS_IE_32
-#  define R_SH_TLS_IE_32 147
-# endif
-# ifndef R_SH_TLS_LDO_32
-#  define R_SH_TLS_LDO_32 146
-# endif
-# ifndef R_SH_TLS_LD_32
-#  define R_SH_TLS_LD_32 145
-# endif
-# ifndef R_SH_TLS_LE_32
-#  define R_SH_TLS_LE_32 148
-# endif
-# ifndef R_SH_TLS_TPOFF32
-#  define R_SH_TLS_TPOFF32 151
-# endif
-# ifndef R_SH_USES
-#  define R_SH_USES 27
-# endif
-# ifndef R_SPARC_10
-#  define R_SPARC_10 30
-# endif
-# ifndef R_SPARC_11
-#  define R_SPARC_11 31
-# endif
-# ifndef R_SPARC_13
-#  define R_SPARC_13 11
-# endif
-# ifndef R_SPARC_16
-#  define R_SPARC_16 2
-# endif
-# ifndef R_SPARC_22
-#  define R_SPARC_22 10
-# endif
-# ifndef R_SPARC_32
-#  define R_SPARC_32 3
-# endif
-# ifndef R_SPARC_5
-#  define R_SPARC_5 44
-# endif
-# ifndef R_SPARC_6
-#  define R_SPARC_6 45
-# endif
-# ifndef R_SPARC_64
-#  define R_SPARC_64 32
-# endif
-# ifndef R_SPARC_7
-#  define R_SPARC_7 43
-# endif
-# ifndef R_SPARC_8
-#  define R_SPARC_8 1
-# endif
-# ifndef R_SPARC_COPY
-#  define R_SPARC_COPY 19
-# endif
-# ifndef R_SPARC_DISP16
-#  define R_SPARC_DISP16 5
-# endif
-# ifndef R_SPARC_DISP32
-#  define R_SPARC_DISP32 6
-# endif
-# ifndef R_SPARC_DISP64
-#  define R_SPARC_DISP64 46
-# endif
-# ifndef R_SPARC_DISP8
-#  define R_SPARC_DISP8 4
-# endif
-# ifndef R_SPARC_GLOB_DAT
-#  define R_SPARC_GLOB_DAT 20
-# endif
-# ifndef R_SPARC_GLOB_JMP
-#  define R_SPARC_GLOB_JMP 42
-# endif
-# ifndef R_SPARC_GNU_VTENTRY
-#  define R_SPARC_GNU_VTENTRY 251
-# endif
-# ifndef R_SPARC_GNU_VTINHERIT
-#  define R_SPARC_GNU_VTINHERIT 250
-# endif
-# ifndef R_SPARC_GOT10
-#  define R_SPARC_GOT10 13
-# endif
-# ifndef R_SPARC_GOT13
-#  define R_SPARC_GOT13 14
-# endif
-# ifndef R_SPARC_GOT22
-#  define R_SPARC_GOT22 15
-# endif
-# ifndef R_SPARC_GOTDATA_HIX22
-#  define R_SPARC_GOTDATA_HIX22 80
-# endif
-# ifndef R_SPARC_GOTDATA_LOX10
-#  define R_SPARC_GOTDATA_LOX10 81
-# endif
-# ifndef R_SPARC_GOTDATA_OP
-#  define R_SPARC_GOTDATA_OP 84
-# endif
-# ifndef R_SPARC_GOTDATA_OP_HIX22
-#  define R_SPARC_GOTDATA_OP_HIX22 82
-# endif
-# ifndef R_SPARC_GOTDATA_OP_LOX10
-#  define R_SPARC_GOTDATA_OP_LOX10 83
-# endif
-# ifndef R_SPARC_H34
-#  define R_SPARC_H34 85
-# endif
-# ifndef R_SPARC_H44
-#  define R_SPARC_H44 50
-# endif
-# ifndef R_SPARC_HH22
-#  define R_SPARC_HH22 34
-# endif
-# ifndef R_SPARC_HI22
-#  define R_SPARC_HI22 9
-# endif
-# ifndef R_SPARC_HIPLT22
-#  define R_SPARC_HIPLT22 25
-# endif
-# ifndef R_SPARC_HIX22
-#  define R_SPARC_HIX22 48
-# endif
-# ifndef R_SPARC_HM10
-#  define R_SPARC_HM10 35
-# endif
-# ifndef R_SPARC_IRELATIVE
-#  define R_SPARC_IRELATIVE 249
-# endif
-# ifndef R_SPARC_JMP_IREL
-#  define R_SPARC_JMP_IREL 248
-# endif
-# ifndef R_SPARC_JMP_SLOT
-#  define R_SPARC_JMP_SLOT 21
-# endif
-# ifndef R_SPARC_L44
-#  define R_SPARC_L44 52
-# endif
-# ifndef R_SPARC_LM22
-#  define R_SPARC_LM22 36
-# endif
-# ifndef R_SPARC_LO10
-#  define R_SPARC_LO10 12
-# endif
-# ifndef R_SPARC_LOPLT10
-#  define R_SPARC_LOPLT10 26
-# endif
-# ifndef R_SPARC_LOX10
-#  define R_SPARC_LOX10 49
-# endif
-# ifndef R_SPARC_M44
-#  define R_SPARC_M44 51
-# endif
-# ifndef R_SPARC_NONE
-#  define R_SPARC_NONE 0
-# endif
-# ifndef R_SPARC_NUM
-#  define R_SPARC_NUM 253
-# endif
-# ifndef R_SPARC_OLO10
-#  define R_SPARC_OLO10 33
-# endif
-# ifndef R_SPARC_PC10
-#  define R_SPARC_PC10 16
-# endif
-# ifndef R_SPARC_PC22
-#  define R_SPARC_PC22 17
-# endif
-# ifndef R_SPARC_PCPLT10
-#  define R_SPARC_PCPLT10 29
-# endif
-# ifndef R_SPARC_PCPLT22
-#  define R_SPARC_PCPLT22 28
-# endif
-# ifndef R_SPARC_PCPLT32
-#  define R_SPARC_PCPLT32 27
-# endif
-# ifndef R_SPARC_PC_HH22
-#  define R_SPARC_PC_HH22 37
-# endif
-# ifndef R_SPARC_PC_HM10
-#  define R_SPARC_PC_HM10 38
-# endif
-# ifndef R_SPARC_PC_LM22
-#  define R_SPARC_PC_LM22 39
-# endif
-# ifndef R_SPARC_PLT32
-#  define R_SPARC_PLT32 24
-# endif
-# ifndef R_SPARC_PLT64
-#  define R_SPARC_PLT64 47
-# endif
-# ifndef R_SPARC_REGISTER
-#  define R_SPARC_REGISTER 53
-# endif
-# ifndef R_SPARC_RELATIVE
-#  define R_SPARC_RELATIVE 22
-# endif
-# ifndef R_SPARC_REV32
-#  define R_SPARC_REV32 252
-# endif
-# ifndef R_SPARC_SIZE32
-#  define R_SPARC_SIZE32 86
-# endif
-# ifndef R_SPARC_SIZE64
-#  define R_SPARC_SIZE64 87
-# endif
-# ifndef R_SPARC_TLS_DTPMOD32
-#  define R_SPARC_TLS_DTPMOD32 74
-# endif
-# ifndef R_SPARC_TLS_DTPMOD64
-#  define R_SPARC_TLS_DTPMOD64 75
-# endif
-# ifndef R_SPARC_TLS_DTPOFF32
-#  define R_SPARC_TLS_DTPOFF32 76
-# endif
-# ifndef R_SPARC_TLS_DTPOFF64
-#  define R_SPARC_TLS_DTPOFF64 77
-# endif
-# ifndef R_SPARC_TLS_GD_ADD
-#  define R_SPARC_TLS_GD_ADD 58
-# endif
-# ifndef R_SPARC_TLS_GD_CALL
-#  define R_SPARC_TLS_GD_CALL 59
-# endif
-# ifndef R_SPARC_TLS_GD_HI22
-#  define R_SPARC_TLS_GD_HI22 56
-# endif
-# ifndef R_SPARC_TLS_GD_LO10
-#  define R_SPARC_TLS_GD_LO10 57
-# endif
-# ifndef R_SPARC_TLS_IE_ADD
-#  define R_SPARC_TLS_IE_ADD 71
-# endif
-# ifndef R_SPARC_TLS_IE_HI22
-#  define R_SPARC_TLS_IE_HI22 67
-# endif
-# ifndef R_SPARC_TLS_IE_LD
-#  define R_SPARC_TLS_IE_LD 69
-# endif
-# ifndef R_SPARC_TLS_IE_LDX
-#  define R_SPARC_TLS_IE_LDX 70
-# endif
-# ifndef R_SPARC_TLS_IE_LO10
-#  define R_SPARC_TLS_IE_LO10 68
-# endif
-# ifndef R_SPARC_TLS_LDM_ADD
-#  define R_SPARC_TLS_LDM_ADD 62
-# endif
-# ifndef R_SPARC_TLS_LDM_CALL
-#  define R_SPARC_TLS_LDM_CALL 63
-# endif
-# ifndef R_SPARC_TLS_LDM_HI22
-#  define R_SPARC_TLS_LDM_HI22 60
-# endif
-# ifndef R_SPARC_TLS_LDM_LO10
-#  define R_SPARC_TLS_LDM_LO10 61
-# endif
-# ifndef R_SPARC_TLS_LDO_ADD
-#  define R_SPARC_TLS_LDO_ADD 66
-# endif
-# ifndef R_SPARC_TLS_LDO_HIX22
-#  define R_SPARC_TLS_LDO_HIX22 64
-# endif
-# ifndef R_SPARC_TLS_LDO_LOX10
-#  define R_SPARC_TLS_LDO_LOX10 65
-# endif
-# ifndef R_SPARC_TLS_LE_HIX22
-#  define R_SPARC_TLS_LE_HIX22 72
-# endif
-# ifndef R_SPARC_TLS_LE_LOX10
-#  define R_SPARC_TLS_LE_LOX10 73
-# endif
-# ifndef R_SPARC_TLS_TPOFF32
-#  define R_SPARC_TLS_TPOFF32 78
-# endif
-# ifndef R_SPARC_TLS_TPOFF64
-#  define R_SPARC_TLS_TPOFF64 79
-# endif
-# ifndef R_SPARC_UA16
-#  define R_SPARC_UA16 55
-# endif
-# ifndef R_SPARC_UA32
-#  define R_SPARC_UA32 23
-# endif
-# ifndef R_SPARC_UA64
-#  define R_SPARC_UA64 54
-# endif
-# ifndef R_SPARC_WDISP10
-#  define R_SPARC_WDISP10 88
-# endif
-# ifndef R_SPARC_WDISP16
-#  define R_SPARC_WDISP16 40
-# endif
-# ifndef R_SPARC_WDISP19
-#  define R_SPARC_WDISP19 41
-# endif
-# ifndef R_SPARC_WDISP22
-#  define R_SPARC_WDISP22 8
-# endif
-# ifndef R_SPARC_WDISP30
-#  define R_SPARC_WDISP30 7
-# endif
-# ifndef R_SPARC_WPLT30
-#  define R_SPARC_WPLT30 18
-# endif
-# ifndef R_TILEGX_16
-#  define R_TILEGX_16 3
-# endif
-# ifndef R_TILEGX_16_PCREL
-#  define R_TILEGX_16_PCREL 7
-# endif
-# ifndef R_TILEGX_32
-#  define R_TILEGX_32 2
-# endif
-# ifndef R_TILEGX_32_PCREL
-#  define R_TILEGX_32_PCREL 6
-# endif
-# ifndef R_TILEGX_64
-#  define R_TILEGX_64 1
-# endif
-# ifndef R_TILEGX_64_PCREL
-#  define R_TILEGX_64_PCREL 5
-# endif
-# ifndef R_TILEGX_8
-#  define R_TILEGX_8 4
-# endif
-# ifndef R_TILEGX_8_PCREL
-#  define R_TILEGX_8_PCREL 8
-# endif
-# ifndef R_TILEGX_BROFF_X1
-#  define R_TILEGX_BROFF_X1 20
-# endif
-# ifndef R_TILEGX_COPY
-#  define R_TILEGX_COPY 16
-# endif
-# ifndef R_TILEGX_DEST_IMM8_X1
-#  define R_TILEGX_DEST_IMM8_X1 27
-# endif
-# ifndef R_TILEGX_GLOB_DAT
-#  define R_TILEGX_GLOB_DAT 17
-# endif
-# ifndef R_TILEGX_GNU_VTENTRY
-#  define R_TILEGX_GNU_VTENTRY 129
-# endif
-# ifndef R_TILEGX_GNU_VTINHERIT
-#  define R_TILEGX_GNU_VTINHERIT 128
-# endif
-# ifndef R_TILEGX_HW0
-#  define R_TILEGX_HW0 9
-# endif
-# ifndef R_TILEGX_HW0_LAST
-#  define R_TILEGX_HW0_LAST 13
-# endif
-# ifndef R_TILEGX_HW1
-#  define R_TILEGX_HW1 10
-# endif
-# ifndef R_TILEGX_HW1_LAST
-#  define R_TILEGX_HW1_LAST 14
-# endif
-# ifndef R_TILEGX_HW2
-#  define R_TILEGX_HW2 11
-# endif
-# ifndef R_TILEGX_HW2_LAST
-#  define R_TILEGX_HW2_LAST 15
-# endif
-# ifndef R_TILEGX_HW3
-#  define R_TILEGX_HW3 12
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0
-#  define R_TILEGX_IMM16_X0_HW0 36
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_GOT
-#  define R_TILEGX_IMM16_X0_HW0_GOT 64
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST
-#  define R_TILEGX_IMM16_X0_HW0_LAST 44
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_GOT
-#  define R_TILEGX_IMM16_X0_HW0_LAST_GOT 72
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_PCREL
-#  define R_TILEGX_IMM16_X0_HW0_LAST_PCREL 58
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW0_LAST_PLT_PCREL 94
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_TLS_GD
-#  define R_TILEGX_IMM16_X0_HW0_LAST_TLS_GD 86
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_TLS_IE
-#  define R_TILEGX_IMM16_X0_HW0_LAST_TLS_IE 100
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_LAST_TLS_LE
-#  define R_TILEGX_IMM16_X0_HW0_LAST_TLS_LE 82
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_PCREL
-#  define R_TILEGX_IMM16_X0_HW0_PCREL 50
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW0_PLT_PCREL 66
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_TLS_GD
-#  define R_TILEGX_IMM16_X0_HW0_TLS_GD 78
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_TLS_IE
-#  define R_TILEGX_IMM16_X0_HW0_TLS_IE 92
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW0_TLS_LE
-#  define R_TILEGX_IMM16_X0_HW0_TLS_LE 80
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1
-#  define R_TILEGX_IMM16_X0_HW1 38
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST
-#  define R_TILEGX_IMM16_X0_HW1_LAST 46
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_GOT
-#  define R_TILEGX_IMM16_X0_HW1_LAST_GOT 74
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_PCREL
-#  define R_TILEGX_IMM16_X0_HW1_LAST_PCREL 60
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW1_LAST_PLT_PCREL 96
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_TLS_GD
-#  define R_TILEGX_IMM16_X0_HW1_LAST_TLS_GD 88
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_TLS_IE
-#  define R_TILEGX_IMM16_X0_HW1_LAST_TLS_IE 102
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_LAST_TLS_LE
-#  define R_TILEGX_IMM16_X0_HW1_LAST_TLS_LE 84
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_PCREL
-#  define R_TILEGX_IMM16_X0_HW1_PCREL 52
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW1_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW1_PLT_PCREL 68
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2
-#  define R_TILEGX_IMM16_X0_HW2 40
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2_LAST
-#  define R_TILEGX_IMM16_X0_HW2_LAST 48
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2_LAST_PCREL
-#  define R_TILEGX_IMM16_X0_HW2_LAST_PCREL 62
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW2_LAST_PLT_PCREL 98
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2_PCREL
-#  define R_TILEGX_IMM16_X0_HW2_PCREL 54
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW2_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW2_PLT_PCREL 70
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW3
-#  define R_TILEGX_IMM16_X0_HW3 42
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW3_PCREL
-#  define R_TILEGX_IMM16_X0_HW3_PCREL 56
-# endif
-# ifndef R_TILEGX_IMM16_X0_HW3_PLT_PCREL
-#  define R_TILEGX_IMM16_X0_HW3_PLT_PCREL 76
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0
-#  define R_TILEGX_IMM16_X1_HW0 37
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_GOT
-#  define R_TILEGX_IMM16_X1_HW0_GOT 65
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST
-#  define R_TILEGX_IMM16_X1_HW0_LAST 45
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_GOT
-#  define R_TILEGX_IMM16_X1_HW0_LAST_GOT 73
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_PCREL
-#  define R_TILEGX_IMM16_X1_HW0_LAST_PCREL 59
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW0_LAST_PLT_PCREL 95
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_TLS_GD
-#  define R_TILEGX_IMM16_X1_HW0_LAST_TLS_GD 87
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_TLS_IE
-#  define R_TILEGX_IMM16_X1_HW0_LAST_TLS_IE 101
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_LAST_TLS_LE
-#  define R_TILEGX_IMM16_X1_HW0_LAST_TLS_LE 83
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_PCREL
-#  define R_TILEGX_IMM16_X1_HW0_PCREL 51
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW0_PLT_PCREL 67
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_TLS_GD
-#  define R_TILEGX_IMM16_X1_HW0_TLS_GD 79
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_TLS_IE
-#  define R_TILEGX_IMM16_X1_HW0_TLS_IE 93
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW0_TLS_LE
-#  define R_TILEGX_IMM16_X1_HW0_TLS_LE 81
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1
-#  define R_TILEGX_IMM16_X1_HW1 39
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST
-#  define R_TILEGX_IMM16_X1_HW1_LAST 47
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_GOT
-#  define R_TILEGX_IMM16_X1_HW1_LAST_GOT 75
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_PCREL
-#  define R_TILEGX_IMM16_X1_HW1_LAST_PCREL 61
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW1_LAST_PLT_PCREL 97
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_TLS_GD
-#  define R_TILEGX_IMM16_X1_HW1_LAST_TLS_GD 89
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_TLS_IE
-#  define R_TILEGX_IMM16_X1_HW1_LAST_TLS_IE 103
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_LAST_TLS_LE
-#  define R_TILEGX_IMM16_X1_HW1_LAST_TLS_LE 85
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_PCREL
-#  define R_TILEGX_IMM16_X1_HW1_PCREL 53
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW1_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW1_PLT_PCREL 69
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2
-#  define R_TILEGX_IMM16_X1_HW2 41
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2_LAST
-#  define R_TILEGX_IMM16_X1_HW2_LAST 49
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2_LAST_PCREL
-#  define R_TILEGX_IMM16_X1_HW2_LAST_PCREL 63
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2_LAST_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW2_LAST_PLT_PCREL 99
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2_PCREL
-#  define R_TILEGX_IMM16_X1_HW2_PCREL 55
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW2_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW2_PLT_PCREL 71
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW3
-#  define R_TILEGX_IMM16_X1_HW3 43
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW3_PCREL
-#  define R_TILEGX_IMM16_X1_HW3_PCREL 57
-# endif
-# ifndef R_TILEGX_IMM16_X1_HW3_PLT_PCREL
-#  define R_TILEGX_IMM16_X1_HW3_PLT_PCREL 77
-# endif
-# ifndef R_TILEGX_IMM8_X0
-#  define R_TILEGX_IMM8_X0 23
-# endif
-# ifndef R_TILEGX_IMM8_X0_TLS_ADD
-#  define R_TILEGX_IMM8_X0_TLS_ADD 118
-# endif
-# ifndef R_TILEGX_IMM8_X0_TLS_GD_ADD
-#  define R_TILEGX_IMM8_X0_TLS_GD_ADD 113
-# endif
-# ifndef R_TILEGX_IMM8_X1
-#  define R_TILEGX_IMM8_X1 25
-# endif
-# ifndef R_TILEGX_IMM8_X1_TLS_ADD
-#  define R_TILEGX_IMM8_X1_TLS_ADD 119
-# endif
-# ifndef R_TILEGX_IMM8_X1_TLS_GD_ADD
-#  define R_TILEGX_IMM8_X1_TLS_GD_ADD 114
-# endif
-# ifndef R_TILEGX_IMM8_Y0
-#  define R_TILEGX_IMM8_Y0 24
-# endif
-# ifndef R_TILEGX_IMM8_Y0_TLS_ADD
-#  define R_TILEGX_IMM8_Y0_TLS_ADD 120
-# endif
-# ifndef R_TILEGX_IMM8_Y0_TLS_GD_ADD
-#  define R_TILEGX_IMM8_Y0_TLS_GD_ADD 115
-# endif
-# ifndef R_TILEGX_IMM8_Y1
-#  define R_TILEGX_IMM8_Y1 26
-# endif
-# ifndef R_TILEGX_IMM8_Y1_TLS_ADD
-#  define R_TILEGX_IMM8_Y1_TLS_ADD 121
-# endif
-# ifndef R_TILEGX_IMM8_Y1_TLS_GD_ADD
-#  define R_TILEGX_IMM8_Y1_TLS_GD_ADD 116
-# endif
-# ifndef R_TILEGX_JMP_SLOT
-#  define R_TILEGX_JMP_SLOT 18
-# endif
-# ifndef R_TILEGX_JUMPOFF_X1
-#  define R_TILEGX_JUMPOFF_X1 21
-# endif
-# ifndef R_TILEGX_JUMPOFF_X1_PLT
-#  define R_TILEGX_JUMPOFF_X1_PLT 22
-# endif
-# ifndef R_TILEGX_MF_IMM14_X1
-#  define R_TILEGX_MF_IMM14_X1 29
-# endif
-# ifndef R_TILEGX_MMEND_X0
-#  define R_TILEGX_MMEND_X0 31
-# endif
-# ifndef R_TILEGX_MMSTART_X0
-#  define R_TILEGX_MMSTART_X0 30
-# endif
-# ifndef R_TILEGX_MT_IMM14_X1
-#  define R_TILEGX_MT_IMM14_X1 28
-# endif
-# ifndef R_TILEGX_NONE
-#  define R_TILEGX_NONE 0
-# endif
-# ifndef R_TILEGX_NUM
-#  define R_TILEGX_NUM 130
-# endif
-# ifndef R_TILEGX_RELATIVE
-#  define R_TILEGX_RELATIVE 19
-# endif
-# ifndef R_TILEGX_SHAMT_X0
-#  define R_TILEGX_SHAMT_X0 32
-# endif
-# ifndef R_TILEGX_SHAMT_X1
-#  define R_TILEGX_SHAMT_X1 33
-# endif
-# ifndef R_TILEGX_SHAMT_Y0
-#  define R_TILEGX_SHAMT_Y0 34
-# endif
-# ifndef R_TILEGX_SHAMT_Y1
-#  define R_TILEGX_SHAMT_Y1 35
-# endif
-# ifndef R_TILEGX_TLS_DTPMOD32
-#  define R_TILEGX_TLS_DTPMOD32 109
-# endif
-# ifndef R_TILEGX_TLS_DTPMOD64
-#  define R_TILEGX_TLS_DTPMOD64 106
-# endif
-# ifndef R_TILEGX_TLS_DTPOFF32
-#  define R_TILEGX_TLS_DTPOFF32 110
-# endif
-# ifndef R_TILEGX_TLS_DTPOFF64
-#  define R_TILEGX_TLS_DTPOFF64 107
-# endif
-# ifndef R_TILEGX_TLS_GD_CALL
-#  define R_TILEGX_TLS_GD_CALL 112
-# endif
-# ifndef R_TILEGX_TLS_IE_LOAD
-#  define R_TILEGX_TLS_IE_LOAD 117
-# endif
-# ifndef R_TILEGX_TLS_TPOFF32
-#  define R_TILEGX_TLS_TPOFF32 111
-# endif
-# ifndef R_TILEGX_TLS_TPOFF64
-#  define R_TILEGX_TLS_TPOFF64 108
-# endif
-# ifndef R_TILEPRO_16
-#  define R_TILEPRO_16 2
-# endif
-# ifndef R_TILEPRO_16_PCREL
-#  define R_TILEPRO_16_PCREL 5
-# endif
-# ifndef R_TILEPRO_32
-#  define R_TILEPRO_32 1
-# endif
-# ifndef R_TILEPRO_32_PCREL
-#  define R_TILEPRO_32_PCREL 4
-# endif
-# ifndef R_TILEPRO_8
-#  define R_TILEPRO_8 3
-# endif
-# ifndef R_TILEPRO_8_PCREL
-#  define R_TILEPRO_8_PCREL 6
-# endif
-# ifndef R_TILEPRO_BROFF_X1
-#  define R_TILEPRO_BROFF_X1 14
-# endif
-# ifndef R_TILEPRO_COPY
-#  define R_TILEPRO_COPY 10
-# endif
-# ifndef R_TILEPRO_DEST_IMM8_X1
-#  define R_TILEPRO_DEST_IMM8_X1 55
-# endif
-# ifndef R_TILEPRO_GLOB_DAT
-#  define R_TILEPRO_GLOB_DAT 11
-# endif
-# ifndef R_TILEPRO_GNU_VTENTRY
-#  define R_TILEPRO_GNU_VTENTRY 129
-# endif
-# ifndef R_TILEPRO_GNU_VTINHERIT
-#  define R_TILEPRO_GNU_VTINHERIT 128
-# endif
-# ifndef R_TILEPRO_HA16
-#  define R_TILEPRO_HA16 9
-# endif
-# ifndef R_TILEPRO_HI16
-#  define R_TILEPRO_HI16 8
-# endif
-# ifndef R_TILEPRO_IMM16_X0
-#  define R_TILEPRO_IMM16_X0 23
-# endif
-# ifndef R_TILEPRO_IMM16_X0_GOT
-#  define R_TILEPRO_IMM16_X0_GOT 39
-# endif
-# ifndef R_TILEPRO_IMM16_X0_GOT_HA
-#  define R_TILEPRO_IMM16_X0_GOT_HA 45
-# endif
-# ifndef R_TILEPRO_IMM16_X0_GOT_HI
-#  define R_TILEPRO_IMM16_X0_GOT_HI 43
-# endif
-# ifndef R_TILEPRO_IMM16_X0_GOT_LO
-#  define R_TILEPRO_IMM16_X0_GOT_LO 41
-# endif
-# ifndef R_TILEPRO_IMM16_X0_HA
-#  define R_TILEPRO_IMM16_X0_HA 29
-# endif
-# ifndef R_TILEPRO_IMM16_X0_HA_PCREL
-#  define R_TILEPRO_IMM16_X0_HA_PCREL 37
-# endif
-# ifndef R_TILEPRO_IMM16_X0_HI
-#  define R_TILEPRO_IMM16_X0_HI 27
-# endif
-# ifndef R_TILEPRO_IMM16_X0_HI_PCREL
-#  define R_TILEPRO_IMM16_X0_HI_PCREL 35
-# endif
-# ifndef R_TILEPRO_IMM16_X0_LO
-#  define R_TILEPRO_IMM16_X0_LO 25
-# endif
-# ifndef R_TILEPRO_IMM16_X0_LO_PCREL
-#  define R_TILEPRO_IMM16_X0_LO_PCREL 33
-# endif
-# ifndef R_TILEPRO_IMM16_X0_PCREL
-#  define R_TILEPRO_IMM16_X0_PCREL 31
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_GD
-#  define R_TILEPRO_IMM16_X0_TLS_GD 66
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_GD_HA
-#  define R_TILEPRO_IMM16_X0_TLS_GD_HA 72
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_GD_HI
-#  define R_TILEPRO_IMM16_X0_TLS_GD_HI 70
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_GD_LO
-#  define R_TILEPRO_IMM16_X0_TLS_GD_LO 68
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_IE
-#  define R_TILEPRO_IMM16_X0_TLS_IE 74
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_IE_HA
-#  define R_TILEPRO_IMM16_X0_TLS_IE_HA 80
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_IE_HI
-#  define R_TILEPRO_IMM16_X0_TLS_IE_HI 78
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_IE_LO
-#  define R_TILEPRO_IMM16_X0_TLS_IE_LO 76
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_LE
-#  define R_TILEPRO_IMM16_X0_TLS_LE 85
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_LE_HA
-#  define R_TILEPRO_IMM16_X0_TLS_LE_HA 91
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_LE_HI
-#  define R_TILEPRO_IMM16_X0_TLS_LE_HI 89
-# endif
-# ifndef R_TILEPRO_IMM16_X0_TLS_LE_LO
-#  define R_TILEPRO_IMM16_X0_TLS_LE_LO 87
-# endif
-# ifndef R_TILEPRO_IMM16_X1
-#  define R_TILEPRO_IMM16_X1 24
-# endif
-# ifndef R_TILEPRO_IMM16_X1_GOT
-#  define R_TILEPRO_IMM16_X1_GOT 40
-# endif
-# ifndef R_TILEPRO_IMM16_X1_GOT_HA
-#  define R_TILEPRO_IMM16_X1_GOT_HA 46
-# endif
-# ifndef R_TILEPRO_IMM16_X1_GOT_HI
-#  define R_TILEPRO_IMM16_X1_GOT_HI 44
-# endif
-# ifndef R_TILEPRO_IMM16_X1_GOT_LO
-#  define R_TILEPRO_IMM16_X1_GOT_LO 42
-# endif
-# ifndef R_TILEPRO_IMM16_X1_HA
-#  define R_TILEPRO_IMM16_X1_HA 30
-# endif
-# ifndef R_TILEPRO_IMM16_X1_HA_PCREL
-#  define R_TILEPRO_IMM16_X1_HA_PCREL 38
-# endif
-# ifndef R_TILEPRO_IMM16_X1_HI
-#  define R_TILEPRO_IMM16_X1_HI 28
-# endif
-# ifndef R_TILEPRO_IMM16_X1_HI_PCREL
-#  define R_TILEPRO_IMM16_X1_HI_PCREL 36
-# endif
-# ifndef R_TILEPRO_IMM16_X1_LO
-#  define R_TILEPRO_IMM16_X1_LO 26
-# endif
-# ifndef R_TILEPRO_IMM16_X1_LO_PCREL
-#  define R_TILEPRO_IMM16_X1_LO_PCREL 34
-# endif
-# ifndef R_TILEPRO_IMM16_X1_PCREL
-#  define R_TILEPRO_IMM16_X1_PCREL 32
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_GD
-#  define R_TILEPRO_IMM16_X1_TLS_GD 67
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_GD_HA
-#  define R_TILEPRO_IMM16_X1_TLS_GD_HA 73
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_GD_HI
-#  define R_TILEPRO_IMM16_X1_TLS_GD_HI 71
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_GD_LO
-#  define R_TILEPRO_IMM16_X1_TLS_GD_LO 69
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_IE
-#  define R_TILEPRO_IMM16_X1_TLS_IE 75
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_IE_HA
-#  define R_TILEPRO_IMM16_X1_TLS_IE_HA 81
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_IE_HI
-#  define R_TILEPRO_IMM16_X1_TLS_IE_HI 79
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_IE_LO
-#  define R_TILEPRO_IMM16_X1_TLS_IE_LO 77
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_LE
-#  define R_TILEPRO_IMM16_X1_TLS_LE 86
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_LE_HA
-#  define R_TILEPRO_IMM16_X1_TLS_LE_HA 92
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_LE_HI
-#  define R_TILEPRO_IMM16_X1_TLS_LE_HI 90
-# endif
-# ifndef R_TILEPRO_IMM16_X1_TLS_LE_LO
-#  define R_TILEPRO_IMM16_X1_TLS_LE_LO 88
-# endif
-# ifndef R_TILEPRO_IMM8_X0
-#  define R_TILEPRO_IMM8_X0 17
-# endif
-# ifndef R_TILEPRO_IMM8_X0_TLS_GD_ADD
-#  define R_TILEPRO_IMM8_X0_TLS_GD_ADD 61
-# endif
-# ifndef R_TILEPRO_IMM8_X1
-#  define R_TILEPRO_IMM8_X1 19
-# endif
-# ifndef R_TILEPRO_IMM8_X1_TLS_GD_ADD
-#  define R_TILEPRO_IMM8_X1_TLS_GD_ADD 62
-# endif
-# ifndef R_TILEPRO_IMM8_Y0
-#  define R_TILEPRO_IMM8_Y0 18
-# endif
-# ifndef R_TILEPRO_IMM8_Y0_TLS_GD_ADD
-#  define R_TILEPRO_IMM8_Y0_TLS_GD_ADD 63
-# endif
-# ifndef R_TILEPRO_IMM8_Y1
-#  define R_TILEPRO_IMM8_Y1 20
-# endif
-# ifndef R_TILEPRO_IMM8_Y1_TLS_GD_ADD
-#  define R_TILEPRO_IMM8_Y1_TLS_GD_ADD 64
-# endif
-# ifndef R_TILEPRO_JMP_SLOT
-#  define R_TILEPRO_JMP_SLOT 12
-# endif
-# ifndef R_TILEPRO_JOFFLONG_X1
-#  define R_TILEPRO_JOFFLONG_X1 15
-# endif
-# ifndef R_TILEPRO_JOFFLONG_X1_PLT
-#  define R_TILEPRO_JOFFLONG_X1_PLT 16
-# endif
-# ifndef R_TILEPRO_LO16
-#  define R_TILEPRO_LO16 7
-# endif
-# ifndef R_TILEPRO_MF_IMM15_X1
-#  define R_TILEPRO_MF_IMM15_X1 22
-# endif
-# ifndef R_TILEPRO_MMEND_X0
-#  define R_TILEPRO_MMEND_X0 48
-# endif
-# ifndef R_TILEPRO_MMEND_X1
-#  define R_TILEPRO_MMEND_X1 50
-# endif
-# ifndef R_TILEPRO_MMSTART_X0
-#  define R_TILEPRO_MMSTART_X0 47
-# endif
-# ifndef R_TILEPRO_MMSTART_X1
-#  define R_TILEPRO_MMSTART_X1 49
-# endif
-# ifndef R_TILEPRO_MT_IMM15_X1
-#  define R_TILEPRO_MT_IMM15_X1 21
-# endif
-# ifndef R_TILEPRO_NONE
-#  define R_TILEPRO_NONE 0
-# endif
-# ifndef R_TILEPRO_NUM
-#  define R_TILEPRO_NUM 130
-# endif
-# ifndef R_TILEPRO_RELATIVE
-#  define R_TILEPRO_RELATIVE 13
-# endif
-# ifndef R_TILEPRO_SHAMT_X0
-#  define R_TILEPRO_SHAMT_X0 51
-# endif
-# ifndef R_TILEPRO_SHAMT_X1
-#  define R_TILEPRO_SHAMT_X1 52
-# endif
-# ifndef R_TILEPRO_SHAMT_Y0
-#  define R_TILEPRO_SHAMT_Y0 53
-# endif
-# ifndef R_TILEPRO_SHAMT_Y1
-#  define R_TILEPRO_SHAMT_Y1 54
-# endif
-# ifndef R_TILEPRO_TLS_DTPMOD32
-#  define R_TILEPRO_TLS_DTPMOD32 82
-# endif
-# ifndef R_TILEPRO_TLS_DTPOFF32
-#  define R_TILEPRO_TLS_DTPOFF32 83
-# endif
-# ifndef R_TILEPRO_TLS_GD_CALL
-#  define R_TILEPRO_TLS_GD_CALL 60
-# endif
-# ifndef R_TILEPRO_TLS_IE_LOAD
-#  define R_TILEPRO_TLS_IE_LOAD 65
-# endif
-# ifndef R_TILEPRO_TLS_TPOFF32
-#  define R_TILEPRO_TLS_TPOFF32 84
-# endif
-# ifndef R_X86_64_16
-#  define R_X86_64_16 12
-# endif
-# ifndef R_X86_64_32
-#  define R_X86_64_32 10
-# endif
-# ifndef R_X86_64_32S
-#  define R_X86_64_32S 11
-# endif
-# ifndef R_X86_64_64
-#  define R_X86_64_64 1
-# endif
-# ifndef R_X86_64_8
-#  define R_X86_64_8 14
-# endif
-# ifndef R_X86_64_COPY
-#  define R_X86_64_COPY 5
-# endif
-# ifndef R_X86_64_DTPMOD64
-#  define R_X86_64_DTPMOD64 16
-# endif
-# ifndef R_X86_64_DTPOFF32
-#  define R_X86_64_DTPOFF32 21
-# endif
-# ifndef R_X86_64_DTPOFF64
-#  define R_X86_64_DTPOFF64 17
-# endif
-# ifndef R_X86_64_GLOB_DAT
-#  define R_X86_64_GLOB_DAT 6
-# endif
-# ifndef R_X86_64_GOT32
-#  define R_X86_64_GOT32 3
-# endif
-# ifndef R_X86_64_GOT64
-#  define R_X86_64_GOT64 27
-# endif
-# ifndef R_X86_64_GOTOFF64
-#  define R_X86_64_GOTOFF64 25
-# endif
-# ifndef R_X86_64_GOTPC32
-#  define R_X86_64_GOTPC32 26
-# endif
-# ifndef R_X86_64_GOTPC32_TLSDESC
-#  define R_X86_64_GOTPC32_TLSDESC 34
-# endif
-# ifndef R_X86_64_GOTPC64
-#  define R_X86_64_GOTPC64 29
-# endif
-# ifndef R_X86_64_GOTPCREL
-#  define R_X86_64_GOTPCREL 9
-# endif
-# ifndef R_X86_64_GOTPCREL64
-#  define R_X86_64_GOTPCREL64 28
-# endif
-# ifndef R_X86_64_GOTPCRELX
-#  define R_X86_64_GOTPCRELX 41
-# endif
-# ifndef R_X86_64_GOTPLT64
-#  define R_X86_64_GOTPLT64 30
-# endif
-# ifndef R_X86_64_GOTTPOFF
-#  define R_X86_64_GOTTPOFF 22
-# endif
-# ifndef R_X86_64_IRELATIVE
-#  define R_X86_64_IRELATIVE 37
-# endif
-# ifndef R_X86_64_JUMP_SLOT
-#  define R_X86_64_JUMP_SLOT 7
-# endif
-# ifndef R_X86_64_NONE
-#  define R_X86_64_NONE 0
-# endif
-# ifndef R_X86_64_NUM
-#  define R_X86_64_NUM 43
-# endif
-# ifndef R_X86_64_PC16
-#  define R_X86_64_PC16 13
-# endif
-# ifndef R_X86_64_PC32
-#  define R_X86_64_PC32 2
-# endif
-# ifndef R_X86_64_PC64
-#  define R_X86_64_PC64 24
-# endif
-# ifndef R_X86_64_PC8
-#  define R_X86_64_PC8 15
-# endif
-# ifndef R_X86_64_PLT32
-#  define R_X86_64_PLT32 4
-# endif
-# ifndef R_X86_64_PLTOFF64
-#  define R_X86_64_PLTOFF64 31
-# endif
-# ifndef R_X86_64_RELATIVE
-#  define R_X86_64_RELATIVE 8
-# endif
-# ifndef R_X86_64_RELATIVE64
-#  define R_X86_64_RELATIVE64 38
-# endif
-# ifndef R_X86_64_REX_GOTPCRELX
-#  define R_X86_64_REX_GOTPCRELX 42
-# endif
-# ifndef R_X86_64_SIZE32
-#  define R_X86_64_SIZE32 32
-# endif
-# ifndef R_X86_64_SIZE64
-#  define R_X86_64_SIZE64 33
-# endif
-# ifndef R_X86_64_TLSDESC
-#  define R_X86_64_TLSDESC 36
-# endif
-# ifndef R_X86_64_TLSDESC_CALL
-#  define R_X86_64_TLSDESC_CALL 35
-# endif
-# ifndef R_X86_64_TLSGD
-#  define R_X86_64_TLSGD 19
-# endif
-# ifndef R_X86_64_TLSLD
-#  define R_X86_64_TLSLD 20
-# endif
-# ifndef R_X86_64_TPOFF32
-#  define R_X86_64_TPOFF32 23
-# endif
-# ifndef R_X86_64_TPOFF64
-#  define R_X86_64_TPOFF64 18
-# endif
-# ifndef SELFMAG
-#  define SELFMAG 4
-# endif
+# define PT_LOSUNW 1879048186
+# define PT_MIPS_ABIFLAGS 1879048195
+# define PT_MIPS_OPTIONS 1879048194
+# define PT_MIPS_REGINFO 1879048192
+# define PT_MIPS_RTPROC 1879048193
+# define PT_NOTE 4
+# define PT_NULL 0
+# define PT_NUM 8
+# define PT_PARISC_ARCHEXT 1879048192
+# define PT_PARISC_UNWIND 1879048193
+# define PT_PHDR 6
+# define PT_RISCV_ATTRIBUTES 1879048195
+# define PT_SHLIB 5
+# define PT_SUNWBSS 1879048186
+# define PT_SUNWSTACK 1879048187
+# define PT_TLS 7
+# define RHF_CORD 4096
+# define RHF_DEFAULT_DELAY_LOAD 512
+# define RHF_DELTA_C_PLUS_PLUS 64
+# define RHF_GUARANTEE_INIT 32
+# define RHF_GUARANTEE_START_INIT 128
+# define RHF_NONE 0
+# define RHF_NOTPOT 2
+# define RHF_NO_LIBRARY_REPLACEMENT 4
+# define RHF_NO_MOVE 8
+# define RHF_NO_UNRES_UNDEF 8192
+# define RHF_PIXIE 256
+# define RHF_QUICKSTART 1
+# define RHF_REQUICKSTART 1024
+# define RHF_REQUICKSTARTED 2048
+# define RHF_RLD_ORDER_SAFE 16384
+# define RHF_SGI_ONLY 16
+# define R_386_16 20
+# define R_386_32 1
+# define R_386_32PLT 11
+# define R_386_8 22
+# define R_386_COPY 5
+# define R_386_GLOB_DAT 6
+# define R_386_GOT32 3
+# define R_386_GOT32X 43
+# define R_386_GOTOFF 9
+# define R_386_GOTPC 10
+# define R_386_IRELATIVE 42
+# define R_386_JMP_SLOT 7
+# define R_386_NONE 0
+# define R_386_NUM 44
+# define R_386_PC16 21
+# define R_386_PC32 2
+# define R_386_PC8 23
+# define R_386_PLT32 4
+# define R_386_RELATIVE 8
+# define R_386_SIZE32 38
+# define R_386_TLS_DESC 41
+# define R_386_TLS_DESC_CALL 40
+# define R_386_TLS_DTPMOD32 35
+# define R_386_TLS_DTPOFF32 36
+# define R_386_TLS_GD 18
+# define R_386_TLS_GD_32 24
+# define R_386_TLS_GD_CALL 26
+# define R_386_TLS_GD_POP 27
+# define R_386_TLS_GD_PUSH 25
+# define R_386_TLS_GOTDESC 39
+# define R_386_TLS_GOTIE 16
+# define R_386_TLS_IE 15
+# define R_386_TLS_IE_32 33
+# define R_386_TLS_LDM 19
+# define R_386_TLS_LDM_32 28
+# define R_386_TLS_LDM_CALL 30
+# define R_386_TLS_LDM_POP 31
+# define R_386_TLS_LDM_PUSH 29
+# define R_386_TLS_LDO_32 32
+# define R_386_TLS_LE 17
+# define R_386_TLS_LE_32 34
+# define R_386_TLS_TPOFF 14
+# define R_386_TLS_TPOFF32 37
+# define R_390_12 2
+# define R_390_16 3
+# define R_390_20 57
+# define R_390_32 4
+# define R_390_64 22
+# define R_390_8 1
+# define R_390_COPY 9
+# define R_390_GLOB_DAT 10
+# define R_390_GOT12 6
+# define R_390_GOT16 15
+# define R_390_GOT20 58
+# define R_390_GOT32 7
+# define R_390_GOT64 24
+# define R_390_GOTENT 26
+# define R_390_GOTOFF16 27
+# define R_390_GOTOFF32 13
+# define R_390_GOTOFF64 28
+# define R_390_GOTPC 14
+# define R_390_GOTPCDBL 21
+# define R_390_GOTPLT12 29
+# define R_390_GOTPLT16 30
+# define R_390_GOTPLT20 59
+# define R_390_GOTPLT32 31
+# define R_390_GOTPLT64 32
+# define R_390_GOTPLTENT 33
+# define R_390_IRELATIVE 61
+# define R_390_JMP_SLOT 11
+# define R_390_NONE 0
+# define R_390_NUM 62
+# define R_390_PC16 16
+# define R_390_PC16DBL 17
+# define R_390_PC32 5
+# define R_390_PC32DBL 19
+# define R_390_PC64 23
+# define R_390_PLT16DBL 18
+# define R_390_PLT32 8
+# define R_390_PLT32DBL 20
+# define R_390_PLT64 25
+# define R_390_PLTOFF16 34
+# define R_390_PLTOFF32 35
+# define R_390_PLTOFF64 36
+# define R_390_RELATIVE 12
+# define R_390_TLS_DTPMOD 54
+# define R_390_TLS_DTPOFF 55
+# define R_390_TLS_GD32 40
+# define R_390_TLS_GD64 41
+# define R_390_TLS_GDCALL 38
+# define R_390_TLS_GOTIE12 42
+# define R_390_TLS_GOTIE20 60
+# define R_390_TLS_GOTIE32 43
+# define R_390_TLS_GOTIE64 44
+# define R_390_TLS_IE32 47
+# define R_390_TLS_IE64 48
+# define R_390_TLS_IEENT 49
+# define R_390_TLS_LDCALL 39
+# define R_390_TLS_LDM32 45
+# define R_390_TLS_LDM64 46
+# define R_390_TLS_LDO32 52
+# define R_390_TLS_LDO64 53
+# define R_390_TLS_LE32 50
+# define R_390_TLS_LE64 51
+# define R_390_TLS_LOAD 37
+# define R_390_TLS_TPOFF 56
+# define R_68K_16 2
+# define R_68K_32 1
+# define R_68K_8 3
+# define R_68K_COPY 19
+# define R_68K_GLOB_DAT 20
+# define R_68K_GOT16 8
+# define R_68K_GOT16O 11
+# define R_68K_GOT32 7
+# define R_68K_GOT32O 10
+# define R_68K_GOT8 9
+# define R_68K_GOT8O 12
+# define R_68K_JMP_SLOT 21
+# define R_68K_NONE 0
+# define R_68K_NUM 43
+# define R_68K_PC16 5
+# define R_68K_PC32 4
+# define R_68K_PC8 6
+# define R_68K_PLT16 14
+# define R_68K_PLT16O 17
+# define R_68K_PLT32 13
+# define R_68K_PLT32O 16
+# define R_68K_PLT8 15
+# define R_68K_PLT8O 18
+# define R_68K_RELATIVE 22
+# define R_68K_TLS_DTPMOD32 40
+# define R_68K_TLS_DTPREL32 41
+# define R_68K_TLS_GD16 26
+# define R_68K_TLS_GD32 25
+# define R_68K_TLS_GD8 27
+# define R_68K_TLS_IE16 35
+# define R_68K_TLS_IE32 34
+# define R_68K_TLS_IE8 36
+# define R_68K_TLS_LDM16 29
+# define R_68K_TLS_LDM32 28
+# define R_68K_TLS_LDM8 30
+# define R_68K_TLS_LDO16 32
+# define R_68K_TLS_LDO32 31
+# define R_68K_TLS_LDO8 33
+# define R_68K_TLS_LE16 38
+# define R_68K_TLS_LE32 37
+# define R_68K_TLS_LE8 39
+# define R_68K_TLS_TPREL32 42
+# define R_AARCH64_ABS16 259
+# define R_AARCH64_ABS32 258
+# define R_AARCH64_ABS64 257
+# define R_AARCH64_ADD_ABS_LO12_NC 277
+# define R_AARCH64_ADR_GOT_PAGE 311
+# define R_AARCH64_ADR_PREL_LO21 274
+# define R_AARCH64_ADR_PREL_PG_HI21 275
+# define R_AARCH64_ADR_PREL_PG_HI21_NC 276
+# define R_AARCH64_CALL26 283
+# define R_AARCH64_CONDBR19 280
+# define R_AARCH64_COPY 1024
+# define R_AARCH64_GLOB_DAT 1025
+# define R_AARCH64_GOTREL32 308
+# define R_AARCH64_GOTREL64 307
+# define R_AARCH64_GOT_LD_PREL19 309
+# define R_AARCH64_IRELATIVE 1032
+# define R_AARCH64_JUMP26 282
+# define R_AARCH64_JUMP_SLOT 1026
+# define R_AARCH64_LD64_GOTOFF_LO15 310
+# define R_AARCH64_LD64_GOTPAGE_LO15 313
+# define R_AARCH64_LD64_GOT_LO12_NC 312
+# define R_AARCH64_LDST128_ABS_LO12_NC 299
+# define R_AARCH64_LDST16_ABS_LO12_NC 284
+# define R_AARCH64_LDST32_ABS_LO12_NC 285
+# define R_AARCH64_LDST64_ABS_LO12_NC 286
+# define R_AARCH64_LDST8_ABS_LO12_NC 278
+# define R_AARCH64_LD_PREL_LO19 273
+# define R_AARCH64_MOVW_GOTOFF_G0 300
+# define R_AARCH64_MOVW_GOTOFF_G0_NC 301
+# define R_AARCH64_MOVW_GOTOFF_G1 302
+# define R_AARCH64_MOVW_GOTOFF_G1_NC 303
+# define R_AARCH64_MOVW_GOTOFF_G2 304
+# define R_AARCH64_MOVW_GOTOFF_G2_NC 305
+# define R_AARCH64_MOVW_GOTOFF_G3 306
+# define R_AARCH64_MOVW_PREL_G0 287
+# define R_AARCH64_MOVW_PREL_G0_NC 288
+# define R_AARCH64_MOVW_PREL_G1 289
+# define R_AARCH64_MOVW_PREL_G1_NC 290
+# define R_AARCH64_MOVW_PREL_G2 291
+# define R_AARCH64_MOVW_PREL_G2_NC 292
+# define R_AARCH64_MOVW_PREL_G3 293
+# define R_AARCH64_MOVW_SABS_G0 270
+# define R_AARCH64_MOVW_SABS_G1 271
+# define R_AARCH64_MOVW_SABS_G2 272
+# define R_AARCH64_MOVW_UABS_G0 263
+# define R_AARCH64_MOVW_UABS_G0_NC 264
+# define R_AARCH64_MOVW_UABS_G1 265
+# define R_AARCH64_MOVW_UABS_G1_NC 266
+# define R_AARCH64_MOVW_UABS_G2 267
+# define R_AARCH64_MOVW_UABS_G2_NC 268
+# define R_AARCH64_MOVW_UABS_G3 269
+# define R_AARCH64_NONE 0
+# define R_AARCH64_P32_ABS32 1
+# define R_AARCH64_P32_COPY 180
+# define R_AARCH64_P32_GLOB_DAT 181
+# define R_AARCH64_P32_IRELATIVE 188
+# define R_AARCH64_P32_JUMP_SLOT 182
+# define R_AARCH64_P32_RELATIVE 183
+# define R_AARCH64_P32_TLSDESC 187
+# define R_AARCH64_P32_TLS_DTPMOD 184
+# define R_AARCH64_P32_TLS_DTPREL 185
+# define R_AARCH64_P32_TLS_TPREL 186
+# define R_AARCH64_PREL16 262
+# define R_AARCH64_PREL32 261
+# define R_AARCH64_PREL64 260
+# define R_AARCH64_RELATIVE 1027
+# define R_AARCH64_TLSDESC 1031
+# define R_AARCH64_TLSDESC_ADD 568
+# define R_AARCH64_TLSDESC_ADD_LO12 564
+# define R_AARCH64_TLSDESC_ADR_PAGE21 562
+# define R_AARCH64_TLSDESC_ADR_PREL21 561
+# define R_AARCH64_TLSDESC_CALL 569
+# define R_AARCH64_TLSDESC_LD64_LO12 563
+# define R_AARCH64_TLSDESC_LDR 567
+# define R_AARCH64_TLSDESC_LD_PREL19 560
+# define R_AARCH64_TLSDESC_OFF_G0_NC 566
+# define R_AARCH64_TLSDESC_OFF_G1 565
+# define R_AARCH64_TLSGD_ADD_LO12_NC 514
+# define R_AARCH64_TLSGD_ADR_PAGE21 513
+# define R_AARCH64_TLSGD_ADR_PREL21 512
+# define R_AARCH64_TLSGD_MOVW_G0_NC 516
+# define R_AARCH64_TLSGD_MOVW_G1 515
+# define R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 541
+# define R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC 542
+# define R_AARCH64_TLSIE_LD_GOTTPREL_PREL19 543
+# define R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC 540
+# define R_AARCH64_TLSIE_MOVW_GOTTPREL_G1 539
+# define R_AARCH64_TLSLD_ADD_DTPREL_HI12 528
+# define R_AARCH64_TLSLD_ADD_DTPREL_LO12 529
+# define R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC 530
+# define R_AARCH64_TLSLD_ADD_LO12_NC 519
+# define R_AARCH64_TLSLD_ADR_PAGE21 518
+# define R_AARCH64_TLSLD_ADR_PREL21 517
+# define R_AARCH64_TLSLD_LDST128_DTPREL_LO12 572
+# define R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC 573
+# define R_AARCH64_TLSLD_LDST16_DTPREL_LO12 533
+# define R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC 534
+# define R_AARCH64_TLSLD_LDST32_DTPREL_LO12 535
+# define R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC 536
+# define R_AARCH64_TLSLD_LDST64_DTPREL_LO12 537
+# define R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC 538
+# define R_AARCH64_TLSLD_LDST8_DTPREL_LO12 531
+# define R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC 532
+# define R_AARCH64_TLSLD_LD_PREL19 522
+# define R_AARCH64_TLSLD_MOVW_DTPREL_G0 526
+# define R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC 527
+# define R_AARCH64_TLSLD_MOVW_DTPREL_G1 524
+# define R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC 525
+# define R_AARCH64_TLSLD_MOVW_DTPREL_G2 523
+# define R_AARCH64_TLSLD_MOVW_G0_NC 521
+# define R_AARCH64_TLSLD_MOVW_G1 520
+# define R_AARCH64_TLSLE_ADD_TPREL_HI12 549
+# define R_AARCH64_TLSLE_ADD_TPREL_LO12 550
+# define R_AARCH64_TLSLE_ADD_TPREL_LO12_NC 551
+# define R_AARCH64_TLSLE_LDST128_TPREL_LO12 570
+# define R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC 571
+# define R_AARCH64_TLSLE_LDST16_TPREL_LO12 554
+# define R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC 555
+# define R_AARCH64_TLSLE_LDST32_TPREL_LO12 556
+# define R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC 557
+# define R_AARCH64_TLSLE_LDST64_TPREL_LO12 558
+# define R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC 559
+# define R_AARCH64_TLSLE_LDST8_TPREL_LO12 552
+# define R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC 553
+# define R_AARCH64_TLSLE_MOVW_TPREL_G0 547
+# define R_AARCH64_TLSLE_MOVW_TPREL_G0_NC 548
+# define R_AARCH64_TLSLE_MOVW_TPREL_G1 545
+# define R_AARCH64_TLSLE_MOVW_TPREL_G1_NC 546
+# define R_AARCH64_TLSLE_MOVW_TPREL_G2 544
+# define R_AARCH64_TLS_DTPMOD 1028
+# define R_AARCH64_TLS_DTPREL 1029
+# define R_AARCH64_TLS_TPREL 1030
+# define R_AARCH64_TSTBR14 279
+# define R_AC_SECTOFF_S9 38
+# define R_AC_SECTOFF_S9_1 39
+# define R_AC_SECTOFF_S9_2 40
+# define R_AC_SECTOFF_U8 35
+# define R_AC_SECTOFF_U8_1 36
+# define R_AC_SECTOFF_U8_2 37
+# define R_ALPHA_BRADDR 7
+# define R_ALPHA_COPY 24
+# define R_ALPHA_DTPMOD64 31
+# define R_ALPHA_DTPREL16 36
+# define R_ALPHA_DTPREL64 33
+# define R_ALPHA_DTPRELHI 34
+# define R_ALPHA_DTPRELLO 35
+# define R_ALPHA_GLOB_DAT 25
+# define R_ALPHA_GOTDTPREL 32
+# define R_ALPHA_GOTTPREL 37
+# define R_ALPHA_GPDISP 6
+# define R_ALPHA_GPREL16 19
+# define R_ALPHA_GPREL32 3
+# define R_ALPHA_GPRELHIGH 17
+# define R_ALPHA_GPRELLOW 18
+# define R_ALPHA_HINT 8
+# define R_ALPHA_JMP_SLOT 26
+# define R_ALPHA_LITERAL 4
+# define R_ALPHA_LITUSE 5
+# define R_ALPHA_NONE 0
+# define R_ALPHA_NUM 46
+# define R_ALPHA_REFLONG 1
+# define R_ALPHA_REFQUAD 2
+# define R_ALPHA_RELATIVE 27
+# define R_ALPHA_SREL16 9
+# define R_ALPHA_SREL32 10
+# define R_ALPHA_SREL64 11
+# define R_ALPHA_TLSGD 29
+# define R_ALPHA_TLS_GD_HI 28
+# define R_ALPHA_TLS_LDM 30
+# define R_ALPHA_TPREL16 41
+# define R_ALPHA_TPREL64 38
+# define R_ALPHA_TPRELHI 39
+# define R_ALPHA_TPRELLO 40
+# define R_ARC_16 2
+# define R_ARC_24 3
+# define R_ARC_32 4
+# define R_ARC_32_ME 27
+# define R_ARC_32_PCREL 49
+# define R_ARC_8 1
+# define R_ARC_B22_PCREL 6
+# define R_ARC_COPY 53
+# define R_ARC_GLOB_DAT 54
+# define R_ARC_GOT32 59
+# define R_ARC_GOTOFF 57
+# define R_ARC_GOTPC 58
+# define R_ARC_GOTPC32 51
+# define R_ARC_H30 7
+# define R_ARC_H30_ME 32
+# define R_ARC_JLI_SECTOFF 63
+# define R_ARC_JMP_SLOT 55
+# define R_ARC_N16 9
+# define R_ARC_N24 10
+# define R_ARC_N32 11
+# define R_ARC_N32_ME 28
+# define R_ARC_N8 8
+# define R_ARC_NONE 0
+# define R_ARC_NPS_CMEM16 78
+# define R_ARC_PC32 50
+# define R_ARC_PLT32 52
+# define R_ARC_RELATIVE 56
+# define R_ARC_S13_PCREL 25
+# define R_ARC_S21H_PCREL 14
+# define R_ARC_S21H_PCREL_PLT 77
+# define R_ARC_S21W_PCREL 15
+# define R_ARC_S21W_PCREL_PLT 60
+# define R_ARC_S25H_PCREL 16
+# define R_ARC_S25H_PCREL_PLT 61
+# define R_ARC_S25W_PCREL 17
+# define R_ARC_S25W_PCREL_PLT 76
+# define R_ARC_SDA 12
+# define R_ARC_SDA16_LD 22
+# define R_ARC_SDA16_LD1 23
+# define R_ARC_SDA16_LD2 24
+# define R_ARC_SDA16_ST2 48
+# define R_ARC_SDA32 18
+# define R_ARC_SDA32_ME 30
+# define R_ARC_SDA_12 45
+# define R_ARC_SDA_LDST 19
+# define R_ARC_SDA_LDST1 20
+# define R_ARC_SDA_LDST2 21
+# define R_ARC_SECTOFF 13
+# define R_ARC_SECTOFF_1 43
+# define R_ARC_SECTOFF_2 44
+# define R_ARC_SECTOFF_ME 29
+# define R_ARC_SECTOFF_ME_1 41
+# define R_ARC_SECTOFF_ME_2 42
+# define R_ARC_SECTOFF_S9 34
+# define R_ARC_SECTOFF_U8 33
+# define R_ARC_TLS_DTPMOD 66
+# define R_ARC_TLS_DTPOFF 67
+# define R_ARC_TLS_DTPOFF_S9 73
+# define R_ARC_TLS_GD_CALL 71
+# define R_ARC_TLS_GD_GOT 69
+# define R_ARC_TLS_GD_LD 70
+# define R_ARC_TLS_IE_GOT 72
+# define R_ARC_TLS_LE_32 75
+# define R_ARC_TLS_LE_S9 74
+# define R_ARC_TLS_TPOFF 68
+# define R_ARC_W 26
+# define R_ARC_W_ME 31
+# define R_ARM_ABS12 6
+# define R_ARM_ABS16 5
+# define R_ARM_ABS32 2
+# define R_ARM_ABS32_NOI 55
+# define R_ARM_ABS8 8
+# define R_ARM_ALU_PCREL_15_8 33
+# define R_ARM_ALU_PCREL_23_15 34
+# define R_ARM_ALU_PCREL_7_0 32
+# define R_ARM_ALU_PC_G0 58
+# define R_ARM_ALU_PC_G0_NC 57
+# define R_ARM_ALU_PC_G1 60
+# define R_ARM_ALU_PC_G1_NC 59
+# define R_ARM_ALU_PC_G2 61
+# define R_ARM_ALU_SBREL_19_12 36
+# define R_ARM_ALU_SBREL_27_20 37
+# define R_ARM_ALU_SB_G0 71
+# define R_ARM_ALU_SB_G0_NC 70
+# define R_ARM_ALU_SB_G1 73
+# define R_ARM_ALU_SB_G1_NC 72
+# define R_ARM_ALU_SB_G2 74
+# define R_ARM_AMP_VCALL9 12
+# define R_ARM_BASE_ABS 31
+# define R_ARM_CALL 28
+# define R_ARM_COPY 20
+# define R_ARM_GLOB_DAT 21
+# define R_ARM_GNU_VTENTRY 100
+# define R_ARM_GNU_VTINHERIT 101
+# define R_ARM_GOT32 26
+# define R_ARM_GOTOFF 24
+# define R_ARM_GOTOFF12 98
+# define R_ARM_GOTPC 25
+# define R_ARM_GOTRELAX 99
+# define R_ARM_GOT_ABS 95
+# define R_ARM_GOT_BREL12 97
+# define R_ARM_GOT_PREL 96
+# define R_ARM_IRELATIVE 160
+# define R_ARM_JUMP24 29
+# define R_ARM_JUMP_SLOT 22
+# define R_ARM_LDC_PC_G0 67
+# define R_ARM_LDC_PC_G1 68
+# define R_ARM_LDC_PC_G2 69
+# define R_ARM_LDC_SB_G0 81
+# define R_ARM_LDC_SB_G1 82
+# define R_ARM_LDC_SB_G2 83
+# define R_ARM_LDRS_PC_G0 64
+# define R_ARM_LDRS_PC_G1 65
+# define R_ARM_LDRS_PC_G2 66
+# define R_ARM_LDRS_SB_G0 78
+# define R_ARM_LDRS_SB_G1 79
+# define R_ARM_LDRS_SB_G2 80
+# define R_ARM_LDR_PC_G1 62
+# define R_ARM_LDR_PC_G2 63
+# define R_ARM_LDR_SBREL_11_0 35
+# define R_ARM_LDR_SB_G0 75
+# define R_ARM_LDR_SB_G1 76
+# define R_ARM_LDR_SB_G2 77
+# define R_ARM_ME_TOO 128
+# define R_ARM_MOVT_ABS 44
+# define R_ARM_MOVT_BREL 85
+# define R_ARM_MOVT_PREL 46
+# define R_ARM_MOVW_ABS_NC 43
+# define R_ARM_MOVW_BREL 86
+# define R_ARM_MOVW_BREL_NC 84
+# define R_ARM_MOVW_PREL_NC 45
+# define R_ARM_NONE 0
+# define R_ARM_NUM 256
+# define R_ARM_PC13 4
+# define R_ARM_PC24 1
+# define R_ARM_PLT32 27
+# define R_ARM_PLT32_ABS 94
+# define R_ARM_PREL31 42
+# define R_ARM_RABS22 253
+# define R_ARM_RBASE 255
+# define R_ARM_REL32 3
+# define R_ARM_REL32_NOI 56
+# define R_ARM_RELATIVE 23
+# define R_ARM_RPC24 254
+# define R_ARM_RREL32 252
+# define R_ARM_RSBREL32 250
+# define R_ARM_RXPC25 249
+# define R_ARM_SBREL31 39
+# define R_ARM_SBREL32 9
+# define R_ARM_SWI24 13
+# define R_ARM_TARGET1 38
+# define R_ARM_TARGET2 41
+# define R_ARM_THM_ABS5 7
+# define R_ARM_THM_ALU_PREL_11_0 53
+# define R_ARM_THM_GOT_BREL12 131
+# define R_ARM_THM_JUMP19 51
+# define R_ARM_THM_JUMP24 30
+# define R_ARM_THM_JUMP6 52
+# define R_ARM_THM_MOVT_ABS 48
+# define R_ARM_THM_MOVT_BREL 88
+# define R_ARM_THM_MOVT_PREL 50
+# define R_ARM_THM_MOVW_ABS_NC 47
+# define R_ARM_THM_MOVW_BREL 89
+# define R_ARM_THM_MOVW_BREL_NC 87
+# define R_ARM_THM_MOVW_PREL_NC 49
+# define R_ARM_THM_PC11 102
+# define R_ARM_THM_PC12 54
+# define R_ARM_THM_PC22 10
+# define R_ARM_THM_PC8 11
+# define R_ARM_THM_PC9 103
+# define R_ARM_THM_RPC22 251
+# define R_ARM_THM_SWI8 14
+# define R_ARM_THM_TLS_CALL 93
+# define R_ARM_THM_TLS_DESCSEQ 129
+# define R_ARM_THM_TLS_DESCSEQ16 129
+# define R_ARM_THM_TLS_DESCSEQ32 130
+# define R_ARM_THM_XPC22 16
+# define R_ARM_TLS_CALL 91
+# define R_ARM_TLS_DESC 13
+# define R_ARM_TLS_DESCSEQ 92
+# define R_ARM_TLS_DTPMOD32 17
+# define R_ARM_TLS_DTPOFF32 18
+# define R_ARM_TLS_GD32 104
+# define R_ARM_TLS_GOTDESC 90
+# define R_ARM_TLS_IE12GP 111
+# define R_ARM_TLS_IE32 107
+# define R_ARM_TLS_LDM32 105
+# define R_ARM_TLS_LDO12 109
+# define R_ARM_TLS_LDO32 106
+# define R_ARM_TLS_LE12 110
+# define R_ARM_TLS_LE32 108
+# define R_ARM_TLS_TPOFF32 19
+# define R_ARM_V4BX 40
+# define R_ARM_XPC25 15
+# define R_BPF_64_32 10
+# define R_BPF_64_64 1
+# define R_BPF_NONE 0
+# define R_CKCORE_ADDR32 1
+# define R_CKCORE_ADDRGOT 17
+# define R_CKCORE_ADDRGOT_HI16 36
+# define R_CKCORE_ADDRGOT_LO16 37
+# define R_CKCORE_ADDRPLT 18
+# define R_CKCORE_ADDRPLT_HI16 38
+# define R_CKCORE_ADDRPLT_LO16 39
+# define R_CKCORE_ADDR_HI16 24
+# define R_CKCORE_ADDR_LO16 25
+# define R_CKCORE_COPY 10
+# define R_CKCORE_DOFFSET_IMM18 44
+# define R_CKCORE_DOFFSET_IMM18BY2 45
+# define R_CKCORE_DOFFSET_IMM18BY4 46
+# define R_CKCORE_DOFFSET_LO16 42
+# define R_CKCORE_GLOB_DAT 11
+# define R_CKCORE_GOT12 30
+# define R_CKCORE_GOT32 15
+# define R_CKCORE_GOTOFF 13
+# define R_CKCORE_GOTOFF_HI16 28
+# define R_CKCORE_GOTOFF_LO16 29
+# define R_CKCORE_GOTPC 14
+# define R_CKCORE_GOTPC_HI16 26
+# define R_CKCORE_GOTPC_LO16 27
+# define R_CKCORE_GOT_HI16 31
+# define R_CKCORE_GOT_IMM18BY4 48
+# define R_CKCORE_GOT_LO16 32
+# define R_CKCORE_JUMP_SLOT 12
+# define R_CKCORE_NONE 0
+# define R_CKCORE_PCREL32 5
+# define R_CKCORE_PCRELIMM11BY2 3
+# define R_CKCORE_PCRELIMM8BY4 2
+# define R_CKCORE_PCRELJSR_IMM11BY2 6
+# define R_CKCORE_PCREL_IMM10BY2 22
+# define R_CKCORE_PCREL_IMM10BY4 23
+# define R_CKCORE_PCREL_IMM16BY2 20
+# define R_CKCORE_PCREL_IMM16BY4 21
+# define R_CKCORE_PCREL_IMM18BY2 43
+# define R_CKCORE_PCREL_IMM26BY2 19
+# define R_CKCORE_PCREL_IMM7BY4 50
+# define R_CKCORE_PCREL_JSR_IMM26BY2 40
+# define R_CKCORE_PLT12 33
+# define R_CKCORE_PLT32 16
+# define R_CKCORE_PLT_HI16 34
+# define R_CKCORE_PLT_IMM18BY4 49
+# define R_CKCORE_PLT_LO16 35
+# define R_CKCORE_RELATIVE 9
+# define R_CKCORE_TLS_DTPMOD32 56
+# define R_CKCORE_TLS_DTPOFF32 57
+# define R_CKCORE_TLS_GD32 53
+# define R_CKCORE_TLS_IE32 52
+# define R_CKCORE_TLS_LDM32 54
+# define R_CKCORE_TLS_LDO32 55
+# define R_CKCORE_TLS_LE32 51
+# define R_CKCORE_TLS_TPOFF32 58
+# define R_CKCORE_TOFFSET_LO16 41
+# define R_CRIS_16 2
+# define R_CRIS_16_GOT 13
+# define R_CRIS_16_GOTPLT 15
+# define R_CRIS_16_PCREL 5
+# define R_CRIS_32 3
+# define R_CRIS_32_GOT 14
+# define R_CRIS_32_GOTPLT 16
+# define R_CRIS_32_GOTREL 17
+# define R_CRIS_32_PCREL 6
+# define R_CRIS_32_PLT_GOTREL 18
+# define R_CRIS_32_PLT_PCREL 19
+# define R_CRIS_8 1
+# define R_CRIS_8_PCREL 4
+# define R_CRIS_COPY 9
+# define R_CRIS_GLOB_DAT 10
+# define R_CRIS_GNU_VTENTRY 8
+# define R_CRIS_GNU_VTINHERIT 7
+# define R_CRIS_JUMP_SLOT 11
+# define R_CRIS_NONE 0
+# define R_CRIS_NUM 20
+# define R_CRIS_RELATIVE 12
+# define R_IA64_COPY 132
+# define R_IA64_DIR32LSB 37
+# define R_IA64_DIR32MSB 36
+# define R_IA64_DIR64LSB 39
+# define R_IA64_DIR64MSB 38
+# define R_IA64_DTPMOD64LSB 167
+# define R_IA64_DTPMOD64MSB 166
+# define R_IA64_DTPREL14 177
+# define R_IA64_DTPREL22 178
+# define R_IA64_DTPREL32LSB 181
+# define R_IA64_DTPREL32MSB 180
+# define R_IA64_DTPREL64I 179
+# define R_IA64_DTPREL64LSB 183
+# define R_IA64_DTPREL64MSB 182
+# define R_IA64_FPTR32LSB 69
+# define R_IA64_FPTR32MSB 68
+# define R_IA64_FPTR64I 67
+# define R_IA64_FPTR64LSB 71
+# define R_IA64_FPTR64MSB 70
+# define R_IA64_GPREL22 42
+# define R_IA64_GPREL32LSB 45
+# define R_IA64_GPREL32MSB 44
+# define R_IA64_GPREL64I 43
+# define R_IA64_GPREL64LSB 47
+# define R_IA64_GPREL64MSB 46
+# define R_IA64_IMM14 33
+# define R_IA64_IMM22 34
+# define R_IA64_IMM64 35
+# define R_IA64_IPLTLSB 129
+# define R_IA64_IPLTMSB 128
+# define R_IA64_LDXMOV 135
+# define R_IA64_LTOFF22 50
+# define R_IA64_LTOFF22X 134
+# define R_IA64_LTOFF64I 51
+# define R_IA64_LTOFF_DTPMOD22 170
+# define R_IA64_LTOFF_DTPREL22 186
+# define R_IA64_LTOFF_FPTR22 82
+# define R_IA64_LTOFF_FPTR32LSB 85
+# define R_IA64_LTOFF_FPTR32MSB 84
+# define R_IA64_LTOFF_FPTR64I 83
+# define R_IA64_LTOFF_FPTR64LSB 87
+# define R_IA64_LTOFF_FPTR64MSB 86
+# define R_IA64_LTOFF_TPREL22 154
+# define R_IA64_LTV32LSB 117
+# define R_IA64_LTV32MSB 116
+# define R_IA64_LTV64LSB 119
+# define R_IA64_LTV64MSB 118
+# define R_IA64_NONE 0
+# define R_IA64_PCREL21B 73
+# define R_IA64_PCREL21BI 121
+# define R_IA64_PCREL21F 75
+# define R_IA64_PCREL21M 74
+# define R_IA64_PCREL22 122
+# define R_IA64_PCREL32LSB 77
+# define R_IA64_PCREL32MSB 76
+# define R_IA64_PCREL60B 72
+# define R_IA64_PCREL64I 123
+# define R_IA64_PCREL64LSB 79
+# define R_IA64_PCREL64MSB 78
+# define R_IA64_PLTOFF22 58
+# define R_IA64_PLTOFF64I 59
+# define R_IA64_PLTOFF64LSB 63
+# define R_IA64_PLTOFF64MSB 62
+# define R_IA64_REL32LSB 109
+# define R_IA64_REL32MSB 108
+# define R_IA64_REL64LSB 111
+# define R_IA64_REL64MSB 110
+# define R_IA64_SECREL32LSB 101
+# define R_IA64_SECREL32MSB 100
+# define R_IA64_SECREL64LSB 103
+# define R_IA64_SECREL64MSB 102
+# define R_IA64_SEGREL32LSB 93
+# define R_IA64_SEGREL32MSB 92
+# define R_IA64_SEGREL64LSB 95
+# define R_IA64_SEGREL64MSB 94
+# define R_IA64_SUB 133
+# define R_IA64_TPREL14 145
+# define R_IA64_TPREL22 146
+# define R_IA64_TPREL64I 147
+# define R_IA64_TPREL64LSB 151
+# define R_IA64_TPREL64MSB 150
+# define R_LARCH_32 1
+# define R_LARCH_32_PCREL 99
+# define R_LARCH_64 2
+# define R_LARCH_64_PCREL 109
+# define R_LARCH_ABS64_HI12 70
+# define R_LARCH_ABS64_LO20 69
+# define R_LARCH_ABS_HI20 67
+# define R_LARCH_ABS_LO12 68
+# define R_LARCH_ADD16 48
+# define R_LARCH_ADD24 49
+# define R_LARCH_ADD32 50
+# define R_LARCH_ADD6 105
+# define R_LARCH_ADD64 51
+# define R_LARCH_ADD8 47
+# define R_LARCH_ADD_ULEB128 107
+# define R_LARCH_ALIGN 102
+# define R_LARCH_B16 64
+# define R_LARCH_B21 65
+# define R_LARCH_B26 66
+# define R_LARCH_CFA 104
+# define R_LARCH_COPY 4
+# define R_LARCH_DELETE 101
+# define R_LARCH_GNU_VTENTRY 58
+# define R_LARCH_GNU_VTINHERIT 57
+# define R_LARCH_GOT64_HI12 82
+# define R_LARCH_GOT64_LO20 81
+# define R_LARCH_GOT64_PC_HI12 78
+# define R_LARCH_GOT64_PC_LO20 77
+# define R_LARCH_GOT_HI20 79
+# define R_LARCH_GOT_LO12 80
+# define R_LARCH_GOT_PC_HI20 75
+# define R_LARCH_GOT_PC_LO12 76
+# define R_LARCH_IRELATIVE 12
+# define R_LARCH_JUMP_SLOT 5
+# define R_LARCH_MARK_LA 20
+# define R_LARCH_MARK_PCREL 21
+# define R_LARCH_NONE 0
+# define R_LARCH_PCALA64_HI12 74
+# define R_LARCH_PCALA64_LO20 73
+# define R_LARCH_PCALA_HI20 71
+# define R_LARCH_PCALA_LO12 72
+# define R_LARCH_PCREL20_S2 103
+# define R_LARCH_RELATIVE 3
+# define R_LARCH_RELAX 100
+# define R_LARCH_SOP_ADD 35
+# define R_LARCH_SOP_AND 36
+# define R_LARCH_SOP_ASSERT 30
+# define R_LARCH_SOP_IF_ELSE 37
+# define R_LARCH_SOP_NOT 31
+# define R_LARCH_SOP_POP_32_S_0_10_10_16_S2 45
+# define R_LARCH_SOP_POP_32_S_0_5_10_16_S2 44
+# define R_LARCH_SOP_POP_32_S_10_12 40
+# define R_LARCH_SOP_POP_32_S_10_16 41
+# define R_LARCH_SOP_POP_32_S_10_16_S2 42
+# define R_LARCH_SOP_POP_32_S_10_5 38
+# define R_LARCH_SOP_POP_32_S_5_20 43
+# define R_LARCH_SOP_POP_32_U 46
+# define R_LARCH_SOP_POP_32_U_10_12 39
+# define R_LARCH_SOP_PUSH_ABSOLUTE 23
+# define R_LARCH_SOP_PUSH_DUP 24
+# define R_LARCH_SOP_PUSH_GPREL 25
+# define R_LARCH_SOP_PUSH_PCREL 22
+# define R_LARCH_SOP_PUSH_PLT_PCREL 29
+# define R_LARCH_SOP_PUSH_TLS_GD 28
+# define R_LARCH_SOP_PUSH_TLS_GOT 27
+# define R_LARCH_SOP_PUSH_TLS_TPREL 26
+# define R_LARCH_SOP_SL 33
+# define R_LARCH_SOP_SR 34
+# define R_LARCH_SOP_SUB 32
+# define R_LARCH_SUB16 53
+# define R_LARCH_SUB24 54
+# define R_LARCH_SUB32 55
+# define R_LARCH_SUB6 106
+# define R_LARCH_SUB64 56
+# define R_LARCH_SUB8 52
+# define R_LARCH_SUB_ULEB128 108
+# define R_LARCH_TLS_DTPMOD32 6
+# define R_LARCH_TLS_DTPMOD64 7
+# define R_LARCH_TLS_DTPREL32 8
+# define R_LARCH_TLS_DTPREL64 9
+# define R_LARCH_TLS_GD_HI20 98
+# define R_LARCH_TLS_GD_PC_HI20 97
+# define R_LARCH_TLS_IE64_HI12 94
+# define R_LARCH_TLS_IE64_LO20 93
+# define R_LARCH_TLS_IE64_PC_HI12 90
+# define R_LARCH_TLS_IE64_PC_LO20 89
+# define R_LARCH_TLS_IE_HI20 91
+# define R_LARCH_TLS_IE_LO12 92
+# define R_LARCH_TLS_IE_PC_HI20 87
+# define R_LARCH_TLS_IE_PC_LO12 88
+# define R_LARCH_TLS_LD_HI20 96
+# define R_LARCH_TLS_LD_PC_HI20 95
+# define R_LARCH_TLS_LE64_HI12 86
+# define R_LARCH_TLS_LE64_LO20 85
+# define R_LARCH_TLS_LE_HI20 83
+# define R_LARCH_TLS_LE_LO12 84
+# define R_LARCH_TLS_TPREL32 10
+# define R_LARCH_TLS_TPREL64 11
+# define R_M32R_10_PCREL 4
+# define R_M32R_10_PCREL_RELA 36
+# define R_M32R_16 1
+# define R_M32R_16_RELA 33
+# define R_M32R_18_PCREL 5
+# define R_M32R_18_PCREL_RELA 37
+# define R_M32R_24 3
+# define R_M32R_24_RELA 35
+# define R_M32R_26_PCREL 6
+# define R_M32R_26_PCREL_RELA 38
+# define R_M32R_26_PLTREL 49
+# define R_M32R_32 2
+# define R_M32R_32_RELA 34
+# define R_M32R_COPY 50
+# define R_M32R_GLOB_DAT 51
+# define R_M32R_GNU_VTENTRY 12
+# define R_M32R_GNU_VTINHERIT 11
+# define R_M32R_GOT16_HI_SLO 57
+# define R_M32R_GOT16_HI_ULO 56
+# define R_M32R_GOT16_LO 58
+# define R_M32R_GOT24 48
+# define R_M32R_GOTOFF 54
+# define R_M32R_GOTOFF_HI_SLO 63
+# define R_M32R_GOTOFF_HI_ULO 62
+# define R_M32R_GOTOFF_LO 64
+# define R_M32R_GOTPC24 55
+# define R_M32R_GOTPC_HI_SLO 60
+# define R_M32R_GOTPC_HI_ULO 59
+# define R_M32R_GOTPC_LO 61
+# define R_M32R_HI16_SLO 8
+# define R_M32R_HI16_SLO_RELA 40
+# define R_M32R_HI16_ULO 7
+# define R_M32R_HI16_ULO_RELA 39
+# define R_M32R_JMP_SLOT 52
+# define R_M32R_LO16 9
+# define R_M32R_LO16_RELA 41
+# define R_M32R_NONE 0
+# define R_M32R_NUM 256
+# define R_M32R_REL32 45
+# define R_M32R_RELATIVE 53
+# define R_M32R_RELA_GNU_VTENTRY 44
+# define R_M32R_RELA_GNU_VTINHERIT 43
+# define R_M32R_SDA16 10
+# define R_M32R_SDA16_RELA 42
+# define R_METAG_ADDR32 2
+# define R_METAG_COPY 43
+# define R_METAG_GETSETOFF 5
+# define R_METAG_GETSET_GOT 35
+# define R_METAG_GETSET_GOTOFF 34
+# define R_METAG_GLOB_DAT 46
+# define R_METAG_GNU_VTENTRY 31
+# define R_METAG_GNU_VTINHERIT 30
+# define R_METAG_GOTOFF 41
+# define R_METAG_HI16_GOTOFF 32
+# define R_METAG_HI16_GOTPC 36
+# define R_METAG_HI16_PLT 38
+# define R_METAG_HIADDR16 0
+# define R_METAG_HIOG 13
+# define R_METAG_JMP_SLOT 44
+# define R_METAG_LO16_GOTOFF 33
+# define R_METAG_LO16_GOTPC 37
+# define R_METAG_LO16_PLT 39
+# define R_METAG_LOADDR16 1
+# define R_METAG_LOOG 14
+# define R_METAG_NONE 3
+# define R_METAG_PLT 42
+# define R_METAG_REG16OP1 9
+# define R_METAG_REG16OP2 10
+# define R_METAG_REG16OP3 11
+# define R_METAG_REG32OP1 6
+# define R_METAG_REG32OP2 7
+# define R_METAG_REG32OP3 8
+# define R_METAG_REG32OP4 12
+# define R_METAG_REL16 16
+# define R_METAG_REL8 15
+# define R_METAG_RELATIVE 45
+# define R_METAG_RELBRANCH 4
+# define R_METAG_RELBRANCH_PLT 40
+# define R_METAG_TLS_DTPMOD 57
+# define R_METAG_TLS_DTPOFF 58
+# define R_METAG_TLS_GD 47
+# define R_METAG_TLS_IE 52
+# define R_METAG_TLS_IENONPIC 53
+# define R_METAG_TLS_IENONPIC_HI16 54
+# define R_METAG_TLS_IENONPIC_LO16 55
+# define R_METAG_TLS_LDM 48
+# define R_METAG_TLS_LDO 51
+# define R_METAG_TLS_LDO_HI16 49
+# define R_METAG_TLS_LDO_LO16 50
+# define R_METAG_TLS_LE 59
+# define R_METAG_TLS_LE_HI16 60
+# define R_METAG_TLS_LE_LO16 61
+# define R_METAG_TLS_TPOFF 56
+# define R_MICROBLAZE_32 1
+# define R_MICROBLAZE_32_LO 6
+# define R_MICROBLAZE_32_PCREL 2
+# define R_MICROBLAZE_32_PCREL_LO 4
+# define R_MICROBLAZE_32_SYM_OP_SYM 10
+# define R_MICROBLAZE_64 5
+# define R_MICROBLAZE_64_NONE 9
+# define R_MICROBLAZE_64_PCREL 3
+# define R_MICROBLAZE_COPY 21
+# define R_MICROBLAZE_GLOB_DAT 18
+# define R_MICROBLAZE_GNU_VTENTRY 12
+# define R_MICROBLAZE_GNU_VTINHERIT 11
+# define R_MICROBLAZE_GOTOFF_32 20
+# define R_MICROBLAZE_GOTOFF_64 19
+# define R_MICROBLAZE_GOTPC_64 13
+# define R_MICROBLAZE_GOT_64 14
+# define R_MICROBLAZE_JUMP_SLOT 17
+# define R_MICROBLAZE_NONE 0
+# define R_MICROBLAZE_PLT_64 15
+# define R_MICROBLAZE_REL 16
+# define R_MICROBLAZE_SRO32 7
+# define R_MICROBLAZE_SRW32 8
+# define R_MICROBLAZE_TLS 22
+# define R_MICROBLAZE_TLSDTPMOD32 25
+# define R_MICROBLAZE_TLSDTPREL32 26
+# define R_MICROBLAZE_TLSDTPREL64 27
+# define R_MICROBLAZE_TLSGD 23
+# define R_MICROBLAZE_TLSGOTTPREL32 28
+# define R_MICROBLAZE_TLSLD 24
+# define R_MICROBLAZE_TLSTPREL32 29
+# define R_MICROMIPS_26_S1 133
+# define R_MICROMIPS_CALL16 142
+# define R_MICROMIPS_CALL_HI16 153
+# define R_MICROMIPS_CALL_LO16 154
+# define R_MICROMIPS_GOT16 138
+# define R_MICROMIPS_GOT_DISP 145
+# define R_MICROMIPS_GOT_HI16 148
+# define R_MICROMIPS_GOT_LO16 149
+# define R_MICROMIPS_GOT_OFST 147
+# define R_MICROMIPS_GOT_PAGE 146
+# define R_MICROMIPS_GPREL16 136
+# define R_MICROMIPS_GPREL7_S2 172
+# define R_MICROMIPS_HI0_LO16 157
+# define R_MICROMIPS_HI16 134
+# define R_MICROMIPS_HIGHER 151
+# define R_MICROMIPS_HIGHEST 152
+# define R_MICROMIPS_JALR 156
+# define R_MICROMIPS_LITERAL 137
+# define R_MICROMIPS_LO16 135
+# define R_MICROMIPS_PC10_S1 140
+# define R_MICROMIPS_PC16_S1 141
+# define R_MICROMIPS_PC23_S2 173
+# define R_MICROMIPS_PC7_S1 139
+# define R_MICROMIPS_SCN_DISP 155
+# define R_MICROMIPS_SUB 150
+# define R_MICROMIPS_TLS_DTPREL_HI16 164
+# define R_MICROMIPS_TLS_DTPREL_LO16 165
+# define R_MICROMIPS_TLS_GD 162
+# define R_MICROMIPS_TLS_GOTTPREL 166
+# define R_MICROMIPS_TLS_LDM 163
+# define R_MICROMIPS_TLS_TPREL_HI16 169
+# define R_MICROMIPS_TLS_TPREL_LO16 170
+# define R_MIPS16_26 100
+# define R_MIPS16_CALL16 103
+# define R_MIPS16_GOT16 102
+# define R_MIPS16_GPREL 101
+# define R_MIPS16_HI16 104
+# define R_MIPS16_LO16 105
+# define R_MIPS16_PC16_S1 113
+# define R_MIPS16_TLS_DTPREL_HI16 108
+# define R_MIPS16_TLS_DTPREL_LO16 109
+# define R_MIPS16_TLS_GD 106
+# define R_MIPS16_TLS_GOTTPREL 110
+# define R_MIPS16_TLS_LDM 107
+# define R_MIPS16_TLS_TPREL_HI16 111
+# define R_MIPS16_TLS_TPREL_LO16 112
+# define R_MIPS_16 1
+# define R_MIPS_26 4
+# define R_MIPS_32 2
+# define R_MIPS_64 18
+# define R_MIPS_ADD_IMMEDIATE 34
+# define R_MIPS_CALL16 11
+# define R_MIPS_CALL_HI16 30
+# define R_MIPS_CALL_LO16 31
+# define R_MIPS_COPY 126
+# define R_MIPS_DELETE 27
+# define R_MIPS_EH 249
+# define R_MIPS_GLOB_DAT 51
+# define R_MIPS_GNU_REL16_S2 250
+# define R_MIPS_GNU_VTENTRY 254
+# define R_MIPS_GNU_VTINHERIT 253
+# define R_MIPS_GOT16 9
+# define R_MIPS_GOT_DISP 19
+# define R_MIPS_GOT_HI16 22
+# define R_MIPS_GOT_LO16 23
+# define R_MIPS_GOT_OFST 21
+# define R_MIPS_GOT_PAGE 20
+# define R_MIPS_GPREL16 7
+# define R_MIPS_GPREL32 12
+# define R_MIPS_HI16 5
+# define R_MIPS_HIGHER 28
+# define R_MIPS_HIGHEST 29
+# define R_MIPS_INSERT_A 25
+# define R_MIPS_INSERT_B 26
+# define R_MIPS_JALR 37
+# define R_MIPS_JUMP_SLOT 127
+# define R_MIPS_LITERAL 8
+# define R_MIPS_LO16 6
+# define R_MIPS_NONE 0
+# define R_MIPS_NUM 255
+# define R_MIPS_PC16 10
+# define R_MIPS_PC18_S3 62
+# define R_MIPS_PC19_S2 63
+# define R_MIPS_PC21_S2 60
+# define R_MIPS_PC26_S2 61
+# define R_MIPS_PC32 248
+# define R_MIPS_PCHI16 64
+# define R_MIPS_PCLO16 65
+# define R_MIPS_PJUMP 35
+# define R_MIPS_REL16 33
+# define R_MIPS_REL32 3
+# define R_MIPS_RELATIVE 128
+# define R_MIPS_RELGOT 36
+# define R_MIPS_SCN_DISP 32
+# define R_MIPS_SHIFT5 16
+# define R_MIPS_SHIFT6 17
+# define R_MIPS_SUB 24
+# define R_MIPS_TLS_DTPMOD32 38
+# define R_MIPS_TLS_DTPMOD64 40
+# define R_MIPS_TLS_DTPREL32 39
+# define R_MIPS_TLS_DTPREL64 41
+# define R_MIPS_TLS_DTPREL_HI16 44
+# define R_MIPS_TLS_DTPREL_LO16 45
+# define R_MIPS_TLS_GD 42
+# define R_MIPS_TLS_GOTTPREL 46
+# define R_MIPS_TLS_LDM 43
+# define R_MIPS_TLS_TPREL32 47
+# define R_MIPS_TLS_TPREL64 48
+# define R_MIPS_TLS_TPREL_HI16 49
+# define R_MIPS_TLS_TPREL_LO16 50
+# define R_MN10300_16 2
+# define R_MN10300_24 9
+# define R_MN10300_32 1
+# define R_MN10300_8 3
+# define R_MN10300_ALIGN 34
+# define R_MN10300_COPY 20
+# define R_MN10300_GLOB_DAT 21
+# define R_MN10300_GNU_VTENTRY 8
+# define R_MN10300_GNU_VTINHERIT 7
+# define R_MN10300_GOT16 19
+# define R_MN10300_GOT24 18
+# define R_MN10300_GOT32 17
+# define R_MN10300_GOTOFF16 14
+# define R_MN10300_GOTOFF24 13
+# define R_MN10300_GOTOFF32 12
+# define R_MN10300_GOTPC16 11
+# define R_MN10300_GOTPC32 10
+# define R_MN10300_JMP_SLOT 22
+# define R_MN10300_NONE 0
+# define R_MN10300_NUM 35
+# define R_MN10300_PCREL16 5
+# define R_MN10300_PCREL32 4
+# define R_MN10300_PCREL8 6
+# define R_MN10300_PLT16 16
+# define R_MN10300_PLT32 15
+# define R_MN10300_RELATIVE 23
+# define R_MN10300_SYM_DIFF 33
+# define R_MN10300_TLS_DTPMOD 30
+# define R_MN10300_TLS_DTPOFF 31
+# define R_MN10300_TLS_GD 24
+# define R_MN10300_TLS_GOTIE 27
+# define R_MN10300_TLS_IE 28
+# define R_MN10300_TLS_LD 25
+# define R_MN10300_TLS_LDO 26
+# define R_MN10300_TLS_LE 29
+# define R_MN10300_TLS_TPOFF 32
+# define R_NDS32_32_RELA 20
+# define R_NDS32_COPY 39
+# define R_NDS32_GLOB_DAT 40
+# define R_NDS32_JMP_SLOT 41
+# define R_NDS32_NONE 0
+# define R_NDS32_RELATIVE 42
+# define R_NDS32_TLS_DESC 119
+# define R_NDS32_TLS_TPOFF 102
+# define R_NIOS2_ALIGN 21
+# define R_NIOS2_BFD_RELOC_16 13
+# define R_NIOS2_BFD_RELOC_32 12
+# define R_NIOS2_BFD_RELOC_8 14
+# define R_NIOS2_CACHE_OPX 6
+# define R_NIOS2_CALL16 23
+# define R_NIOS2_CALL26 4
+# define R_NIOS2_CALL26_NOAT 41
+# define R_NIOS2_CALLR 20
+# define R_NIOS2_CALL_HA 45
+# define R_NIOS2_CALL_LO 44
+# define R_NIOS2_CJMP 19
+# define R_NIOS2_COPY 36
+# define R_NIOS2_GLOB_DAT 37
+# define R_NIOS2_GNU_VTENTRY 17
+# define R_NIOS2_GNU_VTINHERIT 16
+# define R_NIOS2_GOT16 22
+# define R_NIOS2_GOTOFF 40
+# define R_NIOS2_GOTOFF_HA 25
+# define R_NIOS2_GOTOFF_LO 24
+# define R_NIOS2_GOT_HA 43
+# define R_NIOS2_GOT_LO 42
+# define R_NIOS2_GPREL 15
+# define R_NIOS2_HI16 9
+# define R_NIOS2_HIADJ16 11
+# define R_NIOS2_IMM5 5
+# define R_NIOS2_IMM6 7
+# define R_NIOS2_IMM8 8
+# define R_NIOS2_JUMP_SLOT 38
+# define R_NIOS2_LO16 10
+# define R_NIOS2_NONE 0
+# define R_NIOS2_PCREL16 3
+# define R_NIOS2_PCREL_HA 27
+# define R_NIOS2_PCREL_LO 26
+# define R_NIOS2_RELATIVE 39
+# define R_NIOS2_S16 1
+# define R_NIOS2_TLS_DTPMOD 33
+# define R_NIOS2_TLS_DTPREL 34
+# define R_NIOS2_TLS_GD16 28
+# define R_NIOS2_TLS_IE16 31
+# define R_NIOS2_TLS_LDM16 29
+# define R_NIOS2_TLS_LDO16 30
+# define R_NIOS2_TLS_LE16 32
+# define R_NIOS2_TLS_TPREL 35
+# define R_NIOS2_U16 2
+# define R_NIOS2_UJMP 18
+# define R_OR1K_16 2
+# define R_OR1K_16_PCREL 10
+# define R_OR1K_32 1
+# define R_OR1K_32_PCREL 9
+# define R_OR1K_8 3
+# define R_OR1K_8_PCREL 11
+# define R_OR1K_COPY 18
+# define R_OR1K_GLOB_DAT 19
+# define R_OR1K_GNU_VTENTRY 7
+# define R_OR1K_GNU_VTINHERIT 8
+# define R_OR1K_GOT16 14
+# define R_OR1K_GOTOFF_HI16 16
+# define R_OR1K_GOTOFF_LO16 17
+# define R_OR1K_GOTPC_HI16 12
+# define R_OR1K_GOTPC_LO16 13
+# define R_OR1K_HI_16_IN_INSN 5
+# define R_OR1K_INSN_REL_26 6
+# define R_OR1K_JMP_SLOT 20
+# define R_OR1K_LO_16_IN_INSN 4
+# define R_OR1K_NONE 0
+# define R_OR1K_PLT26 15
+# define R_OR1K_RELATIVE 21
+# define R_OR1K_TLS_DTPMOD 34
+# define R_OR1K_TLS_DTPOFF 33
+# define R_OR1K_TLS_GD_HI16 22
+# define R_OR1K_TLS_GD_LO16 23
+# define R_OR1K_TLS_IE_HI16 28
+# define R_OR1K_TLS_IE_LO16 29
+# define R_OR1K_TLS_LDM_HI16 24
+# define R_OR1K_TLS_LDM_LO16 25
+# define R_OR1K_TLS_LDO_HI16 26
+# define R_OR1K_TLS_LDO_LO16 27
+# define R_OR1K_TLS_LE_HI16 30
+# define R_OR1K_TLS_LE_LO16 31
+# define R_OR1K_TLS_TPOFF 32
+# define R_PARISC_COPY 128
+# define R_PARISC_DIR14DR 84
+# define R_PARISC_DIR14R 6
+# define R_PARISC_DIR14WR 83
+# define R_PARISC_DIR16DF 87
+# define R_PARISC_DIR16F 85
+# define R_PARISC_DIR16WF 86
+# define R_PARISC_DIR17F 4
+# define R_PARISC_DIR17R 3
+# define R_PARISC_DIR21L 2
+# define R_PARISC_DIR32 1
+# define R_PARISC_DIR64 80
+# define R_PARISC_DPREL14R 22
+# define R_PARISC_DPREL21L 18
+# define R_PARISC_EPLT 130
+# define R_PARISC_FPTR64 64
+# define R_PARISC_GNU_VTENTRY 232
+# define R_PARISC_GNU_VTINHERIT 233
+# define R_PARISC_GPREL14DR 92
+# define R_PARISC_GPREL14R 30
+# define R_PARISC_GPREL14WR 91
+# define R_PARISC_GPREL16DF 95
+# define R_PARISC_GPREL16F 93
+# define R_PARISC_GPREL16WF 94
+# define R_PARISC_GPREL21L 26
+# define R_PARISC_GPREL64 88
+# define R_PARISC_HIRESERVE 255
+# define R_PARISC_IPLT 129
+# define R_PARISC_LORESERVE 128
+# define R_PARISC_LTOFF14DR 100
+# define R_PARISC_LTOFF14R 38
+# define R_PARISC_LTOFF14WR 99
+# define R_PARISC_LTOFF16DF 103
+# define R_PARISC_LTOFF16F 101
+# define R_PARISC_LTOFF16WF 102
+# define R_PARISC_LTOFF21L 34
+# define R_PARISC_LTOFF64 96
+# define R_PARISC_LTOFF_FPTR14DR 124
+# define R_PARISC_LTOFF_FPTR14R 62
+# define R_PARISC_LTOFF_FPTR14WR 123
+# define R_PARISC_LTOFF_FPTR16DF 127
+# define R_PARISC_LTOFF_FPTR16F 125
+# define R_PARISC_LTOFF_FPTR16WF 126
+# define R_PARISC_LTOFF_FPTR21L 58
+# define R_PARISC_LTOFF_FPTR32 57
+# define R_PARISC_LTOFF_FPTR64 120
+# define R_PARISC_LTOFF_TP14DR 228
+# define R_PARISC_LTOFF_TP14F 167
+# define R_PARISC_LTOFF_TP14R 166
+# define R_PARISC_LTOFF_TP14WR 227
+# define R_PARISC_LTOFF_TP16DF 231
+# define R_PARISC_LTOFF_TP16F 229
+# define R_PARISC_LTOFF_TP16WF 230
+# define R_PARISC_LTOFF_TP21L 162
+# define R_PARISC_LTOFF_TP64 224
+# define R_PARISC_NONE 0
+# define R_PARISC_PCREL14DR 76
+# define R_PARISC_PCREL14R 14
+# define R_PARISC_PCREL14WR 75
+# define R_PARISC_PCREL16DF 79
+# define R_PARISC_PCREL16F 77
+# define R_PARISC_PCREL16WF 78
+# define R_PARISC_PCREL17F 12
+# define R_PARISC_PCREL17R 11
+# define R_PARISC_PCREL21L 10
+# define R_PARISC_PCREL22F 74
+# define R_PARISC_PCREL32 9
+# define R_PARISC_PCREL64 72
+# define R_PARISC_PLABEL14R 70
+# define R_PARISC_PLABEL21L 66
+# define R_PARISC_PLABEL32 65
+# define R_PARISC_PLTOFF14DR 116
+# define R_PARISC_PLTOFF14R 54
+# define R_PARISC_PLTOFF14WR 115
+# define R_PARISC_PLTOFF16DF 119
+# define R_PARISC_PLTOFF16F 117
+# define R_PARISC_PLTOFF16WF 118
+# define R_PARISC_PLTOFF21L 50
+# define R_PARISC_SECREL32 41
+# define R_PARISC_SECREL64 104
+# define R_PARISC_SEGBASE 48
+# define R_PARISC_SEGREL32 49
+# define R_PARISC_SEGREL64 112
+# define R_PARISC_TLS_DTPMOD32 242
+# define R_PARISC_TLS_DTPMOD64 243
+# define R_PARISC_TLS_DTPOFF32 244
+# define R_PARISC_TLS_DTPOFF64 245
+# define R_PARISC_TLS_GD14R 235
+# define R_PARISC_TLS_GD21L 234
+# define R_PARISC_TLS_GDCALL 236
+# define R_PARISC_TLS_IE14R R_PARISC_LTOFF_TP14R
+# define R_PARISC_TLS_IE21L R_PARISC_LTOFF_TP21L
+# define R_PARISC_TLS_LDM14R 238
+# define R_PARISC_TLS_LDM21L 237
+# define R_PARISC_TLS_LDMCALL 239
+# define R_PARISC_TLS_LDO14R 241
+# define R_PARISC_TLS_LDO21L 240
+# define R_PARISC_TLS_LE14R R_PARISC_TPREL14R
+# define R_PARISC_TLS_LE21L R_PARISC_TPREL21L
+# define R_PARISC_TLS_TPREL32 R_PARISC_TPREL32
+# define R_PARISC_TLS_TPREL64 R_PARISC_TPREL64
+# define R_PARISC_TPREL14DR 220
+# define R_PARISC_TPREL14R 158
+# define R_PARISC_TPREL14WR 219
+# define R_PARISC_TPREL16DF 223
+# define R_PARISC_TPREL16F 221
+# define R_PARISC_TPREL16WF 222
+# define R_PARISC_TPREL21L 154
+# define R_PARISC_TPREL32 153
+# define R_PARISC_TPREL64 216
+# define R_PPC64_ADDR14 R_PPC_ADDR14
+# define R_PPC64_ADDR14_BRNTAKEN R_PPC_ADDR14_BRNTAKEN
+# define R_PPC64_ADDR14_BRTAKEN R_PPC_ADDR14_BRTAKEN
+# define R_PPC64_ADDR16 R_PPC_ADDR16
+# define R_PPC64_ADDR16_DS 56
+# define R_PPC64_ADDR16_HA R_PPC_ADDR16_HA
+# define R_PPC64_ADDR16_HI R_PPC_ADDR16_HI
+# define R_PPC64_ADDR16_HIGH 110
+# define R_PPC64_ADDR16_HIGHA 111
+# define R_PPC64_ADDR16_HIGHER 39
+# define R_PPC64_ADDR16_HIGHERA 40
+# define R_PPC64_ADDR16_HIGHEST 41
+# define R_PPC64_ADDR16_HIGHESTA 42
+# define R_PPC64_ADDR16_LO R_PPC_ADDR16_LO
+# define R_PPC64_ADDR16_LO_DS 57
+# define R_PPC64_ADDR24 R_PPC_ADDR24
+# define R_PPC64_ADDR30 37
+# define R_PPC64_ADDR32 R_PPC_ADDR32
+# define R_PPC64_ADDR64 38
+# define R_PPC64_COPY R_PPC_COPY
+# define R_PPC64_DTPMOD64 68
+# define R_PPC64_DTPREL16 74
+# define R_PPC64_DTPREL16_DS 101
+# define R_PPC64_DTPREL16_HA 77
+# define R_PPC64_DTPREL16_HI 76
+# define R_PPC64_DTPREL16_HIGH 114
+# define R_PPC64_DTPREL16_HIGHA 115
+# define R_PPC64_DTPREL16_HIGHER 103
+# define R_PPC64_DTPREL16_HIGHERA 104
+# define R_PPC64_DTPREL16_HIGHEST 105
+# define R_PPC64_DTPREL16_HIGHESTA 106
+# define R_PPC64_DTPREL16_LO 75
+# define R_PPC64_DTPREL16_LO_DS 102
+# define R_PPC64_DTPREL64 78
+# define R_PPC64_GLOB_DAT R_PPC_GLOB_DAT
+# define R_PPC64_GOT16 R_PPC_GOT16
+# define R_PPC64_GOT16_DS 58
+# define R_PPC64_GOT16_HA R_PPC_GOT16_HA
+# define R_PPC64_GOT16_HI R_PPC_GOT16_HI
+# define R_PPC64_GOT16_LO R_PPC_GOT16_LO
+# define R_PPC64_GOT16_LO_DS 59
+# define R_PPC64_GOT_DTPREL16_DS 91
+# define R_PPC64_GOT_DTPREL16_HA 94
+# define R_PPC64_GOT_DTPREL16_HI 93
+# define R_PPC64_GOT_DTPREL16_LO_DS 92
+# define R_PPC64_GOT_TLSGD16 79
+# define R_PPC64_GOT_TLSGD16_HA 82
+# define R_PPC64_GOT_TLSGD16_HI 81
+# define R_PPC64_GOT_TLSGD16_LO 80
+# define R_PPC64_GOT_TLSLD16 83
+# define R_PPC64_GOT_TLSLD16_HA 86
+# define R_PPC64_GOT_TLSLD16_HI 85
+# define R_PPC64_GOT_TLSLD16_LO 84
+# define R_PPC64_GOT_TPREL16_DS 87
+# define R_PPC64_GOT_TPREL16_HA 90
+# define R_PPC64_GOT_TPREL16_HI 89
+# define R_PPC64_GOT_TPREL16_LO_DS 88
+# define R_PPC64_IRELATIVE 248
+# define R_PPC64_JMP_IREL 247
+# define R_PPC64_JMP_SLOT R_PPC_JMP_SLOT
+# define R_PPC64_NONE R_PPC_NONE
+# define R_PPC64_PLT16_HA R_PPC_PLT16_HA
+# define R_PPC64_PLT16_HI R_PPC_PLT16_HI
+# define R_PPC64_PLT16_LO R_PPC_PLT16_LO
+# define R_PPC64_PLT16_LO_DS 60
+# define R_PPC64_PLT32 R_PPC_PLT32
+# define R_PPC64_PLT64 45
+# define R_PPC64_PLTGOT16 52
+# define R_PPC64_PLTGOT16_DS 65
+# define R_PPC64_PLTGOT16_HA 55
+# define R_PPC64_PLTGOT16_HI 54
+# define R_PPC64_PLTGOT16_LO 53
+# define R_PPC64_PLTGOT16_LO_DS 66
+# define R_PPC64_PLTREL32 R_PPC_PLTREL32
+# define R_PPC64_PLTREL64 46
+# define R_PPC64_REL14 R_PPC_REL14
+# define R_PPC64_REL14_BRNTAKEN R_PPC_REL14_BRNTAKEN
+# define R_PPC64_REL14_BRTAKEN R_PPC_REL14_BRTAKEN
+# define R_PPC64_REL16 249
+# define R_PPC64_REL16_HA 252
+# define R_PPC64_REL16_HI 251
+# define R_PPC64_REL16_LO 250
+# define R_PPC64_REL24 R_PPC_REL24
+# define R_PPC64_REL32 R_PPC_REL32
+# define R_PPC64_REL64 44
+# define R_PPC64_RELATIVE R_PPC_RELATIVE
+# define R_PPC64_SECTOFF R_PPC_SECTOFF
+# define R_PPC64_SECTOFF_DS 61
+# define R_PPC64_SECTOFF_HA R_PPC_SECTOFF_HA
+# define R_PPC64_SECTOFF_HI R_PPC_SECTOFF_HI
+# define R_PPC64_SECTOFF_LO R_PPC_SECTOFF_LO
+# define R_PPC64_SECTOFF_LO_DS 62
+# define R_PPC64_TLS 67
+# define R_PPC64_TLSGD 107
+# define R_PPC64_TLSLD 108
+# define R_PPC64_TOC 51
+# define R_PPC64_TOC16 47
+# define R_PPC64_TOC16_DS 63
+# define R_PPC64_TOC16_HA 50
+# define R_PPC64_TOC16_HI 49
+# define R_PPC64_TOC16_LO 48
+# define R_PPC64_TOC16_LO_DS 64
+# define R_PPC64_TOCSAVE 109
+# define R_PPC64_TPREL16 69
+# define R_PPC64_TPREL16_DS 95
+# define R_PPC64_TPREL16_HA 72
+# define R_PPC64_TPREL16_HI 71
+# define R_PPC64_TPREL16_HIGH 112
+# define R_PPC64_TPREL16_HIGHA 113
+# define R_PPC64_TPREL16_HIGHER 97
+# define R_PPC64_TPREL16_HIGHERA 98
+# define R_PPC64_TPREL16_HIGHEST 99
+# define R_PPC64_TPREL16_HIGHESTA 100
+# define R_PPC64_TPREL16_LO 70
+# define R_PPC64_TPREL16_LO_DS 96
+# define R_PPC64_TPREL64 73
+# define R_PPC64_UADDR16 R_PPC_UADDR16
+# define R_PPC64_UADDR32 R_PPC_UADDR32
+# define R_PPC64_UADDR64 43
+# define R_PPC_ADDR14 7
+# define R_PPC_ADDR14_BRNTAKEN 9
+# define R_PPC_ADDR14_BRTAKEN 8
+# define R_PPC_ADDR16 3
+# define R_PPC_ADDR16_HA 6
+# define R_PPC_ADDR16_HI 5
+# define R_PPC_ADDR16_LO 4
+# define R_PPC_ADDR24 2
+# define R_PPC_ADDR32 1
+# define R_PPC_COPY 19
+# define R_PPC_DIAB_RELSDA_HA 185
+# define R_PPC_DIAB_RELSDA_HI 184
+# define R_PPC_DIAB_RELSDA_LO 183
+# define R_PPC_DIAB_SDA21_HA 182
+# define R_PPC_DIAB_SDA21_HI 181
+# define R_PPC_DIAB_SDA21_LO 180
+# define R_PPC_DTPMOD32 68
+# define R_PPC_DTPREL16 74
+# define R_PPC_DTPREL16_HA 77
+# define R_PPC_DTPREL16_HI 76
+# define R_PPC_DTPREL16_LO 75
+# define R_PPC_DTPREL32 78
+# define R_PPC_EMB_BIT_FLD 115
+# define R_PPC_EMB_MRKREF 110
+# define R_PPC_EMB_NADDR16 102
+# define R_PPC_EMB_NADDR16_HA 105
+# define R_PPC_EMB_NADDR16_HI 104
+# define R_PPC_EMB_NADDR16_LO 103
+# define R_PPC_EMB_NADDR32 101
+# define R_PPC_EMB_RELSDA 116
+# define R_PPC_EMB_RELSEC16 111
+# define R_PPC_EMB_RELST_HA 114
+# define R_PPC_EMB_RELST_HI 113
+# define R_PPC_EMB_RELST_LO 112
+# define R_PPC_EMB_SDA21 109
+# define R_PPC_EMB_SDA2I16 107
+# define R_PPC_EMB_SDA2REL 108
+# define R_PPC_EMB_SDAI16 106
+# define R_PPC_GLOB_DAT 20
+# define R_PPC_GOT16 14
+# define R_PPC_GOT16_HA 17
+# define R_PPC_GOT16_HI 16
+# define R_PPC_GOT16_LO 15
+# define R_PPC_GOT_DTPREL16 91
+# define R_PPC_GOT_DTPREL16_HA 94
+# define R_PPC_GOT_DTPREL16_HI 93
+# define R_PPC_GOT_DTPREL16_LO 92
+# define R_PPC_GOT_TLSGD16 79
+# define R_PPC_GOT_TLSGD16_HA 82
+# define R_PPC_GOT_TLSGD16_HI 81
+# define R_PPC_GOT_TLSGD16_LO 80
+# define R_PPC_GOT_TLSLD16 83
+# define R_PPC_GOT_TLSLD16_HA 86
+# define R_PPC_GOT_TLSLD16_HI 85
+# define R_PPC_GOT_TLSLD16_LO 84
+# define R_PPC_GOT_TPREL16 87
+# define R_PPC_GOT_TPREL16_HA 90
+# define R_PPC_GOT_TPREL16_HI 89
+# define R_PPC_GOT_TPREL16_LO 88
+# define R_PPC_IRELATIVE 248
+# define R_PPC_JMP_SLOT 21
+# define R_PPC_LOCAL24PC 23
+# define R_PPC_NONE 0
+# define R_PPC_PLT16_HA 31
+# define R_PPC_PLT16_HI 30
+# define R_PPC_PLT16_LO 29
+# define R_PPC_PLT32 27
+# define R_PPC_PLTREL24 18
+# define R_PPC_PLTREL32 28
+# define R_PPC_REL14 11
+# define R_PPC_REL14_BRNTAKEN 13
+# define R_PPC_REL14_BRTAKEN 12
+# define R_PPC_REL16 249
+# define R_PPC_REL16_HA 252
+# define R_PPC_REL16_HI 251
+# define R_PPC_REL16_LO 250
+# define R_PPC_REL24 10
+# define R_PPC_REL32 26
+# define R_PPC_RELATIVE 22
+# define R_PPC_SDAREL16 32
+# define R_PPC_SECTOFF 33
+# define R_PPC_SECTOFF_HA 36
+# define R_PPC_SECTOFF_HI 35
+# define R_PPC_SECTOFF_LO 34
+# define R_PPC_TLS 67
+# define R_PPC_TLSGD 95
+# define R_PPC_TLSLD 96
+# define R_PPC_TOC16 255
+# define R_PPC_TPREL16 69
+# define R_PPC_TPREL16_HA 72
+# define R_PPC_TPREL16_HI 71
+# define R_PPC_TPREL16_LO 70
+# define R_PPC_TPREL32 73
+# define R_PPC_UADDR16 25
+# define R_PPC_UADDR32 24
+# define R_RISCV_32 1
+# define R_RISCV_32_PCREL 57
+# define R_RISCV_64 2
+# define R_RISCV_ADD16 34
+# define R_RISCV_ADD32 35
+# define R_RISCV_ADD64 36
+# define R_RISCV_ADD8 33
+# define R_RISCV_ALIGN 43
+# define R_RISCV_BRANCH 16
+# define R_RISCV_CALL 18
+# define R_RISCV_CALL_PLT 19
+# define R_RISCV_COPY 4
+# define R_RISCV_GNU_VTENTRY 42
+# define R_RISCV_GNU_VTINHERIT 41
+# define R_RISCV_GOT_HI20 20
+# define R_RISCV_GPREL_I 47
+# define R_RISCV_GPREL_S 48
+# define R_RISCV_HI20 26
+# define R_RISCV_IRELATIVE 58
+# define R_RISCV_JAL 17
+# define R_RISCV_JUMP_SLOT 5
+# define R_RISCV_LO12_I 27
+# define R_RISCV_LO12_S 28
+# define R_RISCV_NONE 0
+# define R_RISCV_NUM 62
+# define R_RISCV_PCREL_HI20 23
+# define R_RISCV_PCREL_LO12_I 24
+# define R_RISCV_PCREL_LO12_S 25
+# define R_RISCV_PLT32 59
+# define R_RISCV_RELATIVE 3
+# define R_RISCV_RELAX 51
+# define R_RISCV_RVC_BRANCH 44
+# define R_RISCV_RVC_JUMP 45
+# define R_RISCV_RVC_LUI 46
+# define R_RISCV_SET16 55
+# define R_RISCV_SET32 56
+# define R_RISCV_SET6 53
+# define R_RISCV_SET8 54
+# define R_RISCV_SET_ULEB128 60
+# define R_RISCV_SUB16 38
+# define R_RISCV_SUB32 39
+# define R_RISCV_SUB6 52
+# define R_RISCV_SUB64 40
+# define R_RISCV_SUB8 37
+# define R_RISCV_SUB_ULEB128 61
+# define R_RISCV_TLS_DTPMOD32 6
+# define R_RISCV_TLS_DTPMOD64 7
+# define R_RISCV_TLS_DTPREL32 8
+# define R_RISCV_TLS_DTPREL64 9
+# define R_RISCV_TLS_GD_HI20 22
+# define R_RISCV_TLS_GOT_HI20 21
+# define R_RISCV_TLS_TPREL32 10
+# define R_RISCV_TLS_TPREL64 11
+# define R_RISCV_TPREL_ADD 32
+# define R_RISCV_TPREL_HI20 29
+# define R_RISCV_TPREL_I 49
+# define R_RISCV_TPREL_LO12_I 30
+# define R_RISCV_TPREL_LO12_S 31
+# define R_RISCV_TPREL_S 50
+# define R_SH_ALIGN 29
+# define R_SH_CODE 30
+# define R_SH_COPY 162
+# define R_SH_COUNT 28
+# define R_SH_DATA 31
+# define R_SH_DIR32 1
+# define R_SH_DIR8BP 7
+# define R_SH_DIR8L 9
+# define R_SH_DIR8W 8
+# define R_SH_DIR8WPL 5
+# define R_SH_DIR8WPN 3
+# define R_SH_DIR8WPZ 6
+# define R_SH_GLOB_DAT 163
+# define R_SH_GNU_VTENTRY 35
+# define R_SH_GNU_VTINHERIT 34
+# define R_SH_GOT32 160
+# define R_SH_GOTOFF 166
+# define R_SH_GOTPC 167
+# define R_SH_IND12W 4
+# define R_SH_JMP_SLOT 164
+# define R_SH_LABEL 32
+# define R_SH_NONE 0
+# define R_SH_NUM 256
+# define R_SH_PLT32 161
+# define R_SH_REL32 2
+# define R_SH_RELATIVE 165
+# define R_SH_SWITCH16 25
+# define R_SH_SWITCH32 26
+# define R_SH_SWITCH8 33
+# define R_SH_TLS_DTPMOD32 149
+# define R_SH_TLS_DTPOFF32 150
+# define R_SH_TLS_GD_32 144
+# define R_SH_TLS_IE_32 147
+# define R_SH_TLS_LDO_32 146
+# define R_SH_TLS_LD_32 145
+# define R_SH_TLS_LE_32 148
+# define R_SH_TLS_TPOFF32 151
+# define R_SH_USES 27
+# define R_SPARC_10 30
+# define R_SPARC_11 31
+# define R_SPARC_13 11
+# define R_SPARC_16 2
+# define R_SPARC_22 10
+# define R_SPARC_32 3
+# define R_SPARC_5 44
+# define R_SPARC_6 45
+# define R_SPARC_64 32
+# define R_SPARC_7 43
+# define R_SPARC_8 1
+# define R_SPARC_COPY 19
+# define R_SPARC_DISP16 5
+# define R_SPARC_DISP32 6
+# define R_SPARC_DISP64 46
+# define R_SPARC_DISP8 4
+# define R_SPARC_GLOB_DAT 20
+# define R_SPARC_GLOB_JMP 42
+# define R_SPARC_GNU_VTENTRY 251
+# define R_SPARC_GNU_VTINHERIT 250
+# define R_SPARC_GOT10 13
+# define R_SPARC_GOT13 14
+# define R_SPARC_GOT22 15
+# define R_SPARC_GOTDATA_HIX22 80
+# define R_SPARC_GOTDATA_LOX10 81
+# define R_SPARC_GOTDATA_OP 84
+# define R_SPARC_GOTDATA_OP_HIX22 82
+# define R_SPARC_GOTDATA_OP_LOX10 83
+# define R_SPARC_H34 85
+# define R_SPARC_H44 50
+# define R_SPARC_HH22 34
+# define R_SPARC_HI22 9
+# define R_SPARC_HIPLT22 25
+# define R_SPARC_HIX22 48
+# define R_SPARC_HM10 35
+# define R_SPARC_IRELATIVE 249
+# define R_SPARC_JMP_IREL 248
+# define R_SPARC_JMP_SLOT 21
+# define R_SPARC_L44 52
+# define R_SPARC_LM22 36
+# define R_SPARC_LO10 12
+# define R_SPARC_LOPLT10 26
+# define R_SPARC_LOX10 49
+# define R_SPARC_M44 51
+# define R_SPARC_NONE 0
+# define R_SPARC_NUM 253
+# define R_SPARC_OLO10 33
+# define R_SPARC_PC10 16
+# define R_SPARC_PC22 17
+# define R_SPARC_PCPLT10 29
+# define R_SPARC_PCPLT22 28
+# define R_SPARC_PCPLT32 27
+# define R_SPARC_PC_HH22 37
+# define R_SPARC_PC_HM10 38
+# define R_SPARC_PC_LM22 39
+# define R_SPARC_PLT32 24
+# define R_SPARC_PLT64 47
+# define R_SPARC_REGISTER 53
+# define R_SPARC_RELATIVE 22
+# define R_SPARC_REV32 252
+# define R_SPARC_SIZE32 86
+# define R_SPARC_SIZE64 87
+# define R_SPARC_TLS_DTPMOD32 74
+# define R_SPARC_TLS_DTPMOD64 75
+# define R_SPARC_TLS_DTPOFF32 76
+# define R_SPARC_TLS_DTPOFF64 77
+# define R_SPARC_TLS_GD_ADD 58
+# define R_SPARC_TLS_GD_CALL 59
+# define R_SPARC_TLS_GD_HI22 56
+# define R_SPARC_TLS_GD_LO10 57
+# define R_SPARC_TLS_IE_ADD 71
+# define R_SPARC_TLS_IE_HI22 67
+# define R_SPARC_TLS_IE_LD 69
+# define R_SPARC_TLS_IE_LDX 70
+# define R_SPARC_TLS_IE_LO10 68
+# define R_SPARC_TLS_LDM_ADD 62
+# define R_SPARC_TLS_LDM_CALL 63
+# define R_SPARC_TLS_LDM_HI22 60
+# define R_SPARC_TLS_LDM_LO10 61
+# define R_SPARC_TLS_LDO_ADD 66
+# define R_SPARC_TLS_LDO_HIX22 64
+# define R_SPARC_TLS_LDO_LOX10 65
+# define R_SPARC_TLS_LE_HIX22 72
+# define R_SPARC_TLS_LE_LOX10 73
+# define R_SPARC_TLS_TPOFF32 78
+# define R_SPARC_TLS_TPOFF64 79
+# define R_SPARC_UA16 55
+# define R_SPARC_UA32 23
+# define R_SPARC_UA64 54
+# define R_SPARC_WDISP10 88
+# define R_SPARC_WDISP16 40
+# define R_SPARC_WDISP19 41
+# define R_SPARC_WDISP22 8
+# define R_SPARC_WDISP30 7
+# define R_SPARC_WPLT30 18
+# define R_TILEGX_16 3
+# define R_TILEGX_16_PCREL 7
+# define R_TILEGX_32 2
+# define R_TILEGX_32_PCREL 6
+# define R_TILEGX_64 1
+# define R_TILEGX_64_PCREL 5
+# define R_TILEGX_8 4
+# define R_TILEGX_8_PCREL 8
+# define R_TILEGX_BROFF_X1 20
+# define R_TILEGX_COPY 16
+# define R_TILEGX_DEST_IMM8_X1 27
+# define R_TILEGX_GLOB_DAT 17
+# define R_TILEGX_GNU_VTENTRY 129
+# define R_TILEGX_GNU_VTINHERIT 128
+# define R_TILEGX_HW0 9
+# define R_TILEGX_HW0_LAST 13
+# define R_TILEGX_HW1 10
+# define R_TILEGX_HW1_LAST 14
+# define R_TILEGX_HW2 11
+# define R_TILEGX_HW2_LAST 15
+# define R_TILEGX_HW3 12
+# define R_TILEGX_IMM16_X0_HW0 36
+# define R_TILEGX_IMM16_X0_HW0_GOT 64
+# define R_TILEGX_IMM16_X0_HW0_LAST 44
+# define R_TILEGX_IMM16_X0_HW0_LAST_GOT 72
+# define R_TILEGX_IMM16_X0_HW0_LAST_PCREL 58
+# define R_TILEGX_IMM16_X0_HW0_LAST_PLT_PCREL 94
+# define R_TILEGX_IMM16_X0_HW0_LAST_TLS_GD 86
+# define R_TILEGX_IMM16_X0_HW0_LAST_TLS_IE 100
+# define R_TILEGX_IMM16_X0_HW0_LAST_TLS_LE 82
+# define R_TILEGX_IMM16_X0_HW0_PCREL 50
+# define R_TILEGX_IMM16_X0_HW0_PLT_PCREL 66
+# define R_TILEGX_IMM16_X0_HW0_TLS_GD 78
+# define R_TILEGX_IMM16_X0_HW0_TLS_IE 92
+# define R_TILEGX_IMM16_X0_HW0_TLS_LE 80
+# define R_TILEGX_IMM16_X0_HW1 38
+# define R_TILEGX_IMM16_X0_HW1_LAST 46
+# define R_TILEGX_IMM16_X0_HW1_LAST_GOT 74
+# define R_TILEGX_IMM16_X0_HW1_LAST_PCREL 60
+# define R_TILEGX_IMM16_X0_HW1_LAST_PLT_PCREL 96
+# define R_TILEGX_IMM16_X0_HW1_LAST_TLS_GD 88
+# define R_TILEGX_IMM16_X0_HW1_LAST_TLS_IE 102
+# define R_TILEGX_IMM16_X0_HW1_LAST_TLS_LE 84
+# define R_TILEGX_IMM16_X0_HW1_PCREL 52
+# define R_TILEGX_IMM16_X0_HW1_PLT_PCREL 68
+# define R_TILEGX_IMM16_X0_HW2 40
+# define R_TILEGX_IMM16_X0_HW2_LAST 48
+# define R_TILEGX_IMM16_X0_HW2_LAST_PCREL 62
+# define R_TILEGX_IMM16_X0_HW2_LAST_PLT_PCREL 98
+# define R_TILEGX_IMM16_X0_HW2_PCREL 54
+# define R_TILEGX_IMM16_X0_HW2_PLT_PCREL 70
+# define R_TILEGX_IMM16_X0_HW3 42
+# define R_TILEGX_IMM16_X0_HW3_PCREL 56
+# define R_TILEGX_IMM16_X0_HW3_PLT_PCREL 76
+# define R_TILEGX_IMM16_X1_HW0 37
+# define R_TILEGX_IMM16_X1_HW0_GOT 65
+# define R_TILEGX_IMM16_X1_HW0_LAST 45
+# define R_TILEGX_IMM16_X1_HW0_LAST_GOT 73
+# define R_TILEGX_IMM16_X1_HW0_LAST_PCREL 59
+# define R_TILEGX_IMM16_X1_HW0_LAST_PLT_PCREL 95
+# define R_TILEGX_IMM16_X1_HW0_LAST_TLS_GD 87
+# define R_TILEGX_IMM16_X1_HW0_LAST_TLS_IE 101
+# define R_TILEGX_IMM16_X1_HW0_LAST_TLS_LE 83
+# define R_TILEGX_IMM16_X1_HW0_PCREL 51
+# define R_TILEGX_IMM16_X1_HW0_PLT_PCREL 67
+# define R_TILEGX_IMM16_X1_HW0_TLS_GD 79
+# define R_TILEGX_IMM16_X1_HW0_TLS_IE 93
+# define R_TILEGX_IMM16_X1_HW0_TLS_LE 81
+# define R_TILEGX_IMM16_X1_HW1 39
+# define R_TILEGX_IMM16_X1_HW1_LAST 47
+# define R_TILEGX_IMM16_X1_HW1_LAST_GOT 75
+# define R_TILEGX_IMM16_X1_HW1_LAST_PCREL 61
+# define R_TILEGX_IMM16_X1_HW1_LAST_PLT_PCREL 97
+# define R_TILEGX_IMM16_X1_HW1_LAST_TLS_GD 89
+# define R_TILEGX_IMM16_X1_HW1_LAST_TLS_IE 103
+# define R_TILEGX_IMM16_X1_HW1_LAST_TLS_LE 85
+# define R_TILEGX_IMM16_X1_HW1_PCREL 53
+# define R_TILEGX_IMM16_X1_HW1_PLT_PCREL 69
+# define R_TILEGX_IMM16_X1_HW2 41
+# define R_TILEGX_IMM16_X1_HW2_LAST 49
+# define R_TILEGX_IMM16_X1_HW2_LAST_PCREL 63
+# define R_TILEGX_IMM16_X1_HW2_LAST_PLT_PCREL 99
+# define R_TILEGX_IMM16_X1_HW2_PCREL 55
+# define R_TILEGX_IMM16_X1_HW2_PLT_PCREL 71
+# define R_TILEGX_IMM16_X1_HW3 43
+# define R_TILEGX_IMM16_X1_HW3_PCREL 57
+# define R_TILEGX_IMM16_X1_HW3_PLT_PCREL 77
+# define R_TILEGX_IMM8_X0 23
+# define R_TILEGX_IMM8_X0_TLS_ADD 118
+# define R_TILEGX_IMM8_X0_TLS_GD_ADD 113
+# define R_TILEGX_IMM8_X1 25
+# define R_TILEGX_IMM8_X1_TLS_ADD 119
+# define R_TILEGX_IMM8_X1_TLS_GD_ADD 114
+# define R_TILEGX_IMM8_Y0 24
+# define R_TILEGX_IMM8_Y0_TLS_ADD 120
+# define R_TILEGX_IMM8_Y0_TLS_GD_ADD 115
+# define R_TILEGX_IMM8_Y1 26
+# define R_TILEGX_IMM8_Y1_TLS_ADD 121
+# define R_TILEGX_IMM8_Y1_TLS_GD_ADD 116
+# define R_TILEGX_JMP_SLOT 18
+# define R_TILEGX_JUMPOFF_X1 21
+# define R_TILEGX_JUMPOFF_X1_PLT 22
+# define R_TILEGX_MF_IMM14_X1 29
+# define R_TILEGX_MMEND_X0 31
+# define R_TILEGX_MMSTART_X0 30
+# define R_TILEGX_MT_IMM14_X1 28
+# define R_TILEGX_NONE 0
+# define R_TILEGX_NUM 130
+# define R_TILEGX_RELATIVE 19
+# define R_TILEGX_SHAMT_X0 32
+# define R_TILEGX_SHAMT_X1 33
+# define R_TILEGX_SHAMT_Y0 34
+# define R_TILEGX_SHAMT_Y1 35
+# define R_TILEGX_TLS_DTPMOD32 109
+# define R_TILEGX_TLS_DTPMOD64 106
+# define R_TILEGX_TLS_DTPOFF32 110
+# define R_TILEGX_TLS_DTPOFF64 107
+# define R_TILEGX_TLS_GD_CALL 112
+# define R_TILEGX_TLS_IE_LOAD 117
+# define R_TILEGX_TLS_TPOFF32 111
+# define R_TILEGX_TLS_TPOFF64 108
+# define R_TILEPRO_16 2
+# define R_TILEPRO_16_PCREL 5
+# define R_TILEPRO_32 1
+# define R_TILEPRO_32_PCREL 4
+# define R_TILEPRO_8 3
+# define R_TILEPRO_8_PCREL 6
+# define R_TILEPRO_BROFF_X1 14
+# define R_TILEPRO_COPY 10
+# define R_TILEPRO_DEST_IMM8_X1 55
+# define R_TILEPRO_GLOB_DAT 11
+# define R_TILEPRO_GNU_VTENTRY 129
+# define R_TILEPRO_GNU_VTINHERIT 128
+# define R_TILEPRO_HA16 9
+# define R_TILEPRO_HI16 8
+# define R_TILEPRO_IMM16_X0 23
+# define R_TILEPRO_IMM16_X0_GOT 39
+# define R_TILEPRO_IMM16_X0_GOT_HA 45
+# define R_TILEPRO_IMM16_X0_GOT_HI 43
+# define R_TILEPRO_IMM16_X0_GOT_LO 41
+# define R_TILEPRO_IMM16_X0_HA 29
+# define R_TILEPRO_IMM16_X0_HA_PCREL 37
+# define R_TILEPRO_IMM16_X0_HI 27
+# define R_TILEPRO_IMM16_X0_HI_PCREL 35
+# define R_TILEPRO_IMM16_X0_LO 25
+# define R_TILEPRO_IMM16_X0_LO_PCREL 33
+# define R_TILEPRO_IMM16_X0_PCREL 31
+# define R_TILEPRO_IMM16_X0_TLS_GD 66
+# define R_TILEPRO_IMM16_X0_TLS_GD_HA 72
+# define R_TILEPRO_IMM16_X0_TLS_GD_HI 70
+# define R_TILEPRO_IMM16_X0_TLS_GD_LO 68
+# define R_TILEPRO_IMM16_X0_TLS_IE 74
+# define R_TILEPRO_IMM16_X0_TLS_IE_HA 80
+# define R_TILEPRO_IMM16_X0_TLS_IE_HI 78
+# define R_TILEPRO_IMM16_X0_TLS_IE_LO 76
+# define R_TILEPRO_IMM16_X0_TLS_LE 85
+# define R_TILEPRO_IMM16_X0_TLS_LE_HA 91
+# define R_TILEPRO_IMM16_X0_TLS_LE_HI 89
+# define R_TILEPRO_IMM16_X0_TLS_LE_LO 87
+# define R_TILEPRO_IMM16_X1 24
+# define R_TILEPRO_IMM16_X1_GOT 40
+# define R_TILEPRO_IMM16_X1_GOT_HA 46
+# define R_TILEPRO_IMM16_X1_GOT_HI 44
+# define R_TILEPRO_IMM16_X1_GOT_LO 42
+# define R_TILEPRO_IMM16_X1_HA 30
+# define R_TILEPRO_IMM16_X1_HA_PCREL 38
+# define R_TILEPRO_IMM16_X1_HI 28
+# define R_TILEPRO_IMM16_X1_HI_PCREL 36
+# define R_TILEPRO_IMM16_X1_LO 26
+# define R_TILEPRO_IMM16_X1_LO_PCREL 34
+# define R_TILEPRO_IMM16_X1_PCREL 32
+# define R_TILEPRO_IMM16_X1_TLS_GD 67
+# define R_TILEPRO_IMM16_X1_TLS_GD_HA 73
+# define R_TILEPRO_IMM16_X1_TLS_GD_HI 71
+# define R_TILEPRO_IMM16_X1_TLS_GD_LO 69
+# define R_TILEPRO_IMM16_X1_TLS_IE 75
+# define R_TILEPRO_IMM16_X1_TLS_IE_HA 81
+# define R_TILEPRO_IMM16_X1_TLS_IE_HI 79
+# define R_TILEPRO_IMM16_X1_TLS_IE_LO 77
+# define R_TILEPRO_IMM16_X1_TLS_LE 86
+# define R_TILEPRO_IMM16_X1_TLS_LE_HA 92
+# define R_TILEPRO_IMM16_X1_TLS_LE_HI 90
+# define R_TILEPRO_IMM16_X1_TLS_LE_LO 88
+# define R_TILEPRO_IMM8_X0 17
+# define R_TILEPRO_IMM8_X0_TLS_GD_ADD 61
+# define R_TILEPRO_IMM8_X1 19
+# define R_TILEPRO_IMM8_X1_TLS_GD_ADD 62
+# define R_TILEPRO_IMM8_Y0 18
+# define R_TILEPRO_IMM8_Y0_TLS_GD_ADD 63
+# define R_TILEPRO_IMM8_Y1 20
+# define R_TILEPRO_IMM8_Y1_TLS_GD_ADD 64
+# define R_TILEPRO_JMP_SLOT 12
+# define R_TILEPRO_JOFFLONG_X1 15
+# define R_TILEPRO_JOFFLONG_X1_PLT 16
+# define R_TILEPRO_LO16 7
+# define R_TILEPRO_MF_IMM15_X1 22
+# define R_TILEPRO_MMEND_X0 48
+# define R_TILEPRO_MMEND_X1 50
+# define R_TILEPRO_MMSTART_X0 47
+# define R_TILEPRO_MMSTART_X1 49
+# define R_TILEPRO_MT_IMM15_X1 21
+# define R_TILEPRO_NONE 0
+# define R_TILEPRO_NUM 130
+# define R_TILEPRO_RELATIVE 13
+# define R_TILEPRO_SHAMT_X0 51
+# define R_TILEPRO_SHAMT_X1 52
+# define R_TILEPRO_SHAMT_Y0 53
+# define R_TILEPRO_SHAMT_Y1 54
+# define R_TILEPRO_TLS_DTPMOD32 82
+# define R_TILEPRO_TLS_DTPOFF32 83
+# define R_TILEPRO_TLS_GD_CALL 60
+# define R_TILEPRO_TLS_IE_LOAD 65
+# define R_TILEPRO_TLS_TPOFF32 84
+# define R_X86_64_16 12
+# define R_X86_64_32 10
+# define R_X86_64_32S 11
+# define R_X86_64_64 1
+# define R_X86_64_8 14
+# define R_X86_64_COPY 5
+# define R_X86_64_DTPMOD64 16
+# define R_X86_64_DTPOFF32 21
+# define R_X86_64_DTPOFF64 17
+# define R_X86_64_GLOB_DAT 6
+# define R_X86_64_GOT32 3
+# define R_X86_64_GOT64 27
+# define R_X86_64_GOTOFF64 25
+# define R_X86_64_GOTPC32 26
+# define R_X86_64_GOTPC32_TLSDESC 34
+# define R_X86_64_GOTPC64 29
+# define R_X86_64_GOTPCREL 9
+# define R_X86_64_GOTPCREL64 28
+# define R_X86_64_GOTPCRELX 41
+# define R_X86_64_GOTPLT64 30
+# define R_X86_64_GOTTPOFF 22
+# define R_X86_64_IRELATIVE 37
+# define R_X86_64_JUMP_SLOT 7
+# define R_X86_64_NONE 0
+# define R_X86_64_NUM 43
+# define R_X86_64_PC16 13
+# define R_X86_64_PC32 2
+# define R_X86_64_PC64 24
+# define R_X86_64_PC8 15
+# define R_X86_64_PLT32 4
+# define R_X86_64_PLTOFF64 31
+# define R_X86_64_RELATIVE 8
+# define R_X86_64_RELATIVE64 38
+# define R_X86_64_REX_GOTPCRELX 42
+# define R_X86_64_SIZE32 32
+# define R_X86_64_SIZE64 33
+# define R_X86_64_TLSDESC 36
+# define R_X86_64_TLSDESC_CALL 35
+# define R_X86_64_TLSGD 19
+# define R_X86_64_TLSLD 20
+# define R_X86_64_TPOFF32 23
+# define R_X86_64_TPOFF64 18
+# define SELFMAG 4
 # ifndef SHF_ALLOC
 #  define SHF_ALLOC 2
 # endif
-# ifndef SHF_ALPHA_GPREL
-#  define SHF_ALPHA_GPREL 268435456
-# endif
-# ifndef SHF_ARM_COMDEF
-#  define SHF_ARM_COMDEF 2147483648U
-# endif
-# ifndef SHF_ARM_ENTRYSECT
-#  define SHF_ARM_ENTRYSECT 268435456
-# endif
-# ifndef SHF_COMPRESSED
-#  define SHF_COMPRESSED 2048
-# endif
-# ifndef SHF_EXCLUDE
-#  define SHF_EXCLUDE 2147483648U
-# endif
+# define SHF_ALPHA_GPREL 268435456
+# define SHF_ARM_COMDEF 2147483648U
+# define SHF_ARM_ENTRYSECT 268435456
+# define SHF_COMPRESSED 2048
+# define SHF_EXCLUDE 2147483648U
 # ifndef SHF_EXECINSTR
 #  define SHF_EXECINSTR 4
 # endif
-# ifndef SHF_GNU_RETAIN
-#  define SHF_GNU_RETAIN 2097152
-# endif
-# ifndef SHF_GROUP
-#  define SHF_GROUP 512
-# endif
-# ifndef SHF_IA_64_NORECOV
-#  define SHF_IA_64_NORECOV 536870912
-# endif
-# ifndef SHF_IA_64_SHORT
-#  define SHF_IA_64_SHORT 268435456
-# endif
-# ifndef SHF_INFO_LINK
-#  define SHF_INFO_LINK 64
-# endif
-# ifndef SHF_LINK_ORDER
-#  define SHF_LINK_ORDER 128
-# endif
-# ifndef SHF_MASKOS
-#  define SHF_MASKOS 267386880
-# endif
+# define SHF_GNU_RETAIN 2097152
+# define SHF_GROUP 512
+# define SHF_IA_64_NORECOV 536870912
+# define SHF_IA_64_SHORT 268435456
+# define SHF_INFO_LINK 64
+# define SHF_LINK_ORDER 128
+# define SHF_MASKOS 267386880
 # ifndef SHF_MASKPROC
 #  define SHF_MASKPROC 4026531840U
 # endif
-# ifndef SHF_MERGE
-#  define SHF_MERGE 16
-# endif
-# ifndef SHF_MIPS_ADDR
-#  define SHF_MIPS_ADDR 1073741824
-# endif
-# ifndef SHF_MIPS_GPREL
-#  define SHF_MIPS_GPREL 268435456
-# endif
-# ifndef SHF_MIPS_LOCAL
-#  define SHF_MIPS_LOCAL 67108864
-# endif
-# ifndef SHF_MIPS_MERGE
-#  define SHF_MIPS_MERGE 536870912
-# endif
-# ifndef SHF_MIPS_NAMES
-#  define SHF_MIPS_NAMES 33554432
-# endif
-# ifndef SHF_MIPS_NODUPE
-#  define SHF_MIPS_NODUPE 16777216
-# endif
-# ifndef SHF_MIPS_NOSTRIP
-#  define SHF_MIPS_NOSTRIP 134217728
-# endif
-# ifndef SHF_MIPS_STRINGS
-#  define SHF_MIPS_STRINGS 2147483648U
-# endif
-# ifndef SHF_ORDERED
-#  define SHF_ORDERED 1073741824
-# endif
-# ifndef SHF_OS_NONCONFORMING
-#  define SHF_OS_NONCONFORMING 256
-# endif
-# ifndef SHF_PARISC_HUGE
-#  define SHF_PARISC_HUGE 1073741824
-# endif
-# ifndef SHF_PARISC_SBP
-#  define SHF_PARISC_SBP 2147483648U
-# endif
-# ifndef SHF_PARISC_SHORT
-#  define SHF_PARISC_SHORT 536870912
-# endif
-# ifndef SHF_STRINGS
-#  define SHF_STRINGS 32
-# endif
-# ifndef SHF_TLS
-#  define SHF_TLS 1024
-# endif
+# define SHF_MERGE 16
+# define SHF_MIPS_ADDR 1073741824
+# define SHF_MIPS_GPREL 268435456
+# define SHF_MIPS_LOCAL 67108864
+# define SHF_MIPS_MERGE 536870912
+# define SHF_MIPS_NAMES 33554432
+# define SHF_MIPS_NODUPE 16777216
+# define SHF_MIPS_NOSTRIP 134217728
+# define SHF_MIPS_STRINGS 2147483648U
+# define SHF_ORDERED 1073741824
+# define SHF_OS_NONCONFORMING 256
+# define SHF_PARISC_HUGE 1073741824
+# define SHF_PARISC_SBP 2147483648U
+# define SHF_PARISC_SHORT 536870912
+# define SHF_STRINGS 32
+# define SHF_TLS 1024
 # ifndef SHF_WRITE
 #  define SHF_WRITE 1
 # endif
 # ifndef SHN_ABS
 #  define SHN_ABS 65521
 # endif
-# ifndef SHN_AFTER
-#  define SHN_AFTER 65281
-# endif
-# ifndef SHN_BEFORE
-#  define SHN_BEFORE 65280
-# endif
+# define SHN_AFTER 65281
+# define SHN_BEFORE 65280
 # ifndef SHN_COMMON
 #  define SHN_COMMON 65522
 # endif
-# ifndef SHN_HIOS
-#  define SHN_HIOS 65343
-# endif
+# define SHN_HIOS 65343
 # ifndef SHN_HIPROC
 #  define SHN_HIPROC 65311
 # endif
 # ifndef SHN_HIRESERVE
 #  define SHN_HIRESERVE 65535
 # endif
-# ifndef SHN_LOOS
-#  define SHN_LOOS 65312
-# endif
+# define SHN_LOOS 65312
 # ifndef SHN_LOPROC
 #  define SHN_LOPROC 65280
 # endif
 # ifndef SHN_LORESERVE
 #  define SHN_LORESERVE 65280
 # endif
-# ifndef SHN_MIPS_ACOMMON
-#  define SHN_MIPS_ACOMMON 65280
-# endif
-# ifndef SHN_MIPS_DATA
-#  define SHN_MIPS_DATA 65282
-# endif
-# ifndef SHN_MIPS_SCOMMON
-#  define SHN_MIPS_SCOMMON 65283
-# endif
-# ifndef SHN_MIPS_SUNDEFINED
-#  define SHN_MIPS_SUNDEFINED 65284
-# endif
-# ifndef SHN_MIPS_TEXT
-#  define SHN_MIPS_TEXT 65281
-# endif
-# ifndef SHN_PARISC_ANSI_COMMON
-#  define SHN_PARISC_ANSI_COMMON 65280
-# endif
-# ifndef SHN_PARISC_HUGE_COMMON
-#  define SHN_PARISC_HUGE_COMMON 65281
-# endif
-# ifndef SHN_UNDEF
-#  define SHN_UNDEF 0
-# endif
-# ifndef SHN_XINDEX
-#  define SHN_XINDEX 65535
-# endif
-# ifndef SHT_ALPHA_DEBUG
-#  define SHT_ALPHA_DEBUG 1879048193
-# endif
-# ifndef SHT_ALPHA_REGINFO
-#  define SHT_ALPHA_REGINFO 1879048194
-# endif
-# ifndef SHT_ARC_ATTRIBUTES
-#  define SHT_ARC_ATTRIBUTES 1879048193
-# endif
-# ifndef SHT_ARM_ATTRIBUTES
-#  define SHT_ARM_ATTRIBUTES 1879048195
-# endif
-# ifndef SHT_ARM_EXIDX
-#  define SHT_ARM_EXIDX 1879048193
-# endif
-# ifndef SHT_ARM_PREEMPTMAP
-#  define SHT_ARM_PREEMPTMAP 1879048194
-# endif
-# ifndef SHT_CHECKSUM
-#  define SHT_CHECKSUM 1879048184
-# endif
-# ifndef SHT_CSKY_ATTRIBUTES
-#  define SHT_CSKY_ATTRIBUTES 1879048193
-# endif
-# ifndef SHT_DYNAMIC
-#  define SHT_DYNAMIC 6
-# endif
-# ifndef SHT_DYNSYM
-#  define SHT_DYNSYM 11
-# endif
-# ifndef SHT_FINI_ARRAY
-#  define SHT_FINI_ARRAY 15
-# endif
-# ifndef SHT_GNU_ATTRIBUTES
-#  define SHT_GNU_ATTRIBUTES 1879048181
-# endif
-# ifndef SHT_GNU_HASH
-#  define SHT_GNU_HASH 1879048182
-# endif
-# ifndef SHT_GNU_LIBLIST
-#  define SHT_GNU_LIBLIST 1879048183
-# endif
-# ifndef SHT_GNU_verdef
-#  define SHT_GNU_verdef 1879048189
-# endif
-# ifndef SHT_GNU_verneed
-#  define SHT_GNU_verneed 1879048190
-# endif
-# ifndef SHT_GNU_versym
-#  define SHT_GNU_versym 1879048191
-# endif
-# ifndef SHT_GROUP
-#  define SHT_GROUP 17
-# endif
-# ifndef SHT_HASH
-#  define SHT_HASH 5
-# endif
-# ifndef SHT_HIOS
-#  define SHT_HIOS 1879048191
-# endif
+# define SHN_MIPS_ACOMMON 65280
+# define SHN_MIPS_DATA 65282
+# define SHN_MIPS_SCOMMON 65283
+# define SHN_MIPS_SUNDEFINED 65284
+# define SHN_MIPS_TEXT 65281
+# define SHN_PARISC_ANSI_COMMON 65280
+# define SHN_PARISC_HUGE_COMMON 65281
+# define SHN_UNDEF 0
+# define SHN_XINDEX 65535
+# define SHT_ALPHA_DEBUG 1879048193
+# define SHT_ALPHA_REGINFO 1879048194
+# define SHT_ARC_ATTRIBUTES 1879048193
+# define SHT_ARM_ATTRIBUTES 1879048195
+# define SHT_ARM_EXIDX 1879048193
+# define SHT_ARM_PREEMPTMAP 1879048194
+# define SHT_CHECKSUM 1879048184
+# define SHT_CSKY_ATTRIBUTES 1879048193
+# define SHT_DYNAMIC 6
+# define SHT_DYNSYM 11
+# define SHT_FINI_ARRAY 15
+# define SHT_GNU_ATTRIBUTES 1879048181
+# define SHT_GNU_HASH 1879048182
+# define SHT_GNU_LIBLIST 1879048183
+# define SHT_GNU_verdef 1879048189
+# define SHT_GNU_verneed 1879048190
+# define SHT_GNU_versym 1879048191
+# define SHT_GROUP 17
+# define SHT_HASH 5
+# define SHT_HIOS 1879048191
 # ifndef SHT_HIPROC
 #  define SHT_HIPROC 2147483647
 # endif
-# ifndef SHT_HISUNW
-#  define SHT_HISUNW 1879048191
-# endif
+# define SHT_HISUNW 1879048191
 # ifndef SHT_HIUSER
 #  define SHT_HIUSER 2415919103U
 # endif
-# ifndef SHT_IA_64_EXT
-#  define SHT_IA_64_EXT SHT_LOPROC
-# endif
-# ifndef SHT_IA_64_UNWIND
-#  define SHT_IA_64_UNWIND 1879048193
-# endif
-# ifndef SHT_INIT_ARRAY
-#  define SHT_INIT_ARRAY 14
-# endif
-# ifndef SHT_LOOS
-#  define SHT_LOOS 1610612736
-# endif
+# define SHT_IA_64_EXT SHT_LOPROC
+# define SHT_IA_64_UNWIND 1879048193
+# define SHT_INIT_ARRAY 14
+# define SHT_LOOS 1610612736
 # ifndef SHT_LOPROC
 #  define SHT_LOPROC 1879048192
 # endif
-# ifndef SHT_LOSUNW
-#  define SHT_LOSUNW 1879048186
-# endif
+# define SHT_LOSUNW 1879048186
 # ifndef SHT_LOUSER
 #  define SHT_LOUSER 2147483648U
 # endif
-# ifndef SHT_MIPS_ABIFLAGS
-#  define SHT_MIPS_ABIFLAGS 1879048234
-# endif
-# ifndef SHT_MIPS_AUXSYM
-#  define SHT_MIPS_AUXSYM 1879048214
-# endif
-# ifndef SHT_MIPS_CONFLICT
-#  define SHT_MIPS_CONFLICT 1879048194
-# endif
-# ifndef SHT_MIPS_CONTENT
-#  define SHT_MIPS_CONTENT 1879048204
-# endif
-# ifndef SHT_MIPS_DEBUG
-#  define SHT_MIPS_DEBUG 1879048197
-# endif
-# ifndef SHT_MIPS_DELTACLASS
-#  define SHT_MIPS_DELTACLASS 1879048221
-# endif
-# ifndef SHT_MIPS_DELTADECL
-#  define SHT_MIPS_DELTADECL 1879048223
-# endif
-# ifndef SHT_MIPS_DELTAINST
-#  define SHT_MIPS_DELTAINST 1879048220
-# endif
-# ifndef SHT_MIPS_DELTASYM
-#  define SHT_MIPS_DELTASYM 1879048219
-# endif
-# ifndef SHT_MIPS_DENSE
-#  define SHT_MIPS_DENSE 1879048211
-# endif
-# ifndef SHT_MIPS_DWARF
-#  define SHT_MIPS_DWARF 1879048222
-# endif
-# ifndef SHT_MIPS_EH_REGION
-#  define SHT_MIPS_EH_REGION 1879048231
-# endif
-# ifndef SHT_MIPS_EVENTS
-#  define SHT_MIPS_EVENTS 1879048225
-# endif
-# ifndef SHT_MIPS_EXTSYM
-#  define SHT_MIPS_EXTSYM 1879048210
-# endif
-# ifndef SHT_MIPS_FDESC
-#  define SHT_MIPS_FDESC 1879048209
-# endif
-# ifndef SHT_MIPS_GPTAB
-#  define SHT_MIPS_GPTAB 1879048195
-# endif
-# ifndef SHT_MIPS_IFACE
-#  define SHT_MIPS_IFACE 1879048203
-# endif
-# ifndef SHT_MIPS_LIBLIST
-#  define SHT_MIPS_LIBLIST 1879048192
-# endif
-# ifndef SHT_MIPS_LINE
-#  define SHT_MIPS_LINE 1879048217
-# endif
-# ifndef SHT_MIPS_LOCSTR
-#  define SHT_MIPS_LOCSTR 1879048216
-# endif
-# ifndef SHT_MIPS_LOCSYM
-#  define SHT_MIPS_LOCSYM 1879048213
-# endif
-# ifndef SHT_MIPS_MSYM
-#  define SHT_MIPS_MSYM 1879048193
-# endif
-# ifndef SHT_MIPS_OPTIONS
-#  define SHT_MIPS_OPTIONS 1879048205
-# endif
-# ifndef SHT_MIPS_OPTSYM
-#  define SHT_MIPS_OPTSYM 1879048215
-# endif
-# ifndef SHT_MIPS_PACKAGE
-#  define SHT_MIPS_PACKAGE 1879048199
-# endif
-# ifndef SHT_MIPS_PACKSYM
-#  define SHT_MIPS_PACKSYM 1879048200
-# endif
-# ifndef SHT_MIPS_PDESC
-#  define SHT_MIPS_PDESC 1879048212
-# endif
-# ifndef SHT_MIPS_PDR_EXCEPTION
-#  define SHT_MIPS_PDR_EXCEPTION 1879048233
-# endif
-# ifndef SHT_MIPS_PIXIE
-#  define SHT_MIPS_PIXIE 1879048227
-# endif
-# ifndef SHT_MIPS_REGINFO
-#  define SHT_MIPS_REGINFO 1879048198
-# endif
-# ifndef SHT_MIPS_RELD
-#  define SHT_MIPS_RELD 1879048201
-# endif
-# ifndef SHT_MIPS_RFDESC
-#  define SHT_MIPS_RFDESC 1879048218
-# endif
-# ifndef SHT_MIPS_SHDR
-#  define SHT_MIPS_SHDR 1879048208
-# endif
-# ifndef SHT_MIPS_SYMBOL_LIB
-#  define SHT_MIPS_SYMBOL_LIB 1879048224
-# endif
-# ifndef SHT_MIPS_TRANSLATE
-#  define SHT_MIPS_TRANSLATE 1879048226
-# endif
-# ifndef SHT_MIPS_UCODE
-#  define SHT_MIPS_UCODE 1879048196
-# endif
-# ifndef SHT_MIPS_WHIRL
-#  define SHT_MIPS_WHIRL 1879048230
-# endif
-# ifndef SHT_MIPS_XHASH
-#  define SHT_MIPS_XHASH 1879048235
-# endif
-# ifndef SHT_MIPS_XLATE
-#  define SHT_MIPS_XLATE 1879048228
-# endif
-# ifndef SHT_MIPS_XLATE_DEBUG
-#  define SHT_MIPS_XLATE_DEBUG 1879048229
-# endif
-# ifndef SHT_MIPS_XLATE_OLD
-#  define SHT_MIPS_XLATE_OLD 1879048232
-# endif
-# ifndef SHT_NOBITS
-#  define SHT_NOBITS 8
-# endif
-# ifndef SHT_NOTE
-#  define SHT_NOTE 7
-# endif
-# ifndef SHT_NULL
-#  define SHT_NULL 0
-# endif
+# define SHT_MIPS_ABIFLAGS 1879048234
+# define SHT_MIPS_AUXSYM 1879048214
+# define SHT_MIPS_CONFLICT 1879048194
+# define SHT_MIPS_CONTENT 1879048204
+# define SHT_MIPS_DEBUG 1879048197
+# define SHT_MIPS_DELTACLASS 1879048221
+# define SHT_MIPS_DELTADECL 1879048223
+# define SHT_MIPS_DELTAINST 1879048220
+# define SHT_MIPS_DELTASYM 1879048219
+# define SHT_MIPS_DENSE 1879048211
+# define SHT_MIPS_DWARF 1879048222
+# define SHT_MIPS_EH_REGION 1879048231
+# define SHT_MIPS_EVENTS 1879048225
+# define SHT_MIPS_EXTSYM 1879048210
+# define SHT_MIPS_FDESC 1879048209
+# define SHT_MIPS_GPTAB 1879048195
+# define SHT_MIPS_IFACE 1879048203
+# define SHT_MIPS_LIBLIST 1879048192
+# define SHT_MIPS_LINE 1879048217
+# define SHT_MIPS_LOCSTR 1879048216
+# define SHT_MIPS_LOCSYM 1879048213
+# define SHT_MIPS_MSYM 1879048193
+# define SHT_MIPS_OPTIONS 1879048205
+# define SHT_MIPS_OPTSYM 1879048215
+# define SHT_MIPS_PACKAGE 1879048199
+# define SHT_MIPS_PACKSYM 1879048200
+# define SHT_MIPS_PDESC 1879048212
+# define SHT_MIPS_PDR_EXCEPTION 1879048233
+# define SHT_MIPS_PIXIE 1879048227
+# define SHT_MIPS_REGINFO 1879048198
+# define SHT_MIPS_RELD 1879048201
+# define SHT_MIPS_RFDESC 1879048218
+# define SHT_MIPS_SHDR 1879048208
+# define SHT_MIPS_SYMBOL_LIB 1879048224
+# define SHT_MIPS_TRANSLATE 1879048226
+# define SHT_MIPS_UCODE 1879048196
+# define SHT_MIPS_WHIRL 1879048230
+# define SHT_MIPS_XHASH 1879048235
+# define SHT_MIPS_XLATE 1879048228
+# define SHT_MIPS_XLATE_DEBUG 1879048229
+# define SHT_MIPS_XLATE_OLD 1879048232
+# define SHT_NOBITS 8
+# define SHT_NOTE 7
+# define SHT_NULL 0
 # ifndef SHT_NUM
 #  define SHT_NUM 20
 # endif
-# ifndef SHT_PARISC_DOC
-#  define SHT_PARISC_DOC 1879048194
-# endif
-# ifndef SHT_PARISC_EXT
-#  define SHT_PARISC_EXT 1879048192
-# endif
-# ifndef SHT_PARISC_UNWIND
-#  define SHT_PARISC_UNWIND 1879048193
-# endif
-# ifndef SHT_PREINIT_ARRAY
-#  define SHT_PREINIT_ARRAY 16
-# endif
-# ifndef SHT_PROGBITS
-#  define SHT_PROGBITS 1
-# endif
-# ifndef SHT_REL
-#  define SHT_REL 9
-# endif
-# ifndef SHT_RELA
-#  define SHT_RELA 4
-# endif
-# ifndef SHT_RELR
-#  define SHT_RELR 19
-# endif
-# ifndef SHT_RISCV_ATTRIBUTES
-#  define SHT_RISCV_ATTRIBUTES 1879048195
-# endif
-# ifndef SHT_SHLIB
-#  define SHT_SHLIB 10
-# endif
-# ifndef SHT_STRTAB
-#  define SHT_STRTAB 3
-# endif
-# ifndef SHT_SUNW_COMDAT
-#  define SHT_SUNW_COMDAT 1879048187
-# endif
-# ifndef SHT_SUNW_move
-#  define SHT_SUNW_move 1879048186
-# endif
-# ifndef SHT_SUNW_syminfo
-#  define SHT_SUNW_syminfo 1879048188
-# endif
-# ifndef SHT_SYMTAB
-#  define SHT_SYMTAB 2
-# endif
-# ifndef SHT_SYMTAB_SHNDX
-#  define SHT_SYMTAB_SHNDX 18
-# endif
-# ifndef SHT_X86_64_UNWIND
-#  define SHT_X86_64_UNWIND 1879048193
-# endif
-# ifndef STB_GLOBAL
-#  define STB_GLOBAL 1
-# endif
-# ifndef STB_GNU_UNIQUE
-#  define STB_GNU_UNIQUE 10
-# endif
-# ifndef STB_HIOS
-#  define STB_HIOS 12
-# endif
-# ifndef STB_HIPROC
-#  define STB_HIPROC 15
-# endif
-# ifndef STB_LOCAL
-#  define STB_LOCAL 0
-# endif
-# ifndef STB_LOOS
-#  define STB_LOOS 10
-# endif
-# ifndef STB_LOPROC
-#  define STB_LOPROC 13
-# endif
-# ifndef STB_MIPS_SPLIT_COMMON
-#  define STB_MIPS_SPLIT_COMMON 13
-# endif
-# ifndef STB_NUM
-#  define STB_NUM 3
-# endif
-# ifndef STB_WEAK
-#  define STB_WEAK 2
-# endif
-# ifndef STN_UNDEF
-#  define STN_UNDEF 0
-# endif
-# ifndef STO_AARCH64_VARIANT_PCS
-#  define STO_AARCH64_VARIANT_PCS 128
-# endif
-# ifndef STO_ALPHA_NOPV
-#  define STO_ALPHA_NOPV 128
-# endif
-# ifndef STO_ALPHA_STD_GPLOAD
-#  define STO_ALPHA_STD_GPLOAD 136
-# endif
-# ifndef STO_MIPS_DEFAULT
-#  define STO_MIPS_DEFAULT 0
-# endif
-# ifndef STO_MIPS_HIDDEN
-#  define STO_MIPS_HIDDEN 2
-# endif
-# ifndef STO_MIPS_INTERNAL
-#  define STO_MIPS_INTERNAL 1
-# endif
-# ifndef STO_MIPS_PLT
-#  define STO_MIPS_PLT 8
-# endif
-# ifndef STO_MIPS_PROTECTED
-#  define STO_MIPS_PROTECTED 3
-# endif
-# ifndef STO_MIPS_SC_ALIGN_UNUSED
-#  define STO_MIPS_SC_ALIGN_UNUSED 255
-# endif
-# ifndef STO_PPC64_LOCAL_BIT
-#  define STO_PPC64_LOCAL_BIT 5
-# endif
-# ifndef STO_PPC64_LOCAL_MASK
-#  define STO_PPC64_LOCAL_MASK 224
-# endif
-# ifndef STO_RISCV_VARIANT_CC
-#  define STO_RISCV_VARIANT_CC 128
-# endif
-# ifndef STT_ARM_16BIT
-#  define STT_ARM_16BIT STT_HIPROC
-# endif
-# ifndef STT_ARM_TFUNC
-#  define STT_ARM_TFUNC STT_LOPROC
-# endif
-# ifndef STT_COMMON
-#  define STT_COMMON 5
-# endif
-# ifndef STT_FILE
-#  define STT_FILE 4
-# endif
-# ifndef STT_FUNC
-#  define STT_FUNC 2
-# endif
-# ifndef STT_GNU_IFUNC
-#  define STT_GNU_IFUNC 10
-# endif
-# ifndef STT_HIOS
-#  define STT_HIOS 12
-# endif
-# ifndef STT_HIPROC
-#  define STT_HIPROC 15
-# endif
-# ifndef STT_HP_OPAQUE
-#  define STT_HP_OPAQUE 11
-# endif
-# ifndef STT_HP_STUB
-#  define STT_HP_STUB 12
-# endif
-# ifndef STT_LOOS
-#  define STT_LOOS 10
-# endif
-# ifndef STT_LOPROC
-#  define STT_LOPROC 13
-# endif
-# ifndef STT_NOTYPE
-#  define STT_NOTYPE 0
-# endif
-# ifndef STT_NUM
-#  define STT_NUM 7
-# endif
-# ifndef STT_OBJECT
-#  define STT_OBJECT 1
-# endif
-# ifndef STT_PARISC_MILLICODE
-#  define STT_PARISC_MILLICODE 13
-# endif
-# ifndef STT_SECTION
-#  define STT_SECTION 3
-# endif
-# ifndef STT_SPARC_REGISTER
-#  define STT_SPARC_REGISTER 13
-# endif
-# ifndef STT_TLS
-#  define STT_TLS 6
-# endif
-# ifndef STV_DEFAULT
-#  define STV_DEFAULT 0
-# endif
-# ifndef STV_HIDDEN
-#  define STV_HIDDEN 2
-# endif
-# ifndef STV_INTERNAL
-#  define STV_INTERNAL 1
-# endif
-# ifndef STV_PROTECTED
-#  define STV_PROTECTED 3
-# endif
-# ifndef SYMINFO_BT_LOWRESERVE
-#  define SYMINFO_BT_LOWRESERVE 65280
-# endif
-# ifndef SYMINFO_BT_PARENT
-#  define SYMINFO_BT_PARENT 65534
-# endif
-# ifndef SYMINFO_BT_SELF
-#  define SYMINFO_BT_SELF 65535
-# endif
-# ifndef SYMINFO_CURRENT
-#  define SYMINFO_CURRENT 1
-# endif
-# ifndef SYMINFO_FLG_COPY
-#  define SYMINFO_FLG_COPY 4
-# endif
-# ifndef SYMINFO_FLG_DIRECT
-#  define SYMINFO_FLG_DIRECT 1
-# endif
-# ifndef SYMINFO_FLG_LAZYLOAD
-#  define SYMINFO_FLG_LAZYLOAD 8
-# endif
-# ifndef SYMINFO_FLG_PASSTHRU
-#  define SYMINFO_FLG_PASSTHRU 2
-# endif
-# ifndef SYMINFO_NONE
-#  define SYMINFO_NONE 0
-# endif
-# ifndef SYMINFO_NUM
-#  define SYMINFO_NUM 2
-# endif
-# ifndef VER_DEF_CURRENT
-#  define VER_DEF_CURRENT 1
-# endif
-# ifndef VER_DEF_NONE
-#  define VER_DEF_NONE 0
-# endif
-# ifndef VER_DEF_NUM
-#  define VER_DEF_NUM 2
-# endif
-# ifndef VER_FLG_BASE
-#  define VER_FLG_BASE 1
-# endif
-# ifndef VER_FLG_WEAK
-#  define VER_FLG_WEAK 2
-# endif
-# ifndef VER_NDX_ELIMINATE
-#  define VER_NDX_ELIMINATE 65281
-# endif
-# ifndef VER_NDX_GLOBAL
-#  define VER_NDX_GLOBAL 1
-# endif
-# ifndef VER_NDX_LOCAL
-#  define VER_NDX_LOCAL 0
-# endif
-# ifndef VER_NDX_LORESERVE
-#  define VER_NDX_LORESERVE 65280
-# endif
-# ifndef VER_NEED_CURRENT
-#  define VER_NEED_CURRENT 1
-# endif
-# ifndef VER_NEED_NONE
-#  define VER_NEED_NONE 0
-# endif
-# ifndef VER_NEED_NUM
-#  define VER_NEED_NUM 2
-# endif
+# define SHT_PARISC_DOC 1879048194
+# define SHT_PARISC_EXT 1879048192
+# define SHT_PARISC_UNWIND 1879048193
+# define SHT_PREINIT_ARRAY 16
+# define SHT_PROGBITS 1
+# define SHT_REL 9
+# define SHT_RELA 4
+# define SHT_RELR 19
+# define SHT_RISCV_ATTRIBUTES 1879048195
+# define SHT_SHLIB 10
+# define SHT_STRTAB 3
+# define SHT_SUNW_COMDAT 1879048187
+# define SHT_SUNW_move 1879048186
+# define SHT_SUNW_syminfo 1879048188
+# define SHT_SYMTAB 2
+# define SHT_SYMTAB_SHNDX 18
+# define SHT_X86_64_UNWIND 1879048193
+# define STB_GLOBAL 1
+# define STB_GNU_UNIQUE 10
+# define STB_HIOS 12
+# define STB_HIPROC 15
+# define STB_LOCAL 0
+# define STB_LOOS 10
+# define STB_LOPROC 13
+# define STB_MIPS_SPLIT_COMMON 13
+# define STB_NUM 3
+# define STB_WEAK 2
+# define STN_UNDEF 0
+# define STO_AARCH64_VARIANT_PCS 128
+# define STO_ALPHA_NOPV 128
+# define STO_ALPHA_STD_GPLOAD 136
+# define STO_MIPS_DEFAULT 0
+# define STO_MIPS_HIDDEN 2
+# define STO_MIPS_INTERNAL 1
+# define STO_MIPS_PLT 8
+# define STO_MIPS_PROTECTED 3
+# define STO_MIPS_SC_ALIGN_UNUSED 255
+# define STO_PPC64_LOCAL_BIT 5
+# define STO_PPC64_LOCAL_MASK 224
+# define STO_RISCV_VARIANT_CC 128
+# define STT_ARM_16BIT STT_HIPROC
+# define STT_ARM_TFUNC STT_LOPROC
+# define STT_COMMON 5
+# define STT_FILE 4
+# define STT_FUNC 2
+# define STT_GNU_IFUNC 10
+# define STT_HIOS 12
+# define STT_HIPROC 15
+# define STT_HP_OPAQUE 11
+# define STT_HP_STUB 12
+# define STT_LOOS 10
+# define STT_LOPROC 13
+# define STT_NOTYPE 0
+# define STT_NUM 7
+# define STT_OBJECT 1
+# define STT_PARISC_MILLICODE 13
+# define STT_SECTION 3
+# define STT_SPARC_REGISTER 13
+# define STT_TLS 6
+# define STV_DEFAULT 0
+# define STV_HIDDEN 2
+# define STV_INTERNAL 1
+# define STV_PROTECTED 3
+# define SYMINFO_BT_LOWRESERVE 65280
+# define SYMINFO_BT_PARENT 65534
+# define SYMINFO_BT_SELF 65535
+# define SYMINFO_CURRENT 1
+# define SYMINFO_FLG_COPY 4
+# define SYMINFO_FLG_DIRECT 1
+# define SYMINFO_FLG_LAZYLOAD 8
+# define SYMINFO_FLG_PASSTHRU 2
+# define SYMINFO_NONE 0
+# define SYMINFO_NUM 2
+# define VER_DEF_CURRENT 1
+# define VER_DEF_NONE 0
+# define VER_DEF_NUM 2
+# define VER_FLG_BASE 1
+# define VER_FLG_WEAK 2
+# define VER_NDX_ELIMINATE 65281
+# define VER_NDX_GLOBAL 1
+# define VER_NDX_LOCAL 0
+# define VER_NDX_LORESERVE 65280
+# define VER_NEED_CURRENT 1
+# define VER_NEED_NONE 0
+# define VER_NEED_NUM 2
 #endif
 
 /* elf.h shows the same accessors; the definitions are kept identical to elf.h.in's. */

@@ -119,7 +119,7 @@ extern void updwtmp (const char *, const struct utmp *) __NIJI_NOTHROW;
 extern int utmpname (const char *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct utmp;
 struct utmp;
 # ifndef __NIJI_D_getutent_r
@@ -142,174 +142,68 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 # endif
 #endif
 #if 1
-# ifndef ACCOUNTING
-#  define ACCOUNTING 9
-# endif
-# ifndef BOOT_TIME
-#  define BOOT_TIME 2
-# endif
-# ifndef DEAD_PROCESS
-#  define DEAD_PROCESS 8
-# endif
-# ifndef EMPTY
-#  define EMPTY 0
-# endif
-# ifndef INIT_PROCESS
-#  define INIT_PROCESS 5
-# endif
-# ifndef LOGIN_PROCESS
-#  define LOGIN_PROCESS 6
-# endif
-# ifndef NEW_TIME
-#  define NEW_TIME 3
-# endif
-# ifndef OLD_TIME
-#  define OLD_TIME 4
-# endif
-# ifndef RUN_LVL
-#  define RUN_LVL 1
-# endif
-# ifndef USER_PROCESS
-#  define USER_PROCESS 7
-# endif
-# ifndef UTMP_FILE
-#  define UTMP_FILE "/var/run/utmp"
-# endif
-# ifndef UTMP_FILENAME
-#  define UTMP_FILENAME "/var/run/utmp"
-# endif
-# ifndef UT_HOSTSIZE
-#  define UT_HOSTSIZE 256
-# endif
-# ifndef UT_LINESIZE
-#  define UT_LINESIZE 32
-# endif
-# ifndef UT_NAMESIZE
-#  define UT_NAMESIZE 32
-# endif
-# ifndef UT_UNKNOWN
-#  define UT_UNKNOWN EMPTY
-# endif
-# ifndef WTMP_FILE
-#  define WTMP_FILE "/var/log/wtmp"
-# endif
-# ifndef WTMP_FILENAME
-#  define WTMP_FILENAME "/var/log/wtmp"
-# endif
-# ifndef _HAVE_UT_HOST
-#  define _HAVE_UT_HOST 1
-# endif
-# ifndef _HAVE_UT_ID
-#  define _HAVE_UT_ID 1
-# endif
-# ifndef _HAVE_UT_PID
-#  define _HAVE_UT_PID 1
-# endif
-# ifndef _HAVE_UT_TV
-#  define _HAVE_UT_TV 1
-# endif
-# ifndef _HAVE_UT_TYPE
-#  define _HAVE_UT_TYPE 1
-# endif
-# ifndef _PATH_BSHELL
-#  define _PATH_BSHELL "/bin/sh"
-# endif
-# ifndef _PATH_CONSOLE
-#  define _PATH_CONSOLE "/dev/console"
-# endif
-# ifndef _PATH_CSHELL
-#  define _PATH_CSHELL "/bin/csh"
-# endif
-# ifndef _PATH_DEFPATH
-#  define _PATH_DEFPATH "/usr/bin:/bin"
-# endif
-# ifndef _PATH_DEV
-#  define _PATH_DEV "/dev/"
-# endif
-# ifndef _PATH_DEVDB
-#  define _PATH_DEVDB "/var/run/dev.db"
-# endif
-# ifndef _PATH_DEVNULL
-#  define _PATH_DEVNULL "/dev/null"
-# endif
-# ifndef _PATH_DRUM
-#  define _PATH_DRUM "/dev/drum"
-# endif
-# ifndef _PATH_GSHADOW
-#  define _PATH_GSHADOW "/etc/gshadow"
-# endif
-# ifndef _PATH_KLOG
-#  define _PATH_KLOG "/proc/kmsg"
-# endif
-# ifndef _PATH_KMEM
-#  define _PATH_KMEM "/dev/kmem"
-# endif
-# ifndef _PATH_LASTLOG
-#  define _PATH_LASTLOG "/var/log/lastlog"
-# endif
-# ifndef _PATH_MAILDIR
-#  define _PATH_MAILDIR "/var/mail"
-# endif
-# ifndef _PATH_MAN
-#  define _PATH_MAN "/usr/share/man"
-# endif
-# ifndef _PATH_MEM
-#  define _PATH_MEM "/dev/mem"
-# endif
-# ifndef _PATH_MNTTAB
-#  define _PATH_MNTTAB "/etc/fstab"
-# endif
-# ifndef _PATH_MOUNTED
-#  define _PATH_MOUNTED "/etc/mtab"
-# endif
-# ifndef _PATH_NOLOGIN
-#  define _PATH_NOLOGIN "/etc/nologin"
-# endif
-# ifndef _PATH_PRESERVE
-#  define _PATH_PRESERVE "/var/lib"
-# endif
-# ifndef _PATH_RWHODIR
-#  define _PATH_RWHODIR "/var/spool/rwho"
-# endif
-# ifndef _PATH_SENDMAIL
-#  define _PATH_SENDMAIL "/usr/sbin/sendmail"
-# endif
-# ifndef _PATH_SHADOW
-#  define _PATH_SHADOW "/etc/shadow"
-# endif
-# ifndef _PATH_SHELLS
-#  define _PATH_SHELLS "/etc/shells"
-# endif
-# ifndef _PATH_STDPATH
-#  define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
-# endif
-# ifndef _PATH_TMP
-#  define _PATH_TMP "/tmp/"
-# endif
-# ifndef _PATH_TTY
-#  define _PATH_TTY "/dev/tty"
-# endif
-# ifndef _PATH_UNIX
-#  define _PATH_UNIX "/boot/vmlinux"
-# endif
-# ifndef _PATH_UTMP
-#  define _PATH_UTMP "/var/run/utmp"
-# endif
-# ifndef _PATH_VARDB
-#  define _PATH_VARDB "/var/lib/misc/"
-# endif
-# ifndef _PATH_VARRUN
-#  define _PATH_VARRUN "/var/run/"
-# endif
-# ifndef _PATH_VARTMP
-#  define _PATH_VARTMP "/var/tmp/"
-# endif
-# ifndef _PATH_VI
-#  define _PATH_VI "/usr/bin/vi"
-# endif
-# ifndef _PATH_WTMP
-#  define _PATH_WTMP "/var/log/wtmp"
-# endif
+# define ACCOUNTING 9
+# define BOOT_TIME 2
+# define DEAD_PROCESS 8
+# define EMPTY 0
+# define INIT_PROCESS 5
+# define LOGIN_PROCESS 6
+# define NEW_TIME 3
+# define OLD_TIME 4
+# define RUN_LVL 1
+# define USER_PROCESS 7
+# define UTMP_FILE "/var/run/utmp"
+# define UTMP_FILENAME "/var/run/utmp"
+# define UT_HOSTSIZE 256
+# define UT_LINESIZE 32
+# define UT_NAMESIZE 32
+# define UT_UNKNOWN EMPTY
+# define WTMP_FILE "/var/log/wtmp"
+# define WTMP_FILENAME "/var/log/wtmp"
+# define _HAVE_UT_HOST 1
+# define _HAVE_UT_ID 1
+# define _HAVE_UT_PID 1
+# define _HAVE_UT_TV 1
+# define _HAVE_UT_TYPE 1
+# define _PATH_BSHELL "/bin/sh"
+# define _PATH_CONSOLE "/dev/console"
+# define _PATH_CSHELL "/bin/csh"
+# define _PATH_DEFPATH "/usr/bin:/bin"
+# define _PATH_DEV "/dev/"
+# define _PATH_DEVDB "/var/run/dev.db"
+# define _PATH_DEVNULL "/dev/null"
+# define _PATH_DRUM "/dev/drum"
+# define _PATH_GSHADOW "/etc/gshadow"
+# define _PATH_KLOG "/proc/kmsg"
+# define _PATH_KMEM "/dev/kmem"
+# define _PATH_LASTLOG "/var/log/lastlog"
+# define _PATH_MAILDIR "/var/mail"
+# define _PATH_MAN "/usr/share/man"
+# define _PATH_MEM "/dev/mem"
+# define _PATH_MNTTAB "/etc/fstab"
+# define _PATH_MOUNTED "/etc/mtab"
+# define _PATH_NOLOGIN "/etc/nologin"
+# define _PATH_PRESERVE "/var/lib"
+# define _PATH_RWHODIR "/var/spool/rwho"
+# define _PATH_SENDMAIL "/usr/sbin/sendmail"
+# define _PATH_SHADOW "/etc/shadow"
+# define _PATH_SHELLS "/etc/shells"
+# define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
+# define _PATH_TMP "/tmp/"
+# define _PATH_TTY "/dev/tty"
+# define _PATH_UNIX "/boot/vmlinux"
+# define _PATH_UTMP "/var/run/utmp"
+# define _PATH_VARDB "/var/lib/misc/"
+# define _PATH_VARRUN "/var/run/"
+# define _PATH_VARTMP "/var/tmp/"
+# define _PATH_VI "/usr/bin/vi"
+# define _PATH_WTMP "/var/log/wtmp"
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 /* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the

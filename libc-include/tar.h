@@ -9,83 +9,33 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef AREGTYPE
-#  define AREGTYPE '\000'
-# endif
-# ifndef BLKTYPE
-#  define BLKTYPE '4'
-# endif
-# ifndef CHRTYPE
-#  define CHRTYPE '3'
-# endif
-# ifndef CONTTYPE
-#  define CONTTYPE '7'
-# endif
-# ifndef DIRTYPE
-#  define DIRTYPE '5'
-# endif
-# ifndef FIFOTYPE
-#  define FIFOTYPE '6'
-# endif
-# ifndef LNKTYPE
-#  define LNKTYPE '1'
-# endif
-# ifndef REGTYPE
-#  define REGTYPE '0'
-# endif
-# ifndef SYMTYPE
-#  define SYMTYPE '2'
-# endif
-# ifndef TGEXEC
-#  define TGEXEC 8
-# endif
-# ifndef TGREAD
-#  define TGREAD 32
-# endif
-# ifndef TGWRITE
-#  define TGWRITE 16
-# endif
-# ifndef TMAGIC
-#  define TMAGIC "ustar"
-# endif
-# ifndef TMAGLEN
-#  define TMAGLEN 6
-# endif
-# ifndef TOEXEC
-#  define TOEXEC 1
-# endif
-# ifndef TOREAD
-#  define TOREAD 4
-# endif
-# ifndef TOWRITE
-#  define TOWRITE 2
-# endif
-# ifndef TSGID
-#  define TSGID 1024
-# endif
-# ifndef TSUID
-#  define TSUID 2048
-# endif
-# ifndef TUEXEC
-#  define TUEXEC 64
-# endif
-# ifndef TUREAD
-#  define TUREAD 256
-# endif
-# ifndef TUWRITE
-#  define TUWRITE 128
-# endif
-# ifndef TVERSION
-#  define TVERSION "00"
-# endif
-# ifndef TVERSLEN
-#  define TVERSLEN 2
-# endif
+# define AREGTYPE '\000'
+# define BLKTYPE '4'
+# define CHRTYPE '3'
+# define CONTTYPE '7'
+# define DIRTYPE '5'
+# define FIFOTYPE '6'
+# define LNKTYPE '1'
+# define REGTYPE '0'
+# define SYMTYPE '2'
+# define TGEXEC 8
+# define TGREAD 32
+# define TGWRITE 16
+# define TMAGIC "ustar"
+# define TMAGLEN 6
+# define TOEXEC 1
+# define TOREAD 4
+# define TOWRITE 2
+# define TSGID 1024
+# define TSUID 2048
+# define TUEXEC 64
+# define TUREAD 256
+# define TUWRITE 128
+# define TVERSION "00"
+# define TVERSLEN 2
 #endif
 #if __NIJI_POSIX < 200112 || __NIJI_XSI >= 400
-# ifndef TSVTX
-#  define TSVTX 512
-# endif
+# define TSVTX 512
 #endif
 
 __NIJI_END_C

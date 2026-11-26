@@ -210,132 +210,48 @@ struct argp_state;
 #  define __NIJI_D_argp_usage 1
 extern void argp_usage (const struct argp_state *);
 # endif
-# ifndef ARGP_ERR_UNKNOWN
-#  define ARGP_ERR_UNKNOWN E2BIG
-# endif
-# ifndef ARGP_HELP_BUG_ADDR
-#  define ARGP_HELP_BUG_ADDR 64
-# endif
-# ifndef ARGP_HELP_DOC
-#  define ARGP_HELP_DOC 48
-# endif
-# ifndef ARGP_HELP_EXIT_ERR
-#  define ARGP_HELP_EXIT_ERR 256
-# endif
-# ifndef ARGP_HELP_EXIT_OK
-#  define ARGP_HELP_EXIT_OK 512
-# endif
-# ifndef ARGP_HELP_LONG
-#  define ARGP_HELP_LONG 8
-# endif
-# ifndef ARGP_HELP_LONG_ONLY
-#  define ARGP_HELP_LONG_ONLY 128
-# endif
-# ifndef ARGP_HELP_POST_DOC
-#  define ARGP_HELP_POST_DOC 32
-# endif
-# ifndef ARGP_HELP_PRE_DOC
-#  define ARGP_HELP_PRE_DOC 16
-# endif
-# ifndef ARGP_HELP_SEE
-#  define ARGP_HELP_SEE 4
-# endif
-# ifndef ARGP_HELP_SHORT_USAGE
-#  define ARGP_HELP_SHORT_USAGE 2
-# endif
-# ifndef ARGP_HELP_STD_ERR
-#  define ARGP_HELP_STD_ERR 260
-# endif
-# ifndef ARGP_HELP_STD_HELP
-#  define ARGP_HELP_STD_HELP 634
-# endif
-# ifndef ARGP_HELP_STD_USAGE
-#  define ARGP_HELP_STD_USAGE 262
-# endif
-# ifndef ARGP_HELP_USAGE
-#  define ARGP_HELP_USAGE 1
-# endif
-# ifndef ARGP_IN_ORDER
-#  define ARGP_IN_ORDER 8
-# endif
-# ifndef ARGP_KEY_ARG
-#  define ARGP_KEY_ARG 0
-# endif
-# ifndef ARGP_KEY_ARGS
-#  define ARGP_KEY_ARGS 16777222
-# endif
-# ifndef ARGP_KEY_END
-#  define ARGP_KEY_END 16777217
-# endif
-# ifndef ARGP_KEY_ERROR
-#  define ARGP_KEY_ERROR 16777221
-# endif
-# ifndef ARGP_KEY_FINI
-#  define ARGP_KEY_FINI 16777223
-# endif
-# ifndef ARGP_KEY_HELP_ARGS_DOC
-#  define ARGP_KEY_HELP_ARGS_DOC 33554438
-# endif
-# ifndef ARGP_KEY_HELP_DUP_ARGS_NOTE
-#  define ARGP_KEY_HELP_DUP_ARGS_NOTE 33554437
-# endif
-# ifndef ARGP_KEY_HELP_EXTRA
-#  define ARGP_KEY_HELP_EXTRA 33554436
-# endif
-# ifndef ARGP_KEY_HELP_HEADER
-#  define ARGP_KEY_HELP_HEADER 33554435
-# endif
-# ifndef ARGP_KEY_HELP_POST_DOC
-#  define ARGP_KEY_HELP_POST_DOC 33554434
-# endif
-# ifndef ARGP_KEY_HELP_PRE_DOC
-#  define ARGP_KEY_HELP_PRE_DOC 33554433
-# endif
-# ifndef ARGP_KEY_INIT
-#  define ARGP_KEY_INIT 16777219
-# endif
-# ifndef ARGP_KEY_NO_ARGS
-#  define ARGP_KEY_NO_ARGS 16777218
-# endif
-# ifndef ARGP_KEY_SUCCESS
-#  define ARGP_KEY_SUCCESS 16777220
-# endif
-# ifndef ARGP_LONG_ONLY
-#  define ARGP_LONG_ONLY 64
-# endif
-# ifndef ARGP_NO_ARGS
-#  define ARGP_NO_ARGS 4
-# endif
-# ifndef ARGP_NO_ERRS
-#  define ARGP_NO_ERRS 2
-# endif
-# ifndef ARGP_NO_EXIT
-#  define ARGP_NO_EXIT 32
-# endif
-# ifndef ARGP_NO_HELP
-#  define ARGP_NO_HELP 16
-# endif
-# ifndef ARGP_PARSE_ARGV0
-#  define ARGP_PARSE_ARGV0 1
-# endif
-# ifndef ARGP_SILENT
-#  define ARGP_SILENT 50
-# endif
-# ifndef OPTION_ALIAS
-#  define OPTION_ALIAS 4
-# endif
-# ifndef OPTION_ARG_OPTIONAL
-#  define OPTION_ARG_OPTIONAL 1
-# endif
-# ifndef OPTION_DOC
-#  define OPTION_DOC 8
-# endif
-# ifndef OPTION_HIDDEN
-#  define OPTION_HIDDEN 2
-# endif
-# ifndef OPTION_NO_USAGE
-#  define OPTION_NO_USAGE 16
-# endif
+# define ARGP_ERR_UNKNOWN E2BIG
+# define ARGP_HELP_BUG_ADDR 64
+# define ARGP_HELP_DOC 48
+# define ARGP_HELP_EXIT_ERR 256
+# define ARGP_HELP_EXIT_OK 512
+# define ARGP_HELP_LONG 8
+# define ARGP_HELP_LONG_ONLY 128
+# define ARGP_HELP_POST_DOC 32
+# define ARGP_HELP_PRE_DOC 16
+# define ARGP_HELP_SEE 4
+# define ARGP_HELP_SHORT_USAGE 2
+# define ARGP_HELP_STD_ERR 260
+# define ARGP_HELP_STD_HELP 634
+# define ARGP_HELP_STD_USAGE 262
+# define ARGP_HELP_USAGE 1
+# define ARGP_IN_ORDER 8
+# define ARGP_KEY_ARG 0
+# define ARGP_KEY_ARGS 16777222
+# define ARGP_KEY_END 16777217
+# define ARGP_KEY_ERROR 16777221
+# define ARGP_KEY_FINI 16777223
+# define ARGP_KEY_HELP_ARGS_DOC 33554438
+# define ARGP_KEY_HELP_DUP_ARGS_NOTE 33554437
+# define ARGP_KEY_HELP_EXTRA 33554436
+# define ARGP_KEY_HELP_HEADER 33554435
+# define ARGP_KEY_HELP_POST_DOC 33554434
+# define ARGP_KEY_HELP_PRE_DOC 33554433
+# define ARGP_KEY_INIT 16777219
+# define ARGP_KEY_NO_ARGS 16777218
+# define ARGP_KEY_SUCCESS 16777220
+# define ARGP_LONG_ONLY 64
+# define ARGP_NO_ARGS 4
+# define ARGP_NO_ERRS 2
+# define ARGP_NO_EXIT 32
+# define ARGP_NO_HELP 16
+# define ARGP_PARSE_ARGV0 1
+# define ARGP_SILENT 50
+# define OPTION_ALIAS 4
+# define OPTION_ARG_OPTIONAL 1
+# define OPTION_DOC 8
+# define OPTION_HIDDEN 2
+# define OPTION_NO_USAGE 16
 #endif
 
 __NIJI_END_C

@@ -92,7 +92,7 @@ typedef long suseconds_t;
 typedef long time_t;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_fd_mask
 #  define __NIJI_D_fd_mask 1
 typedef long fd_mask;
@@ -119,20 +119,12 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 #endif
 #if 1
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
-# ifndef __NFDBITS
-#  define __NFDBITS 64
-# endif
+# define FD_SETSIZE 1024
+# define __FD_SETSIZE 1024
+# define __NFDBITS 64
 #endif
-#if __NIJI_MISC
-# ifndef NFDBITS
-#  define NFDBITS 64
-# endif
+#if defined __USE_MISC
+# define NFDBITS 64
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */

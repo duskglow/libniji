@@ -127,9 +127,7 @@ extern int statfs64 (const char *, struct statfs64 *) __NIJI_NOTHROW __attribute
 # endif
 #endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 

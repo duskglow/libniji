@@ -73,69 +73,27 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef IPX_CRTITF
-#  define IPX_CRTITF 1
-# endif
-# ifndef IPX_DLTITF
-#  define IPX_DLTITF 0
-# endif
-# ifndef IPX_FRAME_8022
-#  define IPX_FRAME_8022 2
-# endif
-# ifndef IPX_FRAME_8023
-#  define IPX_FRAME_8023 4
-# endif
-# ifndef IPX_FRAME_ETHERII
-#  define IPX_FRAME_ETHERII 3
-# endif
-# ifndef IPX_FRAME_NONE
-#  define IPX_FRAME_NONE 0
-# endif
-# ifndef IPX_FRAME_SNAP
-#  define IPX_FRAME_SNAP 1
-# endif
-# ifndef IPX_FRAME_TR_8022
-#  define IPX_FRAME_TR_8022 5
-# endif
-# ifndef IPX_INTERNAL
-#  define IPX_INTERNAL 2
-# endif
-# ifndef IPX_MTU
-#  define IPX_MTU 576
-# endif
-# ifndef IPX_NODE_LEN
-#  define IPX_NODE_LEN 6
-# endif
-# ifndef IPX_PRIMARY
-#  define IPX_PRIMARY 1
-# endif
-# ifndef IPX_ROUTE_NO_ROUTER
-#  define IPX_ROUTE_NO_ROUTER 0
-# endif
-# ifndef IPX_RT_8022
-#  define IPX_RT_8022 4
-# endif
-# ifndef IPX_RT_BLUEBOOK
-#  define IPX_RT_BLUEBOOK 2
-# endif
-# ifndef IPX_RT_ROUTED
-#  define IPX_RT_ROUTED 1
-# endif
-# ifndef IPX_RT_SNAP
-#  define IPX_RT_SNAP 8
-# endif
-# ifndef IPX_SPECIAL_NONE
-#  define IPX_SPECIAL_NONE 0
-# endif
-# ifndef IPX_TYPE
-#  define IPX_TYPE 1
-# endif
-# ifndef SOL_IPX
-#  define SOL_IPX 256
-# endif
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define IPX_CRTITF 1
+# define IPX_DLTITF 0
+# define IPX_FRAME_8022 2
+# define IPX_FRAME_8023 4
+# define IPX_FRAME_ETHERII 3
+# define IPX_FRAME_NONE 0
+# define IPX_FRAME_SNAP 1
+# define IPX_FRAME_TR_8022 5
+# define IPX_INTERNAL 2
+# define IPX_MTU 576
+# define IPX_NODE_LEN 6
+# define IPX_PRIMARY 1
+# define IPX_ROUTE_NO_ROUTER 0
+# define IPX_RT_8022 4
+# define IPX_RT_BLUEBOOK 2
+# define IPX_RT_ROUTED 1
+# define IPX_RT_SNAP 8
+# define IPX_SPECIAL_NONE 0
+# define IPX_TYPE 1
+# define SOL_IPX 256
+# define _SS_SIZE 128
 #endif
 
 __NIJI_END_C

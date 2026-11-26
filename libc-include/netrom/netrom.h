@@ -213,84 +213,32 @@ typedef struct {
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
 # endif
-# ifndef AX25_BACKOFF
-#  define AX25_BACKOFF 6
-# endif
-# ifndef AX25_EXTSEQ
-#  define AX25_EXTSEQ 7
-# endif
-# ifndef AX25_IAMDIGI
-#  define AX25_IAMDIGI 12
-# endif
-# ifndef AX25_IDLE
-#  define AX25_IDLE 9
-# endif
-# ifndef AX25_KILL
-#  define AX25_KILL 99
-# endif
-# ifndef AX25_MAX_DIGIS
-#  define AX25_MAX_DIGIS 8
-# endif
-# ifndef AX25_N2
-#  define AX25_N2 3
-# endif
-# ifndef AX25_NOUID_BLOCK
-#  define AX25_NOUID_BLOCK 1
-# endif
-# ifndef AX25_NOUID_DEFAULT
-#  define AX25_NOUID_DEFAULT 0
-# endif
-# ifndef AX25_PACLEN
-#  define AX25_PACLEN 10
-# endif
-# ifndef AX25_PIDINCL
-#  define AX25_PIDINCL 8
-# endif
-# ifndef AX25_SET_RT_IPMODE
-#  define AX25_SET_RT_IPMODE 2
-# endif
-# ifndef AX25_T1
-#  define AX25_T1 2
-# endif
-# ifndef AX25_T2
-#  define AX25_T2 5
-# endif
-# ifndef AX25_T3
-#  define AX25_T3 4
-# endif
-# ifndef AX25_WINDOW
-#  define AX25_WINDOW 1
-# endif
-# ifndef NETROM_IDLE
-#  define NETROM_IDLE 7
-# endif
-# ifndef NETROM_N2
-#  define NETROM_N2 3
-# endif
-# ifndef NETROM_NEIGH
-#  define NETROM_NEIGH 0
-# endif
-# ifndef NETROM_NODE
-#  define NETROM_NODE 1
-# endif
-# ifndef NETROM_T1
-#  define NETROM_T1 1
-# endif
-# ifndef NETROM_T2
-#  define NETROM_T2 2
-# endif
-# ifndef NETROM_T4
-#  define NETROM_T4 6
-# endif
-# ifndef SOL_AX25
-#  define SOL_AX25 257
-# endif
-# ifndef SOL_NETROM
-#  define SOL_NETROM 259
-# endif
-# ifndef _SS_SIZE
-#  define _SS_SIZE 128
-# endif
+# define AX25_BACKOFF 6
+# define AX25_EXTSEQ 7
+# define AX25_IAMDIGI 12
+# define AX25_IDLE 9
+# define AX25_KILL 99
+# define AX25_MAX_DIGIS 8
+# define AX25_N2 3
+# define AX25_NOUID_BLOCK 1
+# define AX25_NOUID_DEFAULT 0
+# define AX25_PACLEN 10
+# define AX25_PIDINCL 8
+# define AX25_SET_RT_IPMODE 2
+# define AX25_T1 2
+# define AX25_T2 5
+# define AX25_T3 4
+# define AX25_WINDOW 1
+# define NETROM_IDLE 7
+# define NETROM_N2 3
+# define NETROM_NEIGH 0
+# define NETROM_NODE 1
+# define NETROM_T1 1
+# define NETROM_T2 2
+# define NETROM_T4 6
+# define SOL_AX25 257
+# define SOL_NETROM 259
+# define _SS_SIZE 128
 #endif
 
 __NIJI_END_C

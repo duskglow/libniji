@@ -9,87 +9,33 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef BSD_CURRENT_VERSION
-#  define BSD_CURRENT_VERSION 1
-# endif
-# ifndef BSD_MAX_BITS
-#  define BSD_MAX_BITS 15
-# endif
-# ifndef BSD_MIN_BITS
-#  define BSD_MIN_BITS 9
-# endif
-# ifndef CCP_CONFACK
-#  define CCP_CONFACK 2
-# endif
-# ifndef CCP_CONFREQ
-#  define CCP_CONFREQ 1
-# endif
-# ifndef CCP_HDRLEN
-#  define CCP_HDRLEN 4
-# endif
-# ifndef CCP_MAX_OPTION_LENGTH
-#  define CCP_MAX_OPTION_LENGTH 32
-# endif
-# ifndef CCP_OPT_MINLEN
-#  define CCP_OPT_MINLEN 2
-# endif
-# ifndef CCP_RESETACK
-#  define CCP_RESETACK 15
-# endif
-# ifndef CCP_RESETREQ
-#  define CCP_RESETREQ 14
-# endif
-# ifndef CCP_TERMACK
-#  define CCP_TERMACK 6
-# endif
-# ifndef CCP_TERMREQ
-#  define CCP_TERMREQ 5
-# endif
-# ifndef CILEN_BSD_COMPRESS
-#  define CILEN_BSD_COMPRESS 3
-# endif
-# ifndef CILEN_DEFLATE
-#  define CILEN_DEFLATE 4
-# endif
-# ifndef CILEN_MPPE
-#  define CILEN_MPPE 6
-# endif
-# ifndef CILEN_PREDICTOR_1
-#  define CILEN_PREDICTOR_1 2
-# endif
-# ifndef CILEN_PREDICTOR_2
-#  define CILEN_PREDICTOR_2 2
-# endif
-# ifndef CI_BSD_COMPRESS
-#  define CI_BSD_COMPRESS 21
-# endif
-# ifndef CI_DEFLATE
-#  define CI_DEFLATE 26
-# endif
-# ifndef CI_DEFLATE_DRAFT
-#  define CI_DEFLATE_DRAFT 24
-# endif
-# ifndef CI_MPPE
-#  define CI_MPPE 18
-# endif
-# ifndef CI_PREDICTOR_1
-#  define CI_PREDICTOR_1 1
-# endif
-# ifndef CI_PREDICTOR_2
-#  define CI_PREDICTOR_2 2
-# endif
-# ifndef DEFLATE_CHK_SEQUENCE
-#  define DEFLATE_CHK_SEQUENCE 0
-# endif
-# ifndef DEFLATE_MAX_SIZE
-#  define DEFLATE_MAX_SIZE 15
-# endif
-# ifndef DEFLATE_METHOD_VAL
-#  define DEFLATE_METHOD_VAL 8
-# endif
-# ifndef DEFLATE_MIN_SIZE
-#  define DEFLATE_MIN_SIZE 9
-# endif
+# define BSD_CURRENT_VERSION 1
+# define BSD_MAX_BITS 15
+# define BSD_MIN_BITS 9
+# define CCP_CONFACK 2
+# define CCP_CONFREQ 1
+# define CCP_HDRLEN 4
+# define CCP_MAX_OPTION_LENGTH 32
+# define CCP_OPT_MINLEN 2
+# define CCP_RESETACK 15
+# define CCP_RESETREQ 14
+# define CCP_TERMACK 6
+# define CCP_TERMREQ 5
+# define CILEN_BSD_COMPRESS 3
+# define CILEN_DEFLATE 4
+# define CILEN_MPPE 6
+# define CILEN_PREDICTOR_1 2
+# define CILEN_PREDICTOR_2 2
+# define CI_BSD_COMPRESS 21
+# define CI_DEFLATE 26
+# define CI_DEFLATE_DRAFT 24
+# define CI_MPPE 18
+# define CI_PREDICTOR_1 1
+# define CI_PREDICTOR_2 2
+# define DEFLATE_CHK_SEQUENCE 0
+# define DEFLATE_MAX_SIZE 15
+# define DEFLATE_METHOD_VAL 8
+# define DEFLATE_MIN_SIZE 9
 #endif
 
 __NIJI_END_C

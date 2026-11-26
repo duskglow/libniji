@@ -125,7 +125,13 @@ struct termios;
 extern int tcsetattr (int, int, const struct termios *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
+# ifndef __NIJI_D_tcgetsid
+#  define __NIJI_D_tcgetsid 1
+extern int tcgetsid (int) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC
 struct termios;
 # ifndef __NIJI_D_cfmakeraw
 #  define __NIJI_D_cfmakeraw 1
@@ -135,12 +141,6 @@ struct termios;
 # ifndef __NIJI_D_cfsetspeed
 #  define __NIJI_D_cfsetspeed 1
 extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# ifndef __NIJI_D_tcgetsid
-#  define __NIJI_D_tcgetsid 1
-extern int tcgetsid (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
@@ -366,84 +366,34 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # ifndef PARODD
 #  define PARODD 512
 # endif
-# ifndef TCIFLUSH
-#  define TCIFLUSH 0
-# endif
-# ifndef TCIOFF
-#  define TCIOFF 2
-# endif
-# ifndef TCIOFLUSH
-#  define TCIOFLUSH 2
-# endif
-# ifndef TCION
-#  define TCION 3
-# endif
-# ifndef TCOFLUSH
-#  define TCOFLUSH 1
-# endif
-# ifndef TCOOFF
-#  define TCOOFF 0
-# endif
-# ifndef TCOON
-#  define TCOON 1
-# endif
-# ifndef TCSADRAIN
-#  define TCSADRAIN 1
-# endif
-# ifndef TCSAFLUSH
-#  define TCSAFLUSH 2
-# endif
-# ifndef TCSANOW
-#  define TCSANOW 0
-# endif
+# define TCIFLUSH 0
+# define TCIOFF 2
+# define TCIOFLUSH 2
+# define TCION 3
+# define TCOFLUSH 1
+# define TCOOFF 0
+# define TCOON 1
+# define TCSADRAIN 1
+# define TCSAFLUSH 2
+# define TCSANOW 0
 # ifndef TOSTOP
 #  define TOSTOP 256
 # endif
-# ifndef VDISCARD
-#  define VDISCARD 13
-# endif
-# ifndef VEOF
-#  define VEOF 4
-# endif
-# ifndef VEOL
-#  define VEOL 11
-# endif
-# ifndef VEOL2
-#  define VEOL2 16
-# endif
-# ifndef VERASE
-#  define VERASE 2
-# endif
-# ifndef VINTR
-#  define VINTR 0
-# endif
-# ifndef VKILL
-#  define VKILL 3
-# endif
-# ifndef VLNEXT
-#  define VLNEXT 15
-# endif
-# ifndef VMIN
-#  define VMIN 6
-# endif
-# ifndef VQUIT
-#  define VQUIT 1
-# endif
-# ifndef VREPRINT
-#  define VREPRINT 12
-# endif
-# ifndef VSTART
-#  define VSTART 8
-# endif
-# ifndef VSTOP
-#  define VSTOP 9
-# endif
-# ifndef VSUSP
-#  define VSUSP 10
-# endif
-# ifndef VSWTC
-#  define VSWTC 7
-# endif
+# define VDISCARD 13
+# define VEOF 4
+# define VEOL 11
+# define VEOL2 16
+# define VERASE 2
+# define VINTR 0
+# define VKILL 3
+# define VLNEXT 15
+# define VMIN 6
+# define VQUIT 1
+# define VREPRINT 12
+# define VSTART 8
+# define VSTOP 9
+# define VSUSP 10
+# define VSWTC 7
 # ifndef VT0
 #  define VT0 0
 # endif
@@ -453,20 +403,15 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # ifndef VTDLY
 #  define VTDLY 16384
 # endif
-# ifndef VTIME
-#  define VTIME 5
-# endif
-# ifndef VWERASE
-#  define VWERASE 14
-# endif
-# ifndef _HAVE_STRUCT_TERMIOS_C_ISPEED
-#  define _HAVE_STRUCT_TERMIOS_C_ISPEED 1
-# endif
-# ifndef _HAVE_STRUCT_TERMIOS_C_OSPEED
-#  define _HAVE_STRUCT_TERMIOS_C_OSPEED 1
-# endif
+# define VTIME 5
+# define VWERASE 14
+# define _HAVE_STRUCT_TERMIOS_C_ISPEED 1
+# define _HAVE_STRUCT_TERMIOS_C_OSPEED 1
 #endif
-#if __NIJI_MISC
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
+# define __FD_SETSIZE 1024
+#endif
+#if defined __USE_MISC
 # ifndef ADDRB
 #  define ADDRB 536870912
 # endif
@@ -476,78 +421,36 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # ifndef CBAUDEX
 #  define CBAUDEX 4096
 # endif
-# ifndef CBRK
-#  define CBRK '\000'
-# endif
-# ifndef CDISCARD
-#  define CDISCARD 15
-# endif
-# ifndef CDSUSP
-#  define CDSUSP 25
-# endif
-# ifndef CEOF
-#  define CEOF 4
-# endif
-# ifndef CEOL
-#  define CEOL '\000'
-# endif
-# ifndef CEOT
-#  define CEOT CEOF
-# endif
-# ifndef CERASE
-#  define CERASE 127
-# endif
-# ifndef CFLUSH
-#  define CFLUSH CDISCARD
-# endif
+# define CBRK '\000'
+# define CDISCARD 15
+# define CDSUSP 25
+# define CEOF 4
+# define CEOL '\000'
+# define CEOT CEOF
+# define CERASE 127
+# define CFLUSH CDISCARD
 # ifndef CIBAUD
 #  define CIBAUD 269418496
 # endif
-# ifndef CINTR
-#  define CINTR 3
-# endif
-# ifndef CKILL
-#  define CKILL 21
-# endif
-# ifndef CLNEXT
-#  define CLNEXT 22
-# endif
-# ifndef CMIN
-#  define CMIN 1
-# endif
+# define CINTR 3
+# define CKILL 21
+# define CLNEXT 22
+# define CMIN 1
 # ifndef CMSPAR
 #  define CMSPAR 1073741824
 # endif
-# ifndef CQUIT
-#  define CQUIT 28
-# endif
-# ifndef CREPRINT
-#  define CREPRINT 18
-# endif
-# ifndef CRPRNT
-#  define CRPRNT CREPRINT
-# endif
+# define CQUIT 28
+# define CREPRINT 18
+# define CRPRNT CREPRINT
 # ifndef CRTSCTS
 #  define CRTSCTS 2147483648U
 # endif
-# ifndef CSTART
-#  define CSTART 17
-# endif
-# ifndef CSTATUS
-#  define CSTATUS '\000'
-# endif
-# ifndef CSTOP
-#  define CSTOP 19
-# endif
-# ifndef CSUSP
-#  define CSUSP 26
-# endif
-# ifndef CTIME
-#  define CTIME 0
-# endif
-# ifndef CWERASE
-#  define CWERASE 23
-# endif
+# define CSTART 17
+# define CSTATUS '\000'
+# define CSTOP 19
+# define CSUSP 26
+# define CTIME 0
+# define CWERASE 23
 # ifndef ECHOCTL
 #  define ECHOCTL 512
 # endif
@@ -557,12 +460,8 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # ifndef ECHOPRT
 #  define ECHOPRT 1024
 # endif
-# ifndef EXTA
-#  define EXTA B19200
-# endif
-# ifndef EXTB
-#  define EXTB B38400
-# endif
+# define EXTA B19200
+# define EXTB B38400
 # ifndef EXTPROC
 #  define EXTPROC 65536
 # endif
@@ -575,31 +474,21 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # ifndef TIOCSER_TEMT
 #  define TIOCSER_TEMT 1
 # endif
-# ifndef TTYDEF_CFLAG
-#  define TTYDEF_CFLAG 1440
-# endif
-# ifndef TTYDEF_IFLAG
-#  define TTYDEF_IFLAG 11554
-# endif
-# ifndef TTYDEF_LFLAG
-#  define TTYDEF_LFLAG 35355
-# endif
-# ifndef TTYDEF_OFLAG
-#  define TTYDEF_OFLAG 6149
-# endif
-# ifndef TTYDEF_SPEED
-#  define TTYDEF_SPEED B9600
-# endif
+# define TTYDEF_CFLAG 1440
+# define TTYDEF_IFLAG 11554
+# define TTYDEF_LFLAG 35355
+# define TTYDEF_OFLAG 6149
+# define TTYDEF_SPEED B9600
 # ifndef XTABS
 #  define XTABS 6144
 # endif
 #endif
-#if __NIJI_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
+#if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
 # ifndef XCASE
 #  define XCASE 4
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
+#if defined __USE_MISC || __NIJI_XSI >= 400
 # ifndef BS0
 #  define BS0 0
 # endif
@@ -656,11 +545,6 @@ extern int tcgetsid (int) __NIJI_NOTHROW;
 # endif
 # ifndef TABDLY
 #  define TABDLY 6144
-# endif
-#endif
-#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
 # endif
 #endif
 

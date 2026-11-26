@@ -75,18 +75,18 @@ extern int sem_unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ 
 extern int sem_wait (sem_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_GNU
-struct timespec;
-# ifndef __NIJI_D_sem_clockwait
-#  define __NIJI_D_sem_clockwait 1
-extern int sem_clockwait (sem_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 3)));
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 struct timespec;
 # ifndef __NIJI_D_sem_timedwait
 #  define __NIJI_D_sem_timedwait 1
 extern int sem_timedwait (sem_t *, const struct timespec *) __attribute__ ((__nonnull__ (1, 2)));
+# endif
+#endif
+#if defined __USE_GNU
+struct timespec;
+# ifndef __NIJI_D_sem_clockwait
+#  define __NIJI_D_sem_clockwait 1
+extern int sem_clockwait (sem_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 3)));
 # endif
 #endif
 

@@ -23,48 +23,20 @@ struct __attribute__ ((__packed__)) tftphdr {
   } th_u1;
 };
 # endif
-# ifndef ACK
-#  define ACK 4
-# endif
-# ifndef DATA
-#  define DATA 3
-# endif
-# ifndef EACCESS
-#  define EACCESS 2
-# endif
-# ifndef EBADID
-#  define EBADID 5
-# endif
-# ifndef EBADOP
-#  define EBADOP 4
-# endif
-# ifndef EEXISTS
-#  define EEXISTS 6
-# endif
-# ifndef ENOSPACE
-#  define ENOSPACE 3
-# endif
-# ifndef ENOTFOUND
-#  define ENOTFOUND 1
-# endif
-# ifndef ENOUSER
-#  define ENOUSER 7
-# endif
-# ifndef ERROR
-#  define ERROR 5
-# endif
-# ifndef EUNDEF
-#  define EUNDEF 0
-# endif
-# ifndef RRQ
-#  define RRQ 1
-# endif
-# ifndef SEGSIZE
-#  define SEGSIZE 512
-# endif
-# ifndef WRQ
-#  define WRQ 2
-# endif
+# define ACK 4
+# define DATA 3
+# define EACCESS 2
+# define EBADID 5
+# define EBADOP 4
+# define EEXISTS 6
+# define ENOSPACE 3
+# define ENOTFOUND 1
+# define ENOUSER 7
+# define ERROR 5
+# define EUNDEF 0
+# define RRQ 1
+# define SEGSIZE 512
+# define WRQ 2
 #endif
 
 /* RFC 1350 packets: the fields after the opcode are named through the unions of struct tftphdr; each name is a macro

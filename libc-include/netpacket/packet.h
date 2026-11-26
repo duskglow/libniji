@@ -32,108 +32,40 @@ struct sockaddr_ll {
   unsigned char sll_addr[8];
 };
 # endif
-# ifndef PACKET_ADD_MEMBERSHIP
-#  define PACKET_ADD_MEMBERSHIP 1
-# endif
-# ifndef PACKET_AUXDATA
-#  define PACKET_AUXDATA 8
-# endif
-# ifndef PACKET_BROADCAST
-#  define PACKET_BROADCAST 1
-# endif
-# ifndef PACKET_COPY_THRESH
-#  define PACKET_COPY_THRESH 7
-# endif
-# ifndef PACKET_DROP_MEMBERSHIP
-#  define PACKET_DROP_MEMBERSHIP 2
-# endif
-# ifndef PACKET_FANOUT
-#  define PACKET_FANOUT 18
-# endif
-# ifndef PACKET_FANOUT_DATA
-#  define PACKET_FANOUT_DATA 22
-# endif
-# ifndef PACKET_FASTROUTE
-#  define PACKET_FASTROUTE 6
-# endif
-# ifndef PACKET_HDRLEN
-#  define PACKET_HDRLEN 11
-# endif
-# ifndef PACKET_HOST
-#  define PACKET_HOST 0
-# endif
-# ifndef PACKET_IGNORE_OUTGOING
-#  define PACKET_IGNORE_OUTGOING 23
-# endif
-# ifndef PACKET_LOOPBACK
-#  define PACKET_LOOPBACK 5
-# endif
-# ifndef PACKET_LOSS
-#  define PACKET_LOSS 14
-# endif
-# ifndef PACKET_MR_ALLMULTI
-#  define PACKET_MR_ALLMULTI 2
-# endif
-# ifndef PACKET_MR_MULTICAST
-#  define PACKET_MR_MULTICAST 0
-# endif
-# ifndef PACKET_MR_PROMISC
-#  define PACKET_MR_PROMISC 1
-# endif
-# ifndef PACKET_MR_UNICAST
-#  define PACKET_MR_UNICAST 3
-# endif
-# ifndef PACKET_MULTICAST
-#  define PACKET_MULTICAST 2
-# endif
-# ifndef PACKET_ORIGDEV
-#  define PACKET_ORIGDEV 9
-# endif
-# ifndef PACKET_OTHERHOST
-#  define PACKET_OTHERHOST 3
-# endif
-# ifndef PACKET_OUTGOING
-#  define PACKET_OUTGOING 4
-# endif
-# ifndef PACKET_QDISC_BYPASS
-#  define PACKET_QDISC_BYPASS 20
-# endif
-# ifndef PACKET_RECV_OUTPUT
-#  define PACKET_RECV_OUTPUT 3
-# endif
-# ifndef PACKET_RESERVE
-#  define PACKET_RESERVE 12
-# endif
-# ifndef PACKET_ROLLOVER_STATS
-#  define PACKET_ROLLOVER_STATS 21
-# endif
-# ifndef PACKET_RX_RING
-#  define PACKET_RX_RING 5
-# endif
-# ifndef PACKET_STATISTICS
-#  define PACKET_STATISTICS 6
-# endif
-# ifndef PACKET_TIMESTAMP
-#  define PACKET_TIMESTAMP 17
-# endif
-# ifndef PACKET_TX_HAS_OFF
-#  define PACKET_TX_HAS_OFF 19
-# endif
-# ifndef PACKET_TX_RING
-#  define PACKET_TX_RING 13
-# endif
-# ifndef PACKET_TX_TIMESTAMP
-#  define PACKET_TX_TIMESTAMP 16
-# endif
-# ifndef PACKET_VERSION
-#  define PACKET_VERSION 10
-# endif
-# ifndef PACKET_VNET_HDR
-#  define PACKET_VNET_HDR 15
-# endif
-# ifndef PACKET_VNET_HDR_SZ
-#  define PACKET_VNET_HDR_SZ 24
-# endif
+# define PACKET_ADD_MEMBERSHIP 1
+# define PACKET_AUXDATA 8
+# define PACKET_BROADCAST 1
+# define PACKET_COPY_THRESH 7
+# define PACKET_DROP_MEMBERSHIP 2
+# define PACKET_FANOUT 18
+# define PACKET_FANOUT_DATA 22
+# define PACKET_FASTROUTE 6
+# define PACKET_HDRLEN 11
+# define PACKET_HOST 0
+# define PACKET_IGNORE_OUTGOING 23
+# define PACKET_LOOPBACK 5
+# define PACKET_LOSS 14
+# define PACKET_MR_ALLMULTI 2
+# define PACKET_MR_MULTICAST 0
+# define PACKET_MR_PROMISC 1
+# define PACKET_MR_UNICAST 3
+# define PACKET_MULTICAST 2
+# define PACKET_ORIGDEV 9
+# define PACKET_OTHERHOST 3
+# define PACKET_OUTGOING 4
+# define PACKET_QDISC_BYPASS 20
+# define PACKET_RECV_OUTPUT 3
+# define PACKET_RESERVE 12
+# define PACKET_ROLLOVER_STATS 21
+# define PACKET_RX_RING 5
+# define PACKET_STATISTICS 6
+# define PACKET_TIMESTAMP 17
+# define PACKET_TX_HAS_OFF 19
+# define PACKET_TX_RING 13
+# define PACKET_TX_TIMESTAMP 16
+# define PACKET_VERSION 10
+# define PACKET_VNET_HDR 15
+# define PACKET_VNET_HDR_SZ 24
 #endif
 
 __NIJI_END_C

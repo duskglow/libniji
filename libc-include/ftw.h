@@ -45,18 +45,6 @@ extern int ftw (const char *, __ftw_func_t, int) __asm__ ("ftw64") __attribute__
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
-struct stat64;
-struct FTW;
-# ifndef __NIJI_D___nftw64_func_t
-#  define __NIJI_D___nftw64_func_t 1
-typedef int (*__nftw64_func_t)(char const *, struct stat64 const *, int, struct FTW *);
-# endif
-# ifndef __NIJI_D_nftw64
-#  define __NIJI_D_nftw64 1
-extern int nftw64 (const char *, __nftw64_func_t, int, int) __attribute__ ((__nonnull__ (1, 2)));
-# endif
-#endif
 #if __NIJI_LFS64
 struct stat64;
 # ifndef __NIJI_D___ftw64_func_t
@@ -68,10 +56,22 @@ typedef int (*__ftw64_func_t)(char const *, struct stat64 const *, int);
 extern int ftw64 (const char *, __ftw64_func_t, int) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
-#if (__NIJI_GNU) || (__NIJI_XSI >= 450)
+#if defined __USE_GNU
+struct stat64;
+struct FTW;
+# ifndef __NIJI_D___nftw64_func_t
+#  define __NIJI_D___nftw64_func_t 1
+typedef int (*__nftw64_func_t)(char const *, struct stat64 const *, int, struct FTW *);
+# endif
+# ifndef __NIJI_D_nftw64
+#  define __NIJI_D_nftw64 1
+extern int nftw64 (const char *, __nftw64_func_t, int, int) __attribute__ ((__nonnull__ (1, 2)));
+# endif
+#endif
+#if (__NIJI_XSI >= 450) || (defined __USE_GNU)
 # ifndef __NIJI_D_anon_FTW_ACTIONRETVAL
 #  define __NIJI_D_anon_FTW_ACTIONRETVAL 1
-#  if ((__NIJI_XSI >= 450) && !defined FTW_PHYS) || ((__NIJI_XSI >= 450) && !defined FTW_MOUNT) || ((__NIJI_XSI >= 450) && !defined FTW_CHDIR) || ((__NIJI_XSI >= 450) && !defined FTW_DEPTH) || ((__NIJI_GNU) && !defined FTW_ACTIONRETVAL)
+#  if ((__NIJI_XSI >= 450) && !defined FTW_PHYS) || ((__NIJI_XSI >= 450) && !defined FTW_MOUNT) || ((__NIJI_XSI >= 450) && !defined FTW_CHDIR) || ((__NIJI_XSI >= 450) && !defined FTW_DEPTH) || ((defined __USE_GNU) && !defined FTW_ACTIONRETVAL)
 enum {
 #  if __NIJI_XSI >= 450
 #  ifndef FTW_PHYS
@@ -93,7 +93,7 @@ enum {
   FTW_DEPTH = 8,
 #  endif
 #  endif
-#  if __NIJI_GNU
+#  if defined __USE_GNU
 #  ifndef FTW_ACTIONRETVAL
   FTW_ACTIONRETVAL = 16,
 #  endif
@@ -105,7 +105,7 @@ enum {
 #if 1
 # ifndef __NIJI_D_anon_FTW_D
 #  define __NIJI_D_anon_FTW_D 1
-#  if !defined FTW_F || !defined FTW_D || !defined FTW_DNR || !defined FTW_NS || ((__NIJI_MISC || __NIJI_XSI >= 450) && !defined FTW_SL) || ((__NIJI_XSI >= 450) && !defined FTW_DP) \
+#  if !defined FTW_F || !defined FTW_D || !defined FTW_DNR || !defined FTW_NS || ((defined __USE_MISC || __NIJI_XSI >= 450) && !defined FTW_SL) || ((__NIJI_XSI >= 450) && !defined FTW_DP) \
     || ((__NIJI_XSI >= 450) && !defined FTW_SLN)
 enum {
 #  ifndef FTW_F
@@ -120,7 +120,7 @@ enum {
 #  ifndef FTW_NS
   FTW_NS = 3,
 #  endif
-#  if __NIJI_MISC || __NIJI_XSI >= 450
+#  if defined __USE_MISC || __NIJI_XSI >= 450
 #  ifndef FTW_SL
   FTW_SL = 4,
 #  endif
@@ -139,7 +139,7 @@ enum {
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef __NIJI_D_anon_FTW_CONTINUE
 #  define __NIJI_D_anon_FTW_CONTINUE 1
 #  if !defined FTW_CONTINUE || !defined FTW_STOP || !defined FTW_SKIP_SUBTREE || !defined FTW_SKIP_SIBLINGS
@@ -161,60 +161,28 @@ enum {
 # endif
 #endif
 #if 1
-# ifndef FTW_D
-#  define FTW_D FTW_D
-# endif
-# ifndef FTW_DNR
-#  define FTW_DNR FTW_DNR
-# endif
-# ifndef FTW_F
-#  define FTW_F FTW_F
-# endif
-# ifndef FTW_NS
-#  define FTW_NS FTW_NS
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef FTW_ACTIONRETVAL
-#  define FTW_ACTIONRETVAL FTW_ACTIONRETVAL
-# endif
-# ifndef FTW_CONTINUE
-#  define FTW_CONTINUE FTW_CONTINUE
-# endif
-# ifndef FTW_SKIP_SIBLINGS
-#  define FTW_SKIP_SIBLINGS FTW_SKIP_SIBLINGS
-# endif
-# ifndef FTW_SKIP_SUBTREE
-#  define FTW_SKIP_SUBTREE FTW_SKIP_SUBTREE
-# endif
-# ifndef FTW_STOP
-#  define FTW_STOP FTW_STOP
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
-# ifndef FTW_SL
-#  define FTW_SL FTW_SL
-# endif
+# define FTW_D FTW_D
+# define FTW_DNR FTW_DNR
+# define FTW_F FTW_F
+# define FTW_NS FTW_NS
 #endif
 #if __NIJI_XSI >= 450
-# ifndef FTW_CHDIR
-#  define FTW_CHDIR FTW_CHDIR
-# endif
-# ifndef FTW_DEPTH
-#  define FTW_DEPTH FTW_DEPTH
-# endif
-# ifndef FTW_DP
-#  define FTW_DP FTW_DP
-# endif
-# ifndef FTW_MOUNT
-#  define FTW_MOUNT FTW_MOUNT
-# endif
-# ifndef FTW_PHYS
-#  define FTW_PHYS FTW_PHYS
-# endif
-# ifndef FTW_SLN
-#  define FTW_SLN FTW_SLN
-# endif
+# define FTW_CHDIR FTW_CHDIR
+# define FTW_DEPTH FTW_DEPTH
+# define FTW_DP FTW_DP
+# define FTW_MOUNT FTW_MOUNT
+# define FTW_PHYS FTW_PHYS
+# define FTW_SLN FTW_SLN
+#endif
+#if defined __USE_GNU
+# define FTW_ACTIONRETVAL FTW_ACTIONRETVAL
+# define FTW_CONTINUE FTW_CONTINUE
+# define FTW_SKIP_SIBLINGS FTW_SKIP_SIBLINGS
+# define FTW_SKIP_SUBTREE FTW_SKIP_SUBTREE
+# define FTW_STOP FTW_STOP
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# define FTW_SL FTW_SL
 #endif
 
 #if __NIJI_XSI >= 450

@@ -113,42 +113,26 @@ extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW 
 #  define __NIJI_D_valloc 1
 extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1), __warn_unused_result__));
 # endif
-# ifndef M_ARENA_MAX
-#  define M_ARENA_MAX (-8)
-# endif
-# ifndef M_ARENA_TEST
-#  define M_ARENA_TEST (-7)
-# endif
-# ifndef M_CHECK_ACTION
-#  define M_CHECK_ACTION (-5)
-# endif
+# define M_ARENA_MAX (-8)
+# define M_ARENA_TEST (-7)
+# define M_CHECK_ACTION (-5)
 # ifndef M_GRAIN
 #  define M_GRAIN 3
 # endif
 # ifndef M_KEEP
 #  define M_KEEP 4
 # endif
-# ifndef M_MMAP_MAX
-#  define M_MMAP_MAX (-4)
-# endif
-# ifndef M_MMAP_THRESHOLD
-#  define M_MMAP_THRESHOLD (-3)
-# endif
+# define M_MMAP_MAX (-4)
+# define M_MMAP_THRESHOLD (-3)
 # ifndef M_MXFAST
 #  define M_MXFAST 1
 # endif
 # ifndef M_NLBLKS
 #  define M_NLBLKS 2
 # endif
-# ifndef M_PERTURB
-#  define M_PERTURB (-6)
-# endif
-# ifndef M_TOP_PAD
-#  define M_TOP_PAD (-2)
-# endif
-# ifndef M_TRIM_THRESHOLD
-#  define M_TRIM_THRESHOLD (-1)
-# endif
+# define M_PERTURB (-6)
+# define M_TOP_PAD (-2)
+# define M_TRIM_THRESHOLD (-1)
 #endif
 
 __NIJI_END_C

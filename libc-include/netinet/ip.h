@@ -29,7 +29,7 @@ struct iphdr {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_in_addr
 #  define __NIJI_D_struct_in_addr 1
 struct in_addr {
@@ -81,12 +81,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef IPDEFTTL
-#  define IPDEFTTL 64
-# endif
-# ifndef IPFRAGTTL
-#  define IPFRAGTTL 60
-# endif
+# define IPDEFTTL 64
+# define IPFRAGTTL 60
 # ifndef IPOPT_CLASS_MASK
 #  define IPOPT_CLASS_MASK 96
 # endif
@@ -96,9 +92,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_COPY
 #  define IPOPT_COPY 128
 # endif
-# ifndef IPOPT_DEBMEAS
-#  define IPOPT_DEBMEAS 64
-# endif
+# define IPOPT_DEBMEAS 64
 # ifndef IPOPT_END
 #  define IPOPT_END IPOPT_EOL
 # endif
@@ -111,9 +105,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_MEASUREMENT
 #  define IPOPT_MEASUREMENT IPOPT_DEBMEAS
 # endif
-# ifndef IPOPT_MINOFF
-#  define IPOPT_MINOFF 4
-# endif
+# define IPOPT_MINOFF 4
 # ifndef IPOPT_NOOP
 #  define IPOPT_NOOP IPOPT_NOP
 # endif
@@ -123,15 +115,9 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_NUMBER_MASK
 #  define IPOPT_NUMBER_MASK 31
 # endif
-# ifndef IPOPT_OFFSET
-#  define IPOPT_OFFSET 2
-# endif
-# ifndef IPOPT_OLEN
-#  define IPOPT_OLEN 1
-# endif
-# ifndef IPOPT_OPTVAL
-#  define IPOPT_OPTVAL 0
-# endif
+# define IPOPT_OFFSET 2
+# define IPOPT_OLEN 1
+# define IPOPT_OPTVAL 0
 # ifndef IPOPT_RA
 #  define IPOPT_RA 148
 # endif
@@ -144,36 +130,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_RR
 #  define IPOPT_RR 7
 # endif
-# ifndef IPOPT_SATID
-#  define IPOPT_SATID 136
-# endif
+# define IPOPT_SATID 136
 # ifndef IPOPT_SEC
 #  define IPOPT_SEC IPOPT_SECURITY
 # endif
-# ifndef IPOPT_SECURITY
-#  define IPOPT_SECURITY 130
-# endif
-# ifndef IPOPT_SECUR_CONFID
-#  define IPOPT_SECUR_CONFID 61749
-# endif
-# ifndef IPOPT_SECUR_EFTO
-#  define IPOPT_SECUR_EFTO 30874
-# endif
-# ifndef IPOPT_SECUR_MMMM
-#  define IPOPT_SECUR_MMMM 48205
-# endif
-# ifndef IPOPT_SECUR_RESTR
-#  define IPOPT_SECUR_RESTR 44819
-# endif
-# ifndef IPOPT_SECUR_SECRET
-#  define IPOPT_SECUR_SECRET 55176
-# endif
-# ifndef IPOPT_SECUR_TOPSECRET
-#  define IPOPT_SECUR_TOPSECRET 27589
-# endif
-# ifndef IPOPT_SECUR_UNCLASS
-#  define IPOPT_SECUR_UNCLASS 0
-# endif
+# define IPOPT_SECURITY 130
+# define IPOPT_SECUR_CONFID 61749
+# define IPOPT_SECUR_EFTO 30874
+# define IPOPT_SECUR_MMMM 48205
+# define IPOPT_SECUR_RESTR 44819
+# define IPOPT_SECUR_SECRET 55176
+# define IPOPT_SECUR_TOPSECRET 27589
+# define IPOPT_SECUR_UNCLASS 0
 # ifndef IPOPT_SID
 #  define IPOPT_SID IPOPT_SATID
 # endif
@@ -186,108 +154,40 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_TS
 #  define IPOPT_TS 68
 # endif
-# ifndef IPOPT_TS_PRESPEC
-#  define IPOPT_TS_PRESPEC 3
-# endif
-# ifndef IPOPT_TS_TSANDADDR
-#  define IPOPT_TS_TSANDADDR 1
-# endif
-# ifndef IPOPT_TS_TSONLY
-#  define IPOPT_TS_TSONLY 0
-# endif
-# ifndef IPTOS_CLASS_CS0
-#  define IPTOS_CLASS_CS0 0
-# endif
-# ifndef IPTOS_CLASS_CS1
-#  define IPTOS_CLASS_CS1 32
-# endif
-# ifndef IPTOS_CLASS_CS2
-#  define IPTOS_CLASS_CS2 64
-# endif
-# ifndef IPTOS_CLASS_CS3
-#  define IPTOS_CLASS_CS3 96
-# endif
-# ifndef IPTOS_CLASS_CS4
-#  define IPTOS_CLASS_CS4 128
-# endif
-# ifndef IPTOS_CLASS_CS5
-#  define IPTOS_CLASS_CS5 160
-# endif
-# ifndef IPTOS_CLASS_CS6
-#  define IPTOS_CLASS_CS6 192
-# endif
-# ifndef IPTOS_CLASS_CS7
-#  define IPTOS_CLASS_CS7 224
-# endif
-# ifndef IPTOS_CLASS_DEFAULT
-#  define IPTOS_CLASS_DEFAULT IPTOS_CLASS_CS0
-# endif
-# ifndef IPTOS_CLASS_MASK
-#  define IPTOS_CLASS_MASK 224
-# endif
-# ifndef IPTOS_DSCP_AF11
-#  define IPTOS_DSCP_AF11 40
-# endif
-# ifndef IPTOS_DSCP_AF12
-#  define IPTOS_DSCP_AF12 48
-# endif
-# ifndef IPTOS_DSCP_AF13
-#  define IPTOS_DSCP_AF13 56
-# endif
-# ifndef IPTOS_DSCP_AF21
-#  define IPTOS_DSCP_AF21 72
-# endif
-# ifndef IPTOS_DSCP_AF22
-#  define IPTOS_DSCP_AF22 80
-# endif
-# ifndef IPTOS_DSCP_AF23
-#  define IPTOS_DSCP_AF23 88
-# endif
-# ifndef IPTOS_DSCP_AF31
-#  define IPTOS_DSCP_AF31 104
-# endif
-# ifndef IPTOS_DSCP_AF32
-#  define IPTOS_DSCP_AF32 112
-# endif
-# ifndef IPTOS_DSCP_AF33
-#  define IPTOS_DSCP_AF33 120
-# endif
-# ifndef IPTOS_DSCP_AF41
-#  define IPTOS_DSCP_AF41 136
-# endif
-# ifndef IPTOS_DSCP_AF42
-#  define IPTOS_DSCP_AF42 144
-# endif
-# ifndef IPTOS_DSCP_AF43
-#  define IPTOS_DSCP_AF43 152
-# endif
-# ifndef IPTOS_DSCP_EF
-#  define IPTOS_DSCP_EF 184
-# endif
-# ifndef IPTOS_DSCP_LE
-#  define IPTOS_DSCP_LE 4
-# endif
-# ifndef IPTOS_DSCP_MASK
-#  define IPTOS_DSCP_MASK 252
-# endif
-# ifndef IPTOS_ECN_CE
-#  define IPTOS_ECN_CE 3
-# endif
-# ifndef IPTOS_ECN_ECT0
-#  define IPTOS_ECN_ECT0 2
-# endif
-# ifndef IPTOS_ECN_ECT1
-#  define IPTOS_ECN_ECT1 1
-# endif
-# ifndef IPTOS_ECN_MASK
-#  define IPTOS_ECN_MASK 3
-# endif
-# ifndef IPTOS_ECN_NOT_ECT
-#  define IPTOS_ECN_NOT_ECT 0
-# endif
-# ifndef IPTOS_LOWCOST
-#  define IPTOS_LOWCOST 2
-# endif
+# define IPOPT_TS_PRESPEC 3
+# define IPOPT_TS_TSANDADDR 1
+# define IPOPT_TS_TSONLY 0
+# define IPTOS_CLASS_CS0 0
+# define IPTOS_CLASS_CS1 32
+# define IPTOS_CLASS_CS2 64
+# define IPTOS_CLASS_CS3 96
+# define IPTOS_CLASS_CS4 128
+# define IPTOS_CLASS_CS5 160
+# define IPTOS_CLASS_CS6 192
+# define IPTOS_CLASS_CS7 224
+# define IPTOS_CLASS_DEFAULT IPTOS_CLASS_CS0
+# define IPTOS_CLASS_MASK 224
+# define IPTOS_DSCP_AF11 40
+# define IPTOS_DSCP_AF12 48
+# define IPTOS_DSCP_AF13 56
+# define IPTOS_DSCP_AF21 72
+# define IPTOS_DSCP_AF22 80
+# define IPTOS_DSCP_AF23 88
+# define IPTOS_DSCP_AF31 104
+# define IPTOS_DSCP_AF32 112
+# define IPTOS_DSCP_AF33 120
+# define IPTOS_DSCP_AF41 136
+# define IPTOS_DSCP_AF42 144
+# define IPTOS_DSCP_AF43 152
+# define IPTOS_DSCP_EF 184
+# define IPTOS_DSCP_LE 4
+# define IPTOS_DSCP_MASK 252
+# define IPTOS_ECN_CE 3
+# define IPTOS_ECN_ECT0 2
+# define IPTOS_ECN_ECT1 1
+# define IPTOS_ECN_MASK 3
+# define IPTOS_ECN_NOT_ECT 0
+# define IPTOS_LOWCOST 2
 # ifndef IPTOS_LOWDELAY
 #  define IPTOS_LOWDELAY 16
 # endif
@@ -330,38 +230,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPTOS_TOS_MASK
 #  define IPTOS_TOS_MASK 30
 # endif
-# ifndef IPTTLDEC
-#  define IPTTLDEC 1
-# endif
-# ifndef IPVERSION
-#  define IPVERSION 4
-# endif
-# ifndef IP_MAXPACKET
-#  define IP_MAXPACKET 65535
-# endif
-# ifndef IP_MSS
-#  define IP_MSS 576
-# endif
-# ifndef MAXTTL
-#  define MAXTTL 255
-# endif
-# ifndef MAX_IPOPTLEN
-#  define MAX_IPOPTLEN 40
-# endif
+# define IPTTLDEC 1
+# define IPVERSION 4
+# define IP_MAXPACKET 65535
+# define IP_MSS 576
+# define MAXTTL 255
+# define MAX_IPOPTLEN 40
 #endif
-#if __NIJI_MISC
-# ifndef IP_DF
-#  define IP_DF 16384
-# endif
-# ifndef IP_MF
-#  define IP_MF 8192
-# endif
-# ifndef IP_OFFMASK
-#  define IP_OFFMASK 8191
-# endif
-# ifndef IP_RF
-#  define IP_RF 32768
-# endif
+#if defined __USE_MISC
+# define IP_DF 16384
+# define IP_MF 8192
+# define IP_OFFMASK 8191
+# define IP_RF 32768
 #endif
 
 __NIJI_END_C

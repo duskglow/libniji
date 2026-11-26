@@ -42,7 +42,7 @@ struct msqid_ds {
 };
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_msginfo
 #  define __NIJI_D_struct_msginfo 1
 struct msginfo {
@@ -103,7 +103,7 @@ extern int msgsnd (int, const void *, unsigned long, int);
 #  define MSG_NOERROR 4096
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef MSG_COPY
 #  define MSG_COPY 16384
 # endif
@@ -111,21 +111,15 @@ extern int msgsnd (int, const void *, unsigned long, int);
 #  define MSG_EXCEPT 8192
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef MSG_INFO
-#  define MSG_INFO 12
-# endif
-# ifndef MSG_STAT
-#  define MSG_STAT 11
-# endif
-# ifndef MSG_STAT_ANY
-#  define MSG_STAT_ANY 13
-# endif
+#if defined __USE_MISC
+# define MSG_INFO 12
+# define MSG_STAT 11
+# define MSG_STAT_ANY 13
 #endif
 
 /* The bytes now on a queue, by the name msgctl(2) gives them: a macro for the reserved member of struct msqid_ds that
    holds them, in the configurations visibility.tsv lists (not the strict standards). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # define msg_cbytes __msg_cbytes
 #endif
 

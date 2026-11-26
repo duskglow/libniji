@@ -133,7 +133,13 @@ struct timespec {
 };
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+# ifndef __NIJI_D_struct_aiocb64
+#  define __NIJI_D_struct_aiocb64 1
+struct aiocb64 { char __niji_opaque[168] __attribute__ ((__aligned__ (8))); };
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_struct_aioinit
 #  define __NIJI_D_struct_aioinit 1
 struct aioinit {
@@ -146,12 +152,6 @@ struct aioinit {
   int aio_idle_time;
   int aio_reserved;
 };
-# endif
-#endif
-#if __NIJI_LFS64
-# ifndef __NIJI_D_struct_aiocb64
-#  define __NIJI_D_struct_aiocb64 1
-struct aiocb64 { char __niji_opaque[168] __attribute__ ((__aligned__ (8))); };
 # endif
 #endif
 #if __NIJI_POSIX >= 199309
@@ -299,13 +299,6 @@ extern int lio_listio (int, struct aiocb *const *, int, struct sigevent *) __NIJ
 #  endif
 # endif
 #endif
-#if __NIJI_GNU
-struct aioinit;
-# ifndef __NIJI_D_aio_init
-#  define __NIJI_D_aio_init 1
-extern void aio_init (const struct aioinit *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-#endif
 #if __NIJI_LFS64
 struct aiocb64;
 # ifndef __NIJI_D_aio_cancel64
@@ -348,6 +341,13 @@ struct sigevent;
 # ifndef __NIJI_D_lio_listio64
 #  define __NIJI_D_lio_listio64 1
 extern int lio_listio64 (int, struct aiocb64 *const *, int, struct sigevent *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
+# endif
+#endif
+#if defined __USE_GNU
+struct aioinit;
+# ifndef __NIJI_D_aio_init
+#  define __NIJI_D_aio_init 1
+extern void aio_init (const struct aioinit *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if 1
@@ -415,30 +415,14 @@ enum {
 };
 #  endif
 # endif
-# ifndef AIO_ALLDONE
-#  define AIO_ALLDONE AIO_ALLDONE
-# endif
-# ifndef AIO_CANCELED
-#  define AIO_CANCELED AIO_CANCELED
-# endif
-# ifndef AIO_NOTCANCELED
-#  define AIO_NOTCANCELED AIO_NOTCANCELED
-# endif
-# ifndef LIO_NOP
-#  define LIO_NOP LIO_NOP
-# endif
-# ifndef LIO_NOWAIT
-#  define LIO_NOWAIT LIO_NOWAIT
-# endif
-# ifndef LIO_READ
-#  define LIO_READ LIO_READ
-# endif
-# ifndef LIO_WAIT
-#  define LIO_WAIT LIO_WAIT
-# endif
-# ifndef LIO_WRITE
-#  define LIO_WRITE LIO_WRITE
-# endif
+# define AIO_ALLDONE AIO_ALLDONE
+# define AIO_CANCELED AIO_CANCELED
+# define AIO_NOTCANCELED AIO_NOTCANCELED
+# define LIO_NOP LIO_NOP
+# define LIO_NOWAIT LIO_NOWAIT
+# define LIO_READ LIO_READ
+# define LIO_WAIT LIO_WAIT
+# define LIO_WRITE LIO_WRITE
 # ifndef SIGEV_NONE
 #  define SIGEV_NONE SIGEV_NONE
 # endif

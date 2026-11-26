@@ -127,21 +127,11 @@ struct user_regs_struct {
   unsigned long long gs;
 };
 # endif
-# ifndef NBPG
-#  define NBPG PAGE_SIZE
-# endif
-# ifndef PAGE_MASK
-#  define PAGE_MASK 18446744073709547520UL
-# endif
-# ifndef PAGE_SHIFT
-#  define PAGE_SHIFT 12
-# endif
-# ifndef PAGE_SIZE
-#  define PAGE_SIZE 4096UL
-# endif
-# ifndef UPAGES
-#  define UPAGES 1
-# endif
+# define NBPG PAGE_SIZE
+# define PAGE_MASK 18446744073709547520UL
+# define PAGE_SHIFT 12
+# define PAGE_SIZE 4096UL
+# define UPAGES 1
 #endif
 
 #endif

@@ -62,13 +62,6 @@ typedef unsigned short __u_short;
 typedef unsigned long size_t;
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_FILE
-#  define __NIJI_D_FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE FILE;
-# endif
-#endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_gid_t
 #  define __NIJI_D_gid_t 1
@@ -77,6 +70,13 @@ typedef unsigned int gid_t;
 # ifndef __NIJI_D_uid_t
 #  define __NIJI_D_uid_t 1
 typedef unsigned int uid_t;
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_FILE
+#  define __NIJI_D_FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE FILE;
 # endif
 #endif
 #if 1
@@ -91,13 +91,27 @@ struct passwd;
 extern struct passwd *getpwuid (unsigned int);
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 1
+struct passwd;
+struct passwd;
+# ifndef __NIJI_D_getpwnam_r
+#  define __NIJI_D_getpwnam_r 1
+extern int getpwnam_r (const char *, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (1, 2, 3, 5)));
+# endif
+struct passwd;
+struct passwd;
+# ifndef __NIJI_D_getpwuid_r
+#  define __NIJI_D_getpwuid_r 1
+extern int getpwuid_r (unsigned int, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (2, 3, 5)));
+# endif
+#endif
+#if defined __USE_GNU
 # ifndef __NIJI_D_getpw
 #  define __NIJI_D_getpw 1
 extern int getpw (unsigned int, char *);
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct passwd;
 # ifndef __NIJI_D_fgetpwent
 #  define __NIJI_D_fgetpwent 1
@@ -121,7 +135,7 @@ struct passwd;
 extern int putpwent (const struct passwd *, FILE *);
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 450
+#if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_endpwent
 #  define __NIJI_D_endpwent 1
 extern void endpwent (void);
@@ -136,29 +150,11 @@ extern struct passwd *getpwent (void);
 extern void setpwent (void);
 # endif
 #endif
-#if __NIJI_POSIX >= 1
-struct passwd;
-struct passwd;
-# ifndef __NIJI_D_getpwnam_r
-#  define __NIJI_D_getpwnam_r 1
-extern int getpwnam_r (const char *, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (1, 2, 3, 5)));
-# endif
-struct passwd;
-struct passwd;
-# ifndef __NIJI_D_getpwuid_r
-#  define __NIJI_D_getpwuid_r 1
-extern int getpwuid_r (unsigned int, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (2, 3, 5)));
-# endif
-#endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
-#if __NIJI_MISC
-# ifndef NSS_BUFLEN_PASSWD
-#  define NSS_BUFLEN_PASSWD 1024
-# endif
+#if defined __USE_MISC
+# define NSS_BUFLEN_PASSWD 1024
 #endif
 
 __NIJI_END_C

@@ -491,75 +491,29 @@ extern int ns_sprintrrf (const unsigned char *, unsigned long, const char *, ns_
 #  define __NIJI_D_ns_subdomain 1
 extern int ns_subdomain (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
-# ifndef NS_CMPRSFLGS
-#  define NS_CMPRSFLGS 192
-# endif
-# ifndef NS_DEFAULTPORT
-#  define NS_DEFAULTPORT 53
-# endif
-# ifndef NS_HFIXEDSZ
-#  define NS_HFIXEDSZ 12
-# endif
-# ifndef NS_IN6ADDRSZ
-#  define NS_IN6ADDRSZ 16
-# endif
-# ifndef NS_INADDRSZ
-#  define NS_INADDRSZ 4
-# endif
-# ifndef NS_INT16SZ
-#  define NS_INT16SZ 2
-# endif
-# ifndef NS_INT32SZ
-#  define NS_INT32SZ 4
-# endif
-# ifndef NS_INT8SZ
-#  define NS_INT8SZ 1
-# endif
-# ifndef NS_MAXCDNAME
-#  define NS_MAXCDNAME 255
-# endif
-# ifndef NS_MAXDNAME
-#  define NS_MAXDNAME 1025
-# endif
-# ifndef NS_MAXLABEL
-#  define NS_MAXLABEL 63
-# endif
-# ifndef NS_MAXMSG
-#  define NS_MAXMSG 65535
-# endif
-# ifndef NS_OPT_DNSSEC_OK
-#  define NS_OPT_DNSSEC_OK 32768U
-# endif
-# ifndef NS_OPT_NSID
-#  define NS_OPT_NSID 3
-# endif
-# ifndef NS_PACKETSZ
-#  define NS_PACKETSZ 512
-# endif
-# ifndef NS_QFIXEDSZ
-#  define NS_QFIXEDSZ 4
-# endif
-# ifndef NS_RRFIXEDSZ
-#  define NS_RRFIXEDSZ 10
-# endif
-# ifndef NS_TSIG_ALG_HMAC_MD5
-#  define NS_TSIG_ALG_HMAC_MD5 "HMAC-MD5.SIG-ALG.REG.INT"
-# endif
-# ifndef NS_TSIG_ERROR_FORMERR
-#  define NS_TSIG_ERROR_FORMERR (-12)
-# endif
-# ifndef NS_TSIG_ERROR_NO_SPACE
-#  define NS_TSIG_ERROR_NO_SPACE (-11)
-# endif
-# ifndef NS_TSIG_ERROR_NO_TSIG
-#  define NS_TSIG_ERROR_NO_TSIG (-10)
-# endif
-# ifndef NS_TSIG_FUDGE
-#  define NS_TSIG_FUDGE 300
-# endif
-# ifndef NS_TSIG_TCP_COUNT
-#  define NS_TSIG_TCP_COUNT 100
-# endif
+# define NS_CMPRSFLGS 192
+# define NS_DEFAULTPORT 53
+# define NS_HFIXEDSZ 12
+# define NS_IN6ADDRSZ 16
+# define NS_INADDRSZ 4
+# define NS_INT16SZ 2
+# define NS_INT32SZ 4
+# define NS_INT8SZ 1
+# define NS_MAXCDNAME 255
+# define NS_MAXDNAME 1025
+# define NS_MAXLABEL 63
+# define NS_MAXMSG 65535
+# define NS_OPT_DNSSEC_OK 32768U
+# define NS_OPT_NSID 3
+# define NS_PACKETSZ 512
+# define NS_QFIXEDSZ 4
+# define NS_RRFIXEDSZ 10
+# define NS_TSIG_ALG_HMAC_MD5 "HMAC-MD5.SIG-ALG.REG.INT"
+# define NS_TSIG_ERROR_FORMERR (-12)
+# define NS_TSIG_ERROR_NO_SPACE (-11)
+# define NS_TSIG_ERROR_NO_TSIG (-10)
+# define NS_TSIG_FUDGE 300
+# define NS_TSIG_TCP_COUNT 100
 #endif
 
 /* Reading and writing the network-order (big-endian) fields of a DNS message, and the accessors of a parsed message

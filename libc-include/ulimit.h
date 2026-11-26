@@ -26,12 +26,8 @@ enum {
 };
 #  endif
 # endif
-# ifndef UL_GETFSIZE
-#  define UL_GETFSIZE UL_GETFSIZE
-# endif
-# ifndef UL_SETFSIZE
-#  define UL_SETFSIZE UL_SETFSIZE
-# endif
+# define UL_GETFSIZE UL_GETFSIZE
+# define UL_SETFSIZE UL_SETFSIZE
 #endif
 
 __NIJI_END_C

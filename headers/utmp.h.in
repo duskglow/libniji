@@ -10,7 +10,14 @@
 __NIJI_BEGIN_C
 
 @@owns FD_CLR FD_ISSET FD_ZERO ut_name ut_time ut_xtime ut_addr
+@@owns-macro TIMESPEC_TO_TIMEVAL TIMEVAL_TO_TIMESPEC
 @@emit
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+@@when TIMESPEC_TO_TIMEVAL
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
 
 /* utmp(5): the older names of struct utmp's members, macros for the members that replaced them (the user name, the
    entry time's seconds, the first word of the remote host's address). */

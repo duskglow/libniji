@@ -150,12 +150,108 @@
 # define __NIJI_INLINES 0
 #endif
 
-/* The two glibc-internal level names other software tests (owner ruling R-H2), with the same meaning. */
+/* The reference's level names, which software outside the C library tests (owner ruling R-H2; npth's <npth.h> tests
+   __USE_UNIX98 and __USE_XOPEN2K, the kernel's UAPI headers __USE_MISC and __USE_GNU): each defined, to 1 (the
+   fortify level: to the level), in exactly the configurations the reference defines it (spec/abi/use-macros.tsv,
+   a black-box probe of 67 configurations; header_check `use` units compare). A program's own definition before the
+   first libc header is replaced, one made after it stays (the reference's behaviour; headers test __USE_MISC and
+   __USE_GNU when they are included, see xtask/src/headers/cond.rs). _REENTRANT and _THREAD_SAFE turn on the POSIX
+   names up to 1003.1c here, as the reference's do; libniji's own declarations keep the strict level there. */
+#undef __USE_ISOC95
+#undef __USE_ISOC99
+#undef __USE_ISOC11
+#undef __USE_ISOCXX11
+#undef __USE_POSIX
+#undef __USE_POSIX2
+#undef __USE_POSIX199309
+#undef __USE_POSIX199506
+#undef __USE_XOPEN
+#undef __USE_XOPEN_EXTENDED
+#undef __USE_UNIX98
+#undef __USE_XOPEN2K
+#undef __USE_XOPEN2KXSI
+#undef __USE_XOPEN2K8
+#undef __USE_XOPEN2K8XSI
+#undef __USE_LARGEFILE
+#undef __USE_LARGEFILE64
+#undef __USE_FILE_OFFSET64
+#undef __USE_MISC
+#undef __USE_ATFILE
+#undef __USE_DYNAMIC_STACK_SIZE
+#undef __USE_GNU
+#undef __USE_FORTIFY_LEVEL
+#undef __USE_EXTERN_INLINES
+#undef __USE_POSIX_IMPLICITLY
+#if __NIJI_ISOC >= 1999 || __NIJI_MISC
+# define __USE_ISOC95 1
+# define __USE_ISOC99 1
+#endif
+#if __NIJI_ISOC >= 2011
+# define __USE_ISOC11 1
+#endif
+#if __NIJI_CXX >= 2
+# define __USE_ISOCXX11 1
+#endif
+#if __NIJI_POSIX >= 1 || defined _REENTRANT || defined _THREAD_SAFE
+# define __USE_POSIX 1
+#endif
+#if __NIJI_POSIX >= 2 || defined _REENTRANT || defined _THREAD_SAFE
+# define __USE_POSIX2 1
+#endif
+#if __NIJI_POSIX >= 199309 || defined _REENTRANT || defined _THREAD_SAFE
+# define __USE_POSIX199309 1
+#endif
+#if __NIJI_POSIX >= 199506 || defined _REENTRANT || defined _THREAD_SAFE
+# define __USE_POSIX199506 1
+#endif
+#if __NIJI_POSIX >= 200112
+# define __USE_XOPEN2K 1
+#endif
+#if __NIJI_POSIX >= 200809
+# define __USE_XOPEN2K8 1
+#endif
+#if __NIJI_XSI >= 400
+# define __USE_XOPEN 1
+#endif
+#if __NIJI_XSI >= 450
+# define __USE_XOPEN_EXTENDED 1
+#endif
+#if __NIJI_XSI >= 500
+# define __USE_UNIX98 1
+#endif
+#if __NIJI_XSI >= 600
+# define __USE_XOPEN2KXSI 1
+#endif
+#if __NIJI_XSI >= 700
+# define __USE_XOPEN2K8XSI 1
+#endif
+#if __NIJI_XSI >= 500 || defined _LARGEFILE_SOURCE
+# define __USE_LARGEFILE 1
+#endif
+#if __NIJI_LFS64
+# define __USE_LARGEFILE64 1
+#endif
+#if __NIJI_FOB64
+# define __USE_FILE_OFFSET64 1
+#endif
 #if __NIJI_MISC
 # define __USE_MISC 1
 #endif
+#if __NIJI_MISC || __NIJI_POSIX >= 200809 || defined _ATFILE_SOURCE
+# define __USE_ATFILE 1
+#endif
+#if __NIJI_DYNSTACK
+# define __USE_DYNAMIC_STACK_SIZE 1
+#endif
 #if __NIJI_GNU
 # define __USE_GNU 1
+#endif
+#define __USE_FORTIFY_LEVEL __NIJI_FORTIFY
+#if __NIJI_INLINES
+# define __USE_EXTERN_INLINES 1
+#endif
+#if !__NIJI_GNU && !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && (__NIJI_MISC || __NIJI_XSI >= 500)
+# define __USE_POSIX_IMPLICITLY 1
 #endif
 
 /* Declarations: C linkage in C++, and the exception specification of functions that never throw
@@ -227,7 +323,7 @@ typedef long double _Float64x;
 #endif
 
 /* The feature-test macros these levels imply (visibility.tsv). */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef _DEFAULT_SOURCE
 #  define _DEFAULT_SOURCE 1
 # endif
@@ -237,27 +333,27 @@ typedef long double _Float64x;
 #  define _ATFILE_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _ISOC95_SOURCE
 #  define _ISOC95_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _ISOC99_SOURCE
 #  define _ISOC99_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _ISOC11_SOURCE
 #  define _ISOC11_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _ISOC2X_SOURCE
 #  define _ISOC2X_SOURCE 1
 # endif
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 500
+#if defined __USE_MISC || __NIJI_XSI >= 500
 # ifndef _POSIX_SOURCE
 #  define _POSIX_SOURCE 1
 # endif
@@ -272,7 +368,7 @@ typedef long double _Float64x;
 #  define _XOPEN_SOURCE 700
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _XOPEN_SOURCE_EXTENDED
 #  define _XOPEN_SOURCE_EXTENDED 1
 # endif
@@ -282,12 +378,12 @@ typedef long double _Float64x;
 #  define _LARGEFILE_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _LARGEFILE64_SOURCE
 #  define _LARGEFILE64_SOURCE 1
 # endif
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef _DYNAMIC_STACK_SIZE_SOURCE
 #  define _DYNAMIC_STACK_SIZE_SOURCE 1
 # endif

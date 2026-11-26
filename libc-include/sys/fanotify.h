@@ -18,9 +18,7 @@ extern int fanotify_init (unsigned int, unsigned int) __NIJI_NOTHROW;
 #  define __NIJI_D_fanotify_mark 1
 extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) __NIJI_NOTHROW;
 # endif
-# ifndef FANOTIFY_METADATA_VERSION
-#  define FANOTIFY_METADATA_VERSION 3
-# endif
+# define FANOTIFY_METADATA_VERSION 3
 # ifndef FAN_ACCESS
 #  define FAN_ACCESS 1
 # endif
@@ -93,27 +91,13 @@ extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) _
 # ifndef FAN_EPIDFD
 #  define FAN_EPIDFD (-2)
 # endif
-# ifndef FAN_EVENT_INFO_TYPE_DFID
-#  define FAN_EVENT_INFO_TYPE_DFID 3
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_DFID_NAME
-#  define FAN_EVENT_INFO_TYPE_DFID_NAME 2
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_ERROR
-#  define FAN_EVENT_INFO_TYPE_ERROR 5
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_FID
-#  define FAN_EVENT_INFO_TYPE_FID 1
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_NEW_DFID_NAME
-#  define FAN_EVENT_INFO_TYPE_NEW_DFID_NAME 12
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_OLD_DFID_NAME
-#  define FAN_EVENT_INFO_TYPE_OLD_DFID_NAME 10
-# endif
-# ifndef FAN_EVENT_INFO_TYPE_PIDFD
-#  define FAN_EVENT_INFO_TYPE_PIDFD 4
-# endif
+# define FAN_EVENT_INFO_TYPE_DFID 3
+# define FAN_EVENT_INFO_TYPE_DFID_NAME 2
+# define FAN_EVENT_INFO_TYPE_ERROR 5
+# define FAN_EVENT_INFO_TYPE_FID 1
+# define FAN_EVENT_INFO_TYPE_NEW_DFID_NAME 12
+# define FAN_EVENT_INFO_TYPE_OLD_DFID_NAME 10
+# define FAN_EVENT_INFO_TYPE_PIDFD 4
 # ifndef FAN_EVENT_METADATA_LEN
 #  define FAN_EVENT_METADATA_LEN 24UL
 # endif
@@ -186,9 +170,7 @@ extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) _
 # ifndef FAN_NONBLOCK
 #  define FAN_NONBLOCK 2
 # endif
-# ifndef FAN_NOPIDFD
-#  define FAN_NOPIDFD FAN_NOFD
-# endif
+# define FAN_NOPIDFD FAN_NOFD
 # ifndef FAN_ONDIR
 #  define FAN_ONDIR 1073741824
 # endif
@@ -237,12 +219,8 @@ extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) _
 # ifndef FAN_REPORT_TID
 #  define FAN_REPORT_TID 256
 # endif
-# ifndef FAN_RESPONSE_INFO_AUDIT_RULE
-#  define FAN_RESPONSE_INFO_AUDIT_RULE 1
-# endif
-# ifndef FAN_RESPONSE_INFO_NONE
-#  define FAN_RESPONSE_INFO_NONE 0
-# endif
+# define FAN_RESPONSE_INFO_AUDIT_RULE 1
+# define FAN_RESPONSE_INFO_NONE 0
 # ifndef FAN_UNLIMITED_MARKS
 #  define FAN_UNLIMITED_MARKS 32
 # endif

@@ -40,7 +40,19 @@ struct iovec;
 extern long writev (int, const struct iovec *, int) __attribute__ ((__warn_unused_result__));
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_LFS64
+struct iovec;
+# ifndef __NIJI_D_preadv64
+#  define __NIJI_D_preadv64 1
+extern long preadv64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+# endif
+struct iovec;
+# ifndef __NIJI_D_pwritev64
+#  define __NIJI_D_pwritev64 1
+extern long pwritev64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+# endif
+#endif
+#if defined __USE_GNU
 struct iovec;
 # ifndef __NIJI_D_preadv2
 #  define __NIJI_D_preadv2 1
@@ -82,23 +94,11 @@ struct iovec;
 extern long pwritev64v2 (int, const struct iovec *, int, long, int) __attribute__ ((__warn_unused_result__));
 # endif
 #endif
-#if __NIJI_LFS64
-struct iovec;
-# ifndef __NIJI_D_preadv64
-#  define __NIJI_D_preadv64 1
-extern long preadv64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
-# endif
-struct iovec;
-# ifndef __NIJI_D_pwritev64
-#  define __NIJI_D_pwritev64 1
-extern long pwritev64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
-# endif
-#endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct iovec;
 # ifndef __NIJI_D_preadv
 #  define __NIJI_D_preadv 1
-#  if __NIJI_MISC && !__NIJI_FOB64
+#  if defined __USE_MISC && !__NIJI_FOB64
 extern long preadv (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
 #  elif __NIJI_FOB64
 extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64") __attribute__ ((__warn_unused_result__));
@@ -107,7 +107,7 @@ extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64") _
 struct iovec;
 # ifndef __NIJI_D_pwritev
 #  define __NIJI_D_pwritev 1
-#  if __NIJI_MISC && !__NIJI_FOB64
+#  if defined __USE_MISC && !__NIJI_FOB64
 extern long pwritev (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
 #  elif __NIJI_FOB64
 extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64") __attribute__ ((__warn_unused_result__));
@@ -115,11 +115,9 @@ extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64")
 # endif
 #endif
 #if 1
-# ifndef UIO_MAXIOV
-#  define UIO_MAXIOV 1024
-# endif
+# define UIO_MAXIOV 1024
 #endif
-#if __NIJI_GNU
+#if defined __USE_GNU
 # ifndef RWF_APPEND
 #  define RWF_APPEND 16
 # endif

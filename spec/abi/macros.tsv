@@ -7023,6 +7023,7 @@ SOCK_SEQPACKET	arpa/inet.h	int	5
 SOCK_STREAM	arpa/inet.h	int	1
 SOL_AAL	arpa/inet.h	int	265
 SOL_ALG	arpa/inet.h	int	279
+SOL_ATALK	netatalk/at.h	int	258
 SOL_ATM	arpa/inet.h	int	264
 SOL_AX25	netax25/ax25.h	int	257
 SOL_BLUETOOTH	arpa/inet.h	int	274

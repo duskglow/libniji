@@ -13,27 +13,13 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_reboot 1
 extern int reboot (int) __NIJI_NOTHROW;
 # endif
-# ifndef RB_AUTOBOOT
-#  define RB_AUTOBOOT 19088743
-# endif
-# ifndef RB_DISABLE_CAD
-#  define RB_DISABLE_CAD 0
-# endif
-# ifndef RB_ENABLE_CAD
-#  define RB_ENABLE_CAD 2309737967U
-# endif
-# ifndef RB_HALT_SYSTEM
-#  define RB_HALT_SYSTEM 3454992675U
-# endif
-# ifndef RB_KEXEC
-#  define RB_KEXEC 1163412803
-# endif
-# ifndef RB_POWER_OFF
-#  define RB_POWER_OFF 1126301404
-# endif
-# ifndef RB_SW_SUSPEND
-#  define RB_SW_SUSPEND 3489725666U
-# endif
+# define RB_AUTOBOOT 19088743
+# define RB_DISABLE_CAD 0
+# define RB_ENABLE_CAD 2309737967U
+# define RB_HALT_SYSTEM 3454992675U
+# define RB_KEXEC 1163412803
+# define RB_POWER_OFF 1126301404
+# define RB_SW_SUSPEND 3489725666U
 #endif
 
 __NIJI_END_C

@@ -38,15 +38,9 @@ extern struct ttyent *getttynam (const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_setttyent 1
 extern int setttyent (void) __NIJI_NOTHROW;
 # endif
-# ifndef TTY_ON
-#  define TTY_ON 1
-# endif
-# ifndef TTY_SECURE
-#  define TTY_SECURE 2
-# endif
-# ifndef _PATH_TTYS
-#  define _PATH_TTYS "/etc/ttys"
-# endif
+# define TTY_ON 1
+# define TTY_SECURE 2
+# define _PATH_TTYS "/etc/ttys"
 #endif
 
 __NIJI_END_C

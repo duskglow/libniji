@@ -38,21 +38,21 @@ struct timeval {
 };
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_struct_timezone
-#  define __NIJI_D_struct_timezone 1
-struct timezone {
-  int tz_minuteswest;
-  int tz_dsttime;
-};
-# endif
-#endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
   long tv_sec;
   long tv_nsec;
+};
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_timezone
+#  define __NIJI_D_struct_timezone 1
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
 };
 # endif
 #endif
@@ -130,7 +130,7 @@ typedef long suseconds_t;
 typedef long time_t;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_fd_mask
 #  define __NIJI_D_fd_mask 1
 typedef long fd_mask;
@@ -164,14 +164,27 @@ struct timeval;
 extern int utimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
-#if __NIJI_GNU
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+#endif
+#if defined __USE_GNU
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
 extern int futimesat (int, const char *, const struct timeval [2]) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 struct timeval;
 struct timeval;
 # ifndef __NIJI_D_adjtime
@@ -195,23 +208,8 @@ struct timezone;
 extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-struct timespec;
-# ifndef __NIJI_D_pselect
-#  define __NIJI_D_pselect 1
-extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
-# endif
-#endif
 #if 1
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
+# define FD_SETSIZE 1024
 # ifndef ITIMER_PROF
 #  define ITIMER_PROF ITIMER_PROF
 # endif
@@ -221,17 +219,11 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # ifndef ITIMER_VIRTUAL
 #  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
-# ifndef __NFDBITS
-#  define __NFDBITS 64
-# endif
+# define __FD_SETSIZE 1024
+# define __NFDBITS 64
 #endif
-#if __NIJI_MISC
-# ifndef NFDBITS
-#  define NFDBITS 64
-# endif
+#if defined __USE_MISC
+# define NFDBITS 64
 #endif
 
 # if __NIJI_MISC
@@ -241,6 +233,12 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 #  define timeradd(a, b, result) do { (result)->tv_sec = (a)->tv_sec + (b)->tv_sec; (result)->tv_usec = (a)->tv_usec + (b)->tv_usec; if ((result)->tv_usec >= 1000000) { ++(result)->tv_sec; (result)->tv_usec -= 1000000; } } while (0)
 #  define timersub(a, b, result) do { (result)->tv_sec = (a)->tv_sec - (b)->tv_sec; (result)->tv_usec = (a)->tv_usec - (b)->tv_usec; if ((result)->tv_usec < 0) { --(result)->tv_sec; (result)->tv_usec += 1000000; } } while (0)
 # endif
+/* struct timeval <-> struct timespec (BSD; util-linux's lib/monotonic.c): microseconds from nanoseconds truncate. The
+   reference defines them where visibility.tsv shows them (its GNU configurations); the same text in each header. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 #if 1
 # ifndef FD_SET

@@ -192,15 +192,9 @@ enum {
 # ifndef EPOLL_CLOEXEC
 #  define EPOLL_CLOEXEC EPOLL_CLOEXEC
 # endif
-# ifndef EPOLL_CTL_ADD
-#  define EPOLL_CTL_ADD 1
-# endif
-# ifndef EPOLL_CTL_DEL
-#  define EPOLL_CTL_DEL 2
-# endif
-# ifndef EPOLL_CTL_MOD
-#  define EPOLL_CTL_MOD 3
-# endif
+# define EPOLL_CTL_ADD 1
+# define EPOLL_CTL_DEL 2
+# define EPOLL_CTL_MOD 3
 #endif
 
 __NIJI_END_C

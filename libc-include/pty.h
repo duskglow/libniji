@@ -36,69 +36,27 @@ struct winsize;
 #  define __NIJI_D_openpty 1
 extern int openpty (int *, int *, char *, const struct termios *, const struct winsize *) __NIJI_NOTHROW;
 # endif
-# ifndef CBRK
-#  define CBRK '\000'
-# endif
-# ifndef CDISCARD
-#  define CDISCARD 15
-# endif
-# ifndef CDSUSP
-#  define CDSUSP 25
-# endif
-# ifndef CEOF
-#  define CEOF 4
-# endif
-# ifndef CEOL
-#  define CEOL '\000'
-# endif
-# ifndef CEOT
-#  define CEOT CEOF
-# endif
-# ifndef CERASE
-#  define CERASE 127
-# endif
-# ifndef CFLUSH
-#  define CFLUSH CDISCARD
-# endif
-# ifndef CINTR
-#  define CINTR 3
-# endif
-# ifndef CKILL
-#  define CKILL 21
-# endif
-# ifndef CLNEXT
-#  define CLNEXT 22
-# endif
-# ifndef CMIN
-#  define CMIN 1
-# endif
-# ifndef CQUIT
-#  define CQUIT 28
-# endif
-# ifndef CREPRINT
-#  define CREPRINT 18
-# endif
-# ifndef CRPRNT
-#  define CRPRNT CREPRINT
-# endif
-# ifndef CSTART
-#  define CSTART 17
-# endif
-# ifndef CSTATUS
-#  define CSTATUS '\000'
-# endif
-# ifndef CSTOP
-#  define CSTOP 19
-# endif
-# ifndef CSUSP
-#  define CSUSP 26
-# endif
-# ifndef CTIME
-#  define CTIME 0
-# endif
-# ifndef CWERASE
-#  define CWERASE 23
-# endif
+# define CBRK '\000'
+# define CDISCARD 15
+# define CDSUSP 25
+# define CEOF 4
+# define CEOL '\000'
+# define CEOT CEOF
+# define CERASE 127
+# define CFLUSH CDISCARD
+# define CINTR 3
+# define CKILL 21
+# define CLNEXT 22
+# define CMIN 1
+# define CQUIT 28
+# define CREPRINT 18
+# define CRPRNT CREPRINT
+# define CSTART 17
+# define CSTATUS '\000'
+# define CSTOP 19
+# define CSUSP 26
+# define CTIME 0
+# define CWERASE 23
 # ifndef FIOASYNC
 #  define FIOASYNC 21586
 # endif
@@ -132,57 +90,23 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef IOC_OUT
 #  define IOC_OUT 2147483648U
 # endif
-# ifndef NCC
-#  define NCC 8
-# endif
-# ifndef N_6PACK
-#  define N_6PACK 7
-# endif
-# ifndef N_AX25
-#  define N_AX25 5
-# endif
-# ifndef N_HCI
-#  define N_HCI 15
-# endif
-# ifndef N_HDLC
-#  define N_HDLC 13
-# endif
-# ifndef N_IRDA
-#  define N_IRDA 11
-# endif
-# ifndef N_MASC
-#  define N_MASC 8
-# endif
-# ifndef N_MOUSE
-#  define N_MOUSE 2
-# endif
-# ifndef N_PPP
-#  define N_PPP 3
-# endif
-# ifndef N_PROFIBUS_FDL
-#  define N_PROFIBUS_FDL 10
-# endif
-# ifndef N_R3964
-#  define N_R3964 9
-# endif
-# ifndef N_SLIP
-#  define N_SLIP 1
-# endif
-# ifndef N_SMSBLOCK
-#  define N_SMSBLOCK 12
-# endif
-# ifndef N_STRIP
-#  define N_STRIP 4
-# endif
-# ifndef N_SYNC_PPP
-#  define N_SYNC_PPP 14
-# endif
-# ifndef N_TTY
-#  define N_TTY 0
-# endif
-# ifndef N_X25
-#  define N_X25 6
-# endif
+# define NCC 8
+# define N_6PACK 7
+# define N_AX25 5
+# define N_HCI 15
+# define N_HDLC 13
+# define N_IRDA 11
+# define N_MASC 8
+# define N_MOUSE 2
+# define N_PPP 3
+# define N_PROFIBUS_FDL 10
+# define N_R3964 9
+# define N_SLIP 1
+# define N_SMSBLOCK 12
+# define N_STRIP 4
+# define N_SYNC_PPP 14
+# define N_TTY 0
+# define N_X25 6
 # ifndef SIOCADDDLCI
 #  define SIOCADDDLCI 35200
 # endif
@@ -342,9 +266,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef SIOCSRARP
 #  define SIOCSRARP 35170
 # endif
-# ifndef SIOGIFINDEX
-#  define SIOGIFINDEX SIOCGIFINDEX
-# endif
+# define SIOGIFINDEX SIOCGIFINDEX
 # ifndef TCFLSH
 #  define TCFLSH 21515
 # endif
@@ -447,9 +369,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCGWINSZ
 #  define TIOCGWINSZ 21523
 # endif
-# ifndef TIOCINQ
-#  define TIOCINQ FIONREAD
-# endif
+# define TIOCINQ FIONREAD
 # ifndef TIOCLINUX
 #  define TIOCLINUX 21532
 # endif
@@ -471,9 +391,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCM_CAR
 #  define TIOCM_CAR 64
 # endif
-# ifndef TIOCM_CD
-#  define TIOCM_CD TIOCM_CAR
-# endif
+# define TIOCM_CD TIOCM_CAR
 # ifndef TIOCM_CTS
 #  define TIOCM_CTS 32
 # endif
@@ -486,9 +404,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCM_LE
 #  define TIOCM_LE 1
 # endif
-# ifndef TIOCM_RI
-#  define TIOCM_RI TIOCM_RNG
-# endif
+# define TIOCM_RI TIOCM_RNG
 # ifndef TIOCM_RNG
 #  define TIOCM_RNG 128
 # endif
@@ -513,30 +429,14 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCPKT
 #  define TIOCPKT 21536
 # endif
-# ifndef TIOCPKT_DATA
-#  define TIOCPKT_DATA 0
-# endif
-# ifndef TIOCPKT_DOSTOP
-#  define TIOCPKT_DOSTOP 32
-# endif
-# ifndef TIOCPKT_FLUSHREAD
-#  define TIOCPKT_FLUSHREAD 1
-# endif
-# ifndef TIOCPKT_FLUSHWRITE
-#  define TIOCPKT_FLUSHWRITE 2
-# endif
-# ifndef TIOCPKT_IOCTL
-#  define TIOCPKT_IOCTL 64
-# endif
-# ifndef TIOCPKT_NOSTOP
-#  define TIOCPKT_NOSTOP 16
-# endif
-# ifndef TIOCPKT_START
-#  define TIOCPKT_START 8
-# endif
-# ifndef TIOCPKT_STOP
-#  define TIOCPKT_STOP 4
-# endif
+# define TIOCPKT_DATA 0
+# define TIOCPKT_DOSTOP 32
+# define TIOCPKT_FLUSHREAD 1
+# define TIOCPKT_FLUSHWRITE 2
+# define TIOCPKT_IOCTL 64
+# define TIOCPKT_NOSTOP 16
+# define TIOCPKT_START 8
+# define TIOCPKT_STOP 4
 # ifndef TIOCSBRK
 #  define TIOCSBRK 21543
 # endif
@@ -600,21 +500,11 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCVHANGUP
 #  define TIOCVHANGUP 21559
 # endif
-# ifndef TTYDEF_CFLAG
-#  define TTYDEF_CFLAG 1440
-# endif
-# ifndef TTYDEF_IFLAG
-#  define TTYDEF_IFLAG 11554
-# endif
-# ifndef TTYDEF_LFLAG
-#  define TTYDEF_LFLAG 35355
-# endif
-# ifndef TTYDEF_OFLAG
-#  define TTYDEF_OFLAG 6149
-# endif
-# ifndef TTYDEF_SPEED
-#  define TTYDEF_SPEED B9600
-# endif
+# define TTYDEF_CFLAG 1440
+# define TTYDEF_IFLAG 11554
+# define TTYDEF_LFLAG 35355
+# define TTYDEF_OFLAG 6149
+# define TTYDEF_SPEED B9600
 # ifndef _IOC_DIRBITS
 #  define _IOC_DIRBITS 2
 # endif
@@ -627,15 +517,11 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef _IOC_NONE
 #  define _IOC_NONE 0U
 # endif
-# ifndef _IOC_NRBITS
-#  define _IOC_NRBITS 8
-# endif
+# define _IOC_NRBITS 8
 # ifndef _IOC_NRMASK
 #  define _IOC_NRMASK 255
 # endif
-# ifndef _IOC_NRSHIFT
-#  define _IOC_NRSHIFT 0
-# endif
+# define _IOC_NRSHIFT 0
 # ifndef _IOC_READ
 #  define _IOC_READ 2U
 # endif
@@ -648,9 +534,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef _IOC_SIZESHIFT
 #  define _IOC_SIZESHIFT 16
 # endif
-# ifndef _IOC_TYPEBITS
-#  define _IOC_TYPEBITS 8
-# endif
+# define _IOC_TYPEBITS 8
 # ifndef _IOC_TYPEMASK
 #  define _IOC_TYPEMASK 255
 # endif

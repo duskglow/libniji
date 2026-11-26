@@ -65,9 +65,7 @@ struct utimbuf;
 #  define __NIJI_D_utime 1
 extern int utime (const char *, const struct utimbuf *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
 
 

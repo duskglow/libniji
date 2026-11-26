@@ -134,45 +134,19 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef ADJ_TIMECONST
 #  define ADJ_TIMECONST 32
 # endif
-# ifndef MAXTC
-#  define MAXTC 6
-# endif
-# ifndef MOD_CLKA
-#  define MOD_CLKA ADJ_OFFSET_SINGLESHOT
-# endif
-# ifndef MOD_CLKB
-#  define MOD_CLKB ADJ_TICK
-# endif
-# ifndef MOD_ESTERROR
-#  define MOD_ESTERROR ADJ_ESTERROR
-# endif
-# ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY ADJ_FREQUENCY
-# endif
-# ifndef MOD_MAXERROR
-#  define MOD_MAXERROR ADJ_MAXERROR
-# endif
-# ifndef MOD_MICRO
-#  define MOD_MICRO ADJ_MICRO
-# endif
-# ifndef MOD_NANO
-#  define MOD_NANO ADJ_NANO
-# endif
-# ifndef MOD_OFFSET
-#  define MOD_OFFSET ADJ_OFFSET
-# endif
-# ifndef MOD_STATUS
-#  define MOD_STATUS ADJ_STATUS
-# endif
-# ifndef MOD_TAI
-#  define MOD_TAI ADJ_TAI
-# endif
-# ifndef MOD_TIMECONST
-#  define MOD_TIMECONST ADJ_TIMECONST
-# endif
-# ifndef NTP_API
-#  define NTP_API 4
-# endif
+# define MAXTC 6
+# define MOD_CLKA ADJ_OFFSET_SINGLESHOT
+# define MOD_CLKB ADJ_TICK
+# define MOD_ESTERROR ADJ_ESTERROR
+# define MOD_FREQUENCY ADJ_FREQUENCY
+# define MOD_MAXERROR ADJ_MAXERROR
+# define MOD_MICRO ADJ_MICRO
+# define MOD_NANO ADJ_NANO
+# define MOD_OFFSET ADJ_OFFSET
+# define MOD_STATUS ADJ_STATUS
+# define MOD_TAI ADJ_TAI
+# define MOD_TIMECONST ADJ_TIMECONST
+# define NTP_API 4
 # ifndef STA_CLK
 #  define STA_CLK 32768
 # endif
@@ -224,27 +198,19 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef STA_UNSYNC
 #  define STA_UNSYNC 64
 # endif
-# ifndef TIME_BAD
-#  define TIME_BAD TIME_ERROR
-# endif
-# ifndef TIME_DEL
-#  define TIME_DEL 2
-# endif
-# ifndef TIME_ERROR
-#  define TIME_ERROR 5
-# endif
-# ifndef TIME_INS
-#  define TIME_INS 1
-# endif
-# ifndef TIME_OK
-#  define TIME_OK 0
-# endif
-# ifndef TIME_OOP
-#  define TIME_OOP 3
-# endif
-# ifndef TIME_WAIT
-#  define TIME_WAIT 4
-# endif
+# define TIME_BAD TIME_ERROR
+# define TIME_DEL 2
+# define TIME_ERROR 5
+# define TIME_INS 1
+# define TIME_OK 0
+# define TIME_OOP 3
+# define TIME_WAIT 4
+#endif
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+#if defined __USE_GNU
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
 #endif
 
 __NIJI_END_C

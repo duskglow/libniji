@@ -37,90 +37,36 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef ETHERMIN
-#  define ETHERMIN 46
-# endif
-# ifndef ETHERMTU
-#  define ETHERMTU ETH_DATA_LEN
-# endif
-# ifndef ETHERTYPE_AARP
-#  define ETHERTYPE_AARP 33011
-# endif
-# ifndef ETHERTYPE_ARP
-#  define ETHERTYPE_ARP 2054
-# endif
-# ifndef ETHERTYPE_AT
-#  define ETHERTYPE_AT 32923
-# endif
-# ifndef ETHERTYPE_IP
-#  define ETHERTYPE_IP 2048
-# endif
-# ifndef ETHERTYPE_IPV6
-#  define ETHERTYPE_IPV6 34525
-# endif
-# ifndef ETHERTYPE_IPX
-#  define ETHERTYPE_IPX 33079
-# endif
-# ifndef ETHERTYPE_LOOPBACK
-#  define ETHERTYPE_LOOPBACK 36864
-# endif
-# ifndef ETHERTYPE_NTRAILER
-#  define ETHERTYPE_NTRAILER 16
-# endif
-# ifndef ETHERTYPE_PUP
-#  define ETHERTYPE_PUP 512
-# endif
-# ifndef ETHERTYPE_REVARP
-#  define ETHERTYPE_REVARP 32821
-# endif
-# ifndef ETHERTYPE_SPRITE
-#  define ETHERTYPE_SPRITE 1280
-# endif
-# ifndef ETHERTYPE_TRAIL
-#  define ETHERTYPE_TRAIL 4096
-# endif
-# ifndef ETHERTYPE_VLAN
-#  define ETHERTYPE_VLAN 33024
-# endif
-# ifndef ETHER_ADDR_LEN
-#  define ETHER_ADDR_LEN ETH_ALEN
-# endif
-# ifndef ETHER_CRC_LEN
-#  define ETHER_CRC_LEN 4
-# endif
-# ifndef ETHER_HDR_LEN
-#  define ETHER_HDR_LEN ETH_HLEN
-# endif
-# ifndef ETHER_MAX_LEN
-#  define ETHER_MAX_LEN 1518
-# endif
-# ifndef ETHER_MIN_LEN
-#  define ETHER_MIN_LEN 64
-# endif
-# ifndef ETHER_TYPE_LEN
-#  define ETHER_TYPE_LEN 2
-# endif
-# ifndef ETH_ALEN
-#  define ETH_ALEN 6
-# endif
-# ifndef ETH_DATA_LEN
-#  define ETH_DATA_LEN 1500
-# endif
-# ifndef ETH_FCS_LEN
-#  define ETH_FCS_LEN 4
-# endif
-# ifndef ETH_FRAME_LEN
-#  define ETH_FRAME_LEN 1514
-# endif
-# ifndef ETH_HLEN
-#  define ETH_HLEN 14
-# endif
+# define ETHERMIN 46
+# define ETHERMTU ETH_DATA_LEN
+# define ETHERTYPE_AARP 33011
+# define ETHERTYPE_ARP 2054
+# define ETHERTYPE_AT 32923
+# define ETHERTYPE_IP 2048
+# define ETHERTYPE_IPV6 34525
+# define ETHERTYPE_IPX 33079
+# define ETHERTYPE_LOOPBACK 36864
+# define ETHERTYPE_NTRAILER 16
+# define ETHERTYPE_PUP 512
+# define ETHERTYPE_REVARP 32821
+# define ETHERTYPE_SPRITE 1280
+# define ETHERTYPE_TRAIL 4096
+# define ETHERTYPE_VLAN 33024
+# define ETHER_ADDR_LEN ETH_ALEN
+# define ETHER_CRC_LEN 4
+# define ETHER_HDR_LEN ETH_HLEN
+# define ETHER_MAX_LEN 1518
+# define ETHER_MIN_LEN 64
+# define ETHER_TYPE_LEN 2
+# define ETH_ALEN 6
+# define ETH_DATA_LEN 1500
+# define ETH_FCS_LEN 4
+# define ETH_FRAME_LEN 1514
+# define ETH_HLEN 14
 # ifndef ETH_MAX_MTU
 #  define ETH_MAX_MTU 65535U
 # endif
-# ifndef ETH_MIN_MTU
-#  define ETH_MIN_MTU 68
-# endif
+# define ETH_MIN_MTU 68
 # ifndef ETH_P_1588
 #  define ETH_P_1588 35063
 # endif
@@ -424,12 +370,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef ETH_P_XDSA
 #  define ETH_P_XDSA 248
 # endif
-# ifndef ETH_TLEN
-#  define ETH_TLEN 2
-# endif
-# ifndef ETH_ZLEN
-#  define ETH_ZLEN 60
-# endif
+# define ETH_TLEN 2
+# define ETH_ZLEN 60
 #endif
 
 __NIJI_END_C

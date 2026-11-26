@@ -11,7 +11,14 @@
 __NIJI_BEGIN_C
 
 @@owns FD_CLR FD_ISSET FD_SET FD_ZERO
+@@owns-macro TIMESPEC_TO_TIMEVAL TIMEVAL_TO_TIMESPEC
 @@emit
+
+/* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
+@@when TIMESPEC_TO_TIMEVAL
+# define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)
+# define TIMESPEC_TO_TIMEVAL(tv, ts) do { (tv)->tv_sec = (ts)->tv_sec; (tv)->tv_usec = (ts)->tv_nsec / 1000; } while (0)
+#endif
 
 /* The descriptor-set macros are visible here in every configuration, where sys/types.h defines them only in some:
    until sys/select.h (slice 7) exists to be included, the same text under its own guard. */

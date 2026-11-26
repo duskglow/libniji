@@ -14,7 +14,7 @@ __NIJI_BEGIN_C
 extern int fmtmsg (long int, const char *, int, const char *, const char *, const char *);
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_addseverity
 #  define __NIJI_D_addseverity 1
 extern int addseverity (int, const char *) __NIJI_NOTHROW;
@@ -100,63 +100,25 @@ enum {
 };
 #  endif
 # endif
-# ifndef MM_APPL
-#  define MM_APPL MM_APPL
-# endif
-# ifndef MM_CONSOLE
-#  define MM_CONSOLE MM_CONSOLE
-# endif
-# ifndef MM_ERROR
-#  define MM_ERROR MM_ERROR
-# endif
-# ifndef MM_FIRM
-#  define MM_FIRM MM_FIRM
-# endif
-# ifndef MM_HALT
-#  define MM_HALT MM_HALT
-# endif
-# ifndef MM_HARD
-#  define MM_HARD MM_HARD
-# endif
-# ifndef MM_INFO
-#  define MM_INFO MM_INFO
-# endif
-# ifndef MM_NOCON
-#  define MM_NOCON MM_NOCON
-# endif
-# ifndef MM_NOMSG
-#  define MM_NOMSG MM_NOMSG
-# endif
-# ifndef MM_NOSEV
-#  define MM_NOSEV MM_NOSEV
-# endif
-# ifndef MM_NOTOK
-#  define MM_NOTOK MM_NOTOK
-# endif
-# ifndef MM_NRECOV
-#  define MM_NRECOV MM_NRECOV
-# endif
-# ifndef MM_OK
-#  define MM_OK MM_OK
-# endif
-# ifndef MM_OPSYS
-#  define MM_OPSYS MM_OPSYS
-# endif
-# ifndef MM_PRINT
-#  define MM_PRINT MM_PRINT
-# endif
-# ifndef MM_RECOVER
-#  define MM_RECOVER MM_RECOVER
-# endif
-# ifndef MM_SOFT
-#  define MM_SOFT MM_SOFT
-# endif
-# ifndef MM_UTIL
-#  define MM_UTIL MM_UTIL
-# endif
-# ifndef MM_WARNING
-#  define MM_WARNING MM_WARNING
-# endif
+# define MM_APPL MM_APPL
+# define MM_CONSOLE MM_CONSOLE
+# define MM_ERROR MM_ERROR
+# define MM_FIRM MM_FIRM
+# define MM_HALT MM_HALT
+# define MM_HARD MM_HARD
+# define MM_INFO MM_INFO
+# define MM_NOCON MM_NOCON
+# define MM_NOMSG MM_NOMSG
+# define MM_NOSEV MM_NOSEV
+# define MM_NOTOK MM_NOTOK
+# define MM_NRECOV MM_NRECOV
+# define MM_OK MM_OK
+# define MM_OPSYS MM_OPSYS
+# define MM_PRINT MM_PRINT
+# define MM_RECOVER MM_RECOVER
+# define MM_SOFT MM_SOFT
+# define MM_UTIL MM_UTIL
+# define MM_WARNING MM_WARNING
 #endif
 
 /* The "no value" arguments of fmtmsg (XSH fmtmsg). */

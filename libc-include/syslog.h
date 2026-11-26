@@ -25,127 +25,51 @@ extern int setlogmask (int) __NIJI_NOTHROW;
 extern void syslog (int, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3)));
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_vsyslog
 #  define __NIJI_D_vsyslog 1
 extern void vsyslog (int, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
 #endif
 #if 1
-# ifndef LOG_ALERT
-#  define LOG_ALERT 1
-# endif
-# ifndef LOG_AUTH
-#  define LOG_AUTH 32
-# endif
-# ifndef LOG_AUTHPRIV
-#  define LOG_AUTHPRIV 80
-# endif
-# ifndef LOG_CONS
-#  define LOG_CONS 2
-# endif
-# ifndef LOG_CRIT
-#  define LOG_CRIT 2
-# endif
-# ifndef LOG_CRON
-#  define LOG_CRON 72
-# endif
-# ifndef LOG_DAEMON
-#  define LOG_DAEMON 24
-# endif
-# ifndef LOG_DEBUG
-#  define LOG_DEBUG 7
-# endif
-# ifndef LOG_EMERG
-#  define LOG_EMERG 0
-# endif
-# ifndef LOG_ERR
-#  define LOG_ERR 3
-# endif
-# ifndef LOG_FACMASK
-#  define LOG_FACMASK 1016
-# endif
-# ifndef LOG_FTP
-#  define LOG_FTP 88
-# endif
-# ifndef LOG_INFO
-#  define LOG_INFO 6
-# endif
-# ifndef LOG_KERN
-#  define LOG_KERN 0
-# endif
-# ifndef LOG_LOCAL0
-#  define LOG_LOCAL0 128
-# endif
-# ifndef LOG_LOCAL1
-#  define LOG_LOCAL1 136
-# endif
-# ifndef LOG_LOCAL2
-#  define LOG_LOCAL2 144
-# endif
-# ifndef LOG_LOCAL3
-#  define LOG_LOCAL3 152
-# endif
-# ifndef LOG_LOCAL4
-#  define LOG_LOCAL4 160
-# endif
-# ifndef LOG_LOCAL5
-#  define LOG_LOCAL5 168
-# endif
-# ifndef LOG_LOCAL6
-#  define LOG_LOCAL6 176
-# endif
-# ifndef LOG_LOCAL7
-#  define LOG_LOCAL7 184
-# endif
-# ifndef LOG_LPR
-#  define LOG_LPR 48
-# endif
-# ifndef LOG_MAIL
-#  define LOG_MAIL 16
-# endif
-# ifndef LOG_NDELAY
-#  define LOG_NDELAY 8
-# endif
-# ifndef LOG_NEWS
-#  define LOG_NEWS 56
-# endif
-# ifndef LOG_NFACILITIES
-#  define LOG_NFACILITIES 24
-# endif
-# ifndef LOG_NOTICE
-#  define LOG_NOTICE 5
-# endif
-# ifndef LOG_NOWAIT
-#  define LOG_NOWAIT 16
-# endif
-# ifndef LOG_ODELAY
-#  define LOG_ODELAY 4
-# endif
-# ifndef LOG_PERROR
-#  define LOG_PERROR 32
-# endif
-# ifndef LOG_PID
-#  define LOG_PID 1
-# endif
-# ifndef LOG_PRIMASK
-#  define LOG_PRIMASK 7
-# endif
-# ifndef LOG_SYSLOG
-#  define LOG_SYSLOG 40
-# endif
-# ifndef LOG_USER
-#  define LOG_USER 8
-# endif
-# ifndef LOG_UUCP
-#  define LOG_UUCP 64
-# endif
-# ifndef LOG_WARNING
-#  define LOG_WARNING 4
-# endif
-# ifndef _PATH_LOG
-#  define _PATH_LOG "/dev/log"
-# endif
+# define LOG_ALERT 1
+# define LOG_AUTH 32
+# define LOG_AUTHPRIV 80
+# define LOG_CONS 2
+# define LOG_CRIT 2
+# define LOG_CRON 72
+# define LOG_DAEMON 24
+# define LOG_DEBUG 7
+# define LOG_EMERG 0
+# define LOG_ERR 3
+# define LOG_FACMASK 1016
+# define LOG_FTP 88
+# define LOG_INFO 6
+# define LOG_KERN 0
+# define LOG_LOCAL0 128
+# define LOG_LOCAL1 136
+# define LOG_LOCAL2 144
+# define LOG_LOCAL3 152
+# define LOG_LOCAL4 160
+# define LOG_LOCAL5 168
+# define LOG_LOCAL6 176
+# define LOG_LOCAL7 184
+# define LOG_LPR 48
+# define LOG_MAIL 16
+# define LOG_NDELAY 8
+# define LOG_NEWS 56
+# define LOG_NFACILITIES 24
+# define LOG_NOTICE 5
+# define LOG_NOWAIT 16
+# define LOG_ODELAY 4
+# define LOG_PERROR 32
+# define LOG_PID 1
+# define LOG_PRIMASK 7
+# define LOG_SYSLOG 40
+# define LOG_USER 8
+# define LOG_UUCP 64
+# define LOG_WARNING 4
+# define _PATH_LOG "/dev/log"
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -175,7 +99,7 @@ __NIJI_FORTIFY_FN void syslog (int __p0, const char *__p1, ...)
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_vsyslog
 #  define __NIJI_F_vsyslog 1
 #  ifndef __NIJI_D___vsyslog_chk

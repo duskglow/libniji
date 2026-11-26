@@ -19,6 +19,9 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+#if 1
+# define SOL_ATALK 258
+#endif
 
 __NIJI_END_C
 

@@ -307,195 +307,6 @@ extern wchar_t *wmemmove (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTH
 extern wchar_t *wmemset (wchar_t *, wchar_t, unsigned long) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_GNU
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_fgetwc_unlocked
-#  define __NIJI_D_fgetwc_unlocked 1
-extern unsigned int fgetwc_unlocked (__FILE *);
-# endif
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_fgetws_unlocked
-#  define __NIJI_D_fgetws_unlocked 1
-extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
-# endif
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_fputwc_unlocked
-#  define __NIJI_D_fputwc_unlocked 1
-extern unsigned int fputwc_unlocked (wchar_t, __FILE *);
-# endif
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_fputws_unlocked
-#  define __NIJI_D_fputws_unlocked 1
-extern int fputws_unlocked (const wchar_t *, __FILE *);
-# endif
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_getwc_unlocked
-#  define __NIJI_D_getwc_unlocked 1
-extern unsigned int getwc_unlocked (__FILE *);
-# endif
-# ifndef __NIJI_D_getwchar_unlocked
-#  define __NIJI_D_getwchar_unlocked 1
-extern unsigned int getwchar_unlocked (void);
-# endif
-# ifndef __NIJI_D___FILE
-#  define __NIJI_D___FILE 1
-struct _IO_FILE;
-typedef struct _IO_FILE __FILE;
-# endif
-# ifndef __NIJI_D_putwc_unlocked
-#  define __NIJI_D_putwc_unlocked 1
-extern unsigned int putwc_unlocked (wchar_t, __FILE *);
-# endif
-# ifndef __NIJI_D_putwchar_unlocked
-#  define __NIJI_D_putwchar_unlocked 1
-extern unsigned int putwchar_unlocked (wchar_t);
-# endif
-# ifndef __NIJI_D_wcschrnul
-#  define __NIJI_D_wcschrnul 1
-extern wchar_t *wcschrnul (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
-# endif
-struct tm;
-# ifndef __NIJI_D_wcsftime_l
-#  define __NIJI_D_wcsftime_l 1
-extern unsigned long wcsftime_l (wchar_t *, unsigned long, const wchar_t *, const struct tm *, locale_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_wcstod_l
-#  define __NIJI_D_wcstod_l 1
-extern double wcstod_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_wcstof128
-#  define __NIJI_D_wcstof128 1
-#  if __NIJI_FLOAT128
-extern _Float128 wcstof128 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof128_l
-#  define __NIJI_D_wcstof128_l 1
-#  if __NIJI_FLOAT128
-extern _Float128 wcstof128_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof32
-#  define __NIJI_D_wcstof32 1
-#  if __NIJI_FLOATN
-extern _Float32 wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern float wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof32_l
-#  define __NIJI_D_wcstof32_l 1
-#  if __NIJI_FLOATN
-extern _Float32 wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern float wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof32x
-#  define __NIJI_D_wcstof32x 1
-#  if __NIJI_FLOATN
-extern _Float32x wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern double wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof32x_l
-#  define __NIJI_D_wcstof32x_l 1
-#  if __NIJI_FLOATN
-extern _Float32x wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern double wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof64
-#  define __NIJI_D_wcstof64 1
-#  if __NIJI_FLOATN
-extern _Float64 wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern double wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof64_l
-#  define __NIJI_D_wcstof64_l 1
-#  if __NIJI_FLOATN
-extern _Float64 wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern double wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof64x
-#  define __NIJI_D_wcstof64x 1
-#  if __NIJI_FLOATN
-extern _Float64x wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern long double wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof64x_l
-#  define __NIJI_D_wcstof64x_l 1
-#  if __NIJI_FLOATN
-extern _Float64x wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  elif !defined __cplusplus
-extern long double wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstof_l
-#  define __NIJI_D_wcstof_l 1
-extern float wcstof_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_wcstol_l
-#  define __NIJI_D_wcstol_l 1
-extern long int wcstol_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstol_l");
-# endif
-# ifndef __NIJI_D_wcstold_l
-#  define __NIJI_D_wcstold_l 1
-extern long double wcstold_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_wcstoll_l
-#  define __NIJI_D_wcstoll_l 1
-extern long long int wcstoll_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoll_l");
-# endif
-# ifndef __NIJI_D_wcstoq
-#  define __NIJI_D_wcstoq 1
-extern long long int wcstoq (const wchar_t *, wchar_t **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoll");
-# endif
-# ifndef __NIJI_D_wcstoul_l
-#  define __NIJI_D_wcstoul_l 1
-extern long unsigned int wcstoul_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoul_l");
-# endif
-# ifndef __NIJI_D_wcstoull_l
-#  define __NIJI_D_wcstoull_l 1
-extern long long unsigned int wcstoull_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoull_l");
-# endif
-# ifndef __NIJI_D_wcstouq
-#  define __NIJI_D_wcstouq 1
-extern long long unsigned int wcstouq (const wchar_t *, wchar_t **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoull");
-# endif
-# ifndef __NIJI_D_wmempcpy
-#  define __NIJI_D_wmempcpy 1
-extern wchar_t *wmempcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
-# endif
-#endif
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400
 # ifndef __NIJI_D_iswalnum
 #  define __NIJI_D_iswalnum 1
@@ -701,16 +512,6 @@ extern int wscanf (const wchar_t *, ...);
 #  endif
 # endif
 #endif
-#if __NIJI_MISC
-# ifndef __NIJI_D_wcslcat
-#  define __NIJI_D_wcslcat 1
-extern unsigned long wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-# ifndef __NIJI_D_wcslcpy
-#  define __NIJI_D_wcslcpy 1
-extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
-# endif
-#endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_mbsnrtowcs
 #  define __NIJI_D_mbsnrtowcs 1
@@ -780,10 +581,207 @@ extern int wcswidth (const wchar_t *, unsigned long) __NIJI_NOTHROW;
 extern int wcwidth (wchar_t) __NIJI_NOTHROW;
 # endif
 #endif
-#if 1
-# ifndef WCHAR_MAX
-#  define WCHAR_MAX 2147483647
+#if defined __USE_GNU
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
 # endif
+# ifndef __NIJI_D_fgetwc_unlocked
+#  define __NIJI_D_fgetwc_unlocked 1
+extern unsigned int fgetwc_unlocked (__FILE *);
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D_fgetws_unlocked
+#  define __NIJI_D_fgetws_unlocked 1
+extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D_fputwc_unlocked
+#  define __NIJI_D_fputwc_unlocked 1
+extern unsigned int fputwc_unlocked (wchar_t, __FILE *);
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D_fputws_unlocked
+#  define __NIJI_D_fputws_unlocked 1
+extern int fputws_unlocked (const wchar_t *, __FILE *);
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D_getwc_unlocked
+#  define __NIJI_D_getwc_unlocked 1
+extern unsigned int getwc_unlocked (__FILE *);
+# endif
+# ifndef __NIJI_D_getwchar_unlocked
+#  define __NIJI_D_getwchar_unlocked 1
+extern unsigned int getwchar_unlocked (void);
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D_putwc_unlocked
+#  define __NIJI_D_putwc_unlocked 1
+extern unsigned int putwc_unlocked (wchar_t, __FILE *);
+# endif
+# ifndef __NIJI_D_putwchar_unlocked
+#  define __NIJI_D_putwchar_unlocked 1
+extern unsigned int putwchar_unlocked (wchar_t);
+# endif
+# ifndef __NIJI_D_wcschrnul
+#  define __NIJI_D_wcschrnul 1
+extern wchar_t *wcschrnul (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
+# endif
+struct tm;
+# ifndef __NIJI_D_wcsftime_l
+#  define __NIJI_D_wcsftime_l 1
+extern unsigned long wcsftime_l (wchar_t *, unsigned long, const wchar_t *, const struct tm *, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wcstod_l
+#  define __NIJI_D_wcstod_l 1
+extern double wcstod_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wcstof128
+#  define __NIJI_D_wcstof128 1
+#  if __NIJI_FLOAT128
+extern _Float128 wcstof128 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof128_l
+#  define __NIJI_D_wcstof128_l 1
+#  if __NIJI_FLOAT128
+extern _Float128 wcstof128_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof32
+#  define __NIJI_D_wcstof32 1
+#  if __NIJI_FLOATN
+extern _Float32 wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float wcstof32 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof32_l
+#  define __NIJI_D_wcstof32_l 1
+#  if __NIJI_FLOATN
+extern _Float32 wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float wcstof32_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof32x
+#  define __NIJI_D_wcstof32x 1
+#  if __NIJI_FLOATN
+extern _Float32x wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof32x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof32x_l
+#  define __NIJI_D_wcstof32x_l 1
+#  if __NIJI_FLOATN
+extern _Float32x wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof32x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof64
+#  define __NIJI_D_wcstof64 1
+#  if __NIJI_FLOATN
+extern _Float64 wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof64 (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof64_l
+#  define __NIJI_D_wcstof64_l 1
+#  if __NIJI_FLOATN
+extern _Float64 wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double wcstof64_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof64x
+#  define __NIJI_D_wcstof64x 1
+#  if __NIJI_FLOATN
+extern _Float64x wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double wcstof64x (const wchar_t *, wchar_t **) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof64x_l
+#  define __NIJI_D_wcstof64x_l 1
+#  if __NIJI_FLOATN
+extern _Float64x wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double wcstof64x_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_wcstof_l
+#  define __NIJI_D_wcstof_l 1
+extern float wcstof_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wcstol_l
+#  define __NIJI_D_wcstol_l 1
+extern long int wcstol_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstol_l");
+# endif
+# ifndef __NIJI_D_wcstold_l
+#  define __NIJI_D_wcstold_l 1
+extern long double wcstold_l (const wchar_t *, wchar_t **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wcstoll_l
+#  define __NIJI_D_wcstoll_l 1
+extern long long int wcstoll_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoll_l");
+# endif
+# ifndef __NIJI_D_wcstoq
+#  define __NIJI_D_wcstoq 1
+extern long long int wcstoq (const wchar_t *, wchar_t **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoll");
+# endif
+# ifndef __NIJI_D_wcstoul_l
+#  define __NIJI_D_wcstoul_l 1
+extern long unsigned int wcstoul_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoul_l");
+# endif
+# ifndef __NIJI_D_wcstoull_l
+#  define __NIJI_D_wcstoull_l 1
+extern long long unsigned int wcstoull_l (const wchar_t *, wchar_t **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoull_l");
+# endif
+# ifndef __NIJI_D_wcstouq
+#  define __NIJI_D_wcstouq 1
+extern long long unsigned int wcstouq (const wchar_t *, wchar_t **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoull");
+# endif
+# ifndef __NIJI_D_wmempcpy
+#  define __NIJI_D_wmempcpy 1
+extern wchar_t *wmempcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_wcslcat
+#  define __NIJI_D_wcslcat 1
+extern unsigned long wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+# ifndef __NIJI_D_wcslcpy
+#  define __NIJI_D_wcslcpy 1
+extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+# endif
+#endif
+#if 1
+# define WCHAR_MAX 2147483647
 # ifndef WCHAR_MIN
 #  define WCHAR_MIN (-2147483647-1)
 # endif
@@ -850,7 +848,7 @@ typedef struct _IO_FILE __FILE;
 struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_fgetws_unlocked
 #  define __NIJI_F_fgetws_unlocked 1
 #  ifndef __NIJI_D___fgetws_unlocked_chk
@@ -1069,7 +1067,7 @@ __NIJI_FORTIFY_FN wchar_t *wcscpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NO
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_wcslcat
 #  define __NIJI_F_wcslcat 1
 #  ifndef __NIJI_D___wcslcat_chk
@@ -1085,7 +1083,7 @@ __NIJI_FORTIFY_FN unsigned long wcslcat (wchar_t *__p0, const wchar_t *__p1, uns
 }
 # endif
 #endif
-#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+#if (defined __USE_MISC) && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_wcslcpy
 #  define __NIJI_F_wcslcpy 1
 #  ifndef __NIJI_D___wcslcpy_chk
@@ -1197,7 +1195,7 @@ __NIJI_FORTIFY_FN wchar_t *wmemmove (wchar_t *__p0, const wchar_t *__p1, unsigne
 }
 # endif
 #endif
-#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+#if (defined __USE_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
 # ifndef __NIJI_F_wmempcpy
 #  define __NIJI_F_wmempcpy 1
 #  ifndef __NIJI_D___wmempcpy_chk

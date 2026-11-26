@@ -8,7 +8,7 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -182,100 +182,6 @@ typedef unsigned long ino64_t;
 # ifndef __NIJI_D_off64_t
 #  define __NIJI_D_off64_t 1
 typedef long off64_t;
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef __NIJI_D___fd_mask
-#  define __NIJI_D___fd_mask 1
-typedef long __fd_mask;
-# endif
-# ifndef __NIJI_D_caddr_t
-#  define __NIJI_D_caddr_t 1
-typedef char * caddr_t;
-# endif
-# ifndef __NIJI_D_daddr_t
-#  define __NIJI_D_daddr_t 1
-typedef int daddr_t;
-# endif
-# ifndef __NIJI_D_fd_mask
-#  define __NIJI_D_fd_mask 1
-typedef long fd_mask;
-# endif
-# ifndef __NIJI_D_fd_set
-#  define __NIJI_D_fd_set 1
-typedef struct {
-  long fds_bits[16];
-} fd_set;
-# endif
-# ifndef __NIJI_D___fsid_t
-#  define __NIJI_D___fsid_t 1
-typedef struct {
-  int __val[2];
-} __fsid_t;
-# endif
-# ifndef __NIJI_D_fsid_t
-#  define __NIJI_D_fsid_t 1
-typedef __fsid_t fsid_t;
-# endif
-# ifndef __NIJI_D_loff_t
-#  define __NIJI_D_loff_t 1
-typedef long loff_t;
-# endif
-# ifndef __NIJI_D_quad_t
-#  define __NIJI_D_quad_t 1
-typedef long quad_t;
-# endif
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-# ifndef __NIJI_D_sigset_t
-#  define __NIJI_D_sigset_t 1
-typedef __sigset_t sigset_t;
-# endif
-# ifndef __NIJI_D_u_char
-#  define __NIJI_D_u_char 1
-typedef unsigned char u_char;
-# endif
-# ifndef __NIJI_D_u_int
-#  define __NIJI_D_u_int 1
-typedef unsigned int u_int;
-# endif
-# ifndef __NIJI_D_u_long
-#  define __NIJI_D_u_long 1
-typedef unsigned long u_long;
-# endif
-# ifndef __NIJI_D_u_quad_t
-#  define __NIJI_D_u_quad_t 1
-typedef unsigned long u_quad_t;
-# endif
-# ifndef __NIJI_D_u_short
-#  define __NIJI_D_u_short 1
-typedef unsigned short u_short;
-# endif
-# ifndef __NIJI_D_uint
-#  define __NIJI_D_uint 1
-typedef unsigned int uint;
-# endif
-# ifndef __NIJI_D_ulong
-#  define __NIJI_D_ulong 1
-typedef unsigned long ulong;
-# endif
-# ifndef __NIJI_D_ushort
-#  define __NIJI_D_ushort 1
-typedef unsigned short ushort;
-# endif
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-# ifndef __NIJI_D_key_t
-#  define __NIJI_D_key_t 1
-typedef int key_t;
-# endif
-# ifndef __NIJI_D_suseconds_t
-#  define __NIJI_D_suseconds_t 1
-typedef long suseconds_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
@@ -457,7 +363,101 @@ typedef long blksize_t;
 typedef unsigned int useconds_t;
 # endif
 #endif
-#if __NIJI_MISC
+#if defined __USE_MISC
+# ifndef __NIJI_D___fd_mask
+#  define __NIJI_D___fd_mask 1
+typedef long __fd_mask;
+# endif
+# ifndef __NIJI_D_caddr_t
+#  define __NIJI_D_caddr_t 1
+typedef char * caddr_t;
+# endif
+# ifndef __NIJI_D_daddr_t
+#  define __NIJI_D_daddr_t 1
+typedef int daddr_t;
+# endif
+# ifndef __NIJI_D_fd_mask
+#  define __NIJI_D_fd_mask 1
+typedef long fd_mask;
+# endif
+# ifndef __NIJI_D_fd_set
+#  define __NIJI_D_fd_set 1
+typedef struct {
+  long fds_bits[16];
+} fd_set;
+# endif
+# ifndef __NIJI_D___fsid_t
+#  define __NIJI_D___fsid_t 1
+typedef struct {
+  int __val[2];
+} __fsid_t;
+# endif
+# ifndef __NIJI_D_fsid_t
+#  define __NIJI_D_fsid_t 1
+typedef __fsid_t fsid_t;
+# endif
+# ifndef __NIJI_D_loff_t
+#  define __NIJI_D_loff_t 1
+typedef long loff_t;
+# endif
+# ifndef __NIJI_D_quad_t
+#  define __NIJI_D_quad_t 1
+typedef long quad_t;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D_u_char
+#  define __NIJI_D_u_char 1
+typedef unsigned char u_char;
+# endif
+# ifndef __NIJI_D_u_int
+#  define __NIJI_D_u_int 1
+typedef unsigned int u_int;
+# endif
+# ifndef __NIJI_D_u_long
+#  define __NIJI_D_u_long 1
+typedef unsigned long u_long;
+# endif
+# ifndef __NIJI_D_u_quad_t
+#  define __NIJI_D_u_quad_t 1
+typedef unsigned long u_quad_t;
+# endif
+# ifndef __NIJI_D_u_short
+#  define __NIJI_D_u_short 1
+typedef unsigned short u_short;
+# endif
+# ifndef __NIJI_D_uint
+#  define __NIJI_D_uint 1
+typedef unsigned int uint;
+# endif
+# ifndef __NIJI_D_ulong
+#  define __NIJI_D_ulong 1
+typedef unsigned long ulong;
+# endif
+# ifndef __NIJI_D_ushort
+#  define __NIJI_D_ushort 1
+typedef unsigned short ushort;
+# endif
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 400
+# ifndef __NIJI_D_key_t
+#  define __NIJI_D_key_t 1
+typedef int key_t;
+# endif
+# ifndef __NIJI_D_suseconds_t
+#  define __NIJI_D_suseconds_t 1
+typedef long suseconds_t;
+# endif
+#endif
+#if defined __USE_MISC
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
 typedef struct {
@@ -476,41 +476,25 @@ extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
 #endif
 #if 1
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
-# endif
+# define __FD_SETSIZE 1024
 #endif
-#if __NIJI_MISC
-# ifndef BIG_ENDIAN
-#  define BIG_ENDIAN 4321
-# endif
-# ifndef BYTE_ORDER
-#  define BYTE_ORDER 1234
-# endif
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
-# ifndef LITTLE_ENDIAN
-#  define LITTLE_ENDIAN 1234
-# endif
-# ifndef NFDBITS
-#  define NFDBITS 64
-# endif
-# ifndef PDP_ENDIAN
-#  define PDP_ENDIAN 3412
-# endif
-# ifndef __NFDBITS
-#  define __NFDBITS 64
-# endif
+#if defined __USE_MISC
+# define BIG_ENDIAN 4321
+# define BYTE_ORDER 1234
+# define FD_SETSIZE 1024
+# define LITTLE_ENDIAN 1234
+# define NFDBITS 64
+# define PDP_ENDIAN 3412
+# define __NFDBITS 64
 #endif
 
 /* The byte-order conversions are <endian.h>'s, where this header exposes them. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # include <endian.h>
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set. */
-#if __NIJI_MISC
+#if defined __USE_MISC
 # ifndef FD_SET
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
