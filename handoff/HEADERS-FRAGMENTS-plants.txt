@@ -17,3 +17,18 @@ frag-dropped | xtask/src/headers.rs | lit:            out.push_str(&body); ==>  
 frag-order | xtask/src/headers.rs | lit:    frags.sort(); ==>     frags.sort_by(|a, b| b.cmp(a)); | cargo xtask headers-gen --check | msg:headers-gen: stale under libc-include/
 # Check fragments (header_check.slice_checks): a slice's .d fragments not loaded.
 checks-d-skipped | spec/tools/header_check.py | lit:            load(f"{name}.d/{os.path.basename(frag)[:-3]}", frag) ==>             pass | python3 spec/tools/header_check.py --only 'enum arpa/nameser.h' | msg:FAIL --only enum arpa/nameser.h: no unit selected
+# cargo xtask plants results (14 plants: 14 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# dup-macro: CAUGHT, caught by no test the log names
+# dup-typedef: CAUGHT, caught by no test the log names
+# dup-tag: CAUGHT, caught by no test the log names
+# dup-enumerator: CAUGHT, caught by no test the log names
+# dup-undef-ignored: CAUGHT, caught by no test the log names
+# dup-listed-row-dropped: CAUGHT, caught by no test the log names
+# dup-listed-ignored: CAUGHT, caught by no test the log names
+# key-dup-row: CAUGHT, caught by no test the log names
+# key-sorted-off: CAUGHT, caught by xtask table_keys::tests::a_sorted_table_out_of_order_fails
+# key-block-off: CAUGHT, caught by xtask table_keys::tests::a_block_may_repeat_inside_but_not_start_again
+# key-undeclared-off: CAUGHT, caught by xtask table_keys::tests::a_table_without_a_declaration_fails
+# frag-dropped: CAUGHT, caught by no test the log names
+# frag-order: CAUGHT, caught by no test the log names
+# checks-d-skipped: CAUGHT, caught by no test the log names
