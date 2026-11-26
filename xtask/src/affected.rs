@@ -4305,48 +4305,55 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         let second = |c: &str, ts: &[&str]| second_pass(interpose, c, ts);
         // The native pass runs on the products.
         let products = builds_products(root, repo, sel, per.iter().any(|(c, ts)| second(c, ts)));
-        let mut products_cmd = Command::new(&cargo);
-        products_cmd.args(["xtask", "so"]);
-        if sel.xtask_tests && products {
-            // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
-            // products go beside the products build when the memory allows; the targets that run products go after it.
-            let (beside, after) = xtask_test_split(root);
-            let mut beside_cmd = Command::new(&cargo);
-            beside_cmd.args(&beside);
-            match side_by_side_room(memory_room()) {
-                Ok(why) => {
-                    println!("note: the xtask tests that run no products go beside the products build ({why})");
-                    // `cargo xtask so` is `cargo run -p xtask -- so`: it would wait for the `target/debug` build lock
-                    // that `cargo test -p xtask` holds while it compiles the tests. This process is that fresh xtask
-                    // binary, so the products build runs it directly (`/proc/self/exe`: the image this process runs,
-                    // even while cargo replaces `target/debug/xtask`).
-                    let mut products_cmd = Command::new("/proc/self/exe");
-                    products_cmd.arg("so");
-                    ok &= products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
+        // AFFECTED-LAYOUT-ROWS-2: the products build, the xtask tests and the crates' test passes are the steps of one
+        // bounded run (`run_steps`): a step starts when the steps it needs have ended, up to `step_slots` at a time
+        // (memory and free CPUs); each step's output is printed and logged in one piece, in this order.
+        let cpus = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+        let (slots, why) = step_slots(memory_room(), cpus, load_average());
+        let overlap = slots > 1;
+        println!("note: {why}");
+        // The native pass's runner, made once by the first native step (`pass2::prepare`); `Err` once it failed. The
+        // native pass's lock of this tree (`pass2::lock`), taken with the runner and held to the end of the run.
+        let runner: std::sync::Mutex<Option<Result<String, ()>>> = std::sync::Mutex::new(None);
+        let native_lock = std::sync::Mutex::new(None);
+        let mut steps: Vec<RunStep<'_>> = Vec::new();
+        let built = products.then(|| {
+            // `cargo xtask so` is `cargo run -p xtask -- so`: beside another step it would wait for the `target/debug`
+            // build lock that `cargo test` holds while it compiles the tests. This process is that fresh xtask binary,
+            // so the products build runs it directly (`/proc/self/exe`: the image this process runs, even while cargo
+            // replaces `target/debug/xtask`).
+            let mut cmd = Command::new(if overlap { "/proc/self/exe" } else { cargo.as_str() });
+            cmd.args(if overlap { &["so"][..] } else { &["xtask", "so"][..] });
+            steps.push(RunStep::new("products (cargo xtask so)", cmd, None, false));
+            steps.len() - 1
+        });
+        if sel.xtask_tests {
+            let mut xtask = |label: &str, args: &[String], after: Option<usize>| {
+                let mut cmd = Command::new(&cargo);
+                cmd.args(args);
+                let mut s = RunStep::new(label, cmd, Some("xtask"), false);
+                s.tests = true;
+                s.after.extend(after);
+                steps.push(s);
+            };
+            if let Some(p) = built {
+                // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
+                // products go beside the products build; the targets that run products go after it.
+                let (beside, after) = xtask_test_split(root);
+                xtask(XTASK_BESIDE_LABEL, &beside, None);
+                if !after.is_empty() {
+                    xtask("xtask tests on the fresh products", &after, Some(p));
                 }
-                Err(why) => {
-                    println!("note: the products build and the xtask tests run one after the other ({why})");
-                    ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
-                    ok &= step_out(root, &log, XTASK_BESIDE_LABEL, &mut beside_cmd, Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
-                }
-            }
-            if !after.is_empty() {
-                ok &= step_out(root, &log, "xtask tests on the fresh products", Command::new(&cargo).args(&after), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
-            }
-        } else {
-            if sel.xtask_tests {
-                ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
-            }
-            if products {
-                ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
+            } else {
+                xtask("xtask unit tests", &["test", "-p", "xtask"].map(String::from), None);
             }
         }
         let nextest = crate::nextest::available(&cargo);
-        // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
-        let mut runner: Option<Result<String, ()>> = None;
-        // The native pass's lock of this tree (`pass2::lock`), taken with the runner and held to the end of the run.
-        let mut _native_lock = None;
+        let grouped = test_group_binaries(&read(&root.join(".config/nextest.toml")));
         for (c, ts) in &per {
+            // One crate's steps run one after the other, in today's order: the same tests in two passes at once could
+            // meet in the files they write. Different crates' steps may run side by side.
+            let mut prev: Option<usize> = None;
             for pass in 0..3 {
                 if pass > 0 && !second(c, ts) {
                     continue;
@@ -4357,56 +4364,85 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 if pass > 0 && ts.is_empty() && !lib {
                     continue;
                 }
-                let mut selection = vec!["-p".to_string(), c.to_string()];
-                if lib {
-                    selection.push(unit_tests_flag(repo, c).to_string());
-                }
-                for t in &ts {
-                    selection.extend(["--test".to_string(), t.to_string()]);
-                }
-                // Through nextest when the gate's `xtask test` uses it (`nextest.rs`): the same
-                // runner and serial groups, and the summary lines of a `cargo test` log.
-                let mut cmd = Command::new(&cargo);
-                crate::nextest::poison(&mut cmd);
-                if nextest {
-                    cmd.args(["xtask", "nextest"]);
-                } else {
-                    cmd.arg("test");
-                }
-                cmd.args(&selection);
-                cmd.args(pass_filter(pass, nextest, c, &ts));
-                if pass == 1 {
-                    let r = runner.get_or_insert_with(|| {
-                        let made = crate::pass2::lock(root).and_then(|held| {
-                            _native_lock = Some(held);
-                            crate::pass2::prepare(root)
-                        });
-                        let value = made.as_ref().ok().cloned();
-                        check_logged(&log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ())).ok().and(value).ok_or(())
-                    });
-                    let Ok(r) = r.clone() else {
-                        ok = false;
-                        continue;
+                // The first pass: what runs no products (`first_pass_split`) goes beside the products build, the
+                // products targets after it, as a step of their own. Without the overlap, one step as before.
+                let mut parts = vec![(ts.clone(), lib, built.is_some() && pass > 0, "")];
+                if pass == 0 && built.is_some() {
+                    let (early, early_lib, late, late_lib) = first_pass_split(repo, root, c, &ts, lib);
+                    let late_runs = !late.is_empty() || late_lib;
+                    parts = if !overlap || (late_runs && early.is_empty() && !early_lib) {
+                        vec![(ts.clone(), lib, late_runs, "")]
+                    } else if !late_runs {
+                        vec![(early, early_lib, false, "")]
+                    } else {
+                        vec![(early, early_lib, false, ""), (late, late_lib, true, " (products targets)")]
                     };
-                    if check_logged(&log, &format!("native copies of -p {c}"), crate::pass2::patch_listed(&cargo, root, &selection).map(|_| ())).is_err() {
-                        ok = false;
-                        continue;
+                }
+                for (ts, lib, needs_products, part) in parts {
+                    let mut selection = vec!["-p".to_string(), c.to_string()];
+                    if lib {
+                        selection.push(unit_tests_flag(repo, c).to_string());
                     }
-                    cmd.env(if nextest { crate::pass2::RUNNER_VIA } else { crate::pass2::RUNNER_VAR }, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
+                    for t in &ts {
+                        selection.extend(["--test".to_string(), t.to_string()]);
+                    }
+                    // Through nextest when the gate's `xtask test` uses it (`nextest.rs`): the same
+                    // runner and serial groups, and the summary lines of a `cargo test` log.
+                    let mut cmd = Command::new(&cargo);
+                    crate::nextest::poison(&mut cmd);
+                    if nextest {
+                        cmd.args(["xtask", "nextest"]);
+                    } else {
+                        cmd.arg("test");
+                    }
+                    cmd.args(&selection);
+                    cmd.args(pass_filter(pass, nextest, c, &ts));
+                    if pass == 2 {
+                        cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
+                    }
+                    let label = format!("test -p {c}{}{part}", match pass {
+                        0 => "",
+                        1 => " (native)",
+                        _ => " (exports interposed)",
+                    });
+                    let mut s = RunStep::new(&label, cmd, Some(c), true);
+                    s.tests = true;
+                    s.group = in_test_group(grouped.as_ref(), c, lib, &ts);
+                    s.after.extend(prev);
+                    s.after.extend(built.filter(|_| needs_products));
+                    if pass == 1 {
+                        let (runner, native_lock, cargo, c) = (&runner, &native_lock, &cargo, c.to_string());
+                        s.prep = Some(Box::new(move |log: &Path, cmd: &mut Command, out: &mut dyn std::io::Write| {
+                            let made = runner
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .get_or_insert_with(|| {
+                                    let made = crate::pass2::lock(root).and_then(|held| {
+                                        *native_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(held);
+                                        crate::pass2::prepare(root)
+                                    });
+                                    let value = made.as_ref().ok().cloned();
+                                    check_into(log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ()), out).ok().and(value).ok_or(())
+                                })
+                                .clone();
+                            let Ok(r) = made else { return false };
+                            if check_into(log, &format!("native copies of -p {c}"), crate::pass2::patch_listed(cargo, root, &selection).map(|_| ()), out).is_err() {
+                                return false;
+                            }
+                            cmd.env(if nextest { crate::pass2::RUNNER_VIA } else { crate::pass2::RUNNER_VAR }, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
+                            true
+                        }));
+                    }
+                    steps.push(s);
+                    prev = Some(steps.len() - 1);
                 }
-                if pass == 2 {
-                    cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
-                }
-                let label = format!("test -p {c}{}", match pass {
-                    0 => "",
-                    1 => " (native)",
-                    _ => " (exports interposed)",
-                });
-                match step_out(root, &log, &label, &mut cmd, Some(c), &mut std::io::stdout()) {
-                    Outcome::Ok => {}
-                    Outcome::Skipped => skipped.push(label),
-                    Outcome::Failed => ok = false,
-                }
+            }
+        }
+        for (label, outcome, skip_ok) in run_steps(root, &log, steps, slots, cpus) {
+            match outcome {
+                Outcome::Ok => {}
+                Outcome::Skipped if skip_ok => skipped.push(label),
+                _ => ok = false,
             }
         }
         for id in sel.test_sets.keys() {
@@ -4453,10 +4489,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     if ok { Ok(()) } else { Err("a selected test or check failed".into()) }
 }
 
-/// GATE-BOUNDED-PARALLEL: the label of the xtask tests that run no products, and the log they write when they run
-/// beside the products build (appended to the run's log when both have ended, and kept).
+/// GATE-BOUNDED-PARALLEL: the label of the xtask tests that run no products.
 const XTASK_BESIDE_LABEL: &str = "xtask tests that run no products";
-const XTASK_BESIDE_LOG: &str = "affected-xtask.log";
 
 /// GATE-BOUNDED-PARALLEL: the memory the products build and the xtask tests take side by side, with headroom. Measured
 /// on a Zen 1 host, 60 vCPU, from cold products (`anon` of the gate's cgroup, page cache left out): the xtask tests
@@ -4529,42 +4563,235 @@ fn cgroup_limit(proc_self_cgroup: &str, read: &dyn Fn(&str) -> Option<String>) -
     }
 }
 
-/// Whether the products build and the xtask tests fit side by side in `room` bytes ([`SIDE_BY_SIDE_BYTES`]); the text
-/// says why, for the run's note.
-fn side_by_side_room(room: Option<u64>) -> Result<String, String> {
+/// AFFECTED-LAYOUT-ROWS-2: the memory one step of a bounded run takes, with headroom: half of
+/// [`SIDE_BY_SIDE_BYTES`] (the products build, the largest step measured, 1.85 GiB from cold products).
+const STEP_BYTES: u64 = SIDE_BY_SIDE_BYTES / 2;
+
+/// AFFECTED-LAYOUT-ROWS-2: the free CPUs a step beside others needs: the CI slot (12 CPUs) the gate's test
+/// threads were measured on (GATE-TEST-THREADS, `nextest::test_threads`).
+const STEP_CPUS: usize = 12;
+
+/// AFFECTED-LAYOUT-ROWS-2: the directory (under `target/`) of each step's own log in a bounded run; each log is
+/// appended to the run's log when the step's turn comes, and kept.
+const STEP_LOGS: &str = "affected-steps";
+
+/// How many steps of a run go at a time (GATE-BOUNDED-PARALLEL, AFFECTED-LAYOUT-ROWS-2), and why, for the run's
+/// note: one when `room` (bytes) is below [`SIDE_BY_SIDE_BYTES`] or unknown; else as many [`STEP_BYTES`] as fit
+/// in `room`, and no more than one per [`STEP_CPUS`] of the `cpus` not taken by the `load` (one-minute load
+/// average; unknown: none free), but at least two (the products build beside the xtask tests, as before).
+fn step_slots(room: Option<u64>, cpus: usize, load: Option<f64>) -> (usize, String) {
     let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
     match room {
-        Some(r) if r >= SIDE_BY_SIDE_BYTES => Ok(format!("{} of memory, {} needed", gib(r), gib(SIDE_BY_SIDE_BYTES))),
-        Some(r) => Err(format!("{} of memory, side by side needs {}", gib(r), gib(SIDE_BY_SIDE_BYTES))),
-        None => Err("the memory limit cannot be read".into()),
+        Some(r) if r >= SIDE_BY_SIDE_BYTES => {
+            let free = load.map_or(0, |l| cpus.saturating_sub(l.max(0.0).ceil() as usize));
+            let n = ((r / STEP_BYTES) as usize).min((free / STEP_CPUS).max(2));
+            (n, format!("up to {n} steps at a time ({} of memory, {} a step; {free} of {cpus} CPUs free, {STEP_CPUS} a step, at least two)", gib(r), gib(STEP_BYTES)))
+        }
+        Some(r) => (1, format!("one step at a time ({} of memory, two side by side need {})", gib(r), gib(SIDE_BY_SIDE_BYTES))),
+        None => (1, "one step at a time (the memory limit cannot be read)".into()),
     }
 }
 
-/// GATE-BOUNDED-PARALLEL: the products build (`products`, into the run's `log`) and the xtask tests that run no
-/// products (`tests`, into `target/affected-xtask.log`) side by side. They share no cargo build directory (the products
-/// build in `target/product`; the tests in `target/debug`, whose lock cargo takes while it builds). The tests' console
-/// lines are printed once both have ended and their log is then appended to the run's log, so each step's output stays
-/// in one piece. The verdict is that of the two steps run one after the other: true only when both are green.
-fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, tests: &mut Command) -> bool {
-    let side = root.join("target").join(XTASK_BESIDE_LOG);
-    let _ = fs::remove_file(&side);
-    let mut console: Vec<u8> = Vec::new();
-    let (built, tested) = std::thread::scope(|s| {
-        let t = s.spawn(|| step_out(root, &side, XTASK_BESIDE_LABEL, tests, Some("xtask"), &mut console));
-        let built = step(root, log, "products (cargo xtask so)", products);
-        (built, t.join().unwrap_or(Outcome::Failed))
-    });
-    print!("{}", String::from_utf8_lossy(&console));
-    let appended = fs::read(&side).and_then(|b| {
-        use std::io::Write;
-        fs::OpenOptions::new().create(true).append(true).open(log)?.write_all(&b)
-    });
-    if let Err(e) = appended {
-        println!("        cannot append {} to {}: {e}", side.display(), log.display());
-        log_step_failed(log, XTASK_BESIDE_LABEL, &format!("its log {} was not appended: {e}", side.display()));
-        return false;
+/// The one-minute load average of the host (`/proc/loadavg`).
+fn load_average() -> Option<f64> {
+    read(Path::new("/proc/loadavg")).split_whitespace().next()?.parse().ok()
+}
+
+/// The binaries of the nextest test groups (`.config/nextest.toml` text `config`): the names of every
+/// `binary(=<name>)` of an override with a `test-group`. `None` when a grouped override's filter is anything else
+/// (a `test(...)`, a pattern, an `&`): then no test step may run beside another test step that could hold a group.
+fn test_group_binaries(config: &str) -> Option<BTreeSet<String>> {
+    let mut names = BTreeSet::new();
+    for block in config.split("[[").skip(1) {
+        if !block.lines().any(|l| l.trim_start().starts_with("test-group")) {
+            continue;
+        }
+        // The `filter = ...` key at the start of a line (a comment may name the word).
+        let at = block.match_indices("filter").map(|(i, _)| i).find(|&i| i == 0 || block[..i].ends_with('\n'))?;
+        let filter = block[at + "filter".len()..].trim_start().strip_prefix('=')?.trim_start();
+        let (q, rest) = if let Some(r) = filter.strip_prefix("\"\"\"") { ("\"\"\"", r) } else { ("\"", filter.strip_prefix('"')?) };
+        for part in rest.split_once(q)?.0.split('|') {
+            let name = part.trim().strip_prefix("binary(=")?.strip_suffix(')')?;
+            if name.is_empty() || !name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-') {
+                return None;
+            }
+            names.insert(name.to_string());
+        }
     }
-    built && tested == Outcome::Ok
+    Some(names)
+}
+
+/// Whether a step of crate `c` (its unit tests when `lib`, its targets `ts`) runs a binary of a test group
+/// (`grouped`, [`test_group_binaries`]; `None`: any test step may).
+fn in_test_group(grouped: Option<&BTreeSet<String>>, c: &str, lib: bool, ts: &[&str]) -> bool {
+    grouped.is_none_or(|g| (lib && g.contains(&c.replace('-', "_"))) || ts.iter().any(|t| g.contains(*t)))
+}
+
+/// Crate `c`'s first-pass selection (targets `ts`, its unit tests when `lib`) split by what may run before the
+/// products are built: `(targets, unit tests)` that run no products, then those that may. A target runs none when
+/// the repository knows it and it does not name them (`Target::products`, the rule that builds the products for
+/// it); the unit tests when no source under the crate's `src/` names them ([`names_products`]). Unknown: may.
+fn first_pass_split<'a>(repo: &Repo, root: &Path, c: &str, ts: &[&'a str], lib: bool) -> (Vec<&'a str>, bool, Vec<&'a str>, bool) {
+    let (early, late): (Vec<&str>, Vec<&str>) = ts.iter().partition(|t| repo.targets.iter().any(|x| x.krate == c && x.name == **t && !x.products));
+    let lib_early = lib
+        && repo.crates.iter().find(|k| k.name == c).is_some_and(|k| {
+            let mut all = Vec::new();
+            files_under(&root.join(&k.dir).join("src"), &["rs"], &mut all);
+            !all.is_empty() && !all.iter().any(|f| names_products(&read(f)))
+        });
+    (early, lib_early, late, lib && !lib_early)
+}
+
+/// A step of a bounded run ([`run_steps`]).
+struct RunStep<'a> {
+    label: String,
+    cmd: Command,
+    /// The test crate (`step_out`: its failures are named by it, and a "no tests to run" step is skipped).
+    krate: Option<String>,
+    /// A skipped step is counted apart (the crates' passes); otherwise it is a failure (the xtask tests).
+    skip_ok: bool,
+    /// The earlier steps (indices) that must have ended before this one starts.
+    after: Vec<usize>,
+    /// It runs a binary of a nextest test group: two such steps never run at once (a group orders its tests
+    /// within one nextest run only).
+    group: bool,
+    /// It runs tests: beside other steps it gets its share of the test threads ([`share_test_threads`]).
+    tests: bool,
+    /// Run first, in the step's turn, with the step's log and console: false = the step failed (and was logged).
+    prep: Option<Prep<'a>>,
+}
+
+type Prep<'a> = Box<dyn FnOnce(&Path, &mut Command, &mut dyn std::io::Write) -> bool + Send + 'a>;
+
+impl RunStep<'_> {
+    fn new(label: &str, cmd: Command, krate: Option<&str>, skip_ok: bool) -> Self {
+        RunStep { label: label.to_string(), cmd, krate: krate.map(String::from), skip_ok, after: Vec::new(), group: false, tests: false, prep: None }
+    }
+}
+
+/// Like [`check_logged`], the console line written to `out`.
+fn check_into(log: &Path, label: &str, r: Result<(), String>, out: &mut dyn std::io::Write) -> Result<(), ()> {
+    match r {
+        Ok(()) => {
+            let _ = writeln!(out, "  ok    {label}");
+            Ok(())
+        }
+        Err(e) => {
+            let _ = writeln!(out, "  FAIL  {label}: {e}");
+            log_step_failed(log, label, &e);
+            Err(())
+        }
+    }
+}
+
+fn run_one(root: &Path, log: &Path, s: &mut RunStep<'_>, out: &mut dyn std::io::Write) -> Outcome {
+    if let Some(prep) = s.prep.take() {
+        if !prep(log, &mut s.cmd, out) {
+            return Outcome::Failed;
+        }
+    }
+    step_out(root, log, &s.label, &mut s.cmd, s.krate.as_deref(), out)
+}
+
+/// The test threads of a step that runs beside others (`k` steps at once, more than one): its share of the `cpus`,
+/// for nextest (`NEXTEST_TEST_THREADS`, [`crate::nextest::test_threads`] of the share) and `cargo test`
+/// (`RUST_TEST_THREADS`), so the run's tests together take no more threads than one step alone. A count the
+/// caller set is kept.
+fn share_test_threads(cmd: &mut Command, cpus: usize, k: usize) {
+    if k <= 1 {
+        return;
+    }
+    let share = (cpus / k).max(1);
+    for (var, n) in [("NEXTEST_TEST_THREADS", crate::nextest::test_threads(share)), ("RUST_TEST_THREADS", share)] {
+        if std::env::var_os(var).is_none() {
+            cmd.env(var, n.to_string());
+        }
+    }
+}
+
+/// Whether step `i` of `waiting` may start now: not started, every step it needs ended, and no test-group step
+/// running when it is one.
+fn may_start(waiting: &[Option<RunStep<'_>>], ended: &[bool], group_running: bool, i: usize) -> bool {
+    waiting[i].as_ref().is_some_and(|s| s.after.iter().all(|&d| d < i && ended[d]) && !(s.group && group_running))
+}
+
+/// AFFECTED-LAYOUT-ROWS-2: run `steps` (each after the steps it names), up to `slots` at a time; returns each step's
+/// label, outcome and `skip_ok`, in order. One slot: one after the other, into `log` and the console as they run.
+/// More: each step writes its own log (`target/affected-steps/<n>.log`) and console text; when a step and every
+/// step before it have ended, its console text is printed and its log appended to `log`, so the run reads as
+/// one after the other, each step whole, with its own time. A step that names a later step (never built so) fails.
+fn run_steps(root: &Path, log: &Path, steps: Vec<RunStep<'_>>, slots: usize, cpus: usize) -> Vec<(String, Outcome, bool)> {
+    use std::io::Write;
+    let meta: Vec<(String, bool)> = steps.iter().map(|s| (s.label.clone(), s.skip_ok)).collect();
+    let n = steps.len();
+    let mut outcomes = vec![Outcome::Failed; n];
+    if slots <= 1 {
+        for (i, mut s) in steps.into_iter().enumerate() {
+            outcomes[i] = run_one(root, log, &mut s, &mut std::io::stdout());
+        }
+    } else {
+        let dir = root.join("target").join(STEP_LOGS);
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::create_dir_all(&dir);
+        let side = |i: usize| dir.join(format!("{i:03}.log"));
+        let mut waiting: Vec<Option<RunStep<'_>>> = steps.into_iter().map(Some).collect();
+        let mut ended = vec![false; n];
+        let mut consoles: Vec<Vec<u8>> = vec![Vec::new(); n];
+        let (mut running, mut group_running, mut shown) = (0usize, false, 0usize);
+        std::thread::scope(|sc| {
+            let (tx, rx) = std::sync::mpsc::channel::<(usize, Outcome, Vec<u8>, bool)>();
+            while shown < n {
+                for i in 0..n {
+                    if running >= slots {
+                        break;
+                    }
+                    if !may_start(&waiting, &ended, group_running, i) {
+                        continue;
+                    }
+                    let now = running + (i..n).filter(|&j| may_start(&waiting, &ended, group_running, j)).count();
+                    let Some(mut s) = waiting[i].take() else { continue };
+                    if s.tests {
+                        share_test_threads(&mut s.cmd, cpus, slots.min(now));
+                    }
+                    running += 1;
+                    group_running |= s.group;
+                    let (tx, own) = (tx.clone(), side(i));
+                    sc.spawn(move || {
+                        let mut console = Vec::new();
+                        let o = run_one(root, &own, &mut s, &mut console);
+                        let _ = tx.send((i, o, console, s.group));
+                    });
+                }
+                if running == 0 {
+                    // Nothing runs and nothing may start: the steps left wait for one that cannot end first.
+                    for (i, w) in waiting.iter_mut().enumerate() {
+                        if let Some(s) = w.take() {
+                            log_step_failed(&side(i), &s.label, "it waits for a step that does not come before it");
+                            let _ = writeln!(&mut consoles[i], "  FAIL  {}: it waits for a step that does not come before it", s.label);
+                            ended[i] = true;
+                        }
+                    }
+                } else if let Ok((i, o, console, g)) = rx.recv() {
+                    running -= 1;
+                    group_running &= !g;
+                    ended[i] = true;
+                    outcomes[i] = o;
+                    consoles[i] = console;
+                }
+                while shown < n && ended[shown] {
+                    print!("{}", String::from_utf8_lossy(&consoles[shown]));
+                    let appended = fs::read(side(shown)).and_then(|b| fs::OpenOptions::new().create(true).append(true).open(log)?.write_all(&b));
+                    if let Err(e) = appended {
+                        println!("        cannot append {} to {}: {e}", side(shown).display(), log.display());
+                        log_step_failed(log, &meta[shown].0, &format!("its log {} was not appended: {e}", side(shown).display()));
+                        outcomes[shown] = Outcome::Failed;
+                    }
+                    shown += 1;
+                }
+            }
+        });
+    }
+    meta.into_iter().zip(outcomes).map(|((label, skip_ok), o)| (label, o, skip_ok)).collect()
 }
 
 /// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
@@ -5181,24 +5408,145 @@ mod tests {
     }
 
     // The products build and the xtask tests run side by side (each waits for the other), the verdict is that of the
-    // two steps run one after the other, and each step's output stays in one piece in the run's log, the tests' log kept.
+    // two steps run one after the other, and each step's output stays in one piece in the run's log, each step's own
+    // log kept.
     #[test]
     fn the_products_and_the_xtask_tests_run_side_by_side_with_their_own_verdicts_and_logs() {
-        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL, AFFECTED-LAYOUT-ROWS-2).
         for (prc, trc) in [(0u8, 0u8), (1, 0), (0, 1)] {
             let root = std::env::temp_dir().join(format!("xtask-beside-{}-{prc}{trc}", std::process::id()));
             let _ = fs::remove_dir_all(&root);
             fs::create_dir_all(root.join("target")).unwrap();
             let log = root.join("target").join("affected.log");
-            let got = products_beside_xtask_tests(&root, &log, &mut rendezvous("p", "t", prc), &mut rendezvous("t", "p", trc));
-            assert_eq!(got, prc == 0 && trc == 0, "products rc {prc}, tests rc {trc}");
+            let steps = vec![RunStep::new("products (cargo xtask so)", rendezvous("p", "t", prc), None, false), RunStep::new(XTASK_BESIDE_LABEL, rendezvous("t", "p", trc), Some("xtask"), false)];
+            let got: Vec<Outcome> = run_steps(&root, &log, steps, 2, 4).into_iter().map(|(_, o, _)| o).collect();
+            let want = |rc: u8| if rc == 0 { Outcome::Ok } else { Outcome::Failed };
+            assert_eq!(got, [want(prc), want(trc)], "products rc {prc}, tests rc {trc}");
             let text = fs::read_to_string(&log).unwrap();
-            let side = fs::read_to_string(root.join("target").join(XTASK_BESIDE_LOG)).unwrap();
+            let side = fs::read_to_string(root.join("target").join(STEP_LOGS).join("001.log")).unwrap();
             assert!(side.starts_with(&format!("== {XTASK_BESIDE_LABEL}\nout-t\n")) && !side.contains("out-p"), "{side:?}");
             assert!(text.starts_with("== products (cargo xtask so)\nout-p\n") && text.contains(&side) && text.ends_with(&side), "{text:?}");
             assert_eq!(text.contains("STEP FAILED: products"), prc != 0, "{text:?}");
             assert_eq!(side.contains(&format!("STEP FAILED: {XTASK_BESIDE_LABEL}")), trc != 0, "{side:?}");
             let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    fn sh_step(label: &str, script: &str) -> RunStep<'static> {
+        let mut c = Command::new("sh");
+        c.args(["-c", script]);
+        RunStep::new(label, c, None, false)
+    }
+
+    /// `sh` text that waits (an iteration budget: a hang guard, not a time bound) until `file` exists, else exits `rc`.
+    fn wait_for(file: &str, rc: u8) -> String {
+        format!("i=0; while [ ! -f {file} ] && [ $i -lt 3000 ]; do sleep 0.01; i=$((i+1)); done; [ -f {file} ] || exit {rc}")
+    }
+
+    // AFFECTED-LAYOUT-ROWS-2: a step starts only after the steps it needs have ended, a step that needs none runs
+    // beside them, and the run's log and console read in the steps' order whatever order they end in; a step that
+    // needs a later one fails instead of hanging the run.
+    #[test]
+    fn steps_start_after_the_steps_they_need_and_read_in_their_order() {
+        // Trace: no spec clause (gate tooling; AFFECTED-LAYOUT-ROWS-2).
+        let root = std::env::temp_dir().join(format!("xtask-steps-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("target")).unwrap();
+        let log = root.join("target").join("affected.log");
+        let a = sh_step("a", &format!("echo out-a; touch a; {}; touch a.done", wait_for("c", 9)));
+        let mut b = sh_step("b", "[ -f a.done ] || exit 7; echo out-b");
+        b.after.push(0);
+        let c = sh_step("c", &format!("touch c; {}; echo out-c", wait_for("a", 9)));
+        let got = run_steps(&root, &log, vec![a, b, c], 3, 4);
+        assert!(got.iter().all(|(_, o, _)| *o == Outcome::Ok), "{got:?}");
+        let text = fs::read_to_string(&log).unwrap();
+        let at = |s: &str| text.find(s).unwrap_or_else(|| panic!("{s:?} not in {text:?}"));
+        assert!(at("== a\nout-a\n") < at("== b\nout-b\n") && at("== b\nout-b\n") < at("== c\nout-c\n"), "{text:?}");
+        // A step that needs a later step: it fails, named in the log, and the others still run.
+        let mut first = sh_step("first", "echo out-first");
+        first.after.push(1);
+        let got = run_steps(&root, &log, vec![first, sh_step("second", "echo out-second")], 2, 4);
+        assert_eq!(got.iter().map(|(_, o, _)| *o).collect::<Vec<_>>(), [Outcome::Failed, Outcome::Ok]);
+        let text = fs::read_to_string(&log).unwrap();
+        assert!(text.contains("STEP FAILED: first: it waits for a step that does not come before it") && !text.contains("out-first") && text.contains("out-second"), "{text:?}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // AFFECTED-LAYOUT-ROWS-2: two steps that run test-group binaries never run at once (a nextest group orders its
+    // tests within one run only), while a step outside the groups runs beside them.
+    #[test]
+    fn two_test_group_steps_never_run_at_once() {
+        // Trace: no spec clause (gate tooling; AFFECTED-LAYOUT-ROWS-2).
+        let root = std::env::temp_dir().join(format!("xtask-groups-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("target")).unwrap();
+        let log = root.join("target").join("affected.log");
+        let mut g1 = sh_step("g1", &format!("touch g1.started; {}; touch g1.ended", wait_for("n", 9)));
+        g1.group = true;
+        // Were it started beside g1, it would see g1 started and not ended.
+        let mut g2 = sh_step("g2", &format!("{}; [ -f g1.ended ] || exit 8", wait_for("g1.started", 9)));
+        g2.group = true;
+        let n = sh_step("n", &format!("touch n; {}", wait_for("g1.started", 9)));
+        let got = run_steps(&root, &log, vec![g1, g2, n], 3, 4);
+        assert!(got.iter().all(|(_, o, _)| *o == Outcome::Ok), "{got:?} {}", fs::read_to_string(&log).unwrap_or_default());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // AFFECTED-LAYOUT-ROWS-2: the binaries of the nextest test groups are read from the grouped overrides; any other
+    // form of a grouped filter (a test name, a pattern) gives none, so no test step runs beside another; a unit-test
+    // binary is the crate's name with `_`.
+    #[test]
+    fn the_test_group_binaries_come_from_the_grouped_overrides_or_none() {
+        // Trace: no spec clause (gate tooling; AFFECTED-LAYOUT-ROWS-2).
+        let live = test_group_binaries(&read(&root().join(".config/nextest.toml"))).expect("the live grouped filters are binary names");
+        assert!(live.contains("dns_products") && live.contains("admin_products") && !live.contains("aio_products"), "{live:?}");
+        let cfg = |filter: &str| format!("[test-groups]\nonly = {{ max-threads = 1 }}\n[[profile.default.overrides]]\n# a filter here\nfilter = {filter}\ntest-group = \"only\"\n[[profile.default.overrides]]\nfilter = \"test(/^x/)\"\npriority = 1\n");
+        assert_eq!(test_group_binaries(&cfg("\"binary(=a_b) | binary(=c-d)\"")), Some(["a_b", "c-d"].map(String::from).into()));
+        assert_eq!(test_group_binaries(&cfg("\"\"\"\nbinary(=a)\n| binary(=b)\n\"\"\"")), Some(["a", "b"].map(String::from).into()));
+        assert_eq!(test_group_binaries(&cfg("\"binary(=a) | test(=t)\"")), None);
+        assert_eq!(test_group_binaries(&cfg("\"binary(~a)\"")), None);
+        let g: BTreeSet<String> = ["niji_boundary", "dns_products"].map(String::from).into();
+        assert!(in_test_group(Some(&g), "niji-boundary", true, &[]) && !in_test_group(Some(&g), "niji-boundary", false, &["x"]));
+        assert!(in_test_group(Some(&g), "niji", false, &["x", "dns_products"]) && !in_test_group(Some(&g), "niji", true, &["x"]));
+        assert!(in_test_group(None, "niji", false, &["x"]));
+    }
+
+    // AFFECTED-LAYOUT-ROWS-2: a crate's first pass splits into what runs no products (beside the products build) and
+    // what may (after it): a products target, a target the repository does not know, unit tests whose sources name
+    // the products or of a crate it does not know.
+    #[test]
+    fn the_first_pass_splits_at_what_runs_the_products() {
+        // Trace: no spec clause (gate tooling; AFFECTED-LAYOUT-ROWS-2).
+        let r = root();
+        let mut repo = Repo::load(&r);
+        for (name, products) in [("pure_fixture", false), ("products_fixture", true)] {
+            repo.targets.push(Target { krate: "niji-math".into(), name: name.into(), sections: BTreeSet::new(), refs: BTreeSet::new(), support: BTreeSet::new(), products, text: String::new(), own: 0 });
+        }
+        let (early, early_lib, late, late_lib) = first_pass_split(&repo, &r, "niji-math", &["pure_fixture", "products_fixture", "elem_products", "no_such_target"], true);
+        assert_eq!((early, early_lib, late, late_lib), (vec!["pure_fixture"], true, vec!["products_fixture", "elem_products", "no_such_target"], false));
+        assert_eq!(first_pass_split(&repo, &r, "niji-math", &[], false), (vec![], false, vec![], false));
+        assert_eq!(first_pass_split(&repo, &r, "no-such-crate", &[], true), (vec![], false, vec![], true));
+    }
+
+    // AFFECTED-LAYOUT-ROWS-2: beside other steps a test step gets its share of the CPUs' test threads; alone, nothing
+    // is set; a count the caller set is kept.
+    #[test]
+    fn a_test_step_beside_others_gets_its_share_of_the_test_threads() {
+        // Trace: no spec clause (gate tooling; AFFECTED-LAYOUT-ROWS-2).
+        let env = |c: &Command, k: &str| c.get_envs().find(|(n, _)| *n == k).and_then(|(_, v)| v).map(|v| v.to_string_lossy().into_owned());
+        let mut alone = Command::new("true");
+        share_test_threads(&mut alone, 48, 1);
+        assert_eq!(alone.get_envs().count(), 0);
+        let mut beside = Command::new("true");
+        share_test_threads(&mut beside, 48, 4);
+        for (var, n) in [("NEXTEST_TEST_THREADS", crate::nextest::test_threads(12)), ("RUST_TEST_THREADS", 12)] {
+            let want = if std::env::var_os(var).is_some() { None } else { Some(n.to_string()) };
+            assert_eq!(env(&beside, var), want, "{var}");
+        }
+        let mut tiny = Command::new("true");
+        share_test_threads(&mut tiny, 2, 4);
+        if std::env::var_os("RUST_TEST_THREADS").is_none() {
+            assert_eq!(env(&tiny, "RUST_TEST_THREADS").as_deref(), Some("1"));
         }
     }
 
@@ -5242,9 +5590,17 @@ mod tests {
         assert_eq!(cgroup_limit("0::/\n", &nested), None);
         assert_eq!(cgroup_limit("0::a/b\n", &nested), None);
         assert_eq!(cgroup_limit("1:memory:/a\n", &nested), None);
-        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES)).is_ok());
-        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES - 1)).is_err());
-        assert!(side_by_side_room(None).is_err());
+        // AFFECTED-LAYOUT-ROWS-2: steps at a time: memory first (one below the measured pair), then one per
+        // STEP_CPUS free CPUs (load taken off; unknown load: none free), never fewer than the pair.
+        let slots = |room: Option<u64>, cpus: usize, load: Option<f64>| step_slots(room, cpus, load).0;
+        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES), 96, Some(0.0)), 2);
+        assert_eq!(slots(Some(SIDE_BY_SIDE_BYTES - 1), 96, Some(0.0)), 1);
+        assert_eq!(slots(None, 96, Some(0.0)), 1);
+        assert_eq!(slots(Some(16 << 30), 48, Some(1.0)), 3);
+        assert_eq!(slots(Some(16 << 30), 96, Some(0.0)), 5);
+        assert_eq!(slots(Some(16 << 30), 12, Some(0.0)), 2);
+        assert_eq!(slots(Some(16 << 30), 48, Some(47.5)), 2);
+        assert_eq!(slots(Some(16 << 30), 48, None), 2);
     }
 
     /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `NIJI_AFFECTED_FAIL_FIXTURE` is set; with it
