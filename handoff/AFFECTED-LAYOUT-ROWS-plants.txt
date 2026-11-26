@@ -1,0 +1,8 @@
+# AFFECTED-LAYOUT-ROWS: plants on the entries-only rule of `cargo xtask affected` (direct tier, entry tables).
+# Run: cargo xtask plants handoff/AFFECTED-LAYOUT-ROWS-plants.txt --dir <new-directory>
+alr-length-not-literal | xtask/src/affected.rs | lit:!n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && entry_type(t) ==> !n.is_empty() && entry_type(t) | cargo test -p xtask --bin xtask entr | msg:entry_table_diffs_tell_entries_from_code \.\.\. FAILED
+alr-other-line-taken | xtask/src/affected.rs | lit:(EntryLine::Other, _) => None, ==> (EntryLine::Other, _) => Some(()), | cargo test -p xtask --bin xtask entr | msg:entry_table_diffs_tell_entries_from_code \.\.\. FAILED
+alr-stale-diff-trusted | xtask/src/affected.rs | lit: || new[at..at + count] != plus[..] ==>  | cargo test -p xtask --bin xtask entr | msg:entry_table_diffs_tell_entries_from_code \.\.\. FAILED
+alr-no-containers | xtask/src/affected.rs | lit:.any(|w| names.contains(w)) { ==> .any(|_| false) { | cargo test -p xtask --bin xtask entr | msg:entry_table_diffs_tell_entries_from_code \.\.\. FAILED
+alr-users-not-narrowed | xtask/src/affected.rs | lit:Some(es) => es.iter().any(|e| names_word(&nx.text, e)), ==> Some(_) => true, | cargo test -p xtask --bin xtask entr | msg:an_entries_only_layout_change_selects_by_its_entries \.\.\. FAILED
+alr-dependents-kept | xtask/src/affected.rs | lit:let hop: Vec<String> = if alone { ==> let hop: Vec<String> = if false { | cargo test -p xtask --bin xtask entr | msg:an_entries_only_layout_change_selects_by_its_entries \.\.\. FAILED
