@@ -1,20 +1,46 @@
-{"task": "GAI-ADDRCONFIG-LOOPBACK", "model": "claude-opus-5-5", "tokens": null,
+{
+ "task": "GAI-ADDRCONFIG-LOOPBACK",
+ "model": "claude-opus-5-5",
+ "tokens": null,
  "result": "getaddrinfo AI_ADDRCONFIG now matches the reference's probed rule (a family counts as configured when some interface has an address other than exactly 127.0.0.1 / ::1; AF_UNSPEC is narrowed before lookup): in 21 namespace scenarios, no AI_ADDRCONFIG row differs from stock except where the same query without the flag differs too; the differences row (no compat option) is removed",
- "branch": "task/gai-addrconfig-loopback", "head": "b1c341c25",
- "gate": {"affected": "1572 passed / 1 failed (gate1 on 7d75c2a7c: nscache_products fixture); after the fix the failing suite alone passed (nscache3: 1 passed / 0 failed)", "peak": "4.9G"},
+ "branch": "task/gai-addrconfig-loopback",
+ "head": null,
+ "gate": {
+  "affected": "see gate2 (final head); gate1 on 7d75c2a7c: 1572 passed / 1 failed (nscache_products fixture, fixed; nscache3 1/1 passed)",
+  "peak": "4.9G (gate1)"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "ip6-localhost AF_INET: stock 127.0.0.1, libniji EAI_NONAME (the gethostent ::1 row of D-16.2); also seen without AI_ADDRCONFIG",
-   "passive AF_UNSPEC wildcard when no interface has any address: stock ':: 0.0.0.0', libniji '0.0.0.0 ::'; also seen without AI_ADDRCONFIG",
-   "AF_INET6 AI_V4MAPPED|AI_ALL result order (destination address selection): with IPv4 and only link-local or no IPv6, stock puts ::ffff:192.0.2.7 before 2001:db8::7 and libniji the reverse (4 scenarios); with 127.0.0.1 on a dummy interface only, localhost gives stock '::ffff:127.0.0.1 ::1' and libniji the reverse; a follow-up story candidate"
+  "ip6-localhost AF_INET: stock 127.0.0.1, libniji EAI_NONAME (the gethostent ::1 row of D-16.2); also seen without AI_ADDRCONFIG",
+  "passive AF_UNSPEC wildcard when no interface has any address: stock ':: 0.0.0.0', libniji '0.0.0.0 ::'; also seen without AI_ADDRCONFIG",
+  "AF_INET6 AI_V4MAPPED|AI_ALL result order (destination address selection): with IPv4 and only link-local or no IPv6, stock puts ::ffff:192.0.2.7 before 2001:db8::7 and libniji the reverse (4 scenarios); with 127.0.0.1 on a dummy interface only, localhost gives stock '::ffff:127.0.0.1 ::1' and libniji the reverse; a follow-up story candidate",
+  "the previous leg edited plan/07-decisions/s16-name-services.md (train-owned); moved to records/decisions/D-16/D-16.2.toml and the stale AI_ADDRCONFIG sentence there replaced with a pointer"
  ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "getaddrinfo with AI_ADDRCONFIG on a host whose IPv6 is only ::1 plus link-local (or global IPv6 on lo): ::1, ip6-localhost and the IPv6 passive wildcard now resolve as on stock (were EAI_NONAME); IO::Socket::IP sets the flag by default", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "s16_2_c_2_5 probed table test, 7 netdb_diff.c loopback rows, nscache check updated; 4 plants all caught", "before": null, "after": 4, "unit": "plants", "measured": true}
+  {
+   "kind": "correctness",
+   "what": "getaddrinfo with AI_ADDRCONFIG on a host whose IPv6 is only ::1 plus link-local (or global IPv6 on lo): ::1, ip6-localhost and the IPv6 passive wildcard now resolve as on stock (were EAI_NONAME); IO::Socket::IP sets the flag by default",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "s16_2_c_2_5 probed table test, 7 netdb_diff.c loopback rows, nscache check updated; 4 plants all caught",
+   "before": null,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  }
  ],
- "jobs": ["gai-addrconfig-loopback-gate1", "gai-addrconfig-loopback-plants1", "gai-addrconfig-loopback-nscache3"],
+ "jobs": [
+  "gai-addrconfig-loopback-gate2",
+  "gai-addrconfig-loopback-plants2"
+ ],
  "improvement": "a probe with the flag under test should always include the same flag sets without it as controls; the first probe lacked AI_V4MAPPED|AI_ALL without AI_ADDRCONFIG and needed a second run to classify diffs",
  "next_step": "CI and landing; follow-up candidates: AI_V4MAPPED|AI_ALL destination ordering, the passive wildcard order with no addresses",
- "report_file": "handoff/GAI-ADDRCONFIG-LOOPBACK.md"}
+ "report_file": "handoff/GAI-ADDRCONFIG-LOOPBACK.md"
+}
