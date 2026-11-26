@@ -210,7 +210,7 @@ struct argp_state;
 #  define __NIJI_D_argp_usage 1
 extern void argp_usage (const struct argp_state *);
 # endif
-# define ARGP_ERR_UNKNOWN 7
+# define ARGP_ERR_UNKNOWN E2BIG
 # define ARGP_HELP_BUG_ADDR 64
 # define ARGP_HELP_DOC 48
 # define ARGP_HELP_EXIT_ERR 256

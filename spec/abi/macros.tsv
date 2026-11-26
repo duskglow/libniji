@@ -1120,6 +1120,7 @@ ELFDATA2LSB	elf.h	int	1
 ELFDATA2MSB	elf.h	int	2
 ELFDATANONE	elf.h	int	0
 ELFDATANUM	elf.h	int	3
+ELFMAG	elf.h	char[5]	"\177ELF"
 ELFMAG0	elf.h	int	127
 ELFMAG1	elf.h	char	69
 ELFMAG2	elf.h	char	76
@@ -4508,6 +4509,20 @@ RTF_XRESOLVE	net/route.h	int	2048
 RTLD_BINDING_MASK	dlfcn.h	int	3
 RTLD_DEEPBIND	dlfcn.h	int	8
 RTLD_DEFAULT	dlfcn.h	void*	0
+RTLD_DI_CONFIGADDR	dlfcn.h	int	3
+RTLD_DI_LINKMAP	dlfcn.h	int	2
+RTLD_DI_LMID	dlfcn.h	int	1
+RTLD_DI_MAX	dlfcn.h	int	11
+RTLD_DI_ORIGIN	dlfcn.h	int	6
+RTLD_DI_PHDR	dlfcn.h	int	11
+RTLD_DI_PROFILENAME	dlfcn.h	int	7
+RTLD_DI_PROFILEOUT	dlfcn.h	int	8
+RTLD_DI_SERINFO	dlfcn.h	int	4
+RTLD_DI_SERINFOSIZE	dlfcn.h	int	5
+RTLD_DI_TLS_DATA	dlfcn.h	int	10
+RTLD_DI_TLS_MODID	dlfcn.h	int	9
+RTLD_DL_LINKMAP	dlfcn.h	int	2
+RTLD_DL_SYMENT	dlfcn.h	int	1
 RTLD_GLOBAL	dlfcn.h	int	256
 RTLD_LAZY	dlfcn.h	int	1
 RTLD_LOCAL	dlfcn.h	int	0
@@ -8951,6 +8966,7 @@ __ALTMON_9	langinfo.h	int	131191
 __CURRENCY_SYMBOL	langinfo.h	int	262145
 __DECIMAL_POINT	langinfo.h	int	65536
 __ERA_YEAR	langinfo.h	int	131117
+__FD_SETSIZE	aio.h	int	1024
 __FMTMSG_H	fmtmsg.h	int	1
 __FRAC_DIGITS	langinfo.h	int	262152
 __GROUPING	langinfo.h	int	65538
@@ -8975,6 +8991,7 @@ __NETIUCV_IUCV_H	netiucv/iucv.h	int	1
 __NETPACKET_PACKET_H	netpacket/packet.h	int	1
 __NET_ETHERNET_H	net/ethernet.h	int	1
 __NET_IF_PPP_H	net/if_ppp.h	int	1
+__NFDBITS	aio.h	int	64
 __NOEXPR	langinfo.h	int	327681
 __NOSTR	langinfo.h	int	327683
 __N_CS_PRECEDES	langinfo.h	int	262155
@@ -8984,8 +9001,12 @@ __POSITIVE_SIGN	langinfo.h	int	262149
 __P_CS_PRECEDES	langinfo.h	int	262153
 __P_SEP_BY_SPACE	langinfo.h	int	262154
 __P_SIGN_POSN	langinfo.h	int	262157
+__RES	resolv.h	int	19991006
 __STDC_ISO_10646__	-	long	201706
 __THOUSANDS_SEP	langinfo.h	int	65537
+__WALL	sys/wait.h	int	1073741824
+__WCLONE	sys/wait.h	unsigned int	2147483648
+__WNOTHREAD	sys/wait.h	int	536870912
 __WORDSIZE_TIME64_COMPAT32	aio.h	int	1
 __YESEXPR	langinfo.h	int	327680
 __YESSTR	langinfo.h	int	327682

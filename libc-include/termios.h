@@ -48,6 +48,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_pid_t
 #  define __NIJI_D_pid_t 1
 typedef int pid_t;
@@ -384,6 +408,9 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define _HAVE_STRUCT_TERMIOS_C_ISPEED 1
 # define _HAVE_STRUCT_TERMIOS_C_OSPEED 1
 #endif
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
+# define __FD_SETSIZE 1024
+#endif
 #if defined __USE_MISC
 # ifndef ADDRB
 #  define ADDRB 536870912
@@ -399,9 +426,9 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define CDSUSP 25
 # define CEOF 4
 # define CEOL '\000'
-# define CEOT 4
+# define CEOT CEOF
 # define CERASE 127
-# define CFLUSH 15
+# define CFLUSH CDISCARD
 # ifndef CIBAUD
 #  define CIBAUD 269418496
 # endif
@@ -414,7 +441,7 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # endif
 # define CQUIT 28
 # define CREPRINT 18
-# define CRPRNT 18
+# define CRPRNT CREPRINT
 # ifndef CRTSCTS
 #  define CRTSCTS 2147483648U
 # endif
@@ -434,10 +461,10 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 #  define ECHOPRT 1024
 # endif
 # ifndef EXTA
-#  define EXTA 14
+#  define EXTA B19200
 # endif
 # ifndef EXTB
-#  define EXTB 15
+#  define EXTB B38400
 # endif
 # ifndef EXTPROC
 #  define EXTPROC 65536
@@ -455,7 +482,7 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
-# define TTYDEF_SPEED 13
+# define TTYDEF_SPEED B9600
 # ifndef XTABS
 #  define XTABS 6144
 # endif

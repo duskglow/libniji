@@ -6,37 +6,57 @@ typedef	Dl_serinfo	dlfcn.h	32	8	Dl_serinfo
 typedef	Dl_serpath	dlfcn.h	16	8	Dl_serpath
 typedef	ENTRY	search.h	16	8	entry
 typedef	Elf32_Addr	elf.h	4	4	unsigned int
+typedef	Elf32_Chdr	elf.h	12	4	Elf32_Chdr
+typedef	Elf32_Conflict	elf.h	4	4	unsigned int
 typedef	Elf32_Dyn	elf.h	8	4	Elf32_Dyn
 typedef	Elf32_Ehdr	elf.h	52	4	Elf32_Ehdr
 typedef	Elf32_Half	elf.h	2	2	unsigned short
+typedef	Elf32_Lib	elf.h	20	4	Elf32_Lib
+typedef	Elf32_Move	elf.h	24	8	Elf32_Move
 typedef	Elf32_Nhdr	elf.h	12	4	Elf32_Nhdr
 typedef	Elf32_Off	elf.h	4	4	unsigned int
 typedef	Elf32_Phdr	elf.h	32	4	Elf32_Phdr
 typedef	Elf32_Rel	elf.h	8	4	Elf32_Rel
 typedef	Elf32_Rela	elf.h	12	4	Elf32_Rela
+typedef	Elf32_Relr	elf.h	4	4	unsigned int
 typedef	Elf32_Section	elf.h	2	2	unsigned short
 typedef	Elf32_Shdr	elf.h	40	4	Elf32_Shdr
 typedef	Elf32_Sword	elf.h	4	4	int
+typedef	Elf32_Sxword	elf.h	8	8	long
 typedef	Elf32_Sym	elf.h	16	4	Elf32_Sym
+typedef	Elf32_Syminfo	elf.h	4	2	Elf32_Syminfo
+typedef	Elf32_Verdaux	elf.h	8	4	Elf32_Verdaux
+typedef	Elf32_Verdef	elf.h	20	4	Elf32_Verdef
+typedef	Elf32_Vernaux	elf.h	16	4	Elf32_Vernaux
+typedef	Elf32_Verneed	elf.h	16	4	Elf32_Verneed
+typedef	Elf32_Versym	elf.h	2	2	unsigned short
 typedef	Elf32_Word	elf.h	4	4	unsigned int
+typedef	Elf32_Xword	elf.h	8	8	unsigned long
+typedef	Elf32_auxv_t	elf.h	8	4	Elf32_auxv_t
 typedef	Elf64_Addr	elf.h	8	8	unsigned long
 typedef	Elf64_Chdr	elf.h	24	8	Elf64_Chdr
 typedef	Elf64_Dyn	elf.h	16	8	Elf64_Dyn
 typedef	Elf64_Ehdr	elf.h	64	8	Elf64_Ehdr
 typedef	Elf64_Half	elf.h	2	2	unsigned short
+typedef	Elf64_Lib	elf.h	20	4	Elf64_Lib
+typedef	Elf64_Move	elf.h	32	8	Elf64_Move
 typedef	Elf64_Nhdr	elf.h	12	4	Elf64_Nhdr
 typedef	Elf64_Off	elf.h	8	8	unsigned long
 typedef	Elf64_Phdr	elf.h	56	8	Elf64_Phdr
 typedef	Elf64_Rel	elf.h	16	8	Elf64_Rel
 typedef	Elf64_Rela	elf.h	24	8	Elf64_Rela
+typedef	Elf64_Relr	elf.h	8	8	unsigned long
 typedef	Elf64_Section	elf.h	2	2	unsigned short
 typedef	Elf64_Shdr	elf.h	64	8	Elf64_Shdr
+typedef	Elf64_Sword	elf.h	4	4	int
 typedef	Elf64_Sxword	elf.h	8	8	long
 typedef	Elf64_Sym	elf.h	24	8	Elf64_Sym
+typedef	Elf64_Syminfo	elf.h	4	2	Elf64_Syminfo
 typedef	Elf64_Verdaux	elf.h	8	4	Elf64_Verdaux
 typedef	Elf64_Verdef	elf.h	20	4	Elf64_Verdef
 typedef	Elf64_Vernaux	elf.h	16	4	Elf64_Vernaux
 typedef	Elf64_Verneed	elf.h	16	4	Elf64_Verneed
+typedef	Elf64_Versym	elf.h	2	2	unsigned short
 typedef	Elf64_Word	elf.h	4	4	unsigned int
 typedef	Elf64_Xword	elf.h	8	8	unsigned long
 typedef	Elf64_auxv_t	elf.h	16	8	Elf64_auxv_t
@@ -756,6 +776,7 @@ typedef	__pthread_unwind_buf_t	pthread.h			__pthread_unwind_buf_t
 enum	__ptrace_request	sys/ptrace.h	4	4	__ptrace_request
 function	__putlong	resolv.h			void (unsigned int, unsigned char*)
 function	__putshort	resolv.h			void (unsigned short, unsigned char*)
+typedef	__quad_t	aio.h	8	8	long
 typedef	__re_long_size_t	re_comp.h	8	8	unsigned long
 typedef	__re_size_t	re_comp.h	4	4	unsigned int
 function	__remainder	complex.h			double (double, double)
@@ -936,6 +957,11 @@ object	__tzname	pthread.h	16	8	char* [2]
 typedef	__u16	ftw.h	2	2	unsigned short
 typedef	__u32	ftw.h	4	4	unsigned int
 typedef	__u64	ftw.h	8	8	unsigned long long
+typedef	__u_char	aio.h	1	1	unsigned char
+typedef	__u_int	aio.h	4	4	unsigned int
+typedef	__u_long	aio.h	8	8	unsigned long
+typedef	__u_quad_t	aio.h	8	8	unsigned long
+typedef	__u_short	aio.h	2	2	unsigned short
 function	__uflow	argp.h			int (_IO_FILE*)
 function	__ufromfp	complex.h			unsigned long (double, int, unsigned int)
 function	__ufromfpf	complex.h			unsigned long (float, int, unsigned int)
@@ -1550,6 +1576,7 @@ function	fcntl	fcntl.h			int (int, int, ...)
 function	fcntl64	fcntl.h			int (int, int, ...)
 function	fcvt	complex.h			char* (double, int, int*, int*)
 function	fcvt_r	complex.h			int (double, int, int*, int*, char*, unsigned long)
+typedef	fd_mask	aio.h	8	8	long
 typedef	fd_set	aio.h	128	8	fd_set
 function	fdatasync	arpa/nameser.h			int (int)
 function	fdim	complex.h			double (double, double)
@@ -2208,6 +2235,7 @@ struct	ip6_opt_tunnel	netinet/ip6.h	3	1	ip6_opt_tunnel
 struct	ip6_rthdr	netinet/ip6.h	4	1	ip6_rthdr
 struct	ip6_rthdr0	netinet/ip6.h	8	4	ip6_rthdr0
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
+struct	ip_mreq_source	arpa/inet.h	12	4	ip_mreq_source
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
 struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm

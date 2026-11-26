@@ -21,6 +21,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_int16_t
 #  define __NIJI_D_int16_t 1
 typedef short int16_t;
@@ -186,6 +210,7 @@ typedef unsigned long uintptr_t;
 # endif
 # define WINT_MAX 4294967295U
 # define WINT_MIN 0U
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_ISOC >= 2023
 # define INT16_WIDTH 16

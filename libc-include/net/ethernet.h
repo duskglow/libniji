@@ -38,7 +38,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #endif
 #if 1
 # define ETHERMIN 46
-# define ETHERMTU 1500
+# define ETHERMTU ETH_DATA_LEN
 # define ETHERTYPE_AARP 33011
 # define ETHERTYPE_ARP 2054
 # define ETHERTYPE_AT 32923
@@ -52,9 +52,9 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ETHERTYPE_SPRITE 1280
 # define ETHERTYPE_TRAIL 4096
 # define ETHERTYPE_VLAN 33024
-# define ETHER_ADDR_LEN 6
+# define ETHER_ADDR_LEN ETH_ALEN
 # define ETHER_CRC_LEN 4
-# define ETHER_HDR_LEN 14
+# define ETHER_HDR_LEN ETH_HLEN
 # define ETHER_MAX_LEN 1518
 # define ETHER_MIN_LEN 64
 # define ETHER_TYPE_LEN 2

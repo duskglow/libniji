@@ -589,13 +589,18 @@ extern int *__h_errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__))
 # define NETDB_SUCCESS 0
 # define NI_MAXHOST 1025
 # define NI_MAXSERV 32
-# define NO_ADDRESS 4
+# define NO_ADDRESS NO_DATA
 #endif
 #if defined __USE_MISC || __NIJI_POSIX < 200809
 # define HOST_NOT_FOUND 1
 # define NO_DATA 4
 # define NO_RECOVERY 3
 # define TRY_AGAIN 2
+#endif
+
+/* The first address of h_addr_list, by the name of the single address struct hostent once held (gethostbyname(3)). */
+#if defined __USE_MISC
+# define h_addr h_addr_list[0]
 #endif
 
 #if defined __USE_MISC || __NIJI_POSIX < 200809

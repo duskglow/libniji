@@ -53,6 +53,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_size_t
@@ -277,10 +301,11 @@ enum {
 #endif
 #if 1
 # define _DIRENT_MATCHES_DIRENT64 1
+# define __FD_SETSIZE 1024
 #endif
 #if defined __USE_GNU
-# define _POSIX_FD_SETSIZE 20
-# define _POSIX_HIWAT 512
+# define _POSIX_FD_SETSIZE _POSIX_OPEN_MAX
+# define _POSIX_HIWAT _POSIX_PIPE_BUF
 # define _POSIX_QLIMIT 1
 # define _POSIX_UIO_MAXIOV 16
 #endif
@@ -299,7 +324,7 @@ enum {
 # define HOST_NAME_MAX 64
 # define LOGIN_NAME_MAX 256
 # ifndef MAXNAMLEN
-#  define MAXNAMLEN 255
+#  define MAXNAMLEN NAME_MAX
 # endif
 # define MAX_CANON 255
 # define MAX_INPUT 255
@@ -308,7 +333,7 @@ enum {
 # define NGROUPS_MAX 65536
 # define PATH_MAX 4096
 # define PIPE_BUF 4096
-# define PTHREAD_DESTRUCTOR_ITERATIONS 4
+# define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
 # define PTHREAD_KEYS_MAX 1024
 # define RTSIG_MAX 32
 # define SEM_VALUE_MAX 2147483647

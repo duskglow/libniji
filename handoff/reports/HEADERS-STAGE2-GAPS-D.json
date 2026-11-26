@@ -1,0 +1,79 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: stage-2 header gaps closed by black-box probe (perl builds on libniji); plant s2d-mreq-order survives (layouts.tsv offset/order disagreement uncaught); plants2 still running at the wall-time limit",
+ "branch": "task/headers-stage2-gaps-d",
+ "head": "02478be5c",
+ "gate": {
+  "affected": "FULL escalated (generated layouts, header templates): gate4 rc 0 on the final code head (clippy -D warnings, static, header_p2_fixed_rows, full header_check); gate3 rc 0 on 3d51d189e (cargo test -p xtask all, header_check 0 failed of 20364, 6 cleanup-macro conformance programs)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "perl $Config{d_bsd} differs: Configure greps signal.h text for SIGTSTP, which libniji's signal.h defines in that file; nothing in perl reads d_bsd",
+   "recommendation": "no change"
+  }
+ ],
+ "informational": [
+  "sync_role.sh removes target/niji on every sync; target/niji-test links then name a removed loader and the gencat transcript test errors with ENOENT instead of skipping as the iconv test does (gate1 red)",
+  "after this story's gaps the proof packages stop on other gaps: fakechroot <fts.h> FTS64/FTSENT64 members, glib TCP_NODELAY (HEADERS-NET-SYS-NAMES-3), icu ELF64_ST_INFO (HEADERS-STAGE2-GAPS-B)",
+  "<stdlib.h> then <sys/types.h> in GNU C with -Wsystem-headers redefines FD_SET/FD_CLR/FD_ISSET with different replacement lists",
+  "regexec's bound is a variable-length array parameter on the reference; not matched (arrayparams.tsv has no VLA form)",
+  "arrayparams.tsv bounds are read by both the generator and its unit, so a wrong table bound is not caught by the unit",
+  "the header generator declares members in table order without checking the offset column; neither header_check nor niji-abi catches the disagreement (plants2)",
+  "perl rebuild after the IN6ADDR fix not repeated: the two IO-Socket-IP v6 test failures are fixed by probe and unit, NOT VERIFIED end to end",
+  "plants2: s2d-mreq-order SURVIVED (niji-abi appendix_c_layouts passes on the mutant); 7 CAUGHT by 15:50Z, run unfinished"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "perl 5.40.1 builds on libniji (nocheck package rc 0, 7 debs); faketime builds; fakechroot bind.c, glib ginetaddress.c, icu putil users compile",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "perl checked-build failures beyond stock's 4 Net-Ping ones: IO-Socket-IP v6 x2 (IN6ADDR_LOOPBACK_INIT missing), fixed; rebuild not repeated",
+   "before": 2,
+   "after": 0,
+   "unit": "tests",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the stage-2 gaps (plants file)",
+   "before": 0,
+   "after": 16,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "visibility.tsv rows added (stage-2 names incl. IN6ADDR_*_INIT)",
+   "before": 0,
+   "after": 119,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2 sources perl, fakechroot, faketime, glib2.0, icu, heimdal, google-perftools past these header gaps",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "sync_role.sh should drop target/niji-test with target/niji (or the gencat test skip a removed loader as the iconv test does): a role synced without products turns xtask's transcript test red",
+ "next_step": "make the generator reject a layouts.tsv offset column that disagrees with member order (s2d-mreq-order survivor), then wait plants2 / rerun plants, precheck, handback-check",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D-report.md",
+ "jobs": [
+  "headers-stage2-gaps-d-gate4",
+  "headers-stage2-gaps-d-plants2"
+ ]
+}

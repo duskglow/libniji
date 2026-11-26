@@ -135,6 +135,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_clock_t
 #  define __NIJI_D_clock_t 1
 typedef long clock_t;
@@ -172,6 +196,20 @@ typedef struct __locale_struct * __locale_t;
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
 typedef struct __locale_struct * locale_t;
+# endif
+#endif
+#if 1
+# ifndef __NIJI_D___daylight
+#  define __NIJI_D___daylight 1
+extern int __daylight;
+# endif
+# ifndef __NIJI_D___timezone
+#  define __NIJI_D___timezone 1
+extern long __timezone;
+# endif
+# ifndef __NIJI_D___tzname
+#  define __NIJI_D___tzname 1
+extern char * __tzname[2];
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -405,6 +443,7 @@ extern long timegm (struct tm *) __NIJI_NOTHROW;
 #endif
 #if 1
 # define CLOCKS_PER_SEC 1000000L
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_ISOC >= 2011
 # define TIME_UTC 1
@@ -465,34 +504,34 @@ extern long timegm (struct tm *) __NIJI_NOTHROW;
 # ifndef ADJ_TIMECONST
 #  define ADJ_TIMECONST 32
 # endif
-# define MOD_CLKA 32769
-# define MOD_CLKB 16384
+# define MOD_CLKA ADJ_OFFSET_SINGLESHOT
+# define MOD_CLKB ADJ_TICK
 # ifndef MOD_ESTERROR
-#  define MOD_ESTERROR 8
+#  define MOD_ESTERROR ADJ_ESTERROR
 # endif
 # ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY 2
+#  define MOD_FREQUENCY ADJ_FREQUENCY
 # endif
 # ifndef MOD_MAXERROR
-#  define MOD_MAXERROR 4
+#  define MOD_MAXERROR ADJ_MAXERROR
 # endif
 # ifndef MOD_MICRO
-#  define MOD_MICRO 4096
+#  define MOD_MICRO ADJ_MICRO
 # endif
 # ifndef MOD_NANO
-#  define MOD_NANO 8192
+#  define MOD_NANO ADJ_NANO
 # endif
 # ifndef MOD_OFFSET
-#  define MOD_OFFSET 1
+#  define MOD_OFFSET ADJ_OFFSET
 # endif
 # ifndef MOD_STATUS
-#  define MOD_STATUS 16
+#  define MOD_STATUS ADJ_STATUS
 # endif
 # ifndef MOD_TAI
-#  define MOD_TAI 128
+#  define MOD_TAI ADJ_TAI
 # endif
 # ifndef MOD_TIMECONST
-#  define MOD_TIMECONST 32
+#  define MOD_TIMECONST ADJ_TIMECONST
 # endif
 # ifndef STA_CLK
 #  define STA_CLK 32768

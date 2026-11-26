@@ -41,16 +41,16 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # define CDSUSP 25
 # define CEOF 4
 # define CEOL '\000'
-# define CEOT 4
+# define CEOT CEOF
 # define CERASE 127
-# define CFLUSH 15
+# define CFLUSH CDISCARD
 # define CINTR 3
 # define CKILL 21
 # define CLNEXT 22
 # define CMIN 1
 # define CQUIT 28
 # define CREPRINT 18
-# define CRPRNT 18
+# define CRPRNT CREPRINT
 # define CSTART 17
 # define CSTATUS '\000'
 # define CSTOP 19
@@ -79,7 +79,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define IOCSIZE_MASK 1073676288
 # endif
 # ifndef IOCSIZE_SHIFT
-#  define IOCSIZE_SHIFT 16
+#  define IOCSIZE_SHIFT _IOC_SIZESHIFT
 # endif
 # ifndef IOC_IN
 #  define IOC_IN 1073741824U
@@ -267,7 +267,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define SIOCSRARP 35170
 # endif
 # ifndef SIOGIFINDEX
-#  define SIOGIFINDEX 35123
+#  define SIOGIFINDEX SIOCGIFINDEX
 # endif
 # ifndef TCFLSH
 #  define TCFLSH 21515
@@ -372,7 +372,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define TIOCGWINSZ 21523
 # endif
 # ifndef TIOCINQ
-#  define TIOCINQ 21531
+#  define TIOCINQ FIONREAD
 # endif
 # ifndef TIOCLINUX
 #  define TIOCLINUX 21532
@@ -396,7 +396,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define TIOCM_CAR 64
 # endif
 # ifndef TIOCM_CD
-#  define TIOCM_CD 64
+#  define TIOCM_CD TIOCM_CAR
 # endif
 # ifndef TIOCM_CTS
 #  define TIOCM_CTS 32
@@ -411,7 +411,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define TIOCM_LE 1
 # endif
 # ifndef TIOCM_RI
-#  define TIOCM_RI 128
+#  define TIOCM_RI TIOCM_RNG
 # endif
 # ifndef TIOCM_RNG
 #  define TIOCM_RNG 128
@@ -512,7 +512,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
-# define TTYDEF_SPEED 13
+# define TTYDEF_SPEED B9600
 # ifndef _IOC_DIRBITS
 #  define _IOC_DIRBITS 2
 # endif
@@ -547,7 +547,7 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 #  define _IOC_TYPEMASK 255
 # endif
 # ifndef _IOC_TYPESHIFT
-#  define _IOC_TYPESHIFT 8
+#  define _IOC_TYPESHIFT _IOC_NRBITS
 # endif
 # ifndef _IOC_WRITE
 #  define _IOC_WRITE 1U

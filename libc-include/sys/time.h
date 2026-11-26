@@ -65,6 +65,10 @@ enum __itimer_which {
   ITIMER_PROF = 2,
 };
 # endif
+# ifndef __NIJI_D___fd_mask
+#  define __NIJI_D___fd_mask 1
+typedef long __fd_mask;
+# endif
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
@@ -76,6 +80,30 @@ typedef long __off_t;
 # ifndef __NIJI_D___pid_t
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
+# endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
 # endif
 # ifndef __NIJI_D_fd_set
 #  define __NIJI_D_fd_set 1
@@ -101,6 +129,14 @@ typedef long suseconds_t;
 #  define __NIJI_D_time_t 1
 typedef long time_t;
 # endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_fd_mask
+#  define __NIJI_D_fd_mask 1
+typedef long fd_mask;
+# endif
+#endif
+#if 1
 struct itimerval;
 # ifndef __NIJI_D_getitimer
 #  define __NIJI_D_getitimer 1
@@ -125,7 +161,7 @@ extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_
 struct timeval;
 # ifndef __NIJI_D_utimes
 #  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern int utimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
@@ -145,7 +181,7 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 struct timeval;
 # ifndef __NIJI_D_futimesat
 #  define __NIJI_D_futimesat 1
-extern int futimesat (int, const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int futimesat (int, const char *, const struct timeval [2]) __NIJI_NOTHROW;
 # endif
 #endif
 #if defined __USE_MISC
@@ -158,12 +194,12 @@ extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_futimes
 #  define __NIJI_D_futimes 1
-extern int futimes (int, const struct timeval *) __NIJI_NOTHROW;
+extern int futimes (int, const struct timeval [2]) __NIJI_NOTHROW;
 # endif
 struct timeval;
 # ifndef __NIJI_D_lutimes
 #  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern int lutimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timeval;
 struct timezone;
@@ -183,6 +219,8 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 # ifndef ITIMER_VIRTUAL
 #  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
+# define __FD_SETSIZE 1024
+# define __NFDBITS 64
 #endif
 #if defined __USE_MISC
 # define NFDBITS 64
@@ -204,10 +242,12 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 #if 1
 # ifndef FD_SET
+/* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
+extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 #  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 # endif
 #endif

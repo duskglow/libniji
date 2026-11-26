@@ -11,6 +11,7 @@ __NIJI_BEGIN_C
 @@hidden-member st_atim st_atime __st_atimensec
 @@hidden-member st_mtim st_mtime __st_mtimensec
 @@hidden-member st_ctim st_ctime __st_ctimensec
+@@owns-macro st_atime st_mtime st_ctime
 @@emit
 
 /* struct stat's times (POSIX XSH <sys/stat.h>): where struct timespec is visible they are its st_atim, st_mtim and

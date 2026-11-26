@@ -82,6 +82,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_cpu_set_t
 #  define __NIJI_D_cpu_set_t 1
 typedef struct {
@@ -115,6 +139,20 @@ typedef int clockid_t;
 # ifndef __NIJI_D_timer_t
 #  define __NIJI_D_timer_t 1
 typedef void * timer_t;
+# endif
+#endif
+#if __NIJI_POSIX < 200112
+# ifndef __NIJI_D___daylight
+#  define __NIJI_D___daylight 1
+extern int __daylight;
+# endif
+# ifndef __NIJI_D___timezone
+#  define __NIJI_D___timezone 1
+extern long __timezone;
+# endif
+# ifndef __NIJI_D___tzname
+#  define __NIJI_D___tzname 1
+extern char * __tzname[2];
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
@@ -382,6 +420,7 @@ extern int unshare (int) __NIJI_NOTHROW;
 # ifndef _BITS_TYPES_STRUCT_SCHED_PARAM
 #  define _BITS_TYPES_STRUCT_SCHED_PARAM 1
 # endif
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
 # ifndef TIME_UTC

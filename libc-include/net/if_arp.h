@@ -134,7 +134,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # define ARPHRD_FDDI 774
 # define ARPHRD_FRAD 770
 # ifndef ARPHRD_HDLC
-#  define ARPHRD_HDLC 513
+#  define ARPHRD_HDLC ARPHRD_CISCO
 # endif
 # define ARPHRD_HIPPI 780
 # define ARPHRD_HWX25 272

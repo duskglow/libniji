@@ -15,16 +15,17 @@ pub(super) const SLICE: Slice = Slice {
     linked_elsewhere: &[],
 };
 
-/// The names `visibility.tsv` lists for `header` count as covered here, in the configurations of their rows.
-fn supply(g: &mut Gen<'_>, header: &str) {
+/// The names `visibility.tsv` lists for `header` count as covered here, in the configurations of their rows that are
+/// also in `within` (the configurations where the include happens).
+fn supply(g: &mut Gen<'_>, header: &str, within: u64) {
     for r in g.t.vis.iter().filter(|r| r["header"] == header) {
-        *g.covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&g.t.lv, &r["configs"]).unwrap_or(u64::MAX);
+        *g.covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= within & mask_of(&g.t.lv, &r["configs"]).unwrap_or(u64::MAX);
     }
 }
 
 fn needs(g: &mut Gen<'_>, args: &[&str]) {
     for n in args {
-        supply(g, n);
+        supply(g, n, u64::MAX);
         if g.root.join("headers").join(format!("{n}.in")).is_file() {
             g.out.push(format!("#include <{n}>"));
         } else {
@@ -35,7 +36,10 @@ fn needs(g: &mut Gen<'_>, args: &[&str]) {
 
 fn needs_if(g: &mut Gen<'_>, args: &[&str]) {
     let (n, h) = (args.first().copied().unwrap_or(""), args.get(1).copied().unwrap_or(""));
-    supply(g, h);
+    // H's names count only where NAME is visible here (<sys/wait.h> includes <signal.h> only where SIGABRT shows, so
+    // `__u_char`, which <signal.h> shows everywhere, is still emitted here in the strict modes).
+    let within = g.rows(n).first().and_then(|r| mask_of(&g.t.lv, &r["configs"]).ok()).unwrap_or(0);
+    supply(g, h, within);
     let c = g.cond(n, None);
     g.out.extend([format!("#if {c}"), format!("# include <{h}>"), "#endif".into()]);
 }

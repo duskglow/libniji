@@ -15,8 +15,8 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #endif
 #if 1
 # define CHAR_BIT 8
-# define CHAR_MAX 127
-# define CHAR_MIN (-128)
+# define CHAR_MAX SCHAR_MAX
+# define CHAR_MIN SCHAR_MIN
 # define INT_MAX 2147483647
 # define INT_MIN (-2147483647-1)
 # define LONG_MAX 9223372036854775807L
@@ -89,12 +89,12 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define NGROUPS_MAX 65536
 # define PATH_MAX 4096
 # define PIPE_BUF 4096
-# define PTHREAD_DESTRUCTOR_ITERATIONS 4
+# define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
 # define PTHREAD_KEYS_MAX 1024
 # define RTSIG_MAX 32
 # define SEM_VALUE_MAX 2147483647
 # ifndef SSIZE_MAX
-#  define SSIZE_MAX 9223372036854775807L
+#  define SSIZE_MAX LONG_MAX
 # endif
 # define TTY_NAME_MAX 32
 # define XATTR_LIST_MAX 65536
@@ -136,16 +136,16 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #endif
 #if __NIJI_POSIX >= 2
 # ifndef BC_BASE_MAX
-#  define BC_BASE_MAX 99
+#  define BC_BASE_MAX _POSIX2_BC_BASE_MAX
 # endif
 # ifndef BC_DIM_MAX
-#  define BC_DIM_MAX 2048
+#  define BC_DIM_MAX _POSIX2_BC_DIM_MAX
 # endif
 # ifndef BC_SCALE_MAX
-#  define BC_SCALE_MAX 99
+#  define BC_SCALE_MAX _POSIX2_BC_SCALE_MAX
 # endif
 # ifndef BC_STRING_MAX
-#  define BC_STRING_MAX 1000
+#  define BC_STRING_MAX _POSIX2_BC_STRING_MAX
 # endif
 # ifndef CHARCLASS_NAME_MAX
 #  define CHARCLASS_NAME_MAX 2048
@@ -154,10 +154,10 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #  define COLL_WEIGHTS_MAX 255
 # endif
 # ifndef EXPR_NEST_MAX
-#  define EXPR_NEST_MAX 32
+#  define EXPR_NEST_MAX _POSIX2_EXPR_NEST_MAX
 # endif
 # ifndef LINE_MAX
-#  define LINE_MAX 2048
+#  define LINE_MAX _POSIX2_LINE_MAX
 # endif
 # define RE_DUP_MAX 32767
 # define _POSIX2_BC_BASE_MAX 99
@@ -173,14 +173,20 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #if __NIJI_XSI >= 400
 # define IOV_MAX 1024
 # define LONG_BIT 64
-# define NL_ARGMAX 4096
-# define NL_LANGMAX 2048
-# define NL_MSGMAX 2147483647
-# define NL_SETMAX 2147483647
-# define NL_TEXTMAX 2147483647
+# define NL_ARGMAX _POSIX_ARG_MAX
+# define NL_LANGMAX _POSIX2_LINE_MAX
+# define NL_MSGMAX INT_MAX
+# define NL_SETMAX INT_MAX
+# define NL_TEXTMAX INT_MAX
 # define NZERO 20
 # define WORD_BIT 32
-# define _XOPEN_IOV_MAX 16
+# ifndef _XOPEN_IOV_MAX
+#  if __NIJI_ISOC >= 2023 || __NIJI_POSIX < 200112
+#   define _XOPEN_IOV_MAX _POSIX_UIO_MAXIOV
+#  else
+#   define _XOPEN_IOV_MAX 16
+#  endif
+# endif
 #endif
 #if defined __USE_GNU
 # define LONG_LONG_MAX 9223372036854775807LL
@@ -188,11 +194,11 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define ULONG_LONG_MAX 18446744073709551615ULL
 #endif
 #if defined __USE_GNU || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 400)
-# define NL_NMAX 2147483647
+# define NL_NMAX INT_MAX
 #endif
 #if defined __USE_GNU || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
-# define _POSIX_FD_SETSIZE 20
-# define _POSIX_HIWAT 512
+# define _POSIX_FD_SETSIZE _POSIX_OPEN_MAX
+# define _POSIX_HIWAT _POSIX_PIPE_BUF
 # define _POSIX_QLIMIT 1
 # define _POSIX_UIO_MAXIOV 16
 #endif

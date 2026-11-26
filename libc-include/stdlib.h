@@ -135,6 +135,10 @@ typedef struct __locale_struct * locale_t;
 # endif
 #endif
 #if defined __USE_MISC
+# ifndef __NIJI_D___fd_mask
+#  define __NIJI_D___fd_mask 1
+typedef long __fd_mask;
+# endif
 # ifndef __NIJI_D_caddr_t
 #  define __NIJI_D_caddr_t 1
 typedef char * caddr_t;
@@ -142,6 +146,10 @@ typedef char * caddr_t;
 # ifndef __NIJI_D_daddr_t
 #  define __NIJI_D_daddr_t 1
 typedef int daddr_t;
+# endif
+# ifndef __NIJI_D_fd_mask
+#  define __NIJI_D_fd_mask 1
+typedef long fd_mask;
 # endif
 # ifndef __NIJI_D_fd_set
 #  define __NIJI_D_fd_set 1
@@ -222,6 +230,30 @@ typedef long __off_t;
 # ifndef __NIJI_D___pid_t
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
+# endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
 # endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
@@ -1006,7 +1038,7 @@ extern int ecvt_r (double, int, int *, int *, char *, unsigned long) __NIJI_NOTH
 struct drand48_data;
 # ifndef __NIJI_D_erand48_r
 #  define __NIJI_D_erand48_r 1
-extern int erand48_r (short unsigned int *, struct drand48_data *, double *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int erand48_r (short unsigned int [3], struct drand48_data *, double *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_fcvt_r
 #  define __NIJI_D_fcvt_r 1
@@ -1024,12 +1056,12 @@ extern int initstate_r (unsigned int, char *, unsigned long, struct random_data 
 struct drand48_data;
 # ifndef __NIJI_D_jrand48_r
 #  define __NIJI_D_jrand48_r 1
-extern int jrand48_r (short unsigned int *, struct drand48_data *, long int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int jrand48_r (short unsigned int [3], struct drand48_data *, long int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct drand48_data;
 # ifndef __NIJI_D_lcong48_r
 #  define __NIJI_D_lcong48_r 1
-extern int lcong48_r (short unsigned int *, struct drand48_data *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int lcong48_r (short unsigned int [7], struct drand48_data *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct drand48_data;
 # ifndef __NIJI_D_lrand48_r
@@ -1052,7 +1084,7 @@ extern int mrand48_r (struct drand48_data *, long int *) __NIJI_NOTHROW __attrib
 struct drand48_data;
 # ifndef __NIJI_D_nrand48_r
 #  define __NIJI_D_nrand48_r 1
-extern int nrand48_r (short unsigned int *, struct drand48_data *, long int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int nrand48_r (short unsigned int [3], struct drand48_data *, long int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_on_exit
 #  define __NIJI_D_on_exit 1
@@ -1105,7 +1137,7 @@ extern int rpmatch (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)
 struct drand48_data;
 # ifndef __NIJI_D_seed48_r
 #  define __NIJI_D_seed48_r 1
-extern int seed48_r (short unsigned int *, struct drand48_data *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
+extern int seed48_r (short unsigned int [3], struct drand48_data *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct timeval;
 # ifndef __NIJI_D_select
@@ -1175,15 +1207,15 @@ extern double drand48 (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_erand48
 #  define __NIJI_D_erand48 1
-extern double erand48 (short unsigned int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern double erand48 (short unsigned int [3]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_jrand48
 #  define __NIJI_D_jrand48 1
-extern long int jrand48 (short unsigned int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern long int jrand48 (short unsigned int [3]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_lcong48
 #  define __NIJI_D_lcong48 1
-extern void lcong48 (short unsigned int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern void lcong48 (short unsigned int [7]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_lrand48
 #  define __NIJI_D_lrand48 1
@@ -1195,7 +1227,7 @@ extern long int mrand48 (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_nrand48
 #  define __NIJI_D_nrand48 1
-extern long int nrand48 (short unsigned int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern long int nrand48 (short unsigned int [3]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_putenv
 #  define __NIJI_D_putenv 1
@@ -1203,7 +1235,7 @@ extern int putenv (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_seed48
 #  define __NIJI_D_seed48 1
-extern short unsigned int *seed48 (short unsigned int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern short unsigned int *seed48 (short unsigned int [3]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_srand48
 #  define __NIJI_D_srand48 1
@@ -1252,6 +1284,9 @@ extern void srandom (unsigned int) __NIJI_NOTHROW;
 # ifndef WUNTRACED
 #  define WUNTRACED 2
 # endif
+# define __WALL 1073741824
+# define __WCLONE 2147483648U
+# define __WNOTHREAD 536870912
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # ifndef WCONTINUED
@@ -1274,6 +1309,10 @@ extern void srandom (unsigned int) __NIJI_NOTHROW;
 # define LITTLE_ENDIAN 1234
 # define NFDBITS 64
 # define PDP_ENDIAN 3412
+# define __NFDBITS 64
+#endif
+#if defined __USE_MISC || __NIJI_XSI >= 450
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_FORTIFY > 0
 #ifndef __NIJI_FORTIFY_DEFS
@@ -1408,10 +1447,12 @@ __NIJI_FORTIFY_FN int wctomb (char *__p0, wchar_t __p1) __NIJI_NOTHROW
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 #if defined __USE_MISC
 # ifndef FD_SET
+/* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
+extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 #  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 # endif
 #endif

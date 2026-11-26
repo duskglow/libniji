@@ -21,6 +21,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
@@ -129,15 +153,15 @@ extern int dup2 (int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_execl
 #  define __NIJI_D_execl 1
-extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execle
 #  define __NIJI_D_execle 1
-extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (1)));
+extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execlp
 #  define __NIJI_D_execlp 1
-extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execv
 #  define __NIJI_D_execv 1
@@ -229,7 +253,7 @@ extern int pause (void);
 # endif
 # ifndef __NIJI_D_pipe
 #  define __NIJI_D_pipe 1
-extern int pipe (int *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe (int [2]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_read
 #  define __NIJI_D_read 1
@@ -537,7 +561,7 @@ extern int group_member (unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pipe2
 #  define __NIJI_D_pipe2 1
-extern int pipe2 (int *, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe2 (int [2], int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setresgid
 #  define __NIJI_D_setresgid 1
@@ -2079,6 +2103,7 @@ enum {
 # define _XOPEN_XPG2 1
 # define _XOPEN_XPG3 1
 # define _XOPEN_XPG4 1
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # define _POSIX_V6_LP64_OFF64 1
@@ -2103,11 +2128,11 @@ enum {
 # define SEEK_HOLE 4
 #endif
 #if defined __USE_MISC
-# define L_INCR 1
+# define L_INCR SEEK_CUR
 # ifndef L_SET
-#  define L_SET 0
+#  define L_SET SEEK_SET
 # endif
-# define L_XTND 2
+# define L_XTND SEEK_END
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef F_LOCK

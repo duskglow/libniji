@@ -457,7 +457,11 @@ enum {
 #  define MS_VERBOSE 32768
 # endif
 # ifndef OPEN_TREE_CLOEXEC
-#  define OPEN_TREE_CLOEXEC 524288
+#  if __NIJI_POSIX >= 200809
+#   define OPEN_TREE_CLOEXEC O_CLOEXEC
+#  else
+#   define OPEN_TREE_CLOEXEC 524288
+#  endif
 # endif
 # define OPEN_TREE_CLONE 1
 # ifndef STATMOUNT_FS_TYPE

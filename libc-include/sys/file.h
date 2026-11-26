@@ -194,6 +194,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_mode_t
 #  define __NIJI_D_mode_t 1
 typedef unsigned int mode_t;
@@ -381,7 +405,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # define F_GETFD 1
 # define F_GETFL 3
 # ifndef F_GETLK
-#  define F_GETLK 5
+#  define F_GETLK F_GETLK64
 # endif
 # ifndef F_GETLK64
 #  define F_GETLK64 5
@@ -391,11 +415,11 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 # define F_SETFD 2
 # define F_SETFL 4
-# define F_SETLK 6
+# define F_SETLK F_SETLK64
 # ifndef F_SETLK64
 #  define F_SETLK64 6
 # endif
-# define F_SETLKW 7
+# define F_SETLKW F_SETLKW64
 # ifndef F_SETLKW64
 #  define F_SETLKW64 7
 # endif
@@ -428,9 +452,9 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef O_EXCL
 #  define O_EXCL 128
 # endif
-# define O_FSYNC 1052672
+# define O_FSYNC O_SYNC
 # ifndef O_NDELAY
-#  define O_NDELAY 2048
+#  define O_NDELAY O_NONBLOCK
 # endif
 # ifndef O_NOCTTY
 #  define O_NOCTTY 256
@@ -453,6 +477,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef O_WRONLY
 #  define O_WRONLY 1
 # endif
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_LFS64
 # ifndef O_LARGEFILE
@@ -463,7 +488,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef O_DSYNC
 #  define O_DSYNC 4096
 # endif
-# define O_RSYNC 1052672
+# define O_RSYNC O_SYNC
 #endif
 #if __NIJI_POSIX >= 200112
 # define POSIX_FADV_DONTNEED 4
@@ -584,7 +609,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 #  define AT_EMPTY_PATH 4096
 # endif
 # ifndef AT_HANDLE_FID
-#  define AT_HANDLE_FID 512
+#  define AT_HANDLE_FID AT_REMOVEDIR
 # endif
 # ifndef AT_NO_AUTOMOUNT
 #  define AT_NO_AUTOMOUNT 2048
@@ -725,7 +750,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 #  define O_TMPFILE 4259840
 # endif
 # ifndef RWF_WRITE_LIFE_NOT_SET
-#  define RWF_WRITE_LIFE_NOT_SET 0
+#  define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
 # endif
 # define RWH_WRITE_LIFE_EXTREME 5
 # define RWH_WRITE_LIFE_LONG 4
@@ -745,13 +770,13 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 #endif
 #if defined __USE_MISC
-# define FAPPEND 1024
+# define FAPPEND O_APPEND
 # ifndef FASYNC
-#  define FASYNC 8192
+#  define FASYNC O_ASYNC
 # endif
-# define FFSYNC 1052672
-# define FNDELAY 2048
-# define FNONBLOCK 2048
+# define FFSYNC O_FSYNC
+# define FNDELAY O_NDELAY
+# define FNONBLOCK O_NONBLOCK
 # ifndef F_LOCK
 #  define F_LOCK 1
 # endif
@@ -771,6 +796,14 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 #endif
 
+/* struct stat's times (POSIX XSH <sys/stat.h>), named as there: st_atime is the seconds of st_atim. */
+#if __NIJI_POSIX >= 200809
+# ifndef st_atime
+#  define st_atime st_atim.tv_sec
+#  define st_mtime st_mtim.tv_sec
+#  define st_ctime st_ctim.tv_sec
+# endif
+#endif
 
 __NIJI_END_C
 

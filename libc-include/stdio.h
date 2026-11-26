@@ -98,6 +98,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D___mbstate_t
 #  define __NIJI_D___mbstate_t 1
 typedef struct {
@@ -401,7 +425,7 @@ extern FILE *tmpfile (void) __asm__ ("tmpfile64") __attribute__ ((__malloc__, __
 # endif
 # ifndef __NIJI_D_tmpnam
 #  define __NIJI_D_tmpnam 1
-extern char *tmpnam (char *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_ungetc
 #  define __NIJI_D_ungetc 1
@@ -699,7 +723,7 @@ extern void setlinebuf (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)))
 # endif
 # ifndef __NIJI_D_tmpnam_r
 #  define __NIJI_D_tmpnam_r 1
-extern char *tmpnam_r (char *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_vasprintf
 #  define __NIJI_D_vasprintf 1
@@ -738,6 +762,7 @@ extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ (
 # define _IO_EOF_SEEN 16
 # define _IO_ERR_SEEN 32
 # define _IO_USER_LOCK 32768
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_ISOC >= 2023
 # define _PRINTF_NAN_LEN_MAX 4

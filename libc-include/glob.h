@@ -85,7 +85,7 @@ extern int glob_pattern_p (const char *, int) __NIJI_NOTHROW;
 # define GLOB_PERIOD 128
 #endif
 #if defined __USE_GNU
-# define GLOB_ABEND 2
+# define GLOB_ABEND GLOB_ABORTED
 #endif
 #if defined __USE_MISC || __NIJI_POSIX < 2
 # define GLOB_ALTDIRFUNC 512

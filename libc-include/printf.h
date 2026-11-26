@@ -124,7 +124,7 @@ extern int register_printf_specifier (int, printf_function (*), printf_arginfo_s
 extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # define PA_FLAG_LONG 512
-# define PA_FLAG_LONG_DOUBLE 256
+# define PA_FLAG_LONG_DOUBLE PA_FLAG_LONG_LONG
 # define PA_FLAG_LONG_LONG 256
 # define PA_FLAG_MASK 65280
 # define PA_FLAG_PTR 2048

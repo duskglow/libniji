@@ -53,6 +53,42 @@ enum __rlimit_resource {
 # ifndef RLIMIT_STACK
 #  define RLIMIT_STACK RLIMIT_STACK
 # endif
+# ifndef __NIJI_D_enum___priority_which
+#  define __NIJI_D_enum___priority_which 1
+enum __priority_which {
+  PRIO_PROCESS = 0,
+  PRIO_PGRP = 1,
+  PRIO_USER = 2,
+};
+# endif
+# ifndef PRIO_PGRP
+#  define PRIO_PGRP PRIO_PGRP
+# endif
+# ifndef PRIO_PROCESS
+#  define PRIO_PROCESS PRIO_PROCESS
+# endif
+# ifndef PRIO_USER
+#  define PRIO_USER PRIO_USER
+# endif
+
+/* The type of getpriority's and setpriority's first parameter: the enumeration in C under _GNU_SOURCE, int otherwise
+   and in C++ (probed: the same type as the reference's in each configuration, so a redeclaration of either function
+   with `__priority_which_t` compiles, as perl's pp_sys.c casts to it). */
+#if 1
+# if __NIJI_GNU && !defined __cplusplus
+typedef enum __priority_which __priority_which_t;
+# else
+typedef int __priority_which_t;
+# endif
+#endif
+
+/* Declared with the typedef, not the type it resolves to: in C under _GNU_SOURCE that is the enumeration, which
+   is not compatible with int. */
+#if 1
+extern int getpriority (__priority_which_t, unsigned int) __NIJI_NOTHROW;
+extern int setpriority (__priority_which_t, unsigned int, int) __NIJI_NOTHROW;
+#endif
+
 #if 1
 # ifndef __NIJI_D_struct_rlimit
 #  define __NIJI_D_struct_rlimit 1
@@ -156,14 +192,6 @@ struct rlimit64 {
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum___priority_which
-#  define __NIJI_D_enum___priority_which 1
-enum __priority_which {
-  PRIO_PROCESS = 0,
-  PRIO_PGRP = 1,
-  PRIO_USER = 2,
-};
-# endif
 # ifndef __NIJI_D_enum___rusage_who
 #  define __NIJI_D_enum___rusage_who 1
 enum __rusage_who {
@@ -184,6 +212,30 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___quad_t
+#  define __NIJI_D___quad_t 1
+typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___u_char
+#  define __NIJI_D___u_char 1
+typedef unsigned char __u_char;
+# endif
+# ifndef __NIJI_D___u_int
+#  define __NIJI_D___u_int 1
+typedef unsigned int __u_int;
+# endif
+# ifndef __NIJI_D___u_long
+#  define __NIJI_D___u_long 1
+typedef unsigned long __u_long;
+# endif
+# ifndef __NIJI_D___u_quad_t
+#  define __NIJI_D___u_quad_t 1
+typedef unsigned long __u_quad_t;
+# endif
+# ifndef __NIJI_D___u_short
+#  define __NIJI_D___u_short 1
+typedef unsigned short __u_short;
+# endif
 # ifndef __NIJI_D_id_t
 #  define __NIJI_D_id_t 1
 typedef unsigned int id_t;
@@ -200,10 +252,6 @@ typedef unsigned long rlim64_t;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_getpriority
-#  define __NIJI_D_getpriority 1
-extern int getpriority (int, unsigned int) __NIJI_NOTHROW;
-# endif
 struct rlimit;
 # ifndef __NIJI_D_getrlimit
 #  define __NIJI_D_getrlimit 1
@@ -217,10 +265,6 @@ struct rusage;
 # ifndef __NIJI_D_getrusage
 #  define __NIJI_D_getrusage 1
 extern int getrusage (int, struct rusage *) __NIJI_NOTHROW;
-# endif
-# ifndef __NIJI_D_setpriority
-#  define __NIJI_D_setpriority 1
-extern int setpriority (int, unsigned int, int) __NIJI_NOTHROW;
 # endif
 struct rlimit;
 # ifndef __NIJI_D_setrlimit
@@ -330,14 +374,15 @@ extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, stru
 # ifndef RLIM_NLIMITS
 #  define RLIM_NLIMITS __RLIMIT_NLIMITS
 # endif
-# define RLIM_SAVED_CUR 18446744073709551615UL
-# define RLIM_SAVED_MAX 18446744073709551615UL
+# define RLIM_SAVED_CUR RLIM_INFINITY
+# define RLIM_SAVED_MAX RLIM_INFINITY
 # ifndef RUSAGE_CHILDREN
 #  define RUSAGE_CHILDREN RUSAGE_CHILDREN
 # endif
 # ifndef RUSAGE_SELF
 #  define RUSAGE_SELF RUSAGE_SELF
 # endif
+# define __FD_SETSIZE 1024
 #endif
 #if __NIJI_LFS64
 # ifndef RLIM64_INFINITY

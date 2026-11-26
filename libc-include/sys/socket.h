@@ -140,11 +140,19 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -158,11 +166,19 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -176,11 +192,19 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -194,11 +218,19 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -212,11 +244,19 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -242,11 +282,19 @@ extern long recv (int, void *, unsigned long, int);
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -274,11 +322,19 @@ extern long sendmsg (int, const struct msghdr *, int);
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  const struct sockaddr * __tu_sockaddr;
-  const struct sockaddr_in * __tu_sockaddr_in;
-  const struct sockaddr_in6 * __tu_sockaddr_in6;
-  const struct sockaddr_un * __tu_sockaddr_un;
-  const struct sockaddr_x25 * __tu_sockaddr_x25;
+  const struct sockaddr * __sockaddr__;
+  const struct sockaddr_at * __sockaddr_at__;
+  const struct sockaddr_ax25 * __sockaddr_ax25__;
+  const struct sockaddr_dl * __sockaddr_dl__;
+  const struct sockaddr_eon * __sockaddr_eon__;
+  const struct sockaddr_in * __sockaddr_in__;
+  const struct sockaddr_in6 * __sockaddr_in6__;
+  const struct sockaddr_inarp * __sockaddr_inarp__;
+  const struct sockaddr_ipx * __sockaddr_ipx__;
+  const struct sockaddr_iso * __sockaddr_iso__;
+  const struct sockaddr_ns * __sockaddr_ns__;
+  const struct sockaddr_un * __sockaddr_un__;
+  const struct sockaddr_x25 * __sockaddr_x25__;
 } __CONST_SOCKADDR_ARG;
 #  else
 #   define __CONST_SOCKADDR_ARG const struct sockaddr *
@@ -302,7 +358,7 @@ extern int socket (int, int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_socketpair
 #  define __NIJI_D_socketpair 1
-extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
+extern int socketpair (int, int, int, int [2]) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
@@ -316,11 +372,19 @@ extern int sockatmark (int) __NIJI_NOTHROW;
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -468,56 +532,56 @@ enum {
 };
 #  endif
 # endif
-# define AF_ALG 38
-# define AF_APPLETALK 5
-# define AF_ASH 18
-# define AF_ATMPVC 8
-# define AF_ATMSVC 20
-# define AF_AX25 3
-# define AF_BLUETOOTH 31
-# define AF_BRIDGE 7
-# define AF_CAIF 37
-# define AF_CAN 29
-# define AF_DECnet 12
-# define AF_ECONET 19
-# define AF_FILE 1
-# define AF_IB 27
-# define AF_IEEE802154 36
-# define AF_INET 2
-# define AF_INET6 10
-# define AF_IPX 4
-# define AF_IRDA 23
-# define AF_ISDN 34
-# define AF_IUCV 32
-# define AF_KCM 41
-# define AF_KEY 15
-# define AF_LLC 26
-# define AF_LOCAL 1
-# define AF_MAX 46
-# define AF_MCTP 45
-# define AF_MPLS 28
-# define AF_NETBEUI 13
-# define AF_NETLINK 16
-# define AF_NETROM 6
-# define AF_NFC 39
-# define AF_PACKET 17
-# define AF_PHONET 35
-# define AF_PPPOX 24
-# define AF_QIPCRTR 42
-# define AF_RDS 21
-# define AF_ROSE 11
-# define AF_ROUTE 16
-# define AF_RXRPC 33
-# define AF_SECURITY 14
-# define AF_SMC 43
-# define AF_SNA 22
-# define AF_TIPC 30
-# define AF_UNIX 1
-# define AF_UNSPEC 0
-# define AF_VSOCK 40
-# define AF_WANPIPE 25
-# define AF_X25 9
-# define AF_XDP 44
+# define AF_ALG PF_ALG
+# define AF_APPLETALK PF_APPLETALK
+# define AF_ASH PF_ASH
+# define AF_ATMPVC PF_ATMPVC
+# define AF_ATMSVC PF_ATMSVC
+# define AF_AX25 PF_AX25
+# define AF_BLUETOOTH PF_BLUETOOTH
+# define AF_BRIDGE PF_BRIDGE
+# define AF_CAIF PF_CAIF
+# define AF_CAN PF_CAN
+# define AF_DECnet PF_DECnet
+# define AF_ECONET PF_ECONET
+# define AF_FILE PF_FILE
+# define AF_IB PF_IB
+# define AF_IEEE802154 PF_IEEE802154
+# define AF_INET PF_INET
+# define AF_INET6 PF_INET6
+# define AF_IPX PF_IPX
+# define AF_IRDA PF_IRDA
+# define AF_ISDN PF_ISDN
+# define AF_IUCV PF_IUCV
+# define AF_KCM PF_KCM
+# define AF_KEY PF_KEY
+# define AF_LLC PF_LLC
+# define AF_LOCAL PF_LOCAL
+# define AF_MAX PF_MAX
+# define AF_MCTP PF_MCTP
+# define AF_MPLS PF_MPLS
+# define AF_NETBEUI PF_NETBEUI
+# define AF_NETLINK PF_NETLINK
+# define AF_NETROM PF_NETROM
+# define AF_NFC PF_NFC
+# define AF_PACKET PF_PACKET
+# define AF_PHONET PF_PHONET
+# define AF_PPPOX PF_PPPOX
+# define AF_QIPCRTR PF_QIPCRTR
+# define AF_RDS PF_RDS
+# define AF_ROSE PF_ROSE
+# define AF_ROUTE PF_ROUTE
+# define AF_RXRPC PF_RXRPC
+# define AF_SECURITY PF_SECURITY
+# define AF_SMC PF_SMC
+# define AF_SNA PF_SNA
+# define AF_TIPC PF_TIPC
+# define AF_UNIX PF_UNIX
+# define AF_UNSPEC PF_UNSPEC
+# define AF_VSOCK PF_VSOCK
+# define AF_WANPIPE PF_WANPIPE
+# define AF_X25 PF_X25
+# define AF_XDP PF_XDP
 # define MSG_BATCH MSG_BATCH
 # define MSG_CMSG_CLOEXEC MSG_CMSG_CLOEXEC
 # define MSG_CONFIRM MSG_CONFIRM
@@ -551,7 +615,7 @@ enum {
 # define PF_CAN 29
 # define PF_DECnet 12
 # define PF_ECONET 19
-# define PF_FILE 1
+# define PF_FILE PF_LOCAL
 # define PF_IB 27
 # define PF_IEEE802154 36
 # define PF_INET 2
@@ -579,7 +643,7 @@ enum {
 # define PF_QIPCRTR 42
 # define PF_RDS 21
 # define PF_ROSE 11
-# define PF_ROUTE 16
+# define PF_ROUTE PF_NETLINK
 # define PF_RXRPC 33
 # define PF_SECURITY 14
 # define PF_SMC 43
@@ -587,7 +651,7 @@ enum {
 # ifndef PF_TIPC
 #  define PF_TIPC 30
 # endif
-# define PF_UNIX 1
+# define PF_UNIX PF_LOCAL
 # define PF_UNSPEC 0
 # define PF_VSOCK 40
 # define PF_WANPIPE 25
@@ -646,29 +710,49 @@ enum {
 # define SO_RCVBUF 8
 # define SO_RCVLOWAT 18
 # ifndef SO_RCVTIMEO
-#  define SO_RCVTIMEO 20
+#  if defined __USE_MISC
+#   define SO_RCVTIMEO SO_RCVTIMEO_OLD
+#  else
+#   define SO_RCVTIMEO 20
+#  endif
 # endif
 # define SO_REUSEADDR 2
 # define SO_SNDBUF 7
 # define SO_SNDLOWAT 19
 # ifndef SO_SNDTIMEO
-#  define SO_SNDTIMEO 21
+#  if defined __USE_MISC
+#   define SO_SNDTIMEO SO_SNDTIMEO_OLD
+#  else
+#   define SO_SNDTIMEO 21
+#  endif
 # endif
 # ifndef SO_TIMESTAMP
-#  define SO_TIMESTAMP 29
+#  if defined __USE_MISC
+#   define SO_TIMESTAMP SO_TIMESTAMP_OLD
+#  else
+#   define SO_TIMESTAMP 29
+#  endif
 # endif
 # ifndef SO_TIMESTAMPING
-#  define SO_TIMESTAMPING 37
+#  if defined __USE_MISC
+#   define SO_TIMESTAMPING SO_TIMESTAMPING_OLD
+#  else
+#   define SO_TIMESTAMPING 37
+#  endif
 # endif
 # ifndef SO_TIMESTAMPNS
-#  define SO_TIMESTAMPNS 35
+#  if defined __USE_MISC
+#   define SO_TIMESTAMPNS SO_TIMESTAMPNS_OLD
+#  else
+#   define SO_TIMESTAMPNS 35
+#  endif
 # endif
 # define SO_TYPE 3
 # define _SS_PADSIZE 118UL
 # define _SS_SIZE 128
 #endif
 #if defined __USE_GNU
-# define MSG_TRYHARD MSG_TRYHARD
+# define MSG_TRYHARD MSG_DONTROUTE
 # define SCM_CREDENTIALS SCM_CREDENTIALS
 # define SCM_PIDFD SCM_PIDFD
 # define SCM_SECURITY SCM_SECURITY
@@ -681,21 +765,21 @@ enum {
 #  define FIOSETOWN 35073
 # endif
 # ifndef SCM_TIMESTAMP
-#  define SCM_TIMESTAMP 29
+#  define SCM_TIMESTAMP SO_TIMESTAMP
 # endif
 # ifndef SCM_TIMESTAMPING
-#  define SCM_TIMESTAMPING 37
+#  define SCM_TIMESTAMPING SO_TIMESTAMPING
 # endif
 # define SCM_TIMESTAMPING_OPT_STATS 54
 # define SCM_TIMESTAMPING_PKTINFO 58
 # ifndef SCM_TIMESTAMPNS
-#  define SCM_TIMESTAMPNS 35
+#  define SCM_TIMESTAMPNS SO_TIMESTAMPNS
 # endif
 # ifndef SCM_TXTIME
-#  define SCM_TXTIME 61
+#  define SCM_TXTIME SO_TXTIME
 # endif
 # ifndef SCM_WIFI_STATUS
-#  define SCM_WIFI_STATUS 41
+#  define SCM_WIFI_STATUS SO_WIFI_STATUS
 # endif
 # ifndef SIOCATMARK
 #  define SIOCATMARK 35077
@@ -726,13 +810,13 @@ enum {
 # define SO_CNX_ADVICE 53
 # define SO_COOKIE 57
 # ifndef SO_DETACH_BPF
-#  define SO_DETACH_BPF 27
+#  define SO_DETACH_BPF SO_DETACH_FILTER
 # endif
 # define SO_DETACH_FILTER 27
 # define SO_DETACH_REUSEPORT_BPF 68
 # define SO_DOMAIN 39
 # ifndef SO_GET_FILTER
-#  define SO_GET_FILTER 26
+#  define SO_GET_FILTER SO_ATTACH_FILTER
 # endif
 # define SO_INCOMING_CPU 49
 # define SO_INCOMING_NAPI_ID 56
@@ -817,11 +901,19 @@ __NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict
@@ -831,11 +923,19 @@ typedef union __attribute__ ((__transparent_union__)) {
 #  define __NIJI_D___SOCKADDR_ARG 1
 #  if defined __USE_GNU && __NIJI_CXX < 1
 typedef union __attribute__ ((__transparent_union__)) {
-  struct sockaddr * __tu_sockaddr;
-  struct sockaddr_in * __tu_sockaddr_in;
-  struct sockaddr_in6 * __tu_sockaddr_in6;
-  struct sockaddr_un * __tu_sockaddr_un;
-  struct sockaddr_x25 * __tu_sockaddr_x25;
+  struct sockaddr * __sockaddr__;
+  struct sockaddr_at * __sockaddr_at__;
+  struct sockaddr_ax25 * __sockaddr_ax25__;
+  struct sockaddr_dl * __sockaddr_dl__;
+  struct sockaddr_eon * __sockaddr_eon__;
+  struct sockaddr_in * __sockaddr_in__;
+  struct sockaddr_in6 * __sockaddr_in6__;
+  struct sockaddr_inarp * __sockaddr_inarp__;
+  struct sockaddr_ipx * __sockaddr_ipx__;
+  struct sockaddr_iso * __sockaddr_iso__;
+  struct sockaddr_ns * __sockaddr_ns__;
+  struct sockaddr_un * __sockaddr_un__;
+  struct sockaddr_x25 * __sockaddr_x25__;
 } __SOCKADDR_ARG;
 #  else
 #   define __SOCKADDR_ARG struct sockaddr *__restrict

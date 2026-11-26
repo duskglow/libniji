@@ -82,20 +82,30 @@ impl Gen<'_> {
             }
         }
         for (k, td) in rows {
-            let ty = self.t.typedefs.get(&("typedef".to_string(), td.clone())).map(|r| r["cxx"].clone());
-            // `E [N]`: the element type and the bound.
-            let arr = ty.as_deref().and_then(|t| t.rsplit_once(" [")).and_then(|(e, n)| Some((e, n.strip_suffix(']')?))).filter(|(_, n)| n.parse::<u64>().is_ok());
-            let Some((elem, bound)) = arr else {
-                self.errors.push(format!("{}: {name}: arrayparams.tsv typedef `{td}` is not an array typedef in typedefs.tsv", self.header));
-                continue;
-            };
-            let elem = self.c_words(elem);
             let Some(p) = params.get_mut(k - 1) else {
                 self.errors.push(format!("{}: {name}: arrayparams.tsv parameter {k} of {} parameters", self.header, params.len()));
                 continue;
             };
             let t = p.trim();
             let (cst, base) = t.strip_prefix("const ").map_or(("", t), |b| ("const ", b));
+            // `[N]`: a plain bound on the parameter's own pointee (`const struct timespec [2]`).
+            let plain = td.strip_prefix('[').and_then(|n| n.strip_suffix(']')).filter(|n| n.parse::<u64>().is_ok());
+            let (elem, bound) = if let Some(n) = plain {
+                let Some(e) = base.strip_suffix('*').map(str::trim_end).filter(|e| !e.is_empty()) else {
+                    self.errors.push(format!("{}: {name}: parameter {k} `{t}` is no pointer for the bound `{td}`", self.header));
+                    continue;
+                };
+                (e.to_string(), n.to_string())
+            } else {
+                let ty = self.t.typedefs.get(&("typedef".to_string(), td.clone())).map(|r| r["cxx"].clone());
+                // `E [N]`: the element type and the bound.
+                let arr = ty.as_deref().and_then(|t| t.rsplit_once(" [")).and_then(|(e, n)| Some((e, n.strip_suffix(']')?))).filter(|(_, n)| n.parse::<u64>().is_ok());
+                let Some((elem, bound)) = arr else {
+                    self.errors.push(format!("{}: {name}: arrayparams.tsv typedef `{td}` is not an array typedef in typedefs.tsv", self.header));
+                    continue;
+                };
+                (self.c_words(elem), bound.to_string())
+            };
             if base.strip_suffix('*').map(str::trim_end) != Some(elem.as_str()) {
                 self.errors.push(format!("{}: {name}: parameter {k} `{t}` is not a pointer to `{td}`'s element type `{elem}`", self.header));
                 continue;

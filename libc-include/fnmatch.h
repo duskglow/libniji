@@ -49,7 +49,7 @@ extern int fnmatch (const char *, const char *, int);
 #if defined __USE_MISC || __NIJI_POSIX < 2 || __NIJI_XSI >= 400
 # define FNM_CASEFOLD 16
 # define FNM_EXTMATCH 32
-# define FNM_FILE_NAME 1
+# define FNM_FILE_NAME FNM_PATHNAME
 # define FNM_LEADING_DIR 8
 #endif
 

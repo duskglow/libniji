@@ -1,0 +1,22 @@
+{"task": "REVIEW-20261126-1", "model": "opus", "tokens": null,
+ "result": "Periodic review 11-23..11-26: continue with named changes; header conflicts, owed backlog, blind E4 tripwire, mix-shift trend alerts, LOG.md silent since 11-23T23:20Z",
+ "branch": "task/review-20261126-1", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Owed-item age limit (E5): 116 of 119 owed items past due, +15 net/day", "recommendation": "at most 72 h past due, then a dispatched story or closed with a reason"},
+  {"item": "Which record holds the owner's direction: LOG.md silent since 11-23T23:20Z, the 11-24 freeze visible only in owed text", "recommendation": "a LOG.md (or rulings file) line for every ruling and freeze; the context page reads it"}],
+ "informational": [
+  "Trend alerts (gate +25..48%, plants +33..46%) are a mix shift: header-story jobs ~32 min all week; 24/28 gates and 36/41 plants in 24 h were header stories",
+  "Tripwire/frame check still counts coverage as gain (owed #32, named in REVIEW-20261123-1); GAPS-D shows gain: yes with 6 runs and no landing",
+  "HEADERS-FRAGMENTS (the fix for header merge conflicts) is held until the header burst thins; recommend it next in the header lane",
+  "Nine forward-stop audits landed 11-23; their build items #200-#207 are unpaid owes",
+  "2,928 unresolved alerts; the digest's top open alert is an 18.8-day-old ci-B heartbeat",
+  "489 of 658 red transitions in the window are red->red bookkeeping",
+  "the_heap_keeps_address_space_near_its_use SYSTEMIC in 4 stories; heap_meta_products red on next deferred (#261)",
+  "nightly wl_kits 11-25 rc 1 without a verdict (not checked for other nights)"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "review document; no behaviour change", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "ops trend and the tripwire should compare per story class and count only goal-serving gain kinds; both misled this window",
+ "next_step": "coordinator: unhold HEADERS-FRAGMENTS into the header lane; owner: rule on the owed age limit and the rulings record",
+ "report_file": "plan/reviews/REVIEW-20261126-1.md",
+ "jobs": []}

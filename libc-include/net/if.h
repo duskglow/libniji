@@ -139,7 +139,7 @@ extern void if_freenameindex (struct if_nameindex *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_if_indextoname
 #  define __NIJI_D_if_indextoname 1
-extern char *if_indextoname (unsigned int, char *) __NIJI_NOTHROW;
+extern char *if_indextoname (unsigned int, char [16]) __NIJI_NOTHROW;
 # endif
 struct if_nameindex;
 # ifndef __NIJI_D_if_nameindex
@@ -231,7 +231,7 @@ enum {
 # define IFF_SLAVE IFF_SLAVE
 # define IFF_UP IFF_UP
 # define IFHWADDRLEN 6
-# define IFNAMSIZ 16
+# define IFNAMSIZ IF_NAMESIZE
 #endif
 
 /* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro

@@ -1,0 +1,33 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D-6",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "merge-only: merged origin/next (ebb0159b9) into the branch; kept both sides in reserved.tsv and s12.py, regenerated appendix_c_layouts.rs and libc-include/netinet/in.h, dropped the duplicate IN6ADDR_*_INIT block that both sides had added; gate, plants, clippy, static green",
+ "branch": "task/headers-stage2-gaps-d-6",
+ "head": "2c69e26fe",
+ "gate": {
+  "affected": "Direct tier rc 0 (headers-stage2-gaps-d-6-gate4); plants rc 0, 20 CAUGHT (headers-stage2-gaps-d-6-plants4); clippy, static rc 0",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["WARN-DEV-SHM on the plants run (a RAM directory under /dev/shm; no plant affected)"],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "lets HEADERS-STAGE2-GAPS-D's header changes (perl, fakechroot, faketime, gdb, glib, gperftools, icu, heimdal gaps) land on next",
+   "before": null,
+   "after": null,
+   "unit": "story",
+   "measured": false
+  }
+ ],
+ "improvement": "A merge that textually succeeds can still duplicate a block both sides added (the IN6ADDR initializers); the plants runner's one-site check caught it, a merge-only lint for duplicate macro definitions in headers/*.h.in would catch it earlier.",
+ "next_step": "land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D.md",
+ "jobs": [
+  "keke:headers-stage2-gaps-d-6-gate4",
+  "keke:headers-stage2-gaps-d-6-plants4"
+ ]
+}

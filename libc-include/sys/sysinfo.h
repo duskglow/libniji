@@ -51,6 +51,7 @@ struct sysinfo;
 extern int sysinfo (struct sysinfo *) __NIJI_NOTHROW;
 # endif
 # define SI_LOAD_SHIFT 16
+# define __FD_SETSIZE 1024
 #endif
 
 __NIJI_END_C

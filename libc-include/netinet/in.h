@@ -207,6 +207,32 @@ struct in_addr {
   unsigned int s_addr;
 };
 # endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_ip_mreq_source
+#  define __NIJI_D_struct_ip_mreq_source 1
+struct ip_mreq_source {
+  struct in_addr imr_multiaddr;
+  struct in_addr imr_interface;
+  struct in_addr imr_sourceaddr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
 # ifndef __NIJI_D_struct_ip_mreqn
 #  define __NIJI_D_struct_ip_mreqn 1
 struct ip_mreqn {
@@ -415,7 +441,7 @@ enum {
     || !defined IPPROTO_PUP || !defined IPPROTO_UDP || !defined IPPROTO_IDP || !defined IPPROTO_TP || !defined IPPROTO_DCCP || !defined IPPROTO_IPV6 \
     || !defined IPPROTO_RSVP || !defined IPPROTO_GRE || !defined IPPROTO_ESP || !defined IPPROTO_AH || !defined IPPROTO_MTP || !defined IPPROTO_BEETPH \
     || !defined IPPROTO_ENCAP || !defined IPPROTO_PIM || !defined IPPROTO_COMP || !defined IPPROTO_L2TP || !defined IPPROTO_SCTP || !defined IPPROTO_UDPLITE \
-    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP
+    || !defined IPPROTO_MPLS || !defined IPPROTO_ETHERNET || !defined IPPROTO_RAW || !defined IPPROTO_MPTCP || !defined IPPROTO_MAX
 enum {
 #  ifndef IPPROTO_IP
   IPPROTO_IP = 0,
@@ -500,6 +526,9 @@ enum {
 #  endif
 #  ifndef IPPROTO_MPTCP
   IPPROTO_MPTCP = 262,
+#  endif
+#  ifndef IPPROTO_MAX
+  IPPROTO_MAX = 263,
 #  endif
 };
 #  endif
@@ -646,12 +675,12 @@ enum {
 # define IPV6_2292RTHDR 5
 # define IPV6_ADDRFORM 1
 # define IPV6_ADDR_PREFERENCES 72
-# define IPV6_ADD_MEMBERSHIP 20
+# define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 # define IPV6_AUTHHDR 10
 # define IPV6_AUTOFLOWLABEL 70
 # define IPV6_CHECKSUM 7
 # define IPV6_DONTFRAG 62
-# define IPV6_DROP_MEMBERSHIP 21
+# define IPV6_DROP_MEMBERSHIP IPV6_LEAVE_GROUP
 # define IPV6_DSTOPTS 59
 # define IPV6_FREEBIND 78
 # define IPV6_HDRINCL 36
@@ -696,8 +725,8 @@ enum {
 # define IPV6_RTHDR_LOOSE 0
 # define IPV6_RTHDR_STRICT 1
 # define IPV6_RTHDR_TYPE_0 0
-# define IPV6_RXDSTOPTS 59
-# define IPV6_RXHOPOPTS 54
+# define IPV6_RXDSTOPTS IPV6_DSTOPTS
+# define IPV6_RXHOPOPTS IPV6_HOPOPTS
 # define IPV6_TCLASS 67
 # define IPV6_TRANSPARENT 75
 # define IPV6_UNICAST_HOPS 16
@@ -826,6 +855,16 @@ enum {
 # define IN6_IS_ADDR_MC_SITELOCAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0x5)
 # define IN6_IS_ADDR_MC_ORGLOCAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0x8)
 # define IN6_IS_ADDR_MC_GLOBAL(a) (IN6_IS_ADDR_MULTICAST (a) && __NIJI_IN6_SCOPE (a) == 0xe)
+
+/* RFC 3493 section 3.8: initializers of a struct in6_addr for the unspecified address (::) and the loopback address
+   (::1), braced for the structure, its union and the union's first member (the 16 address bytes, network order). The
+   kernel's struct in6_addr (above) has the same shape. */
+#if 1
+# define IN6ADDR_ANY_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } } }
+#endif
+#if 1
+# define IN6ADDR_LOOPBACK_INIT { { { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } } }
+#endif
 
 __NIJI_END_C
 

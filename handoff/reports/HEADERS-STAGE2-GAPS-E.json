@@ -1,0 +1,54 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-E",
+ "model": "claude-opus-5-5",
+ "tokens": null,
+ "result": "Yohane R-H7 header names (IPPROTO_MAX, tftphdr th_* names, ns_msg/ns_rr accessors, fd_mask/NFDBITS, __u_char family, ftw.h S_IS*) shipped as the reference shows them; one fd_set macro text in every header; netinet/ip6.h left as the next story",
+ "branch": "task/headers-stage2-gaps-e",
+ "head": "5b4f8a757",
+ "gate": {
+  "affected": "FULL: the train's (template/table inputs); cargo test -p xtask 699 passed / 0 failed incl. the full header_check (keke headers-stage2-gaps-e-xtask5); plants 11 CAUGHT + 1 WARN-NO-MSG of 12 (plants5)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "netinet/ip6.h (coordinator note 13:43Z) not done: besides the extension-header structs and IP6F_/IP6OPT_/IP6_ALERT_ constants, the struct ip6_hdr member macros (ip6_vfc, ip6_flow, ip6_plen, ip6_nxt, ip6_hlim, ip6_hops) are missing too; RFC 3542 section 2 is the name list; about one run",
+  "D-11.4's always-on __fdelt_chk in FD_SET/FD_CLR/FD_ISSET (the reference checks only in fortified builds) has no row in docs/differences-from-glibc.md; this branch extends the existing sys/select.h and sys/types.h text to stdlib.h, sys/time.h, utmp.h, utmpx.h and sys/procfs.h",
+  "Pre-existing probe rows outside this story: complex.h (5 configs), sys/vm86.h, time64only include-errors of arpa/ftp.h, arpa/telnet.h, arpa/tftp.h, net/if_slip.h, net/ppp-comp.h, netpacket/packet.h; u_char/fd_mask family extra in net/ppp_defs.h, netpacket/packet.h, utmpx.h; __FD_SETSIZE extra in sys/kd.h",
+  "plants WARN-NO-MSG ftw-no-sys-stat: headers-gen refuses the planted template first (ftw.h: S_ISSOCK has no macros.tsv value), a catch one step before header_check"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "libnftnl, libnetfilter-conntrack (IPPROTO_MAX), inetutils (tftphdr th_data), keyutils (ns_msg_count), libev (fd_mask/NFDBITS), libnsl (__u_char family), libcap-ng (ftw.h S_IS*): one source file of each compiled with libniji's headers",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "<sys/time.h> (or <stdlib.h>, <utmp.h>, ...) included before <sys/types.h> redefined FD_SET/FD_CLR/FD_ISSET (-Werror builds failed); now one text",
+   "before": 360,
+   "after": 0,
+   "unit": "failed header_check units",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check units (premise names + fd_set include order) and plants",
+   "before": null,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "The generator has no shared-fragment directive, so one macro text (FD_*) lived in seven templates and drifted; an @@fragment include would make such text single-source",
+ "next_step": "netinet/ip6.h RFC 3542 names as its own story (see handoff)",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-E.md",
+ "jobs": [
+  "keke:headers-stage2-gaps-e-xtask5",
+  "keke:headers-stage2-gaps-e-plants5"
+ ]
+}

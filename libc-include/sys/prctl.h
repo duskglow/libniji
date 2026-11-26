@@ -262,6 +262,7 @@ extern int prctl (int, ...) __NIJI_NOTHROW;
 # define PR_UNALIGN_SIGBUS 2
 # define SYSCALL_DISPATCH_FILTER_ALLOW 0
 # define SYSCALL_DISPATCH_FILTER_BLOCK 1
+# define __FD_SETSIZE 1024
 #endif
 
 __NIJI_END_C
