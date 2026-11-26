@@ -4345,10 +4345,14 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             if let Some(p) = built {
                 // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
                 // products go beside the products build; the targets that run products go after it.
-                let (beside, after) = xtask_test_split(root);
+                // AFFECTED-LAYOUT-ROWS-2: so do the unit tests that read products.
+                let (beside, after, units) = xtask_test_split(root);
                 xtask(XTASK_BESIDE_LABEL, &beside, None);
                 if !after.is_empty() {
                     xtask("xtask tests on the fresh products", &after, Some(p));
+                }
+                if !units.is_empty() {
+                    xtask("xtask unit tests on the fresh products", &units, Some(p));
                 }
             } else {
                 xtask("xtask unit tests", &["test", "-p", "xtask"].map(String::from), None);
@@ -4510,7 +4514,12 @@ const SIDE_BY_SIDE_BYTES: u64 = 6 << 30;
 /// fresh ones. The second is empty when no target runs products. `Repo::load` keeps no xtask targets (the xtask tests
 /// run whole), so the targets are listed here by cargo's own rule (`tests/*.rs`, `tests/*/main.rs`; xtask's manifest
 /// declares none): a target missed here would not run at all.
-fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>) {
+/// AFFECTED-LAYOUT-ROWS-2: the unit tests that read products ([`product_unit_tests`]) are skipped by name in the
+/// first command and run by the same names in the third (`--bins` only; empty when there are none), so each unit test
+/// runs exactly once. A name is a substring filter for libtest; an integration target whose text holds one of the
+/// names goes to the second command, which runs unfiltered, so the skip drops none of its tests.
+fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
+    let units = product_unit_tests(root);
     let mut beside: Vec<String> = ["test", "-p", "xtask", "--bins"].map(String::from).to_vec();
     let mut after: Vec<String> = Vec::new();
     for p in sorted_dir(&root.join("xtask").join("tests")) {
@@ -4526,14 +4535,47 @@ fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>) {
         } else {
             continue;
         };
-        let runs_products = names_products(&text);
+        let runs_products = names_products(&text) || units.iter().any(|u| text.contains(u.as_str()));
         let into = if runs_products { &mut after } else { &mut beside };
         into.extend(["--test".to_string(), name.and_then(|s| s.to_str()).unwrap_or_default().to_string()]);
     }
     if !after.is_empty() {
         after.splice(0..0, ["test", "-p", "xtask"].map(String::from));
     }
-    (beside, after)
+    let mut units_after = Vec::new();
+    if !units.is_empty() {
+        beside.push("--".into());
+        for u in &units {
+            beside.extend(["--skip".to_string(), u.clone()]);
+        }
+        units_after.extend(["test", "-p", "xtask", "--bins", "--"].map(String::from));
+        units_after.extend(units);
+    }
+    (beside, after, units_after)
+}
+
+/// AFFECTED-LAYOUT-ROWS-2: the names of the xtask unit tests (functions under `xtask/src` with the test attribute)
+/// that may read products: the text from one test attribute to the next (or the file's end, so a helper after the
+/// last test counts for it) joins a products path (a `join` of `target/niji…` or of `niji`; this doc spells neither
+/// as code, since the scan reads this file too). Beside the products build such a test sees
+/// a half-written set (the manifest lint test saw `libc.so.6` and no locale sources). A test that reaches the
+/// products only through a helper elsewhere is not seen; the rule reads text, like [`names_products`].
+fn product_unit_tests(root: &Path) -> Vec<String> {
+    let mut files = Vec::new();
+    files_under(&root.join("xtask").join("src"), &["rs"], &mut files);
+    files.sort();
+    let mut names = BTreeSet::new();
+    for f in files {
+        let text = read(&f);
+        for seg in text.split("#[test]").skip(1) {
+            let Some(at) = seg.find("fn ") else { continue };
+            let name: String = seg[at + 3..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+            if !name.is_empty() && (seg.contains("join(\"target/niji") || seg.contains("join(\"niji\")")) {
+                names.insert(name);
+            }
+        }
+    }
+    names.into_iter().collect()
 }
 
 /// The memory this process may use (bytes): the smallest `memory.max` of its cgroup (v2) and the cgroups above it, and
@@ -5576,16 +5618,34 @@ mod tests {
         for (f, text) in [("plain.rs", "fn main() {}"), ("runs.rs", "let p = root.join(\"target/niji/ldconfig\");"), ("notes.txt", "target/niji"), ("dir_plain/main.rs", "mod helper;"), ("dir_plain/helper.rs", ""), ("dir_products/main.rs", "mod helper;"), ("dir_products/helper.rs", "target/niji-test/iconv"), ("fixtures/sub/x.rs", "")] {
             fs::write(t.join(f), text).unwrap();
         }
-        let (beside, after) = xtask_test_split(&fx);
-        let _ = fs::remove_dir_all(&fx);
-        assert_eq!(beside[..4], ["test", "-p", "xtask", "--bins"], "{beside:?}");
+        let (beside, after, units) = xtask_test_split(&fx);
+        assert_eq!(beside, ["test", "-p", "xtask", "--bins", "--test", "dir_plain", "--test", "plain"], "no unit test reads products: no filter");
+        assert!(units.is_empty(), "{units:?}");
         assert_eq!(after[..3], ["test", "-p", "xtask"], "{after:?}");
         assert_eq!((named(&beside), named(&after)), (vec!["dir_plain".to_string(), "plain".into()], vec!["dir_products".to_string(), "runs".into()]));
-        // The live tree: `transcripts` (it runs `target/niji/ldconfig`) waits, the other targets go beside.
-        let (beside, after) = xtask_test_split(&root());
+        // AFFECTED-LAYOUT-ROWS-2: unit tests that read products (`reads_live`, and `later` through the helper after
+        // the file's last test) are skipped beside the build and run after it by the same names; `plain` names one of
+        // them, so it runs unfiltered after the build too. A test that only writes text naming a product stays.
+        let s = fx.join("xtask").join("src");
+        fs::create_dir_all(s.join("sub")).unwrap();
+        let unit = "#[test]\nfn reads_live() {\n    let real = root.join(\"target/niji\");\n}\n#[test]\nfn unrelated() {\n    let x = \"target/niji\";\n}\n";
+        fs::write(s.join("a.rs"), unit).unwrap();
+        fs::write(s.join("sub").join("b.rs"), "#[test]\nfn later() {\n    helper();\n}\nfn helper() {\n    let n = dir.join(\"niji\");\n}\n").unwrap();
+        fs::write(t.join("plain.rs"), "fn main() { /* reads_live */ }").unwrap();
+        let (beside, after, units) = xtask_test_split(&fx);
+        let _ = fs::remove_dir_all(&fx);
+        assert_eq!(beside, ["test", "-p", "xtask", "--bins", "--test", "dir_plain", "--", "--skip", "later", "--skip", "reads_live"], "{beside:?}");
+        assert_eq!(units, ["test", "-p", "xtask", "--bins", "--", "later", "reads_live"], "{units:?}");
+        assert_eq!(named(&after), ["dir_products", "plain", "runs"], "{after:?}");
+        // The live tree: `transcripts` (it runs `target/niji/ldconfig`) waits, the other targets go beside; the
+        // manifest lint unit test (it reads `target/niji`) runs after the build.
+        let (beside, after, units) = xtask_test_split(&root());
         let (b, a) = (named(&beside), named(&after));
         assert!(a.contains(&"transcripts".to_string()) && !b.contains(&"transcripts".to_string()), "{beside:?} {after:?}");
         assert!(["affected_mode", "header_p2_fixed_rows", "probe_client"].iter().all(|n| b.contains(&n.to_string())), "{beside:?} {after:?}");
+        let lint = "a_product_build_leaves_no_earlier_product_for_the_manifest_lint".to_string();
+        assert!(units.contains(&lint) && beside.windows(2).any(|w| w[0] == "--skip" && w[1] == lint), "{beside:?} {units:?}");
+        println!("unit tests run after the products: {:?}", &units[5..]);
     }
 
     // The memory room is the smallest `memory.max` on the cgroup's path (`max` is no limit); side by side needs
