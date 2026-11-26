@@ -2,7 +2,9 @@
 /* sys/timex.h: adjtimex(2), ntp_adjtime(3) */
 #ifndef __NIJI_H_sys_timex_h
 #define __NIJI_H_sys_timex_h 1
-#define _SYS_TIMEX_H 1
+#ifndef _SYS_TIMEX_H
+# define _SYS_TIMEX_H 1
+#endif
 
 #include <features.h>
 

@@ -5,7 +5,9 @@
    and the generated tests check this file against it. */
 #ifndef __NIJI_H_features_h
 #define __NIJI_H_features_h 1
-#define _FEATURES_H 1
+#ifndef _FEATURES_H
+# define _FEATURES_H 1
+#endif
 
 #include <stdc-predef.h>
 

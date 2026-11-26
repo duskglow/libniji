@@ -2,7 +2,9 @@
 /* pwd.h: password database (XSH <pwd.h>). */
 #ifndef __NIJI_H_pwd_h
 #define __NIJI_H_pwd_h 1
-#define _PWD_H 1
+#ifndef _PWD_H
+# define _PWD_H 1
+#endif
 
 #include <features.h>
 

@@ -2,7 +2,9 @@
 /* wctype.h: wide character classification (C 7.30, XSH <wctype.h>). */
 #ifndef __NIJI_H_wctype_h
 #define __NIJI_H_wctype_h 1
-#define _WCTYPE_H 1
+#ifndef _WCTYPE_H
+# define _WCTYPE_H 1
+#endif
 
 #include <features.h>
 

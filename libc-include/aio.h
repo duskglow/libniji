@@ -2,7 +2,9 @@
 /* aio.h: asynchronous input and output (XSH <aio.h>). */
 #ifndef __NIJI_H_aio_h
 #define __NIJI_H_aio_h 1
-#define _AIO_H 1
+#ifndef _AIO_H
+# define _AIO_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

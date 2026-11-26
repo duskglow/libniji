@@ -2,7 +2,9 @@
 /* dirent.h: format of directory entries (XSH <dirent.h>). */
 #ifndef __NIJI_H_dirent_h
 #define __NIJI_H_dirent_h 1
-#define _DIRENT_H 1
+#ifndef _DIRENT_H
+# define _DIRENT_H 1
+#endif
 
 #include <features.h>
 

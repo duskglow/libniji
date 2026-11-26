@@ -2,7 +2,9 @@
 /* ulimit.h: ulimit(3), XSH <ulimit.h> */
 #ifndef __NIJI_H_ulimit_h
 #define __NIJI_H_ulimit_h 1
-#define _ULIMIT_H 1
+#ifndef _ULIMIT_H
+# define _ULIMIT_H 1
+#endif
 
 #include <features.h>
 

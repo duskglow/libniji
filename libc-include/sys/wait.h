@@ -3,7 +3,9 @@
    signal names show the whole of <signal.h>, so it is included there, never copied. */
 #ifndef __NIJI_H_sys_wait_h
 #define __NIJI_H_sys_wait_h 1
-#define _SYS_WAIT_H 1
+#ifndef _SYS_WAIT_H
+# define _SYS_WAIT_H 1
+#endif
 
 #include <features.h>
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450

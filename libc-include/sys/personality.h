@@ -2,7 +2,9 @@
 /* sys/personality.h: personality(2): the execution domain. */
 #ifndef __NIJI_H_sys_personality_h
 #define __NIJI_H_sys_personality_h 1
-#define _SYS_PERSONALITY_H 1
+#ifndef _SYS_PERSONALITY_H
+# define _SYS_PERSONALITY_H 1
+#endif
 
 #include <features.h>
 

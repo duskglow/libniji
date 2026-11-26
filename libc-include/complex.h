@@ -7,7 +7,7 @@
 #ifndef __NIJI_H_complex_h
 #define __NIJI_H_complex_h 1
 #include <features.h>
-#if __NIJI_CXX < 2
+#if (__NIJI_CXX < 2) && !defined _COMPLEX_H
 # define _COMPLEX_H 1
 #endif
 

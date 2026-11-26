@@ -2,7 +2,9 @@
 /* threads.h: C11 threads (C 7.26). */
 #ifndef __NIJI_H_threads_h
 #define __NIJI_H_threads_h 1
-#define _THREADS_H 1
+#ifndef _THREADS_H
+# define _THREADS_H 1
+#endif
 
 #include <features.h>
 #include <time.h>

@@ -2,7 +2,9 @@
 /* net/if_arp.h: ARP (arp(7)) */
 #ifndef __NIJI_H_net_if_arp_h
 #define __NIJI_H_net_if_arp_h 1
-#define _NET_IF_ARP_H 1
+#ifndef _NET_IF_ARP_H
+# define _NET_IF_ARP_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

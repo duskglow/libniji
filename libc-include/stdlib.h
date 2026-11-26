@@ -3,7 +3,9 @@
    per-locale value; the wait-status macros are XSH <sys/wait.h>'s bit fields of the 16-bit status. */
 #ifndef __NIJI_H_stdlib_h
 #define __NIJI_H_stdlib_h 1
-#define _STDLIB_H 1
+#ifndef _STDLIB_H
+# define _STDLIB_H 1
+#endif
 
 #include <features.h>
 
@@ -1670,7 +1672,7 @@ __NIJI_FORTIFY_FN int wctomb (char *__p0, wchar_t __p1) __NIJI_NOTHROW
 
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 #if defined __USE_MISC
-# ifndef FD_SET
+# ifndef __NIJI_FD_BITS
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))

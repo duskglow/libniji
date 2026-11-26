@@ -2,7 +2,9 @@
 /* monetary.h: monetary formatting (XSH <monetary.h>). */
 #ifndef __NIJI_H_monetary_h
 #define __NIJI_H_monetary_h 1
-#define _MONETARY_H 1
+#ifndef _MONETARY_H
+# define _MONETARY_H 1
+#endif
 
 #include <features.h>
 

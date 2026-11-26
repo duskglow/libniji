@@ -5,7 +5,9 @@
    <stdbool.h> does (spec/abi/visibility.tsv lists them). */
 #ifndef __NIJI_H_stdbit_h
 #define __NIJI_H_stdbit_h 1
-#define _STDBIT_H 1
+#ifndef _STDBIT_H
+# define _STDBIT_H 1
+#endif
 
 #include <features.h>
 #include <stdbool.h>

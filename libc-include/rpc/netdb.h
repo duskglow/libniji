@@ -2,7 +2,9 @@
 /* rpc/netdb.h: the RPC database (rpc(5)) */
 #ifndef __NIJI_H_rpc_netdb_h
 #define __NIJI_H_rpc_netdb_h 1
-#define _RPC_NETDB_H 1
+#ifndef _RPC_NETDB_H
+# define _RPC_NETDB_H 1
+#endif
 
 #include <features.h>
 

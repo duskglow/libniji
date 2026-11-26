@@ -2,7 +2,9 @@
 /* nss.h: name service switch configuration (nsswitch.conf(5)) */
 #ifndef __NIJI_H_nss_h
 #define __NIJI_H_nss_h 1
-#define _NSS_H 1
+#ifndef _NSS_H
+# define _NSS_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

@@ -2,7 +2,9 @@
 /* error.h: GNU error reporting (error(3)). */
 #ifndef __NIJI_H_error_h
 #define __NIJI_H_error_h 1
-#define _ERROR_H 1
+#ifndef _ERROR_H
+# define _ERROR_H 1
+#endif
 
 #include <features.h>
 

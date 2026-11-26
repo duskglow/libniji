@@ -2,7 +2,9 @@
 /* sched.h: execution scheduling (XSH <sched.h>), and the CPU set macros of CPU_SET(3) (GNU). */
 #ifndef __NIJI_H_sched_h
 #define __NIJI_H_sched_h 1
-#define _SCHED_H 1
+#ifndef _SCHED_H
+# define _SCHED_H 1
+#endif
 
 #include <features.h>
 /* The levels before POSIX.1-2001 without the default extensions show the whole of <time.h> here; the others only the

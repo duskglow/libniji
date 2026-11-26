@@ -3,7 +3,9 @@
    of their argument ([cwchar.syn]): the const overload is the C function, the other one calls it. */
 #ifndef __NIJI_H_wchar_h
 #define __NIJI_H_wchar_h 1
-#define _WCHAR_H 1
+#ifndef _WCHAR_H
+# define _WCHAR_H 1
+#endif
 
 #include <features.h>
 

@@ -2,7 +2,9 @@
 /* sys/eventfd.h: eventfd(2): event notification file descriptors. */
 #ifndef __NIJI_H_sys_eventfd_h
 #define __NIJI_H_sys_eventfd_h 1
-#define _SYS_EVENTFD_H 1
+#ifndef _SYS_EVENTFD_H
+# define _SYS_EVENTFD_H 1
+#endif
 
 #include <features.h>
 #include <stdint.h>

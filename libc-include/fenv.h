@@ -3,7 +3,9 @@
    (the default environment is -1 and the one with every trap enabled is -2; fesetenv and fegetenv treat them so). */
 #ifndef __NIJI_H_fenv_h
 #define __NIJI_H_fenv_h 1
-#define _FENV_H 1
+#ifndef _FENV_H
+# define _FENV_H 1
+#endif
 
 #include <features.h>
 

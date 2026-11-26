@@ -3,7 +3,9 @@
    variables, read on every use (they are assignable). */
 #ifndef __NIJI_H_stdio_h
 #define __NIJI_H_stdio_h 1
-#define _STDIO_H 1
+#ifndef _STDIO_H
+# define _STDIO_H 1
+#endif
 
 #include <features.h>
 

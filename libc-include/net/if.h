@@ -2,7 +2,9 @@
 /* net/if.h: network interfaces (XSH <net/if.h>) */
 #ifndef __NIJI_H_net_if_h
 #define __NIJI_H_net_if_h 1
-#define _NET_IF_H 1
+#ifndef _NET_IF_H
+# define _NET_IF_H 1
+#endif
 
 #include <features.h>
 #if defined __USE_MISC

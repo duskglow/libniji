@@ -43,7 +43,7 @@ KNOWN = {
     "_ATFILE_SOURCE", "_DEFAULT_SOURCE", "_DYNAMIC_STACK_SIZE_SOURCE", "_ISOC11_SOURCE", "_ISOC2X_SOURCE",
     "_ISOC95_SOURCE", "_ISOC99_SOURCE", "_LARGEFILE64_SOURCE", "_LARGEFILE_SOURCE", "_POSIX_C_SOURCE", "_POSIX_SOURCE",
     "_XOPEN_SOURCE", "_XOPEN_SOURCE_EXTENDED", "__WORDSIZE_TIME64_COMPAT32", "_SIGSET_NWORDS", "NULL",
-    "IPV6_RECVORIGDSTADDR", "IP_RECVORIGDSTADDR", "IP_RECVRETOPTS", "TEMP_FAILURE_RETRY", "FD_SET", "XATTR_CREATE",
+    "IPV6_RECVORIGDSTADDR", "IP_RECVORIGDSTADDR", "IP_RECVRETOPTS", "TEMP_FAILURE_RETRY", "XATTR_CREATE",
     *(f"__is{c}_l" for c in ("alnum", "alpha", "ascii", "blank", "cntrl", "digit", "graph", "lower", "print", "punct",
                              "space", "upper", "xdigit")), "__toascii_l",
     *(f"MM_NULL{s}" for s in ("ACT", "LBL", "MC", "SEV", "TAG", "TXT")),

@@ -2,7 +2,9 @@
 /* fcntl.h: file control (XSH <fcntl.h>). */
 #ifndef __NIJI_H_fcntl_h
 #define __NIJI_H_fcntl_h 1
-#define _FCNTL_H 1
+#ifndef _FCNTL_H
+# define _FCNTL_H 1
+#endif
 
 #include <features.h>
 

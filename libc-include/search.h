@@ -2,7 +2,9 @@
 /* search.h: search tables (XSH <search.h>). */
 #ifndef __NIJI_H_search_h
 #define __NIJI_H_search_h 1
-#define _SEARCH_H 1
+#ifndef _SEARCH_H
+# define _SEARCH_H 1
+#endif
 
 #include <features.h>
 

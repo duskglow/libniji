@@ -2,7 +2,9 @@
 /* sys/timeb.h: ftime(3), the 4.2BSD time of day */
 #ifndef __NIJI_H_sys_timeb_h
 #define __NIJI_H_sys_timeb_h 1
-#define _SYS_TIMEB_H 1
+#ifndef _SYS_TIMEB_H
+# define _SYS_TIMEB_H 1
+#endif
 
 #include <features.h>
 

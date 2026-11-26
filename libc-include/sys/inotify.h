@@ -2,7 +2,9 @@
 /* sys/inotify.h: inotify(7): file system event monitoring. */
 #ifndef __NIJI_H_sys_inotify_h
 #define __NIJI_H_sys_inotify_h 1
-#define _SYS_INOTIFY_H 1
+#ifndef _SYS_INOTIFY_H
+# define _SYS_INOTIFY_H 1
+#endif
 
 #include <features.h>
 #include <stdint.h>

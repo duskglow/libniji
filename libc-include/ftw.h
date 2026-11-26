@@ -2,7 +2,9 @@
 /* ftw.h: file tree walk (XSH <ftw.h>). */
 #ifndef __NIJI_H_ftw_h
 #define __NIJI_H_ftw_h 1
-#define _FTW_H 1
+#ifndef _FTW_H
+# define _FTW_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

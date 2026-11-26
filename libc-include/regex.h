@@ -2,7 +2,9 @@
 /* regex.h: regular expressions (XSH <regex.h>, GNU C Library manual). */
 #ifndef __NIJI_H_regex_h
 #define __NIJI_H_regex_h 1
-#define _REGEX_H 1
+#ifndef _REGEX_H
+# define _REGEX_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

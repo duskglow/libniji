@@ -2,7 +2,9 @@
 /* netdb.h: network database (XSH <netdb.h>) */
 #ifndef __NIJI_H_netdb_h
 #define __NIJI_H_netdb_h 1
-#define _NETDB_H 1
+#ifndef _NETDB_H
+# define _NETDB_H 1
+#endif
 
 #include <features.h>
 #include <netinet/in.h>

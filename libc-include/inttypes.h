@@ -2,7 +2,9 @@
 /* inttypes.h: format conversion of integer types (C 7.8). */
 #ifndef __NIJI_H_inttypes_h
 #define __NIJI_H_inttypes_h 1
-#define _INTTYPES_H 1
+#ifndef _INTTYPES_H
+# define _INTTYPES_H 1
+#endif
 
 #include <features.h>
 #include <stdint.h>

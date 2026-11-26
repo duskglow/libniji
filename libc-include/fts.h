@@ -2,7 +2,9 @@
 /* fts.h: file tree traversal (fts(3)). */
 #ifndef __NIJI_H_fts_h
 #define __NIJI_H_fts_h 1
-#define _FTS_H 1
+#ifndef _FTS_H
+# define _FTS_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

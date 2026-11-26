@@ -2,7 +2,9 @@
 /* sys/ipc.h: System V interprocess communication access structure (XSH <sys/ipc.h>). */
 #ifndef __NIJI_H_sys_ipc_h
 #define __NIJI_H_sys_ipc_h 1
-#define _SYS_IPC_H 1
+#ifndef _SYS_IPC_H
+# define _SYS_IPC_H 1
+#endif
 
 #include <features.h>
 

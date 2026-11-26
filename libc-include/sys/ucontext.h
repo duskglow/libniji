@@ -2,7 +2,9 @@
 /* sys/ucontext.h: machine context, user context and the register names (XSH <ucontext.h>, x86-64 psABI). */
 #ifndef __NIJI_H_sys_ucontext_h
 #define __NIJI_H_sys_ucontext_h 1
-#define _SYS_UCONTEXT_H 1
+#ifndef _SYS_UCONTEXT_H
+# define _SYS_UCONTEXT_H 1
+#endif
 
 #include <features.h>
 

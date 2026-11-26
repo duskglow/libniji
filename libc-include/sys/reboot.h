@@ -2,7 +2,9 @@
 /* sys/reboot.h: reboot(2) */
 #ifndef __NIJI_H_sys_reboot_h
 #define __NIJI_H_sys_reboot_h 1
-#define _SYS_REBOOT_H 1
+#ifndef _SYS_REBOOT_H
+# define _SYS_REBOOT_H 1
+#endif
 
 #include <features.h>
 

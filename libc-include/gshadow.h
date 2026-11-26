@@ -2,7 +2,9 @@
 /* gshadow.h: shadow group database (getsgnam(3)). */
 #ifndef __NIJI_H_gshadow_h
 #define __NIJI_H_gshadow_h 1
-#define _GSHADOW_H 1
+#ifndef _GSHADOW_H
+# define _GSHADOW_H 1
+#endif
 
 #include <features.h>
 

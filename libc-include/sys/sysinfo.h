@@ -2,7 +2,9 @@
 /* sys/sysinfo.h: sysinfo(2), get_nprocs(3), get_phys_pages(3) */
 #ifndef __NIJI_H_sys_sysinfo_h
 #define __NIJI_H_sys_sysinfo_h 1
-#define _SYS_SYSINFO_H 1
+#ifndef _SYS_SYSINFO_H
+# define _SYS_SYSINFO_H 1
+#endif
 
 #include <features.h>
 

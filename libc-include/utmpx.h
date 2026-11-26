@@ -2,7 +2,9 @@
 /* utmpx.h: user accounting database (XSH <utmpx.h>). */
 #ifndef __NIJI_H_utmpx_h
 #define __NIJI_H_utmpx_h 1
-#define _UTMPX_H 1
+#ifndef _UTMPX_H
+# define _UTMPX_H 1
+#endif
 
 #include <features.h>
 #include <sys/time.h>

@@ -2,7 +2,9 @@
 /* sys/time.h: time types (XSH <sys/time.h>); the timeval operations are BSD. */
 #ifndef __NIJI_H_sys_time_h
 #define __NIJI_H_sys_time_h 1
-#define _SYS_TIME_H 1
+#ifndef _SYS_TIME_H
+# define _SYS_TIME_H 1
+#endif
 
 #include <features.h>
 
@@ -459,7 +461,7 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 #endif
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 #if 1
-# ifndef FD_SET
+# ifndef __NIJI_FD_BITS
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))

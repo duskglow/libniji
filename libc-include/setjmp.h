@@ -4,7 +4,9 @@
    twice. */
 #ifndef __NIJI_H_setjmp_h
 #define __NIJI_H_setjmp_h 1
-#define _SETJMP_H 1
+#ifndef _SETJMP_H
+# define _SETJMP_H 1
+#endif
 
 #include <features.h>
 

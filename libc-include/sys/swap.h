@@ -2,7 +2,9 @@
 /* sys/swap.h: swapon(2), swapoff(2) */
 #ifndef __NIJI_H_sys_swap_h
 #define __NIJI_H_sys_swap_h 1
-#define _SYS_SWAP_H 1
+#ifndef _SYS_SWAP_H
+# define _SYS_SWAP_H 1
+#endif
 
 #include <features.h>
 
