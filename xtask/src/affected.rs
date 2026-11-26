@@ -102,6 +102,13 @@
 //! naming either (not through hubs or test-support modules), the spec sections of those modules and of the C entries
 //! whose bodies name one of them (the products tests reach code only through C entries); no reverse
 //! closure, no section 0, no "carries no section". Rules 1-3 and 5-7 (and every escalation to FULL) are unchanged.
+//! AFFECTED-LAYOUT-ROWS: a generated entry table (`ENTRY_TABLES`: `crates/abi/src/layout.rs` and its aarch64 twin)
+//! whose base diff changes only entries (`entry_change`: every changed line is one `abi-gen` writes for an entry, a
+//! literal array length, inside an entry, or a comment; the diff matches the tree) takes the modules NAMING a changed
+//! entry (or an entry containing one) as its users instead of the modules naming the table's module; the targets
+//! naming a changed entry are selected too. No diff (`git`, or a sync's `.changed.abi`), or any other change: the
+//! module's selection, as before. In this tier the image bounded set (D-X.142) then adds no dependents' unit tests
+//! for such a change, nor for a file of the crate's `tests/`.
 //! `--tier wide` is the rule 4 above; `--tier full` runs everything, as the landing gate (`cargo xtask test`) does.
 //! GATE-DEV-NO-FULL (owner, 11-19): in `direct` and `wide` no escalation runs FULL; the CI train runs the FULL gate on
 //! the merged tree. Each escalated file selects a bounded set by its class (`TrainClass`: xtask code, the image's
@@ -155,6 +162,14 @@ const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs", "
 /// them in its unit tests. A csys symbol named here selects `cargo xtask layout-check` on fresh products, not FULL.
 const LAYOUT_CONSUMERS: &[&str] = &["layout/contracts.tsv", "xtask/src/layout.rs"];
 const LAYOUT_CHECK: &str = "layout-check";
+
+/// AFFECTED-LAYOUT-ROWS: generated tables of entries (one `#[repr]` type per row of `spec/abi/layouts.tsv`, written
+/// by `cargo xtask abi-gen`). In the direct tier a change that only adds, removes or changes entries
+/// ([`entry_change`]) selects by the changed entries (`Selection::narrow_direct` with the entries), not by the module.
+const ENTRY_TABLES: &[&str] = &["crates/abi/src/layout.rs", "crates/abi/src/layout_aarch64.rs"];
+/// The directory whose base diff (`git diff -U0`, or the sync's `.changed.abi` in a tree without history) holds
+/// [`ENTRY_TABLES`].
+const ENTRY_DIFF_DIR: &str = "crates/abi/";
 
 /// XTASK-AFFECTED-LAYOUT: the libc product. The programs of [`LAYOUT_TESTS`] link `-static -nostdlib` against
 /// `niji-crt1.o` and `libc.a` only (never `ld.so` or `libm.a`), so what this manifest links is what they measure.
@@ -289,6 +304,11 @@ pub struct Repo {
     /// `.changed.xtask` a sync may write). `None`: no diff, so a changed xtask source cannot be shown to touch only
     /// its test module (FULL, as before).
     xtask_diff: Option<String>,
+    /// AFFECTED-LAYOUT-ROWS: `git diff -U0` of [`ENTRY_DIFF_DIR`] against the base (from git, else the file
+    /// `.changed.abi` a sync may write). `None`: no diff, so a changed entry table selects by its module, as before.
+    entry_diff: Option<String>,
+    /// AFFECTED-LAYOUT-ROWS: the current text of each [`ENTRY_TABLES`] file present in the tree.
+    entry_texts: BTreeMap<String, String>,
     /// XTASK-AFFECTED-LAYOUT: what `libc.a` links (`image_of`, from the manifests and crate roots).
     image: Image,
 }
@@ -1284,7 +1304,7 @@ impl Repo {
             examples.extend(xs.iter().map(|p| (rel(p), p)).filter(|(r, _)| r.strip_prefix(&top).is_some_and(|n| !n.contains('/'))).map(|(r, p)| (r, read(p))));
         }
         examples.sort();
-        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok() }
+        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok(), entry_diff: fs::read_to_string(root.join(".changed.abi")).ok(), entry_texts: ENTRY_TABLES.iter().filter_map(|f| fs::read_to_string(root.join(f)).ok().map(|t| (f.to_string(), t))).collect() }
     }
 
     /// The module of the graph a source path belongs to, `(crate, module)`, as `classify_path` names it.
@@ -1295,6 +1315,15 @@ impl Repo {
         let stem = |s: &str| s.split('.').next().unwrap_or(s).to_string();
         let name = if c.name == "niji-boundary" && parts.len() >= 2 && parts[0] == "posix" { stem(parts[1]) } else { stem(parts[0]) };
         Some((c.name.clone(), name))
+    }
+
+    /// AFFECTED-LAYOUT-ROWS: the changed entries of entry table `f` when its base diff changes only entries
+    /// ([`entry_change`]); `None` for any other file, without a diff or text, or for any other change.
+    fn entry_change(&self, f: &str) -> Option<BTreeSet<String>> {
+        if !ENTRY_TABLES.contains(&f) {
+            return None;
+        }
+        entry_change(self.entry_diff.as_deref()?, f, self.entry_texts.get(f)?)
     }
 
     fn crate_of(&self, path: &str) -> Option<&Crate> {
@@ -1718,6 +1747,20 @@ impl Selection {
     /// decided before this (`classify`). Data (GATE-TIME, 100 gates): every real failure was in a target the change
     /// names directly; the reverse closure caught only flakes. The landing gate runs everything.
     fn narrow_direct(&mut self, repo: &Repo, krate: &str, name: &str, file: &str) {
+        self.narrow_direct_by(repo, krate, name, file, None);
+    }
+
+    /// AFFECTED-LAYOUT-ROWS: the direct tier for a change to an entry table ([`ENTRY_TABLES`]) that changes only the
+    /// `entries` ([`entry_change`]). As [`Selection::narrow_direct`], with the module's users narrowed to the modules
+    /// whose text names a changed entry (as a whole word: through any import, alias of the module or glob), and the
+    /// targets to those naming a changed entry or one of those users. A module that names the table's module but no
+    /// changed entry cannot see the change: entries are plain `#[repr(C)]` types, and a type no code names changes no
+    /// code. The table's own crate keeps its unit tests (and clippy).
+    fn narrow_entries(&mut self, repo: &Repo, krate: &str, name: &str, file: &str, entries: &BTreeSet<String>) {
+        self.narrow_direct_by(repo, krate, name, file, Some(entries));
+    }
+
+    fn narrow_direct_by(&mut self, repo: &Repo, krate: &str, name: &str, file: &str, only: Option<&BTreeSet<String>>) {
         let Some(start) = repo.nodes.iter().position(|n| n.krate == krate && n.name == name) else {
             return self.wide(repo, krate, &format!("{file}: module `{name}` not found in the module graph"));
         };
@@ -1749,16 +1792,29 @@ impl Selection {
                 x != start
                     && repo.may_use(&nx.krate, krate)
                     && !(self.products && repo.test_only.contains(&(nx.krate.clone(), nx.name.clone())))
-                    &&(nx.refs.contains(&(Some(krate.to_string()), name.to_string())) || (nx.krate == krate && nx.refs.contains(&(None, name.to_string()))) || names_item(nx))
+                    && match only {
+                        Some(es) => es.iter().any(|e| names_word(&nx.text, e)),
+                        None => nx.refs.contains(&(Some(krate.to_string()), name.to_string())) || (nx.krate == krate && nx.refs.contains(&(None, name.to_string()))) || names_item(nx),
+                    }
             })
             .map(|(x, _)| x)
             .collect();
         let label = |i: usize| format!("{}::{}", repo.nodes[i].krate, repo.nodes[i].name);
         self.modules.insert((krate.to_string(), name.to_string()));
         self.modules.extend(users.iter().map(|&i| (repo.nodes[i].krate.clone(), repo.nodes[i].name.clone())));
-        self.notes.push(format!("{file}: DIRECT tier: module {} and its {} one-hop users: {}", label(start), users.len(), users.iter().map(|&i| label(i)).collect::<Vec<_>>().join(", ")));
-        // Modules whose namers are selected: the changed one, and users that are neither hubs nor test support.
-        let mut named: Vec<usize> = vec![start];
+        let whose = match only {
+            Some(es) => {
+                self.notes.push(format!("{file}: DIRECT tier, entries only ({} changed: {}): module {} and the {} modules naming them: {}", es.len(), es.iter().cloned().collect::<Vec<_>>().join(", "), label(start), users.len(), users.iter().map(|&i| label(i)).collect::<Vec<_>>().join(", ")));
+                "sections of the modules naming the changed entries"
+            }
+            None => {
+                self.notes.push(format!("{file}: DIRECT tier: module {} and its {} one-hop users: {}", label(start), users.len(), users.iter().map(|&i| label(i)).collect::<Vec<_>>().join(", ")));
+                "sections of the module and its one-hop users"
+            }
+        };
+        // Modules whose namers are selected: the changed one (not for an entries-only change: naming the table's
+        // module is not naming a changed entry), and users that are neither hubs nor test support.
+        let mut named: Vec<usize> = if only.is_some() { Vec::new() } else { vec![start] };
         named.extend(users.iter().copied().filter(|&i| !repo.hubs.contains(&i) && !repo.test_only.contains(&(repo.nodes[i].krate.clone(), repo.nodes[i].name.clone()))));
         let mut sections: BTreeSet<u32> = BTreeSet::new();
         sections.extend(ns.section);
@@ -1796,8 +1852,10 @@ impl Selection {
         for t in repo.targets.iter().filter(|t| eligible.contains(&t.krate)) {
             let why = if let Some((_, r)) = t.refs.iter().find(|(c, m)| named.iter().any(|&i| repo.nodes[i].name == *m && c.as_ref().is_none_or(|c| *c == repo.nodes[i].krate)) || (c.as_deref() == Some(krate) && items.contains(m))) {
                 via(&format!("names `{r}` (the module, a name it re-exports or a one-hop user)"))
+            } else if let Some(e) = only.and_then(|es| es.iter().find(|e| names_word(&t.text, e))) {
+                via(&format!("names the changed entry `{e}`"))
             } else if let Some(s) = t.sections.intersection(&sections).next() {
-                via(&format!("spec section {s} (sections of the module and its one-hop users: {})", secs.join(",")))
+                via(&format!("spec section {s} ({whose}: {})", secs.join(",")))
             } else if let Some((s, w)) = entry_secs.iter().find(|(s, _)| t.sections.contains(s)) {
                 via(&format!("spec section {s} of a C entry the change reaches ({w})"))
             } else {
@@ -1843,7 +1901,7 @@ impl Selection {
         let reached = |e: &Entry, c: &Conf| e.node == start || e.refs.iter().any(|(m_c, m)| named.iter().any(|&i| (i == start || (repo.nodes[i].krate != krate && !repo.entry_hubs.contains(&i) && follow(i, c))) && repo.nodes[i].name == *m && repo.nodes[i].krate == *m_c.as_deref().unwrap_or(repo.nodes[e.node].krate.as_str())));
         for c in &repo.conf {
             if let Some(s) = c.sections.intersection(&sections).next() {
-                add(&mut self.conf, c.name.clone(), &via(&format!("spec section {s} (sections of the module and its one-hop users: {})", secs.join(","))));
+                add(&mut self.conf, c.name.clone(), &via(&format!("spec section {s} ({whose}: {})", secs.join(","))));
             } else if let Some(sym) = c.calls.iter().find(|s| repo.entries[*s].iter().any(|e| reached(e, c) && repo.nodes[e.node].section.is_some_and(|x| c.sections.contains(&x)))) {
                 add(&mut self.conf, c.name.clone(), &via(&format!("calls `{sym}`, whose entry is in the module or names it or a one-hop user")));
             }
@@ -2285,6 +2343,208 @@ fn test_module_change(diff: &str, file: &str, text: &str) -> bool {
     hunks > 0
 }
 
+/// AFFECTED-LAYOUT-ROWS: one line of a generated entry table ([`ENTRY_TABLES`]), as `cargo xtask abi-gen` writes it.
+/// Anything the generator does not write for an entry is `Other` (code, a constant, a macro, an inner attribute).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryLine<'a> {
+    Blank,
+    /// A line comment or doc comment (`//`, `//!`, `///`, indented `///`): no code.
+    Comment,
+    /// `#[repr(C)]`, `#[repr(C, packed)]`, `#[repr(C, align(<digits>))]`, `#[repr(transparent)]`, `#[derive(Clone, Copy)]`.
+    Attr,
+    /// `pub struct <name> {` or `pub union <name> {`.
+    Open(&'a str),
+    /// `pub struct <name>(pub <type>);`
+    Newtype(&'a str),
+    /// `    pub <field>: <type>,`
+    Member,
+    /// `}` at column 0.
+    Close,
+    Other,
+}
+
+fn is_ident(s: &str) -> bool {
+    s.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// A member type of an entry table: a type name, or `[<type>; <decimal digits>]`. A length that is a constant or an
+/// expression (`[u8; N]`, `[u8; 4 + 4]`) is not one: other code can define or share it.
+fn entry_type(s: &str) -> bool {
+    match s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        Some(inner) => inner.rsplit_once("; ").is_some_and(|(t, n)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && entry_type(t)),
+        None => is_ident(s),
+    }
+}
+
+fn entry_line(l: &str) -> EntryLine<'_> {
+    if l.trim().is_empty() {
+        return EntryLine::Blank;
+    }
+    if l.starts_with("//") || l.starts_with("    ///") {
+        return EntryLine::Comment;
+    }
+    if l == "}" {
+        return EntryLine::Close;
+    }
+    if matches!(l, "#[repr(C)]" | "#[repr(C, packed)]" | "#[repr(transparent)]" | "#[derive(Clone, Copy)]")
+        || l.strip_prefix("#[repr(C, align(")
+            .and_then(|r| r.strip_suffix("))]"))
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+    {
+        return EntryLine::Attr;
+    }
+    if let Some(n) = l.strip_prefix("pub struct ").or_else(|| l.strip_prefix("pub union ")).and_then(|r| r.strip_suffix(" {")) {
+        if is_ident(n) {
+            return EntryLine::Open(n);
+        }
+    }
+    if let Some((n, t)) = l.strip_prefix("pub struct ").and_then(|r| r.strip_suffix(");")).and_then(|r| r.split_once("(pub ")) {
+        if is_ident(n) && entry_type(t) {
+            return EntryLine::Newtype(n);
+        }
+    }
+    if let Some((f, t)) = l.strip_prefix("    pub ").and_then(|r| r.strip_suffix(',')).and_then(|r| r.split_once(": ")) {
+        if is_ident(f.strip_prefix("r#").unwrap_or(f)) && entry_type(t) {
+            return EntryLine::Member;
+        }
+    }
+    EntryLine::Other
+}
+
+/// The entry each line of an entry table belongs to (0-based lines): an entry's attribute lines, its `pub struct`
+/// or `pub union` line, its members and its closing `}`, or its one newtype line. Lines outside every entry: `None`.
+fn entry_of_lines(lines: &[&str]) -> Vec<Option<String>> {
+    let mut out = vec![None; lines.len()];
+    let mut open: Option<&str> = None;
+    let mut pending: Vec<usize> = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        let kind = entry_line(l);
+        if let Some(n) = open {
+            out[i] = Some(n.to_string());
+            if kind == EntryLine::Close {
+                open = None;
+            }
+            continue;
+        }
+        match kind {
+            EntryLine::Attr => pending.push(i),
+            EntryLine::Open(n) | EntryLine::Newtype(n) => {
+                for p in pending.drain(..).chain([i]) {
+                    out[p] = Some(n.to_string());
+                }
+                if matches!(kind, EntryLine::Open(_)) {
+                    open = Some(n);
+                }
+            }
+            EntryLine::Comment if l.starts_with("///") => {}
+            _ => pending.clear(),
+        }
+    }
+    out
+}
+
+/// AFFECTED-LAYOUT-ROWS: the entries a base diff (`git diff -U0`) changes in entry table `file` (current text `text`),
+/// when it changes only entries: the file has one plain modification section (no new, deleted, renamed, copied or
+/// binary file, no mode change), the `+` lines are the current text's lines where the hunks say (a stale diff is not
+/// trusted), and every added or removed line is a line the generator writes for an entry ([`entry_line`]) that lies
+/// inside an entry of its text (the current text for `+`, the base text rebuilt from the diff for `-`), or a blank or
+/// comment line. Each changed entry adds its name, and every entry whose members name a changed entry adds its own
+/// (to the fixpoint: a containing type's layout changes with it). `None`: anything else (code, a constant, a macro,
+/// an attribute outside an entry, an unreadable diff): the caller selects by the module, as before.
+fn entry_change(diff: &str, file: &str, text: &str) -> Option<BTreeSet<String>> {
+    let header = format!("diff --git a/{file} b/{file}");
+    let mut sections = diff.split("\ndiff --git ").enumerate().map(|(k, s)| if k == 0 { s.to_string() } else { format!("diff --git {s}") });
+    let sec = sections.find(|s| s.lines().next() == Some(header.as_str()))?;
+    if sections.any(|s| s.lines().next() == Some(header.as_str())) {
+        return None;
+    }
+    let new: Vec<&str> = text.lines().collect();
+    // Hunks: (new start, new count, removed lines, added lines), in file order.
+    let mut hunks: Vec<(usize, usize, Vec<&str>, Vec<&str>)> = Vec::new();
+    for l in sec.lines().skip(1) {
+        if let Some(h) = l.strip_prefix("@@ ") {
+            let new_part = h.split(' ').nth(1)?.strip_prefix('+')?;
+            let (s, c) = new_part.split_once(',').unwrap_or((new_part, "1"));
+            hunks.push((s.parse().ok()?, c.parse().ok()?, Vec::new(), Vec::new()));
+        } else if hunks.is_empty() && (l.starts_with("--- ") || l.starts_with("+++ ") || l.starts_with("index ")) || l.starts_with('\\') {
+            continue;
+        } else if let Some(body) = l.strip_prefix('-') {
+            hunks.last_mut()?.2.push(body);
+        } else if let Some(body) = l.strip_prefix('+') {
+            hunks.last_mut()?.3.push(body);
+        } else {
+            // `new file`, `deleted file`, `rename`, `copy`, `Binary`, a mode line, or a line no -U0 hunk has.
+            return None;
+        }
+    }
+    if hunks.is_empty() {
+        return None;
+    }
+    // The base text: the current lines with each hunk's added lines replaced by its removed ones. Old line numbers of
+    // the removed lines are kept to find their entries in it.
+    let mut old: Vec<&str> = Vec::new();
+    let mut removed_at: Vec<usize> = Vec::new();
+    let mut next = 0usize; // 0-based index of the next current line not yet copied
+    for (start, count, minus, plus) in &hunks {
+        // `-U0`: a hunk that adds nothing names the line before the removal (0: the start of the file).
+        let at = if *count == 0 { *start } else { start.checked_sub(1)? };
+        if at < next || at + count > new.len() || plus.len() != *count || new[at..at + count] != plus[..] {
+            return None;
+        }
+        old.extend_from_slice(&new[next..at]);
+        removed_at.extend(old.len()..old.len() + minus.len());
+        old.extend(minus.iter().copied());
+        next = at + count;
+    }
+    old.extend_from_slice(&new[next..]);
+    let (new_of, old_of) = (entry_of_lines(&new), entry_of_lines(&old));
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut take = |l: &str, entry: &Option<String>| -> Option<()> {
+        match (entry_line(l), entry) {
+            (EntryLine::Other, _) => None,
+            (_, Some(n)) => {
+                names.insert(n.clone());
+                Some(())
+            }
+            (EntryLine::Blank | EntryLine::Comment, None) => Some(()),
+            _ => None,
+        }
+    };
+    for &i in &removed_at {
+        take(old[i], &old_of[i])?;
+    }
+    for (start, count, ..) in hunks.iter().filter(|h| h.1 > 0) {
+        for i in start - 1..start - 1 + count {
+            take(new[i], &new_of[i])?;
+        }
+    }
+    // Containing entries, in the current text: an entry whose member or newtype line names a changed entry.
+    loop {
+        let mut grew = false;
+        for (i, l) in new.iter().enumerate() {
+            let Some(n) = &new_of[i] else { continue };
+            if names.contains(n) || !matches!(entry_line(l), EntryLine::Member | EntryLine::Newtype(_)) {
+                continue;
+            }
+            // Every word of the line: its types, and a field that shares a changed entry's name (more, never less).
+            if l.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).any(|w| names.contains(w)) {
+                names.insert(n.clone());
+                grew = true;
+            }
+        }
+        if !grew {
+            return Some(names);
+        }
+    }
+}
+
+/// Whether `text` names `word` as a whole identifier (not as part of a longer one).
+fn names_word(text: &str, word: &str) -> bool {
+    let b = text.as_bytes();
+    let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    text.match_indices(word).any(|(i, _)| (i == 0 || !id(b[i - 1])) && b.get(i + word.len()).is_none_or(|&c| !id(c)))
+}
+
 /// The selection for a set of changed files (paths relative to the repository root, `/`).
 #[cfg(test)]
 pub fn select(repo: &Repo, files: &[String]) -> Selection {
@@ -2594,10 +2854,14 @@ impl Selection {
                     ordinary_mapping(repo, f, self);
                 }
                 let owner = if f.starts_with("csys/") { Some(CSYS_CRATE.to_string()) } else { repo.crate_of(f).map(|c| c.name.clone()) };
+                // AFFECTED-LAYOUT-ROWS: in the direct tier, an entries-only change of an entry table reaches the
+                // dependents only through the modules naming a changed entry (their crates' unit tests come from the
+                // mapping above), and a file of the crate's `tests/` is compiled into its own targets only.
+                let alone = self.direct && (repo.entry_change(f).is_some() || repo.crate_of(f).is_some_and(|c| f[c.dir.len() + 1..].starts_with("tests/")));
                 if let Some(o) = owner {
                     add(&mut self.clippy, o.clone(), &why);
                     add(&mut self.libs, o.clone(), &why);
-                    let hop: Vec<String> = repo.crates.iter().filter(|c| c.deps.contains(&o)).map(|c| c.name.clone()).collect();
+                    let hop: Vec<String> = if alone { Vec::new() } else { repo.crates.iter().filter(|c| c.deps.contains(&o)).map(|c| c.name.clone()).collect() };
                     for d in &hop {
                         add(&mut self.libs, d.clone(), &format!("{why} (depends on `{o}`)"));
                     }
@@ -2797,7 +3061,10 @@ fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
         };
         let root = parts.len() == 1 && (name == "lib" || name == "main");
         if sel.direct && !root {
-            sel.narrow_direct(repo, &cname, &name, f);
+            match repo.entry_change(f) {
+                Some(entries) => sel.narrow_entries(repo, &cname, &name, f, &entries),
+                None => sel.narrow_direct(repo, &cname, &name, f),
+            }
         } else if !NARROW.contains(&cname.as_str()) || root {
             let why = if root { format!("{f}: crate root file (wide)") } else { format!("{f}: `{cname}` is shared infrastructure (wide)") };
             sel.wide(repo, &cname, &why);
@@ -3403,10 +3670,16 @@ fn git(root: &Path, args: &[&str]) -> Result<String, String> {
 /// `None` without git history or base (a VM tree: the caller keeps the sync's `.changed.xtask`, if any). An untracked
 /// file is not in it, so it is never shown to be test-only.
 fn git_xtask_diff(root: &Path, base: &str) -> Option<String> {
+    git_base_diff(root, base, "xtask/")
+}
+
+/// `git diff -U0` of directory `dir` (the working tree against the merge base with `base`); `None` without git
+/// history or base. Shared by the xtask diff (D-X.41) and the entry tables' diff (AFFECTED-LAYOUT-ROWS).
+fn git_base_diff(root: &Path, base: &str, dir: &str) -> Option<String> {
     git(root, &["rev-parse", "--verify", "--quiet", "HEAD"]).ok()?;
     let base = if git(root, &["rev-parse", "--verify", "--quiet", base]).is_ok() { base } else if base == "origin/main" { "main" } else { return None };
     let mb = git(root, &["merge-base", "HEAD", base]).ok()?;
-    git(root, &["diff", "-U0", "--no-color", "--no-ext-diff", mb.trim(), "--", "xtask/"]).ok()
+    git(root, &["diff", "-U0", "--no-color", "--no-ext-diff", mb.trim(), "--", dir]).ok()
 }
 
 /// Changed file names: the working tree against the merge base with `base`, plus untracked.
@@ -4774,7 +5047,7 @@ fn execute(root: &Path, o: &Opts, mode: Mode, runner: &mut Runner<'_>) -> Result
             branches.push((name.clone(), branch_files(&text)));
         }
         // The lists are the branches' changes, not this tree's: no header or xtask diff of the local tree applies.
-        let repo = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(root) };
+        let repo = Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(root) };
         let (atts, full) = reverse(&repo, &failed, &branches, tier);
         print!("{}", reverse_json(tier, &branches, &full, &atts));
         eprint!("{}", reverse_summary(tier, &branches, &full, &atts));
@@ -4800,6 +5073,8 @@ fn execute(root: &Path, o: &Opts, mode: Mode, runner: &mut Runner<'_>) -> Result
     let mut repo = Repo::load(root);
     // D-X.41: the xtask diff describes the base comparison only; a `--files` list is not one (no diff: FULL as before).
     repo.xtask_diff = if o.files.is_some() { None } else { git_xtask_diff(root, &o.base).or(repo.xtask_diff) };
+    // AFFECTED-LAYOUT-ROWS: the same for the entry tables (no diff: they select by their module, as before).
+    repo.entry_diff = if o.files.is_some() { None } else { git_base_diff(root, &o.base, ENTRY_DIFF_DIR).or(repo.entry_diff) };
     let sel = select_tier(&repo, &files, tier);
     println!("tier: {tier:?} (per-fix gates: direct; the landing gate runs everything)");
     print_selection(&repo, &files, &sel);
@@ -5207,7 +5482,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn repo() -> &'static Repo {
         static REPO: std::sync::OnceLock<Repo> = std::sync::OnceLock::new();
         // The sync's `.changed.hdr` (present in a VM tree) must not decide the unit tests: no header diff here.
-        REPO.get_or_init(|| Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) })
+        REPO.get_or_init(|| Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(&root()) })
     }
 
     // TOOLS-7 (3): only one-line `niji_*` declarations are mappable; anything structural is not.
@@ -6061,7 +6336,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     /// The live repository with the listed machine files' exports replaced by `FIXTURE_EXPORTS` (their `niji_`
     /// symbols, which tie the files to their Rust users and to each other, stay live).
     fn machine_fixture(extra: &[&str]) -> Repo {
-        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(&root()) };
         for (file, exports) in FIXTURE_EXPORTS {
             let c = r.csys.get_mut(&format!("csys/src/machine/{file}")).expect("listed machine file");
             let mut syms: Vec<String> = c.symbols.take().expect("readable").into_iter().filter(|s| s.starts_with("niji_")).collect();
@@ -6179,7 +6454,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let f = "xtask/src/so.rs";
         let text = &repo().xtask_texts.iter().find(|(p, _)| p == f).expect("so.rs").1;
         let (lo, hi) = test_module_interior(text).expect("so.rs ends with its test module");
-        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(&root()) };
         assert!(!select_tier(&r, &[f.to_string()], Tier::Direct).no_escalation(), "no diff: FULL");
         r.xtask_diff = Some(diff_of(f, &format!("@@ -{lo},0 +{} @@\n+        let _ = 1;\n", lo + 1)));
         let s = select_tier(&r, &[f.to_string()], Tier::Direct);
@@ -6600,7 +6875,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     // with no such arm is FULL, and a module no step calls (a bench runner) selects nothing.
     #[test]
     fn example_steps_follow_the_xtask_source_that_names_the_example() {
-        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(&root()) };
         let main = r#"
     t.time("demo-run", || demo_runner::go(root))?;
     t.time("lonely", || lonely::go(root))?;
@@ -7054,5 +7329,80 @@ fn plain() {}", &aliases);
         assert!(pass_filter(0, true, "niji-boundary", &ts).is_empty(), "the first pass runs every shard");
         assert!(pass_filter(2, true, "niji-boundary", &ts).is_empty() && pass_filter(1, false, "niji-boundary", &ts).is_empty());
         assert!(pass_filter(1, true, "niji-boundary", &["heap_threads"]).is_empty());
+    }
+
+    const ENTRY_TEXT: &str = "//! doc\n#![allow(non_camel_case_types)]\n\n#[repr(C, align(4))]\n#[derive(Clone, Copy)]\npub struct div_t {\n    pub quot: i32,\n    pub rem: i32,\n}\n\n#[repr(C)]\n#[derive(Clone, Copy)]\npub struct outer {\n    pub d: [div_t; 2],\n}\n\n#[repr(transparent)]\n#[derive(Clone, Copy)]\npub struct wrap(pub u32);\n";
+
+    fn entries(text: &str, hunks: &str) -> Option<Vec<String>> {
+        let f = "crates/abi/src/layout.rs";
+        entry_change(&diff_of(f, hunks), f, text).map(|s| s.into_iter().collect())
+    }
+
+    #[test]
+    fn entry_table_diffs_tell_entries_from_code() {
+        // no spec clause: AFFECTED-LAYOUT-ROWS. Entries only: the changed entries and the entries containing them.
+        let v = |s: &[&str]| Some(s.iter().map(|x| x.to_string()).collect::<Vec<_>>());
+        assert_eq!(entries(ENTRY_TEXT, "@@ -8 +8 @@\n-    pub rem: u32,\n+    pub rem: i32,\n"), v(&["div_t", "outer"]), "a member, and the entry holding it");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -4 +4 @@\n-#[repr(C, align(8))]\n+#[repr(C, align(4))]\n"), v(&["div_t", "outer"]), "an attribute belongs to the entry after it");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -15,0 +16,4 @@\n+\n+#[repr(transparent)]\n+#[derive(Clone, Copy)]\n+pub struct wrap(pub u32);\n"), v(&["wrap"]), "an added entry");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -20,6 +19,0 @@\n-\n-#[repr(C)]\n-#[derive(Clone, Copy)]\n-pub union gone {\n-    pub x: [u8; 4],\n-}\n"), v(&["gone"]), "a removed entry (found in the rebuilt base text)");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -9,0 +10 @@\n-    pub old: u8,\n"), None, "a `-` line without its `@@` count is not a -U0 hunk of this text");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -9 +8,0 @@\n-    pub old: u8,\n"), v(&["div_t", "outer"]), "a removed member");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -1 +1 @@\n-//! old\n+//! doc\n"), v(&[]), "a comment changes no entry");
+        // Anything else: None (the module's selection, as before).
+        assert_eq!(entries(ENTRY_TEXT, "@@ -2 +2 @@\n-#![allow(dead_code)]\n+#![allow(non_camel_case_types)]\n"), None, "an inner attribute");
+        let n = ENTRY_TEXT.replace("[div_t; 2]", "[div_t; N]");
+        assert_eq!(entries(&n, "@@ -14 +14 @@\n-    pub d: [div_t; 2],\n+    pub d: [div_t; N],\n"), None, "a length that is a constant other code may share");
+        let e = ENTRY_TEXT.replace("[div_t; 2]", "[div_t; 1 + 1]");
+        assert_eq!(entries(&e, "@@ -14 +14 @@\n-    pub d: [div_t; 2],\n+    pub d: [div_t; 1 + 1],\n"), None, "a const expression in an entry-looking line");
+        let m = ENTRY_TEXT.replace("    pub rem: i32,", "    pub rem: pick!(i32),");
+        assert_eq!(entries(&m, "@@ -8 +8 @@\n-    pub rem: i32,\n+    pub rem: pick!(i32),\n"), None, "a macro in an entry-looking line");
+        let c = format!("{ENTRY_TEXT}pub const LEN: usize = 2;\n");
+        assert_eq!(entries(&c, "@@ -19,0 +20 @@\n+pub const LEN: usize = 2;\n"), None, "a constant other code uses");
+        let i = ENTRY_TEXT.replace("pub struct wrap(pub u32);\n", "pub struct wrap(pub u32);\nimpl wrap {\n}\n");
+        assert_eq!(entries(&i, "@@ -19,0 +20,2 @@\n+impl wrap {\n+}\n"), None, "code (an impl block)");
+        assert_eq!(entries(ENTRY_TEXT, "@@ -8 +8 @@\n-    pub rem: u32,\n+    pub rem: i64,\n"), None, "a stale diff (its + line is not the text's)");
+        let f = "crates/abi/src/layout.rs";
+        assert!(entry_change(&format!("diff --git a/{f} b/{f}\nnew file mode 100644\n--- /dev/null\n+++ b/{f}\n@@ -0,0 +1 @@\n+//! doc\n"), f, ENTRY_TEXT).is_none(), "a new file");
+        assert!(entry_change(&diff_of("crates/abi/src/pack.rs", "@@ -1 +1 @@\n-//! x\n+//! doc\n"), f, ENTRY_TEXT).is_none(), "no section for the file");
+        assert!(names_word("use x::{div_t, outer};", "div_t") && !names_word("struct_div_t2", "div_t") && !names_word("div_tx", "div_t"));
+    }
+
+    #[test]
+    fn an_entries_only_layout_change_selects_by_its_entries() {
+        // no spec clause: AFFECTED-LAYOUT-ROWS. The real table: `div_t` as if added. Its namers are selected, not the
+        // sections of every module naming `layout`; a diff touching code keeps the module's selection.
+        let f = "crates/abi/src/layout.rs";
+        let module = tier(&[f], Tier::Direct);
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, entry_diff: None, ..Repo::load(&root()) };
+        let text = r.entry_texts[f].clone();
+        let lines: Vec<&str> = text.lines().collect();
+        let open = lines.iter().position(|l| *l == "pub struct div_t {").expect("div_t in the table");
+        let (first, close) = (open - 2, open + lines[open..].iter().position(|l| *l == "}").expect("its end"));
+        let plus: String = lines[first..=close].iter().map(|l| format!("+{l}\n")).collect();
+        r.entry_diff = Some(diff_of(f, &format!("@@ -{first},0 +{},{} @@\n{plus}", first + 1, close - first + 1)));
+        assert_eq!(r.entry_change(f).map(|s| s.into_iter().collect::<Vec<_>>()), Some(vec!["div_t".to_string()]));
+        let s = select_tier(&r, &[f.to_string()], Tier::Direct);
+        assert!(s.notes.iter().any(|n| n.contains("entries only")), "{:?}", s.notes);
+        assert!(s.tests.keys().all(|k| module.tests.contains_key(k)) && s.conf.keys().all(|k| module.conf.contains_key(k)), "a subset of the module's selection");
+        assert!(s.tests.len() < module.tests.len(), "narrower: {} of {}", s.tests.len(), module.tests.len());
+        assert!(!s.tests.values().chain(s.conf.values()).any(|w| w.contains("one-hop users")), "no section of the module's users");
+        assert!(!s.libs.values().any(|w| w.contains("depends on `niji-abi`")), "no dependents' unit tests by the bounded set");
+        for (k, t) in LAYOUT_TESTS {
+            assert!(s.tests.contains_key(&(k.to_string(), t.to_string())), "start-up layout test {k}::{t} kept");
+        }
+        assert!(s.tests.contains_key(&("niji-abi".to_string(), "appendix_c_layouts".to_string())), "the layout test names the entry");
+        // Code in the same table: the module's selection, as before.
+        let allow = lines.iter().position(|l| l.starts_with("#![allow(")).expect("inner attribute");
+        r.entry_diff = Some(diff_of(f, &format!("@@ -{0} +{0} @@\n-#![allow(dead_code)]\n+{1}\n", allow + 1, lines[allow])));
+        assert!(r.entry_change(f).is_none());
+        let s = select_tier(&r, &[f.to_string()], Tier::Direct);
+        assert_eq!(s.tests.keys().collect::<Vec<_>>(), module.tests.keys().collect::<Vec<_>>(), "code: the module's selection");
+        // The wide tier is unchanged by the entries.
+        r.entry_diff = Some(diff_of(f, &format!("@@ -{first},0 +{},{} @@\n{plus}", first + 1, close - first + 1)));
+        assert_eq!(select_tier(&r, &[f.to_string()], Tier::Wide).tests.len(), tier(&[f], Tier::Wide).tests.len());
+        // A test file of the crate selects its own target, not the dependents' unit tests.
+        let t = tier(&["crates/abi/tests/appendix_c_layouts.rs"], Tier::Direct);
+        assert!(t.libs.keys().all(|k| k == "niji-abi"), "{:?}", t.libs);
     }
 }
