@@ -547,13 +547,13 @@ enum {
 #  define S_BLKSIZE 512
 # endif
 # ifndef S_IEXEC
-#  define S_IEXEC 64
+#  define S_IEXEC S_IXUSR
 # endif
 # ifndef S_IREAD
-#  define S_IREAD 256
+#  define S_IREAD S_IRUSR
 # endif
 # ifndef S_IWRITE
-#  define S_IWRITE 128
+#  define S_IWRITE S_IWUSR
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400

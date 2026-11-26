@@ -155,7 +155,7 @@ extern int posix_madvise (void *, unsigned long, int) __NIJI_NOTHROW;
 #  define MAP_ABOVE4G 128
 # endif
 # ifndef MAP_ANON
-#  define MAP_ANON 32
+#  define MAP_ANON MAP_ANONYMOUS
 # endif
 # ifndef MAP_ANONYMOUS
 #  define MAP_ANONYMOUS 32

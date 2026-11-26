@@ -1,0 +1,57 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-B",
+ "model": "opus",
+ "tokens": null,
+ "result": "Yohane stage 2 header gaps: sentinel/format_arg attributes, AF_x as PF_x and alias forms, __RES, RTLD_DI_* + Dl_serinfo, IN6ADDR_*_INIT, ELF 32/64 pairs, UDP_*/SOL_UDP, ELFMAG, ELF R_/ST_/M_ accessors; proofs: systemd af 48=48, krb5 util/support OK, openssh only misc.c (TCP_NODELAY, other story)",
+ "branch": "task/headers-stage2-gaps-b",
+ "head": "0e9c6ec87",
+ "gate": {
+  "affected": "FULL: the train's (generated tables). gate5: header_check 0 failed of 20285, aliases 0 differences, clippy + static OK, cargo test -p niji-abi -p xtask 1000 passed / 1 failed (gencat transcripts: role's target/niji missing, gencat's interpreter dangling); gate5b: cargo xtask so + xtask transcripts 10 passed / 0 failed",
+  "peak": "2.2G (gate5)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "RTLD_DI_CONFIGADDR/PROFILENAME/PROFILEOUT declared (reference enumerators) but libniji's dlinfo refuses them (-1, dlerror)",
+   "recommendation": "keep declared; serve them only if a user appears"
+  }
+ ],
+ "informational": [
+  "openssh premise corrected: the reference's <signal.h> declares execl/execle/execlp under _GNU_SOURCE too; the break was libniji's __sentinel__ spelling (now none, as the reference)",
+  "P2 sweep on the 15 touched headers: 38 differences, identical on origin/next's headers (none from this branch): sys/param.h macros via arpa/nameser.h and resolv.h; siginfo_t in posix1/posix2/xopen; sys/mount.h FSCONFIG_*; signal.h __sysconf; resolv.h fwrite_unlocked (fortify); libintl.h gettext-family macros missing under fortify; link.h La_x86_64_vector in C++",
+  "coordinator 13:20Z (Versym/Verdef/Verdaux/Verneed/Vernaux + VER_*): already met, all ten types and the 12 VER_* constants present",
+  "xtask transcripts test skips only when gencat is absent; a gencat whose products dir was removed fails instead of skipping",
+  "-fno-builtin format attribute difference on printf/scanf family; diagattrs drift 182 cells; pthread_create nonnull 1,2,3,4 vs 1,3",
+  "coordinator 13:45Z b64_ntop/b64_pton: not done in this run (libniji libresolv exports __b64_ntop/__b64_pton; resolv.h declares neither)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2: systemd and apparmor (AF_* forms), apt (__RES), binutils/gprofng (RTLD_DI_*), krb5 (IN6ADDR_*_INIT), babeltrace (ELF pairs), avahi (format_arg), gnu-efi (ELF accessors), openssh (sentinel; misc.c waits on HEADERS-NET-SYS-NAMES)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check units (s10 format_arg, s12 initializers, s16 dl_requests + elf_info) and plants",
+   "before": 0,
+   "after": 9,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "sync_role BUSY and kill-label left an orphaned gate script running (sh child survived); kill-label should end the whole process group, and the gencat transcript test should skip when its interpreter is missing",
+ "next_step": "follow-up: resolv.h b64_ntop/b64_pton + __b64_* prototypes (libresolv exports both; header declares neither); openssh misc.c clears when HEADERS-NET-SYS-NAMES lands",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
+ "jobs": [
+  "keke:headers-stage2-gaps-b-gate5b",
+  "keke:headers-stage2-gaps-b-plants3",
+  "keke:headers-stage2-gaps-b-proof5"
+ ],
+ "superseded": [
+  "keke:headers-stage2-gaps-b-gate5 (rc 1 from the gencat transcript test only: role target/niji missing; rebuilt and rerun green in gate5b; header_check, aliases, clippy, static green in it)"
+ ]
+}

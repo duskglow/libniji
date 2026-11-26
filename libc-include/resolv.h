@@ -116,6 +116,14 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___b64_ntop
+#  define __NIJI_D___b64_ntop 1
+extern int __b64_ntop (const unsigned char *, unsigned long, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___b64_pton
+#  define __NIJI_D___b64_pton 1
+extern int __b64_pton (const char *, unsigned char *, unsigned long) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D___res_init
 #  define __NIJI_D___res_init 1
 extern int __res_init (void) __NIJI_NOTHROW;
@@ -386,6 +394,9 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # ifndef _PATH_RESCONF
 #  define _PATH_RESCONF "/etc/resolv.conf"
 # endif
+# ifndef __RES
+#  define __RES 19991006
+# endif
 #endif
 
 /* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */
@@ -393,6 +404,8 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # define res_init __res_init
 # define res_ninit __res_ninit
 # define res_nclose __res_nclose
+# define b64_ntop __b64_ntop
+# define b64_pton __b64_pton
 # define _res (*__res_state ())
 #endif
 

@@ -93,6 +93,45 @@
 //! * `Elf64_Vernaux.vna_hash (Elf64_Word)`
 //! * `Elf64_Vernaux.vna_name (Elf64_Word)`
 //! * `Elf64_Vernaux.vna_next (Elf64_Word)`
+//! * `Elf32_Chdr.ch_type (Elf32_Word)`
+//! * `Elf32_Chdr.ch_size (Elf32_Word)`
+//! * `Elf32_Chdr.ch_addralign (Elf32_Word)`
+//! * `Elf32_Verdef.vd_version (Elf32_Half)`
+//! * `Elf32_Verdef.vd_flags (Elf32_Half)`
+//! * `Elf32_Verdef.vd_ndx (Elf32_Half)`
+//! * `Elf32_Verdef.vd_cnt (Elf32_Half)`
+//! * `Elf32_Verdef.vd_hash (Elf32_Word)`
+//! * `Elf32_Verdef.vd_aux (Elf32_Word)`
+//! * `Elf32_Verdef.vd_next (Elf32_Word)`
+//! * `Elf32_Verdaux.vda_name (Elf32_Word)`
+//! * `Elf32_Verdaux.vda_next (Elf32_Word)`
+//! * `Elf32_Verneed.vn_version (Elf32_Half)`
+//! * `Elf32_Verneed.vn_cnt (Elf32_Half)`
+//! * `Elf32_Verneed.vn_file (Elf32_Word)`
+//! * `Elf32_Verneed.vn_aux (Elf32_Word)`
+//! * `Elf32_Verneed.vn_next (Elf32_Word)`
+//! * `Elf32_Vernaux.vna_hash (Elf32_Word)`
+//! * `Elf32_Vernaux.vna_flags (Elf32_Half)`
+//! * `Elf32_Vernaux.vna_other (Elf32_Half)`
+//! * `Elf32_Vernaux.vna_name (Elf32_Word)`
+//! * `Elf32_Vernaux.vna_next (Elf32_Word)`
+//! * `Elf32_Syminfo.si_boundto (Elf32_Half)`
+//! * `Elf32_Syminfo.si_flags (Elf32_Half)`
+//! * `Elf32_Move.m_value (Elf32_Xword)`
+//! * `Elf32_Move.m_info (Elf32_Word)`
+//! * `Elf32_Move.m_poffset (Elf32_Word)`
+//! * `Elf32_Move.m_repeat (Elf32_Half)`
+//! * `Elf32_Move.m_stride (Elf32_Half)`
+//! * `Elf32_Lib.l_name (Elf32_Word)`
+//! * `Elf32_Lib.l_time_stamp (Elf32_Word)`
+//! * `Elf32_Lib.l_checksum (Elf32_Word)`
+//! * `Elf32_Lib.l_version (Elf32_Word)`
+//! * `Elf32_Lib.l_flags (Elf32_Word)`
+//! * `Elf64_Lib.l_name (Elf64_Word)`
+//! * `Elf64_Lib.l_time_stamp (Elf64_Word)`
+//! * `Elf64_Lib.l_checksum (Elf64_Word)`
+//! * `Elf64_Lib.l_version (Elf64_Word)`
+//! * `Elf64_Lib.l_flags (Elf64_Word)`
 //! * `struct_elf_prstatus.pr_reg (elf_gregset_t)`
 //! * `struct_elf_prpsinfo.pr_uid (__pr_uid_t)`
 //! * `struct_elf_prpsinfo.pr_gid (__pr_gid_t)`
@@ -3942,6 +3981,120 @@ pub struct Elf64_Vernaux {
     pub vna_other: u16,
     pub vna_name: [u32; 1],
     pub vna_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Chdr {
+    pub ch_type: [u32; 1],
+    pub ch_size: [u32; 1],
+    pub ch_addralign: [u32; 1],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Elf32_auxv_t__a_un {
+    pub a_val: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_auxv_t {
+    pub a_type: u32,
+    pub a_un: Elf32_auxv_t__a_un,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Verdef {
+    pub vd_version: [u16; 1],
+    pub vd_flags: [u16; 1],
+    pub vd_ndx: [u16; 1],
+    pub vd_cnt: [u16; 1],
+    pub vd_hash: [u32; 1],
+    pub vd_aux: [u32; 1],
+    pub vd_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Verdaux {
+    pub vda_name: [u32; 1],
+    pub vda_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Verneed {
+    pub vn_version: [u16; 1],
+    pub vn_cnt: [u16; 1],
+    pub vn_file: [u32; 1],
+    pub vn_aux: [u32; 1],
+    pub vn_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Vernaux {
+    pub vna_hash: [u32; 1],
+    pub vna_flags: [u16; 1],
+    pub vna_other: [u16; 1],
+    pub vna_name: [u32; 1],
+    pub vna_next: [u32; 1],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Syminfo {
+    pub si_boundto: [u16; 1],
+    pub si_flags: [u16; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Move {
+    pub m_value: [u64; 1],
+    pub m_info: [u32; 1],
+    pub m_poffset: [u32; 1],
+    pub m_repeat: [u16; 1],
+    pub m_stride: [u16; 3],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Lib {
+    pub l_name: [u32; 1],
+    pub l_time_stamp: [u32; 1],
+    pub l_checksum: [u32; 1],
+    pub l_version: [u32; 1],
+    pub l_flags: [u32; 1],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Syminfo {
+    pub si_boundto: u16,
+    pub si_flags: u16,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Move {
+    pub m_value: u64,
+    pub m_info: u64,
+    pub m_poffset: u64,
+    pub m_repeat: u16,
+    pub m_stride: u16,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Lib {
+    pub l_name: [u32; 1],
+    pub l_time_stamp: [u32; 1],
+    pub l_checksum: [u32; 1],
+    pub l_version: [u32; 1],
+    pub l_flags: [u32; 1],
 }
 
 #[repr(C)]

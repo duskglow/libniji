@@ -128,7 +128,7 @@ struct user_regs_struct {
 };
 # endif
 # ifndef NBPG
-#  define NBPG 4096UL
+#  define NBPG PAGE_SIZE
 # endif
 # ifndef PAGE_MASK
 #  define PAGE_MASK 18446744073709547520UL

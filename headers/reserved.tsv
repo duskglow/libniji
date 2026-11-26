@@ -13,6 +13,8 @@ __xpg_basename	emit	C.9: basename (libgen.h) expands to __xpg_basename
 __res_init	emit	C.9: res_init (resolv.h) expands to __res_init
 __res_ninit	emit	C.9: res_ninit (resolv.h) expands to __res_ninit
 __res_nclose	emit	C.9: res_nclose (resolv.h) expands to __res_nclose
+__b64_ntop	emit	resolv.h: b64_ntop expands to __b64_ntop, the exported base64 encoder (HEADERS-STAGE2-GAPS-B-3)
+__b64_pton	emit	resolv.h: b64_pton expands to __b64_pton, the exported base64 decoder (HEADERS-STAGE2-GAPS-B-3)
 __time64_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __wchar_t	emit	R-H3: SL-HEADERS-1 corpus, 3 packages
 __wint_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
@@ -72,4 +74,5 @@ __freading	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documente
 __fsetlocking	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwritable	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
 __fwriting	emit	stdio_ext.h's interface (spec 12.4, stdio_ext(3)): the documented name, which has no other spelling
+__RES	emit	resolv.h's resolver interface version, which programs test to choose the resolver interface (apt: `__RES >= 19991006`; HEADERS-STAGE2-GAPS-B)
 __GNU_GETTEXT_SUPPORTED_REVISION	emit	gettext.m4 AM_GNU_GETTEXT: its "GNU gettext in libc" test compiles __GNU_GETTEXT_SUPPORTED_REVISION(0) >= 1 (tar and every package using the macro; Yohane stage 2)

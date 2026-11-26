@@ -1,0 +1,36 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-B-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged next into the stage 2 header gaps branch (both sides kept, layouts regenerated); gate green; 8/8 plants caught; openssh 10.0p1 make -k ssh sshd: 0 failing files; stock dlinfo refuses RTLD_DI_CONFIGADDR/PROFILENAME/PROFILEOUT like libniji; b64_ntop/b64_pton left as a follow-up",
+ "branch": "task/headers-stage2-gaps-b-2",
+ "head": "e64b49f2a",
+ "gate": {
+  "affected": "direct tier: 18 suites ok, 11811 passed / 0 failed, 1227 ignored; conformance 103 passed / 0 failed; clippy and static clean",
+  "peak": "12G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "ruling #8579: stock dlinfo returns -1 with dlerror 'unsupported dlinfo request' for RTLD_DI_CONFIGADDR, RTLD_DI_PROFILENAME and RTLD_DI_PROFILEOUT (main program handle); libniji refuses them the same way: equal, nothing to serve, no listed difference",
+  "ruling #8568: openssh 10.0p1 make -k ssh sshd after merging next (HEADERS-NET-SYS-NAMES landed): rc 0, 0 failing files, ssh and sshd linked; UDP_* were already added in leg 4",
+  "b64_ntop/b64_pton (coordinator 13:45Z) not done: needs reserved.tsv emit rows for __b64_ntop/__b64_pton, the b64_ntop/b64_pton macros (not in visibility.tsv or macros.tsv), a table regeneration, a unit and a plant; steps in handoff/HEADERS-STAGE2-GAPS-B.md; recommend a follow-up story",
+  "plants run prints 'caught by no test the log names' after each CAUGHT line (the msg regex is matched, the notice is about test naming); results 8 CAUGHT, 0 SURVIVED",
+  "the proof tarball of leg 2 was reused; no package source was downloaded in this run"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2 header gaps (systemd, apparmor, apt, binutils, krb5, babeltrace, avahi, gnu-efi, openssh) can land: merge conflict with next resolved",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "a merge conflict in generated test files is resolved by taking next's copy and running abi-gen on the build host, then copying the file back (no cargo on the dispatcher host)",
+ "next_step": "follow-up story for b64_ntop/b64_pton (handoff/HEADERS-STAGE2-GAPS-B.md)",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
+ "jobs": ["keke:headers-stage2-gaps-b-2-gate", "keke:headers-stage2-gaps-b-2-plants", "keke:headers-stage2-gaps-b-2-proof6"]
+}

@@ -62,7 +62,7 @@ extern int fnmatch (const char *, const char *, int);
 #  define FNM_EXTMATCH 32
 # endif
 # ifndef FNM_FILE_NAME
-#  define FNM_FILE_NAME 1
+#  define FNM_FILE_NAME FNM_PATHNAME
 # endif
 # ifndef FNM_LEADING_DIR
 #  define FNM_LEADING_DIR 8
