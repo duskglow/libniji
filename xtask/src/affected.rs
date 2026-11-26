@@ -4554,6 +4554,22 @@ fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
     (beside, after, units_after)
 }
 
+/// PLANTS-PRODUCTS-ONCE: may the unit tests of package `krate` that libtest's `filters` select (none: all; `exact`:
+/// whole paths) read the products, by the rules the gate orders its steps with? xtask: a test of
+/// [`product_unit_tests`] may be selected ([`filter_may_select`]). Another package: a source under its `src/` names
+/// them ([`first_pass_split`]'s rule). An unknown or unnamed package: may.
+pub fn unit_tests_may_read_products(root: &Path, repo: &Repo, krate: Option<&str>, filters: &[String], exact: bool) -> bool {
+    match krate {
+        Some("xtask") => product_unit_tests_at(root).iter().any(|(segs, name)| filters.is_empty() || filters.iter().any(|f| filter_may_select(f, segs, name, exact))),
+        Some(c) => repo.crates.iter().find(|k| k.name == c).is_none_or(|k| {
+            let mut all = Vec::new();
+            files_under(&root.join(&k.dir).join("src"), &["rs"], &mut all);
+            all.is_empty() || all.iter().any(|f| names_products(&read(f)))
+        }),
+        None => true,
+    }
+}
+
 /// AFFECTED-LAYOUT-ROWS-2: the names of the xtask unit tests (functions under `xtask/src` with the test attribute)
 /// that may read products: the text from one test attribute to the next (or the file's end, so a helper after the
 /// last test counts for it) joins a products path (a `join` of `target/niji…` or of `niji`; this doc spells neither
@@ -4561,21 +4577,58 @@ fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
 /// a half-written set (the manifest lint test saw `libc.so.6` and no locale sources). A test that reaches the
 /// products only through a helper elsewhere is not seen; the rule reads text, like [`names_products`].
 fn product_unit_tests(root: &Path) -> Vec<String> {
+    let names: BTreeSet<String> = product_unit_tests_at(root).into_iter().map(|(_, name)| name).collect();
+    names.into_iter().collect()
+}
+
+/// [`product_unit_tests`] with, for each test, the module names its libtest path may hold (PLANTS-PRODUCTS-ONCE): its
+/// file's path under `xtask/src` (without `.rs`; `main`, `lib` and `mod` name no module) and every identifier after a
+/// `mod ` in the file (its inline modules, such as `tests`).
+fn product_unit_tests_at(root: &Path) -> Vec<(Vec<String>, String)> {
+    let src = root.join("xtask").join("src");
     let mut files = Vec::new();
-    files_under(&root.join("xtask").join("src"), &["rs"], &mut files);
+    files_under(&src, &["rs"], &mut files);
     files.sort();
-    let mut names = BTreeSet::new();
+    let ident = |s: &str| -> String { s.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect() };
+    let mut out = Vec::new();
     for f in files {
         let text = read(&f);
+        let mut segs: Vec<String> = f.strip_prefix(&src).unwrap_or(&f).with_extension("").components().filter_map(|c| c.as_os_str().to_str()).map(String::from).collect();
+        if segs.last().is_some_and(|s| ["main", "lib", "mod"].contains(&s.as_str())) {
+            segs.pop();
+        }
+        segs.extend(text.split("mod ").skip(1).map(ident).filter(|s| !s.is_empty()));
         for seg in text.split("#[test]").skip(1) {
             let Some(at) = seg.find("fn ") else { continue };
-            let name: String = seg[at + 3..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+            let name = ident(&seg[at + 3..]);
             if !name.is_empty() && (seg.contains("join(\"target/niji") || seg.contains("join(\"niji\")")) {
-                names.insert(name);
+                out.push((segs.clone(), name));
             }
         }
     }
-    names.into_iter().collect()
+    out
+}
+
+/// PLANTS-PRODUCTS-ONCE: whether libtest's name filter `f` may select a test called `name` whose path's module names are
+/// all among `segs`. libtest selects a test whose whole path (`a::tests::name`) contains `f`, or with `--exact` equals
+/// it; the order of the modules and which of `segs` the path holds are not known here, so this over-approximates: a
+/// filter without `::` lies within one name; one with `::` starts in a name's tail, ends in a name's head and has
+/// whole names between; a stray `:` may match anywhere.
+fn filter_may_select(f: &str, segs: &[String], name: &str, exact: bool) -> bool {
+    let pieces: Vec<&str> = f.split("::").collect();
+    if pieces.iter().any(|p| p.contains(':')) {
+        return true;
+    }
+    let names = || segs.iter().map(String::as_str).chain(std::iter::once(name));
+    let (first, last) = (pieces[0], pieces[pieces.len() - 1]);
+    let middle = if pieces.len() > 2 { &pieces[1..pieces.len() - 1] } else { &[][..] };
+    if exact {
+        return last == name && pieces[..pieces.len() - 1].iter().all(|p| segs.iter().any(|s| s == p));
+    }
+    if pieces.len() == 1 {
+        return names().any(|s| s.contains(first));
+    }
+    names().any(|s| s.ends_with(first)) && names().any(|s| s.starts_with(last)) && middle.iter().all(|p| names().any(|s| s == *p))
 }
 
 /// The memory this process may use (bytes): the smallest `memory.max` of its cgroup (v2) and the cgroups above it, and
@@ -7860,5 +7913,48 @@ fn plain() {}", &aliases);
         assert!(builds_products(&root(), r, &s, false), "the xtask targets that run products get them");
         let (r, none) = sel(&["handoff/AFFECTED-COVERAGE.md"]);
         assert!(!none.xtask_tests && !builds_products(&root(), r, &none, false), "docs: no products");
+    }
+
+    // no spec clause (PLANTS-PRODUCTS-ONCE): whether the unit tests a plant's `cargo test` selects may read the
+    // products: xtask's by the per-test rule and libtest's filters, another package's by its sources, an unknown or
+    // unnamed package always
+    #[test]
+    fn unit_tests_may_read_products_follows_the_unit_rule() {
+        let t = std::env::temp_dir().join(format!("affected-unit-reads.{}", std::process::id()));
+        let _ = fs::remove_dir_all(&t);
+        for d in ["xtask/src", "crates/pure/src", "crates/reads/src", "crates/empty"] {
+            fs::create_dir_all(t.join(d)).unwrap();
+        }
+        fs::write(t.join("Cargo.toml"), "[workspace]\nmembers = [\"crates/pure\", \"crates/reads\", \"crates/empty\"]\n").unwrap();
+        for c in ["pure", "reads", "empty"] {
+            fs::write(t.join(format!("crates/{c}/Cargo.toml")), format!("[package]\nname = \"{c}\"\n")).unwrap();
+        }
+        fs::write(t.join("crates/pure/src/lib.rs"), "pub fn f() {}\n").unwrap();
+        fs::write(t.join("crates/reads/src/lib.rs"), "const P: &str = \"libc.a\";\n").unwrap();
+        // Built at run time: this file's own text must not name the products (the scan reads it too).
+        let reads = format!("mod tests {{\n#[test]\nfn reads_them() {{ let p = root.{}(\"target/{}/lib\"); }}\n#[test]\nfn pure_one() {{}}\n}}\n", "join", "niji");
+        fs::write(t.join("xtask/src/a.rs"), reads).unwrap();
+        let repo = Repo::load(&t);
+        let f = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let may = |k: Option<&str>, filters: &[String], exact: bool| unit_tests_may_read_products(&t, &repo, k, filters, exact);
+        assert!(may(Some("xtask"), &[], false), "all of xtask's unit tests");
+        assert!(may(Some("xtask"), &f(&["reads"]), false));
+        assert!(may(Some("xtask"), &f(&["pure_one", "reads_them"]), true));
+        assert!(!may(Some("xtask"), &f(&["pure"]), false));
+        assert!(!may(Some("xtask"), &f(&["reads"]), true), "--exact: a whole name");
+        // libtest matches the whole path (`a::tests::reads_them`), modules included.
+        for sel in ["a::", "a::tests::reads", "a::tests", "::tests::", "ts::rea", "a:", "tests", "a::tests::reads_them"] {
+            assert!(may(Some("xtask"), &f(&[sel]), false), "{sel}");
+        }
+        assert!(may(Some("xtask"), &f(&["a::tests::reads_them"]), true));
+        for sel in ["b::", "a::other::reads", "a::tests::pure", "tests::x"] {
+            assert!(!may(Some("xtask"), &f(&[sel]), false), "{sel}");
+        }
+        assert!(!may(Some("xtask"), &f(&["b::tests::reads_them"]), true));
+        assert!(!may(Some("pure"), &[], false));
+        assert!(may(Some("reads"), &f(&["anything"]), false));
+        assert!(may(Some("empty"), &[], false), "no sources: unsure");
+        assert!(may(Some("unknown"), &[], false) && may(None, &[], false));
+        let _ = fs::remove_dir_all(&t);
     }
 }

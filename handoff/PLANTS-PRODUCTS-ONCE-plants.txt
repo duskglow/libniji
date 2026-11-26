@@ -1,0 +1,19 @@
+# PLANTS-PRODUCTS-ONCE: plants on the "which plants read the products" and "which copies build them" rules of
+# `cargo xtask plants` (xtask/src/plants.rs) and the unit-test rule of `cargo xtask affected` (xtask/src/affected.rs).
+# Run: cargo xtask plants handoff/PLANTS-PRODUCTS-ONCE-plants.txt --dir <new-directory>
+# A plant whose file changes the products reuses unmutated or shared products (the bug the brief names):
+ppo-src-reuses | xtask/src/plants.rs | lit:if ["tests", "benches", "examples"].contains(dir)) ==> if ["tests", "benches", "examples", "src"].contains(dir)) | cargo test -p xtask --bin xtask plants:: | msg:which_files_may_change_the_products \.\.\. FAILED
+ppo-uses-ignored | xtask/src/plants.rs | lit:Need { reads, mutant: (uses[i] || traced[i]) && ==> Need { reads, mutant: traced[i] && | cargo test -p xtask --bin xtask plants:: | msg:(what_each_plant_needs_from_the_products|a_products_command_gets_the_products_rebuilt_with_the_mutant) \.\.\. FAILED
+ppo-mutant-shared | xtask/src/plants.rs | lit:let products = need.mutant; ==> let products = need.mutant && !products_hold_mutant; | cargo test -p xtask --bin xtask plants:: | msg:ordinary_plants_build_ungrouped_and_layout_plants_traced \.\.\. FAILED
+ppo-no-restore | xtask/src/plants.rs | lit:let restore = need.reads && !products && (products_hold_mutant || held != layout); ==> let restore = need.reads && !products && held != layout; | cargo test -p xtask --bin xtask plants:: | msg:a_products_command_gets_the_products_rebuilt_with_the_mutant \.\.\. FAILED
+# A copy whose plants read the products does not build them:
+ppo-reader-no-baseline | xtask/src/plants.rs | lit:any(|(&i, l)| *l == layout && needs[i].reads) ==> any(|(&i, l)| *l == layout && needs[i].mutant) | cargo test -p xtask --bin xtask plants:: | msg:(baseline_prepare_timeout_is_reported|a_failed_baseline_exits_two) \.\.\. FAILED
+# More copies build than the plants need:
+ppo-readers-build-everywhere | xtask/src/plants.rs | lit:usize::from(!reads.is_empty()) ==> copies.min(reads.len()) | cargo test -p xtask --bin xtask plants:: | msg:the_products_are_built_in_as_few_copies_as_possible \.\.\. FAILED
+ppo-none-on-builders | xtask/src/plants.rs | lit:if builders < copies { (builders, copies - builders) } else { (0, copies) } ==> (0, copies) | cargo test -p xtask --bin xtask plants:: | msg:(the_products_are_built_in_as_few_copies_as_possible|two_copies_report_as_a_serial_run) \.\.\. FAILED
+# A command that reads the products is judged to read none:
+ppo-nested-shell | xtask/src/plants.rs | lit:["sh", "bash", "env", "eval", "exec"] ==> ["bash", "env", "eval", "exec"] | cargo test -p xtask --bin xtask plants:: | msg:simple_commands_split_a_list_and_refuse_other_syntax \.\.\. FAILED
+ppo-header-arg-ignored | xtask/src/plants.rs | lit:.any(|w| crate::affected::names_products(w)) ==> .any(|_| false) | cargo test -p xtask --bin xtask plants:: | msg:header_checks_read_no_products \.\.\. FAILED
+ppo-unit-reads-dropped | xtask/src/plants.rs | lit:t.unit && units( ==> t.unit && !units( | cargo test -p xtask --bin xtask plants:: | msg:unit_tests_read_the_products_by_the_unit_rule \.\.\. FAILED
+ppo-exact-ignored | xtask/src/affected.rs | lit:return last == name && ==> return true && | cargo test -p xtask --bin xtask unit_tests_may_read_products | msg:unit_tests_may_read_products_follows_the_unit_rule \.\.\. FAILED
+ppo-modules-unread | xtask/src/affected.rs | lit:segs.extend(text.split("mod ") ==> segs.extend(text.split("mod_never ") | cargo test -p xtask --bin xtask unit_tests_may_read_products | msg:unit_tests_may_read_products_follows_the_unit_rule \.\.\. FAILED
