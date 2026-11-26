@@ -13,8 +13,9 @@
 //!
 //! What stays: the `rpc_createerr` record (`__rpc_thread_createerr`, one per thread) and the
 //! `clnt_*err` printers, so a program can still print why its call failed; `bindresvport`
-//! (D-15.7: unchanged) and `_rpc_dtablesize`. Every entry is an `internal_entry!`:
-//! `cargo xtask so` binds each compat version to the `niji_compat_<name>` symbol.
+//! (D-15.7: unchanged) and `_rpc_dtablesize`. Every entry but `bindresvport` is an
+//! `internal_entry!`: `cargo xtask so` binds each compat version to the `niji_compat_<name>`
+//! symbol. `bindresvport` has a default version (`@@GLIBC_2.2.5`) and is an `export!`.
 
 use core::ptr;
 use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -354,11 +355,12 @@ fn sin_store(p: *mut c_void, v: [u8; 16]) {
     }
 }
 
-crate::internal_entry! {
+crate::export! { "GLIBC_2.2.5";
 /// `bindresvport`: binds `sd` to a free reserved port (512..1023, each once). `sin` NULL means
 /// INADDR_ANY; a family other than `AF_INET` is `EAFNOSUPPORT`. Stops at the first error other
-/// than `EADDRINUSE` (unprivileged: `EACCES`, as probed).
-pub extern "C" fn niji_compat_bindresvport(sd: c_int, sin: *mut c_void) -> c_int {
+/// than `EADDRINUSE` (unprivileged: `EACCES`, as probed). Exported at its default version
+/// (`bindresvport@@GLIBC_2.2.5`, as the reference), so a program links it by name.
+pub extern "C" fn bindresvport(sd: c_int, sin: *mut c_void) -> c_int {
     let mut a = sin_of(sin).unwrap_or([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     if a.get(..2) != Some(&2u16.to_ne_bytes()) {
         crate::errno::set_raw(EAFNOSUPPORT);

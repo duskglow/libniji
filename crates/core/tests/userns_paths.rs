@@ -169,13 +169,13 @@ int main(int argc, char **argv) {
 }
 "#;
 
-/// `bindresvport` is a compat-versioned symbol (only in the shared library under that name); the
-/// static build calls its `niji_compat_` definition.
+/// The libniji build links `libc.a` statically; `bindresvport` is linked by its own name (its
+/// default version, as the reference's).
 fn build(src: &Path, out: &Path, niji: bool) -> bool {
     let r = root();
     let mut cmd = Command::new("cc");
     if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-Dbindresvport=niji_compat_bindresvport"]).arg(r.join("target/niji/niji-crt1.o")).arg(src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(src);
     }

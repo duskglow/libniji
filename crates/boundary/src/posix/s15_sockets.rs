@@ -512,6 +512,18 @@ pub extern "C" fn ether_ntohost(hostname: *mut c_char, addr: Option<&[u8; 6]>) -
 
 // ------------------------------------------------------------------------------ §15.8
 
+/// The socket-address length `__libc_sa_len` gives each family it knows (probed on the reference,
+/// glibc 2.39 x86-64: every other family of the 65536 is `0`).
+const SA_LEN: [(c_ushort, c_int); 10] =
+    [(1, 110), (2, 16), (3, 16), (4, 16), (5, 16), (10, 28), (11, 28), (17, 20), (18, 32), (19, 16)];
+
+export! { "GLIBC_2.2.5";
+/// `__libc_sa_len`: the size of the socket address of family `af` (`sockaddr_un` 110, `sockaddr_in`
+/// 16, `sockaddr_in6` 28, ...); `0` for a family it does not know. No installed header declares it.
+pub extern "C" fn __libc_sa_len(af: c_ushort) -> c_int {
+    SA_LEN.iter().find(|&&(f, _)| f == af).map_or(0, |&(_, n)| n)
+}}
+
 // The rcmd family is a set of stubs (D-15.7, owner rulings R10/R11 2026-11-04): the
 // connecting calls fail like the secure-RPC stubs (`-1`, `errno` `EOPNOTSUPP`, D-29.4) without a
 // socket, a lookup or a write through any argument; the trust checks always deny (`-1`, `errno`

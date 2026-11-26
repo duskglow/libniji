@@ -22,7 +22,22 @@ symbol!(sym__authenticate, "_authenticate", "29", "2.2.5", r##""##);
 symbol!(sym_authnone_create, "authnone_create", "29", "2.2.5", r##""##);
 symbol!(sym_authunix_create, "authunix_create", "29", "2.2.5", r##""##);
 symbol!(sym_authunix_create_default, "authunix_create_default", "29", "2.2.5", r##""##);
-symbol!(sym_bindresvport, "bindresvport", "29", "2.2.5", r##""##);
+/// Spec: s15_8_c_2. The failures any caller reaches, as probed on the reference: a `sin` of
+/// another family is `EAFNOSUPPORT` before any bind; a bad descriptor is the bind's `EBADF`.
+#[test]
+fn sym_bindresvport() {
+    use niji_boundary::posix::s29_rpc_clnt::bindresvport;
+    for family in [10u16, 0] {
+        let mut sin = [0u8; 16];
+        sin[..2].copy_from_slice(&family.to_ne_bytes());
+        errno::set_raw(0);
+        let rc = bindresvport(999, sin.as_mut_ptr().cast());
+        assert_eq!((rc, errno::get()), (-1, 97), "family {family}: EAFNOSUPPORT");
+        assert_eq!(&sin[2..4], &[0, 0], "family {family}: sin untouched");
+    }
+    errno::set_raw(0);
+    assert_eq!((bindresvport(999, core::ptr::null_mut()), errno::get()), (-1, 9), "bad descriptor: EBADF");
+}
 symbol!(sym_callrpc, "callrpc", "29", "2.2.5", r##""##);
 symbol!(sym_cbc_crypt, "cbc_crypt", "29", "2.2.5", r##""##);
 #[test]
@@ -76,7 +91,15 @@ symbol!(sym_key_secretkey_is_set, "key_secretkey_is_set", "29", "2.2.5", r##""##
 symbol!(sym_key_setnet, "key_setnet", "29", "2.2.5", r##""##);
 symbol!(sym_key_setsecret, "key_setsecret", "29", "2.2.5", r##""##);
 symbol!(sym___libanl_version_placeholder, "__libanl_version_placeholder", "29", "2.2.5", r##"(no installed header declares it)"##);
-symbol!(sym___libc_sa_len, "__libc_sa_len", "29", "2.2.5", r##"(no installed header declares it)"##);
+/// No spec clause (the spec lists the name only). The families and sizes probed on the reference
+/// (glibc 2.39 x86-64, all 65536 values): exactly these ten are known, every other is `0`.
+#[test]
+fn sym___libc_sa_len() {
+    use niji_boundary::posix::s15_sockets::__libc_sa_len;
+    let want = [(1u16, 110), (2, 16), (3, 16), (4, 16), (5, 16), (10, 28), (11, 28), (17, 20), (18, 32), (19, 16)];
+    let got: Vec<(u16, i32)> = (0..=u16::MAX).map(|af| (af, __libc_sa_len(af))).filter(|&(_, n)| n != 0).collect();
+    assert_eq!(got, want);
+}
 symbol!(sym___libdl_version_placeholder, "__libdl_version_placeholder", "29", "2.2.5", r##"(no installed header declares it)"##);
 symbol!(sym___libpthread_version_placeholder, "__libpthread_version_placeholder", "29", "2.2.5", r##"(no installed header declares it)"##);
 symbol!(sym___librt_version_placeholder, "__librt_version_placeholder", "29", "2.2.5", r##"(no installed header declares it)"##);
