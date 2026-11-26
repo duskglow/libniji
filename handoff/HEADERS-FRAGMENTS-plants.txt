@@ -1,0 +1,19 @@
+# HEADERS-FRAGMENTS plants (cargo xtask plants handoff/HEADERS-FRAGMENTS-plants.txt --dir <new RAM dir>)
+# Duplicate-definition check (spec/tools/header_checks/dup.py): a duplicate in a template fragment, each kind.
+dup-macro | headers/utmp.h.d/020-utmp.frag | perl:s/(# define ut_time ut_tv\.tv_sec\n)/$1$1/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:DUP macro ut_time: defined in utmp.h
+dup-typedef | headers/wchar.h.d/020-va-list.frag | perl:s/(typedef __builtin_va_list va_list;\n)/$1$1/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:DUP typedef va_list: defined in wchar.h
+dup-tag | headers/wchar.h.d/020-va-list.frag | perl:s/(typedef __builtin_va_list va_list;\n)/$1struct __niji_plant_tag { int __a; };\nstruct __niji_plant_tag { int __a; };\n/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:DUP tag struct __niji_plant_tag: defined in wchar.h
+dup-enumerator | headers/wchar.h.d/020-va-list.frag | perl:s/(typedef __builtin_va_list va_list;\n)/$1enum { __NIJI_PLANT_E };\nenum { __NIJI_PLANT_F, __NIJI_PLANT_E };\n/ | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:DUP enumerator __NIJI_PLANT_E: defined in wchar.h
+dup-undef-ignored | spec/tools/header_checks/dup.py | lit:macros.pop(u.group(1), None) ==> pass | python3 spec/tools/header_checks/dup.py | msg:^FAIL DUP macro
+dup-listed-row-dropped | headers/dup-listed.tsv | perl:s/^macro\tACCOUNTING\t[^\n]*\n//m | python3 spec/tools/header_checks/dup.py | msg:DUP macro ACCOUNTING: defined in
+dup-listed-ignored | spec/tools/header_checks/dup.py | lit:if (kind, name) in EXCEPTIONS or known.get((kind, name)) == have: ==> if (kind, name) in EXCEPTIONS: | python3 spec/tools/header_checks/dup.py | msg:^FAIL DUP macro
+# Declared table keys (xtask/src/table_keys.rs, spec/tools/table_keys.tsv).
+key-dup-row | headers/reserved.tsv | perl:s/^(__errno_location\t[^\n]*\n)/$1$1/m | cargo xtask table-keys | msg:key __errno_location \(name\) is also the row
+key-sorted-off | xtask/src/table_keys.rs | lit:    if d.sorted { ==>     if false { | cargo test -p xtask --bin xtask table_keys | msg:a_sorted_table_out_of_order_fails.*FAILED|panicked
+key-block-off | xtask/src/table_keys.rs | lit:if d.block && recs.last() ==> if false && recs.last() | cargo test -p xtask --bin xtask table_keys | msg:a_block_may_repeat_inside_but_not_start_again.*FAILED|panicked
+key-undeclared-off | xtask/src/table_keys.rs | lit:tables.iter().filter(|t| !decls.iter() ==> tables.iter().filter(|t| decls.iter() | cargo test -p xtask --bin xtask table_keys | msg:a_table_without_a_declaration_fails.*FAILED|panicked
+# Template fragments (xtask/src/headers.rs template_text): dropped, or out of file-name order.
+frag-dropped | xtask/src/headers.rs | lit:            out.push_str(&body); ==>             out.push_str(""); | cargo xtask headers-gen --check | msg:headers-gen: stale under libc-include/
+frag-order | xtask/src/headers.rs | lit:    frags.sort(); ==>     frags.sort_by(|a, b| b.cmp(a)); | cargo xtask headers-gen --check | msg:headers-gen: stale under libc-include/
+# Check fragments (header_check.slice_checks): a slice's .d fragments not loaded.
+checks-d-skipped | spec/tools/header_check.py | lit:            load(f"{name}.d/{os.path.basename(frag)[:-3]}", frag) ==>             pass | python3 spec/tools/header_check.py --only 'enum arpa/nameser.h' | msg:FAIL --only enum arpa/nameser.h: no unit selected

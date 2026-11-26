@@ -133,6 +133,11 @@ fn tables_below(root: &Path, dir: &str, out: &mut Vec<String>) -> Result<(), Str
     Ok(())
 }
 
+/// The tables found with no line in [`KEYS`].
+fn undeclared(decls: &[Decl], tables: &[String]) -> Vec<String> {
+    tables.iter().filter(|t| !decls.iter().any(|d| &d.path == *t)).map(|t| format!("{t}: no line in {KEYS} (declare its key columns there)")).collect()
+}
+
 /// The static check: every problem on stderr, one error naming how many.
 pub(crate) fn check(root: &Path) -> Result<(), String> {
     let text = fs::read_to_string(root.join(KEYS)).map_err(|e| format!("{KEYS}: {e}"))?;
@@ -142,11 +147,7 @@ pub(crate) fn check(root: &Path) -> Result<(), String> {
         tables_below(root, d, &mut tables)?;
     }
     tables.sort();
-    for t in &tables {
-        if !decls.iter().any(|d| &d.path == t) {
-            errs.push(format!("{t}: no line in {KEYS} (declare its key columns there)"));
-        }
-    }
+    errs.extend(undeclared(&decls, &tables));
     for d in &decls {
         match fs::read_to_string(root.join(&d.path)) {
             Ok(t) => errs.extend(check_table(d, &t)),
@@ -209,6 +210,12 @@ mod tests {
     fn an_unknown_key_column_fails() {
         let e = check_table(&decl("a,q", false, false), "a\tb\nx\t1\n");
         assert!(e.len() == 1 && e[0].contains("no column \"q\""), "{e:?}");
+    }
+
+    #[test]
+    fn a_table_without_a_declaration_fails() {
+        let e = undeclared(&[decl("a", false, false)], &["t.tsv".into(), "u.tsv".into()]);
+        assert!(e.len() == 1 && e[0].starts_with("u.tsv: no line in"), "{e:?}");
     }
 
     #[test]

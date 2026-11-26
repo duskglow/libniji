@@ -16,6 +16,7 @@
 #         repeat); a key may not start a second block. A block is merged, kept in order, as a whole.
 path	key	sort	unit
 headers/arrayparams.tsv	function,param	-	row
+headers/dup-listed.tsv	kind,name	key	row
 headers/fnmembers.tsv	type,member	-	row
 headers/fortify.tsv	name	key	row
 headers/iso10646.tsv	unicode	-	row
