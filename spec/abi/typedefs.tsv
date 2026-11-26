@@ -164,6 +164,9 @@ function	__b64_pton	resolv.h			int (char const*, unsigned char*, unsigned long)
 typedef	__blkcnt64_t	aio.h	8	8	long
 typedef	__blkcnt_t	aio.h	8	8	long
 typedef	__blksize_t	aio.h	8	8	long
+function	__bswap_16	aio.h			unsigned short (unsigned short)
+function	__bswap_32	aio.h			unsigned int (unsigned int)
+function	__bswap_64	aio.h			unsigned long (unsigned long)
 typedef	__caddr_t	aio.h	8	8	char*
 struct	__cancel_jmp_buf_tag	pthread.h	72	8	__cancel_jmp_buf_tag
 function	__cbrt	complex.h			double (double)
@@ -1039,6 +1042,7 @@ function	_flushlbf	stdio_ext.h			void ()
 struct	_fpstate	arpa/nameser.h	512	8	_fpstate
 struct	_fpxreg	arpa/nameser.h	16	2	_fpxreg
 struct	_ftsent	fts.h	120	8	_ftsent
+struct	_ftsent64	fts.h	120	8	_ftsent64
 struct	_libc_fpstate	arpa/nameser.h	512	8	_libc_fpstate
 struct	_libc_fpxreg	arpa/nameser.h	16	2	_libc_fpxreg
 struct	_libc_xmmreg	arpa/nameser.h	16	4	_libc_xmmreg
@@ -1463,6 +1467,7 @@ function	ether_line	netinet/ether.h			int (char const*, ether_addr*, char*)
 function	ether_ntoa	netinet/ether.h			char* (ether_addr const*)
 function	ether_ntoa_r	netinet/ether.h			char* (ether_addr const*, char*)
 function	ether_ntohost	netinet/ether.h			int (char*, ether_addr const*)
+struct	ethhdr	net/ethernet.h	14	1	ethhdr
 function	euidaccess	arpa/nameser.h			int (char const*, int)
 function	eventfd	sys/eventfd.h			int (unsigned int, int)
 function	eventfd_read	sys/eventfd.h			int (int, unsigned long*)
@@ -1585,6 +1590,7 @@ function	fadd	complex.h			float (double, double)
 function	faddl	complex.h			float (long double, long double)
 function	fallocate	fcntl.h			int (int, int, long, long)
 function	fallocate64	fcntl.h			int (int, int, long, long)
+struct	fanotify_event_metadata	sys/fanotify.h	24	8	fanotify_event_metadata
 function	fanotify_init	sys/fanotify.h			int (unsigned int, unsigned int)
 function	fanotify_mark	sys/fanotify.h			int (int, unsigned int, unsigned long, int, char const*)
 function	fchdir	arpa/nameser.h			int (int)
@@ -1601,6 +1607,10 @@ function	fcvt_r	complex.h			int (double, int, int*, int*, char*, unsigned long)
 typedef	fd_mask	aio.h	8	8	long
 typedef	fd_set	aio.h	128	8	fd_set
 function	fdatasync	arpa/nameser.h			int (int)
+struct	fddi_8022_1_hdr	netinet/if_fddi.h	3	1	fddi_8022_1_hdr
+struct	fddi_8022_2_hdr	netinet/if_fddi.h	4	1	fddi_8022_2_hdr
+struct	fddi_snap_hdr	netinet/if_fddi.h	8	1	fddi_snap_hdr
+struct	fddihdr	netinet/if_fddi.h	21	1	fddihdr
 function	fdim	complex.h			double (double, double)
 function	fdimf	complex.h			float (float, float)
 function	fdimf128	complex.h			_Float128 (_Float128, _Float128)
@@ -2155,6 +2165,7 @@ struct	ifaddrs	ifaddrs.h	56	8	ifaddrs
 struct	ifconf	net/if.h	16	8	ifconf
 struct	ifmap	net/if.h	24	8	ifmap
 struct	ifreq	net/if.h	40	8	ifreq
+struct	igmp	netinet/igmp.h	8	4	igmp
 struct	ih_idseq	netinet/ip_icmp.h	4	2	
 struct	ih_pmtu	netinet/ip_icmp.h	4	2	
 struct	ih_rtradv	netinet/ip_icmp.h	4	2	

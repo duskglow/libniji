@@ -2,6 +2,25 @@
 //! symbol each configuration's call site references (callsites.tsv), checked against the default-version exports.
 use super::*;
 
+/// headers/redirects.tsv: the declaration a function has in the configurations whose calls bind to another symbol,
+/// where that form differs from prototypes.tsv's (strerror_r's XSI form, `__xpg_strerror_r`).
+const REDIRECTS: &str = "headers/redirects.tsv";
+
+/// The declaration of `name` bound to `sym` in a redirects.tsv row's form: its declaration (spelled with `name`),
+/// its nonnull parameters and, `wur` 1, warn_unused_result.
+fn redirect_line(name: &str, sym: &str, nt: &str, r: &BTreeMap<String, String>) -> String {
+    let mut a = Vec::new();
+    if !r["nonnull"].is_empty() {
+        a.push(format!("__nonnull__ ({})", r["nonnull"].replace(',', ", ")));
+    }
+    if r["wur"] == "1" {
+        a.push("__warn_unused_result__".to_string());
+    }
+    let at = if a.is_empty() { String::new() } else { format!(" __attribute__ (({}))", a.join(", ")) };
+    let decl = r["declaration"].replacen(&format!("{sym} ("), &format!("{name} ("), 1);
+    format!("extern {decl}{nt} __asm__ (\"{sym}\"){at};")
+}
+
 impl Gen<'_> {
     pub(super) fn declaration(&mut self, name: &str) -> Option<String> {
         // A function whose prototype the reference's own header leaves unrecorded (its parameter is a tag only
@@ -179,6 +198,8 @@ impl Gen<'_> {
 
     pub(super) fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
+        // A rename target (`#define x __x` in the template): `(__x) (...)`, which no function-like macro expands.
+        let decl = if self.renamed.contains(name) { decl.replacen(&format!("{name} ("), &format!("({name}) ("), 1) } else { decl };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
         // A configuration in which the probe's own `&f` did not compile (`!error`) says nothing about the symbol, and a
         // C++-mangled name that no library exports is a declaration without C linkage: libniji declares every function
@@ -203,6 +224,13 @@ impl Gen<'_> {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
             // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
             let care = all & !self.t.lv.reject & !self.fortify_mask();
+            let redirects: BTreeMap<String, BTreeMap<String, String>> = match tsv(self.root, REDIRECTS) {
+                Ok(rows) => rows.into_iter().map(|r| (r["symbol"].clone(), r)).collect(),
+                Err(e) => {
+                    self.errors.push(e);
+                    BTreeMap::new()
+                }
+            };
             for (i, (configs, sym)) in syms.iter().enumerate() {
                 if !self.t.exported.contains(sym) {
                     self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
@@ -213,7 +241,10 @@ impl Gen<'_> {
                     "0".into()
                 });
                 body.push(format!("#  {} {c}", if i == 0 { "if" } else { "elif" }));
-                body.extend(self.extern_lines(name, &decl, nt, sym, "#   ", c.contains("!__NIJI_FOB64") && !c.contains("||")));
+                match redirects.get(sym.as_str()) {
+                    Some(r) => body.push(redirect_line(name, sym, nt, r)),
+                    None => body.extend(self.extern_lines(name, &decl, nt, sym, "#   ", c.contains("!__NIJI_FOB64") && !c.contains("||"))),
+                }
             }
             body.push("#  endif".into());
         }

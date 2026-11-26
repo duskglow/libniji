@@ -603,6 +603,22 @@ struct Gen<'a> {
     owned_macros: BTreeSet<String>,
     /// `@@hidden-member`: member name to the names of its scalar members where its structure tag is not visible.
     hidden_members: BTreeMap<String, Vec<String>>,
+    /// The `__x` targets of the template's `#define x __x` renames (`rename_targets`): their declarators are
+    /// parenthesized, so a program's earlier function-like macro of that name leaves the declaration alone.
+    renamed: BTreeSet<String>,
+}
+
+/// The targets `__x` of the object-like renames `#define x __x` in a template's text (resolv.h's b64_ntop and
+/// res_ninit family). The reference declares the `__x` name whatever function-like `__x` macro a program defined
+/// before the include (openssh's openbsd-compat/base64.h defines `__b64_ntop(a,b,c,d)`; black-box probe,
+/// HEADERS-STAGE2-GAPS-G); a plain `__x (` declarator would be expanded by such a macro.
+fn rename_targets(text: &str) -> BTreeSet<String> {
+    text.lines()
+        .filter_map(|l| {
+            let w: Vec<&str> = l.trim_start().strip_prefix('#')?.split_whitespace().collect();
+            (w.len() == 3 && w[0] == "define" && w[2].strip_prefix("__") == Some(w[1])).then(|| w[2].to_string())
+        })
+        .collect()
 }
 
 impl Gen<'_> {
@@ -1026,7 +1042,8 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros, hidden_members };
+        let renamed = rename_targets(&text);
+        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros, hidden_members, renamed };
         let guards = g.guards();
         owned.extend(guards.iter().map(|(n, _)| n.clone()));
         let mut guard_at = None;
@@ -1535,7 +1552,7 @@ mod tests {
         let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
         let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
         t.layouts.insert(key.into(), made);
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         let a = g.aggregate(key).expect("the synthetic rows make an aggregate");
         let lines: Vec<&str> = a.lines.iter().map(|l| l.trim()).collect();
         assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
@@ -1553,7 +1570,7 @@ mod tests {
         t.lfs.insert("niji_test_f".into(), "niji_test_f64".into());
         t.exported.insert("niji_test_f64".into());
         t.lfs.insert("niji_test_g".into(), "niji_test_g64".into());
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         let d = "int niji_test_f (int)";
         let l = g.extern_lines("niji_test_f", d, "", "niji_test_f", "#  ", false);
         assert_eq!(l, ["#  if __NIJI_FOB64", "extern int niji_test_f (int) __asm__ (\"niji_test_f64\");", "#  else", "extern int niji_test_f (int);", "#  endif"]);
@@ -1572,7 +1589,7 @@ mod tests {
             let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
             t.layouts.insert(key.into(), made);
         }
-        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
         assert_eq!(g.aggregate("struct niji_test_bytes").expect("aggregate").attrs, "");
         assert!(g.aggregate("struct niji_test_pk").expect("aggregate").attrs.contains("__packed__"), "a misaligned int member keeps the mark");
     }

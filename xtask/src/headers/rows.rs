@@ -270,7 +270,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     // A function, object, macro or enumerator that the reserved-name policy leaves out (`omitted`: C 7.1.3, owner
     // rulings R-H2 and R-H3) is in no header; reserved typedefs and tags still are, where a declaration needs them.
     let named = |n: &str| wanted(n) && !omitted(&t.reserved, n);
-    let mut g = Gen { root, t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+    let mut g = Gen { root, t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new(), renamed: BTreeSet::new() };
     let mut decls = Tu::default();
     let item = |c: &mut Check, g: &mut Gen, decls: &mut Tu, i: usize, name: &str, kind: &str| {
         if c.lang(i) == Some("*") {
