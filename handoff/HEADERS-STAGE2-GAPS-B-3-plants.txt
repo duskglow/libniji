@@ -1,0 +1,15 @@
+# HEADERS-STAGE2-GAPS-B-3 plants: resolv.h's b64_ntop and b64_pton (the macros name the exported functions, whose
+# declarations the reserved-name table emits) and the merged format_arg column of diagattrs.tsv (the table the
+# gettext family's attributes are generated from). Each regenerates libc-include, then runs only the header_check units
+# of the item (`--only`).
+# b64-pton-wrong-target: b64_pton expanding to the encoder is a plausible copy slip; the function-pointer type check in
+# the unit must see it.
+# b64-not-emitted: without the reserved-name row the macros expand to an undeclared function.
+# format-arg-column-lost: the merge of the table's new column with next's rows could drop a value.
+b64-pton-wrong-target | headers/resolv.h.in | lit:# define b64_pton __b64_pton ==> # define b64_pton __b64_ntop | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "initializers resolv.h b64"' | msg:FAIL initializers resolv.h b64
+b64-not-emitted | headers/reserved.tsv | lit:__b64_ntop	emit	resolv.h: ==> __b64_ntop	omit	resolv.h: | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "initializers resolv.h b64"' | msg:FAIL initializers resolv.h b64
+format-arg-column-lost | spec/abi/diagattrs.tsv | perl:s/^(dgettext\t+)2$/$1/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "format_arg libintl.h"' | msg:FAIL format_arg libintl.h
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT; job headers-stage2-gaps-b-3-plants3):
+# b64-pton-wrong-target: CAUGHT
+# b64-not-emitted: CAUGHT
+# format-arg-column-lost: CAUGHT

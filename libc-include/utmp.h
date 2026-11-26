@@ -5,7 +5,6 @@
 #define _UTMP_H 1
 
 #include <features.h>
-#include <sys/time.h>
 #include <sys/types.h>
 
 __NIJI_BEGIN_C
@@ -18,12 +17,40 @@ struct exit_status {
   short e_exit;
 };
 # endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_itimerval
+#  define __NIJI_D_struct_itimerval 1
+struct itimerval {
+  struct timeval it_interval;
+  struct timeval it_value;
+};
+# endif
 # ifndef __NIJI_D_struct_lastlog
 #  define __NIJI_D_struct_lastlog 1
 struct lastlog {
   int ll_time;
   char ll_line[32];
   char ll_host[256];
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
 };
 # endif
 # ifndef __NIJI_D_struct_exit_status
@@ -50,6 +77,54 @@ struct utmp {
 };
 # endif
 #endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_timezone
+#  define __NIJI_D_struct_timezone 1
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
+#if 1
+# ifndef __NIJI_D_enum___itimer_which
+#  define __NIJI_D_enum___itimer_which 1
+enum __itimer_which {
+  ITIMER_REAL = 0,
+  ITIMER_VIRTUAL = 1,
+  ITIMER_PROF = 2,
+};
+# endif
+# ifndef __NIJI_D_fd_set
+#  define __NIJI_D_fd_set 1
+typedef struct {
+  long fds_bits[16];
+} fd_set;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D_suseconds_t
+#  define __NIJI_D_suseconds_t 1
+typedef long suseconds_t;
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -64,6 +139,16 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef __NIJI_D_endutent
 #  define __NIJI_D_endutent 1
 extern void endutent (void) __NIJI_NOTHROW;
+# endif
+struct itimerval;
+# ifndef __NIJI_D_getitimer
+#  define __NIJI_D_getitimer 1
+extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_gettimeofday
+#  define __NIJI_D_gettimeofday 1
+extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct utmp;
 # ifndef __NIJI_D_getutent
@@ -105,6 +190,17 @@ struct utmp;
 #  define __NIJI_D_pututline 1
 extern struct utmp *pututline (const struct utmp *) __NIJI_NOTHROW;
 # endif
+struct timeval;
+# ifndef __NIJI_D_select
+#  define __NIJI_D_select 1
+extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
+# endif
+struct itimerval;
+struct itimerval;
+# ifndef __NIJI_D_setitimer
+#  define __NIJI_D_setitimer 1
+extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D_setutent
 #  define __NIJI_D_setutent 1
 extern void setutent (void) __NIJI_NOTHROW;
@@ -114,12 +210,35 @@ struct utmp;
 #  define __NIJI_D_updwtmp 1
 extern void updwtmp (const char *, const struct utmp *) __NIJI_NOTHROW;
 # endif
+struct timeval;
+# ifndef __NIJI_D_utimes
+#  define __NIJI_D_utimes 1
+extern int utimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
 # ifndef __NIJI_D_utmpname
 #  define __NIJI_D_utmpname 1
 extern int utmpname (const char *) __NIJI_NOTHROW;
 # endif
 #endif
+#if __NIJI_GNU
+struct timeval;
+# ifndef __NIJI_D_futimesat
+#  define __NIJI_D_futimesat 1
+extern int futimesat (int, const char *, const struct timeval [2]) __NIJI_NOTHROW;
+# endif
+#endif
 #if __NIJI_MISC
+struct timeval;
+struct timeval;
+# ifndef __NIJI_D_adjtime
+#  define __NIJI_D_adjtime 1
+extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_futimes
+#  define __NIJI_D_futimes 1
+extern int futimes (int, const struct timeval [2]) __NIJI_NOTHROW;
+# endif
 struct utmp;
 struct utmp;
 # ifndef __NIJI_D_getutent_r
@@ -140,6 +259,30 @@ struct utmp;
 #  define __NIJI_D_getutline_r 1
 extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NIJI_NOTHROW;
 # endif
+struct timeval;
+# ifndef __NIJI_D_lutimes
+#  define __NIJI_D_lutimes 1
+extern int lutimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+struct timeval;
+struct timezone;
+# ifndef __NIJI_D_settimeofday
+#  define __NIJI_D_settimeofday 1
+extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
 #endif
 #if 1
 # ifndef ACCOUNTING
@@ -154,8 +297,20 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 # ifndef EMPTY
 #  define EMPTY 0
 # endif
+# ifndef FD_SETSIZE
+#  define FD_SETSIZE 1024
+# endif
 # ifndef INIT_PROCESS
 #  define INIT_PROCESS 5
+# endif
+# ifndef ITIMER_PROF
+#  define ITIMER_PROF ITIMER_PROF
+# endif
+# ifndef ITIMER_REAL
+#  define ITIMER_REAL ITIMER_REAL
+# endif
+# ifndef ITIMER_VIRTUAL
+#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
 # ifndef LOGIN_PROCESS
 #  define LOGIN_PROCESS 6
@@ -188,7 +343,7 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 #  define UT_NAMESIZE 32
 # endif
 # ifndef UT_UNKNOWN
-#  define UT_UNKNOWN 0
+#  define UT_UNKNOWN EMPTY
 # endif
 # ifndef WTMP_FILE
 #  define WTMP_FILE "/var/log/wtmp"
@@ -324,12 +479,10 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 /* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */
 #if 1
 # ifndef __NIJI_FD_BITS
-/* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
-extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-#  define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-#  define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 #  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 # endif
 #endif

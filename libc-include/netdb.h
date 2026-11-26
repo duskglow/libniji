@@ -615,7 +615,7 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 #  define NI_MAXSERV 32
 # endif
 # ifndef NO_ADDRESS
-#  define NO_ADDRESS 4
+#  define NO_ADDRESS NO_DATA
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 200809
@@ -704,6 +704,11 @@ extern int getnameinfo (const struct sockaddr *, unsigned int, char *, unsigned 
 # ifndef IPPORT_RESERVED
 #  define IPPORT_RESERVED 1024
 # endif
+#endif
+
+/* The first address of h_addr_list, by the name of the single address struct hostent once held (gethostbyname(3)). */
+#if __NIJI_MISC
+# define h_addr h_addr_list[0]
 #endif
 
 #if __NIJI_MISC || __NIJI_POSIX < 200809

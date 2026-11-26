@@ -1018,15 +1018,15 @@ extern void endusershell (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_execl
 #  define __NIJI_D_execl 1
-extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execle
 #  define __NIJI_D_execle 1
-extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (1)));
+extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execlp
 #  define __NIJI_D_execlp 1
-extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
+extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execv
 #  define __NIJI_D_execv 1
@@ -1230,7 +1230,7 @@ extern int pause (void);
 # endif
 # ifndef __NIJI_D_pipe
 #  define __NIJI_D_pipe 1
-extern int pipe (int *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe (int [2]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread
 #  define __NIJI_D_pread 1
@@ -1488,7 +1488,7 @@ extern long lseek64 (int, long, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pipe2
 #  define __NIJI_D_pipe2 1
-extern int pipe2 (int *, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int pipe2 (int [2], int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread64
 #  define __NIJI_D_pread64 1
@@ -3069,7 +3069,7 @@ enum {
 #  define SIGCHLD 17
 # endif
 # ifndef SIGCLD
-#  define SIGCLD 17
+#  define SIGCLD SIGCHLD
 # endif
 # ifndef SIGCONT
 #  define SIGCONT 18
@@ -3087,10 +3087,10 @@ enum {
 #  define SIGINT 2
 # endif
 # ifndef SIGIO
-#  define SIGIO 29
+#  define SIGIO SIGPOLL
 # endif
 # ifndef SIGIOT
-#  define SIGIOT 6
+#  define SIGIOT SIGABRT
 # endif
 # ifndef SIGKILL
 #  define SIGKILL 9
@@ -3182,13 +3182,13 @@ enum {
 #  define F_ULOCK 0
 # endif
 # ifndef L_INCR
-#  define L_INCR 1
+#  define L_INCR SEEK_CUR
 # endif
 # ifndef L_SET
-#  define L_SET 0
+#  define L_SET SEEK_SET
 # endif
 # ifndef L_XTND
-#  define L_XTND 2
+#  define L_XTND SEEK_END
 # endif
 # ifndef R_OK
 #  define R_OK 4
@@ -4479,19 +4479,19 @@ enum {
 #  define NGREG 23
 # endif
 # ifndef NSIG
-#  define NSIG 65
+#  define NSIG _NSIG
 # endif
 # ifndef SA_INTERRUPT
 #  define SA_INTERRUPT 536870912
 # endif
 # ifndef SA_NOMASK
-#  define SA_NOMASK 1073741824
+#  define SA_NOMASK SA_NODEFER
 # endif
 # ifndef SA_ONESHOT
-#  define SA_ONESHOT 2147483648U
+#  define SA_ONESHOT SA_RESETHAND
 # endif
 # ifndef SA_STACK
-#  define SA_STACK 134217728
+#  define SA_STACK SA_ONSTACK
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450

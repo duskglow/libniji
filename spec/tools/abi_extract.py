@@ -183,6 +183,11 @@ TYPES = [
  ("Elf32_Rela", "Elf32_Rela"), ("Elf64_Rela", "Elf64_Rela"), ("Elf32_Nhdr", "Elf32_Nhdr"), ("Elf64_Nhdr", "Elf64_Nhdr"),
  ("Elf64_Chdr", "Elf64_Chdr"), ("Elf64_auxv_t", "Elf64_auxv_t"), ("Elf64_Verdef", "Elf64_Verdef"),
  ("Elf64_Verdaux", "Elf64_Verdaux"), ("Elf64_Verneed", "Elf64_Verneed"), ("Elf64_Vernaux", "Elf64_Vernaux"),
+ # HEADERS-STAGE2-GAPS-B: the other half of each 32/64-bit ELF structure pair, and the gABI/GNU structures neither
+ # half had (header_probe.py ELF_TYPES); a name the reference does not define is dropped by available_types().
+ *[(f"Elf{w}_{t}", f"Elf{w}_{t}") for w, ts in (
+     (32, ("Chdr", "auxv_t", "Verdef", "Verdaux", "Verneed", "Vernaux", "Syminfo", "Move", "Lib")),
+     (64, ("Syminfo", "Move", "Lib"))) for t in ts],
  ("struct user", "struct user"), ("struct elf_prstatus", "struct elf_prstatus"),
  ("struct elf_prpsinfo", "struct elf_prpsinfo"), ("struct elf_siginfo", "struct elf_siginfo"),
  # thread_db.h and proc_service.h (SL-HEADERS-UNSHIPPED-REST): the tags are the C++ names of typedefs.tsv's rows.

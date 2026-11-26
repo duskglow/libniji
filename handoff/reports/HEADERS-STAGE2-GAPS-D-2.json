@@ -1,0 +1,46 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-D-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "COMPLETE: header generator now rejects a layouts.tsv whose offsets disagree with its row order (the s2d-mreq-order survivor); 20 of 20 plants CAUGHT; direct-tier gate green",
+ "branch": "task/headers-stage2-gaps-d-2",
+ "head": "79e42f02e",
+ "gate": {
+  "affected": "Direct tier: rc 0, conformance 103 passed; clippy -D warnings and static rc 0",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "ruling #8606 applied: perl $Config{d_bsd} differs from stock (Configure greps signal.h text for SIGTSTP); no change",
+  "the one-line wiring of layout_order_problems into generate is covered by s2d-mreq-order only while present; no plant removes it",
+  "perl rebuild after the IN6ADDR fix still not repeated: NOT VERIFIED end to end (this leg changed no header text)",
+  "plants job took 81 min: every header-affecting plant rebuilds the products (100 to 570 s each)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "layouts.tsv member offsets are now checked against row order for every aggregate (all rows, not one); a swapped-offset table is rejected by headers-gen",
+   "before": 0,
+   "after": 1,
+   "unit": "generator checks",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added (s2d-order-compare, -anon, -bits, -parent); s2d-mreq-order retargeted",
+   "before": 16,
+   "after": 20,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "the plants harness prints 'caught by no test the log names' for a plant caught by a generator message; accept msg: as the naming in that case, and a plants file with an unchanged-plants subset marker would avoid re-running 16 CAUGHT plants (about 70 min) for a generator-only change",
+ "next_step": "land; then perl rebuild proof on the next snapshot",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-D-report.md",
+ "jobs": [
+  "headers-stage2-gaps-d-2-gate",
+  "headers-stage2-gaps-d-2-plants"
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-B-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged origin/next (conflicts in appendix_c_layouts.rs, resolv.h, soundcard.h, header_probe.py): both intents kept, generated files regenerated; a duplicate stage2_names in header_probe.py (ours vs the -C story's) renamed stage2_gaps_b_names; direct gate green, 3/3 plants caught",
+ "branch": "task/headers-stage2-gaps-b-4",
+ "head": "d85f18528",
+ "gate": {"affected": "gate6 rc 0 (direct tier); gate5 was red only on xtask header_p2_fixed_rows (the duplicate stage2_names), fixed; clippy and static clean", "peak": "11G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "merge hazard: two stories each added a header_probe.py function named stage2_names; Python takes the later definition silently, so the merge compiled and only the xtask test header_p2_fixed_rows (TypeError: unhashable list) caught it. Ours is now stage2_gaps_b_names",
+  "plants: 3 CAUGHT, 0 WARN lines except the known WARN-DEV-SHM-free run on a RAM dir"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "Yohane stage 2 header gaps branch (openssh, apt, binutils, krb5, systemd, apparmor, babeltrace, avahi) can land: CI conflict with next resolved", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "header_probe.py: this story's candidate names (__RES, RTLD_DI_*, IN6ADDR_*_INIT, Elf32/64 types, b64_*) no longer shadowed by the -C story's same-named function", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "a static check for duplicate top-level def names in spec/tools/*.py would have caught the silent shadowing at merge time",
+ "next_step": "land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-B.md",
+ "jobs": ["mei:headers-stage2-gaps-b-4-gate6", "mei:headers-stage2-gaps-b-4-plants6"],
+ "superseded": ["mei:headers-stage2-gaps-b-4-gate5 (red on header_p2_fixed_rows: duplicate stage2_names; fixed in d85f18528)", "mei:headers-stage2-gaps-b-4-plants5 (green, earlier head)"]
+}

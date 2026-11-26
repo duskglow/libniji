@@ -400,7 +400,7 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define F_GETFL 3
 # endif
 # ifndef F_GETLK
-#  define F_GETLK 5
+#  define F_GETLK F_GETLK64
 # endif
 # ifndef F_GETLK64
 #  define F_GETLK64 5
@@ -415,13 +415,13 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define F_SETFL 4
 # endif
 # ifndef F_SETLK
-#  define F_SETLK 6
+#  define F_SETLK F_SETLK64
 # endif
 # ifndef F_SETLK64
 #  define F_SETLK64 6
 # endif
 # ifndef F_SETLKW
-#  define F_SETLKW 7
+#  define F_SETLKW F_SETLKW64
 # endif
 # ifndef F_SETLKW64
 #  define F_SETLKW64 7
@@ -451,10 +451,10 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define O_EXCL 128
 # endif
 # ifndef O_FSYNC
-#  define O_FSYNC 1052672
+#  define O_FSYNC O_SYNC
 # endif
 # ifndef O_NDELAY
-#  define O_NDELAY 2048
+#  define O_NDELAY O_NONBLOCK
 # endif
 # ifndef O_NOCTTY
 #  define O_NOCTTY 256
@@ -486,7 +486,7 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define AT_EMPTY_PATH 4096
 # endif
 # ifndef AT_HANDLE_FID
-#  define AT_HANDLE_FID 512
+#  define AT_HANDLE_FID AT_REMOVEDIR
 # endif
 # ifndef AT_NO_AUTOMOUNT
 #  define AT_NO_AUTOMOUNT 2048
@@ -651,7 +651,7 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define O_TMPFILE 4259840
 # endif
 # ifndef RWF_WRITE_LIFE_NOT_SET
-#  define RWF_WRITE_LIFE_NOT_SET 0
+#  define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
 # endif
 # ifndef RWH_WRITE_LIFE_EXTREME
 #  define RWH_WRITE_LIFE_EXTREME 5
@@ -703,19 +703,19 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #endif
 #if __NIJI_MISC
 # ifndef FAPPEND
-#  define FAPPEND 1024
+#  define FAPPEND O_APPEND
 # endif
 # ifndef FASYNC
-#  define FASYNC 8192
+#  define FASYNC O_ASYNC
 # endif
 # ifndef FFSYNC
-#  define FFSYNC 1052672
+#  define FFSYNC O_FSYNC
 # endif
 # ifndef FNDELAY
-#  define FNDELAY 2048
+#  define FNDELAY O_NDELAY
 # endif
 # ifndef FNONBLOCK
-#  define FNONBLOCK 2048
+#  define FNONBLOCK O_NONBLOCK
 # endif
 # ifndef F_LOCK
 #  define F_LOCK 1
@@ -764,7 +764,7 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define O_DSYNC 4096
 # endif
 # ifndef O_RSYNC
-#  define O_RSYNC 1052672
+#  define O_RSYNC O_SYNC
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

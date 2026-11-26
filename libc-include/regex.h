@@ -352,7 +352,7 @@ extern unsigned long re_set_syntax (unsigned long);
 #  define RE_SYNTAX_AWK 778445UL
 # endif
 # ifndef RE_SYNTAX_ED
-#  define RE_SYNTAX_ED 16843462UL
+#  define RE_SYNTAX_ED RE_SYNTAX_POSIX_BASIC
 # endif
 # ifndef RE_SYNTAX_EGREP
 #  define RE_SYNTAX_EGREP 2341468UL
@@ -373,7 +373,7 @@ extern unsigned long re_set_syntax (unsigned long);
 #  define RE_SYNTAX_POSIX_BASIC 16843462UL
 # endif
 # ifndef RE_SYNTAX_POSIX_EGREP
-#  define RE_SYNTAX_POSIX_EGREP 2341468UL
+#  define RE_SYNTAX_POSIX_EGREP RE_SYNTAX_EGREP
 # endif
 # ifndef RE_SYNTAX_POSIX_EXTENDED
 #  define RE_SYNTAX_POSIX_EXTENDED 242428UL
@@ -385,7 +385,7 @@ extern unsigned long re_set_syntax (unsigned long);
 #  define RE_SYNTAX_POSIX_MINIMAL_EXTENDED 258796UL
 # endif
 # ifndef RE_SYNTAX_SED
-#  define RE_SYNTAX_SED 16843462UL
+#  define RE_SYNTAX_SED RE_SYNTAX_POSIX_BASIC
 # endif
 # ifndef RE_UNMATCHED_RIGHT_PAREN_ORD
 #  define RE_UNMATCHED_RIGHT_PAREN_ORD 131072UL

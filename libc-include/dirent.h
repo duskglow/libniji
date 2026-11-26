@@ -309,10 +309,10 @@ enum {
 #endif
 #if __NIJI_GNU
 # ifndef _POSIX_FD_SETSIZE
-#  define _POSIX_FD_SETSIZE 20
+#  define _POSIX_FD_SETSIZE _POSIX_OPEN_MAX
 # endif
 # ifndef _POSIX_HIWAT
-#  define _POSIX_HIWAT 512
+#  define _POSIX_HIWAT _POSIX_PIPE_BUF
 # endif
 # ifndef _POSIX_QLIMIT
 #  define _POSIX_QLIMIT 1
@@ -362,7 +362,7 @@ enum {
 #  define LOGIN_NAME_MAX 256
 # endif
 # ifndef MAXNAMLEN
-#  define MAXNAMLEN 255
+#  define MAXNAMLEN NAME_MAX
 # endif
 # ifndef MAX_CANON
 #  define MAX_CANON 255
@@ -386,7 +386,7 @@ enum {
 #  define PIPE_BUF 4096
 # endif
 # ifndef PTHREAD_DESTRUCTOR_ITERATIONS
-#  define PTHREAD_DESTRUCTOR_ITERATIONS 4
+#  define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
 # endif
 # ifndef PTHREAD_KEYS_MAX
 #  define PTHREAD_KEYS_MAX 1024

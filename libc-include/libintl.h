@@ -9,6 +9,16 @@
 __NIJI_BEGIN_C
 
 #if __NIJI_FORTIFY >= 1
+# ifndef __NIJI_D_struct___locale_struct
+#  define __NIJI_D_struct___locale_struct 1
+struct __locale_struct {
+  struct __locale_data * __locales[13];
+  const unsigned short * __ctype_b;
+  const int * __ctype_tolower;
+  const int * __ctype_toupper;
+  const char * __names[13];
+};
+# endif
 # ifndef __NIJI_D_struct_lconv
 #  define __NIJI_D_struct_lconv 1
 struct lconv {
@@ -58,27 +68,27 @@ extern char *bindtextdomain (const char *, const char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dcgettext
 #  define __NIJI_D_dcgettext 1
-extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW;
+extern char *dcgettext (const char *, const char *, int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2)));
 # endif
 # ifndef __NIJI_D_dcngettext
 #  define __NIJI_D_dcngettext 1
-extern char *dcngettext (const char *, const char *, const char *, long unsigned int, int) __NIJI_NOTHROW;
+extern char *dcngettext (const char *, const char *, const char *, long unsigned int, int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2), __format_arg__ (3)));
 # endif
 # ifndef __NIJI_D_dgettext
 #  define __NIJI_D_dgettext 1
-extern char *dgettext (const char *, const char *) __NIJI_NOTHROW;
+extern char *dgettext (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2)));
 # endif
 # ifndef __NIJI_D_dngettext
 #  define __NIJI_D_dngettext 1
-extern char *dngettext (const char *, const char *, const char *, long unsigned int) __NIJI_NOTHROW;
+extern char *dngettext (const char *, const char *, const char *, long unsigned int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (2), __format_arg__ (3)));
 # endif
 # ifndef __NIJI_D_gettext
 #  define __NIJI_D_gettext 1
-extern char *gettext (const char *) __NIJI_NOTHROW;
+extern char *gettext (const char *) __NIJI_NOTHROW __attribute__ ((__format_arg__ (1)));
 # endif
 # ifndef __NIJI_D_ngettext
 #  define __NIJI_D_ngettext 1
-extern char *ngettext (const char *, const char *, long unsigned int) __NIJI_NOTHROW;
+extern char *ngettext (const char *, const char *, long unsigned int) __NIJI_NOTHROW __attribute__ ((__format_arg__ (1), __format_arg__ (2)));
 # endif
 # ifndef __NIJI_D_textdomain
 #  define __NIJI_D_textdomain 1

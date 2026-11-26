@@ -16,6 +16,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check  # noqa: E402
 
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import header_check as hc  # noqa: E402
+
 must_fail = ["regexp.h"]
 p1_skip = [("ftw.h", "statx"), ("ftw.h", "statx_timestamp")]
 
@@ -24,6 +30,22 @@ def units(ctx):
     levels = {r["id"]: r for r in ctx.rows("headers/levels.tsv")}
     out = [(c["id"], f"P5 {h} must fail", f"#include <{h}>\n")
            for c in ctx.cfgs if levels[c["id"]]["reject"] != "1" for h in must_fail]
+    # Spec clause: gettext(3), ngettext(3) (HEADERS-STAGE2-GAPS-B: avahi's `printf (_("..."))` under
+    # -Werror=format-security). Each message argument the reference marks format_arg (black-box attribute probe,
+    # diagattrs.tsv `format_arg`) passes a literal's format checking through: a literal through any of them is a
+    # literal format, so -Wformat-security stays silent where the call has no other argument.
+    calls = {"gettext": '"x"', "dgettext": '"d", "x"', "dcgettext": '"d", "x", 5', "ngettext": '"x", "y", n',
+             "dngettext": '"d", "x", "y", n', "dcngettext": '"d", "x", "y", n, 5'}
+    fa = {}
+    for r in ctx.vis:
+        if r["header"] == "libintl.h" and r["kind"] == "function" and r["name"] in calls:
+            for cid in hc.expand(r["configs"], ctx.ids):
+                fa.setdefault(cid, []).append(r["name"])
+    for cid, fns in sorted(fa.items()):
+        body = ["#include <libintl.h>", '#pragma GCC diagnostic error "-Wformat"', '#pragma GCC diagnostic error "-Wformat-security"',
+                "extern int niji_pf (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));",
+                "void niji_fa (unsigned long n) { (void) n;"] + [f"  niji_pf ({f} ({calls[f]}));" for f in sorted(fns)] + ["}"]
+        out.append((cid, "format_arg libintl.h", "\n".join(body) + "\n"))
     # Spec clause: regex(3), the GNU interface (HEADERS-SNAPSHOT-GAPS): RE_TRANSLATE_TYPE is shown exactly where the
     # reference shows it and names the type of the pattern buffer's `translate` member (layouts.tsv), which busybox's
     # grep declares its table with.
@@ -43,6 +65,14 @@ def units(ctx):
              ("_NL_ITEM_INDEX(0xFFFFFFFFu)", 65535, "int"), ("_NL_ITEM_INDEX(0x100020005L)", 5, "int"),
              ("_NL_ITEM_INDEX(0x20005) * 2", 10, "int"), ("_NL_ITEM_INDEX(_NL_ADDRESS_COUNTRY_AB2)", 3, "int"),
              ("_NL_ITEM_CATEGORY(_NL_IDENTIFICATION_CODESET)", 12, "int")]
+    # Spec clause: nl_langinfo(3), the locale-name item (NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME`, and
+    # its interpreter layout follows). Probed form: _NL_ITEM(category, 0xffff), argument and result parenthesised, the
+    # type follows the argument.
+    forms += [("_NL_LOCALE_NAME(0)", 65535, "int"), ("_NL_LOCALE_NAME(12)", 851967, "int"), ("_NL_LOCALE_NAME(1L)", 131071, "long"),
+              ("_NL_LOCALE_NAME(1u)", 131071, "unsigned"), ("_NL_LOCALE_NAME(1) * 2", 262142, "int"),
+              ("_NL_LOCALE_NAME(2 - 1)", 131071, "int"), ("_NL_LOCALE_NAME(1 ? 3 : 4)", 262143, "int"),
+              ("-_NL_LOCALE_NAME(1)", -131071, "int"), ("_NL_ITEM_INDEX(_NL_LOCALE_NAME(5))", 65535, "int"),
+              ("_NL_ITEM_CATEGORY(_NL_LOCALE_NAME(2))", 2, "int")]
     cxx = {c["id"]: c["language"] == "c++" for c in ctx.cfgs}
     for cid in ("c89", "gnu17", "cxx98", "cxx17"):
         same = "__is_same(__typeof__({e}), {t})" if cxx[cid] else "__builtin_types_compatible_p(__typeof__({e}), {t})"
@@ -54,7 +84,7 @@ def units(ctx):
     # (HEADERS-STAGE2-GAPS-E: libcap-ng's filecap.c tests S_ISREG after <ftw.h> alone): the S_IS* tests exactly where
     # the reference shows them through <ftw.h>.
     out += ctx.exact("ftw.h", FTW_STAT_TESTS)
-    return out + errcode_units(ctx) + gettext_units(ctx)
+    return out + errcode_units(ctx) + gettext_units(ctx) + locale_struct_units(ctx)
 
 
 # (expression, value, type) of __GNU_GETTEXT_SUPPORTED_REVISION, from black-box probes of the reference
@@ -99,6 +129,40 @@ def gettext_units(ctx):
 
 
 FTW_STAT_TESTS = ("S_ISBLK", "S_ISCHR", "S_ISDIR", "S_ISFIFO", "S_ISREG", "S_ISLNK", "S_ISSOCK")
+# The configurations locale_struct_units samples: the lowest POSIX level with locale_t, its X/Open twin, the GNU
+# default, and one C++ mode (the struct's visibility differs per header only by the language and the feature level).
+LOCALE_STRUCT_CONFIGS = ("posix200809", "xopen700", "gnu17", "cxx17")
+# Headers left out, with the reason: complex.h shows the structure only in C++ modes, where the reference's <complex.h>
+# reaches locale_t through the C++ library's headers; libniji's complex.h includes neither, so it shows no locale_t
+# there either (an include difference of complex.h, not of this structure).
+LOCALE_STRUCT_SKIP = ("complex.h",)
+
+
+def locale_struct_units(ctx):
+    """Spec clause: Appendix C layouts, `struct __locale_struct` (NL-LOCALE-NAME-ABI-3: gnulib's localename module,
+    copied into findutils, gettext, gnutls28, grep, libunistring, m4 and sed, reads `locale->__names[category]`, and
+    each of those failed to build in Yohane's stage 2 while the tag was incomplete). In every header visibility.tsv
+    shows the structure in, for the sampled configurations where it shows it: the structure is complete, with the size,
+    alignment and member offsets of layouts.tsv, and `locale_t` points to it (headers/reserved.tsv `__locale_struct`).
+    Defects it catches: the tag left incomplete (the reserved row dropped), a member missing or moved, or the
+    structure emitted only in some of the headers that show `locale_t`."""
+    lay = [r for r in ctx.rows("spec/abi/layouts.tsv") if r["type"] == "struct __locale_struct"]
+    whole = next((r for r in lay if not r["member"]), None)
+    rows = [r for r in ctx.vis if r["name"] == "__locale_struct" and r["kind"] == "struct" and r["header"] not in LOCALE_STRUCT_SKIP]
+    if whole is None or not rows:
+        return [(ctx.ids[0], "locale_struct", "#error layouts.tsv or visibility.tsv has no struct __locale_struct row\n")]
+    asserts = [f"sizeof (struct __locale_struct) == {whole['offset_or_size']}",
+               f"__alignof__ (struct __locale_struct) == {whole['align']}"]
+    asserts += [f"__builtin_offsetof (struct __locale_struct, {r['member']}) == {r['offset_or_size']}" for r in lay if r["member"]]
+    out = []
+    for r in rows:
+        shown = header_check.expand(r["configs"], ctx.ids)
+        for cid in LOCALE_STRUCT_CONFIGS:
+            if cid not in shown:
+                continue
+            body = f"#include <{r['header']}>\n" + "".join(f"typedef char niji_ls_{i}[({a}) ? 1 : -1];\n" for i, a in enumerate(asserts))
+            out.append((cid, f"locale_struct {r['header']}", body))
+    return out
 
 
 def errcode_units(ctx):

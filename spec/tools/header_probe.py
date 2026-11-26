@@ -346,6 +346,17 @@ def package_names():
     # name spec/abi/langinfo.tsv records (an alias after `/`) is a candidate, with the three item macros.
     out += ["_NL_ITEM", "_NL_ITEM_CATEGORY", "_NL_ITEM_INDEX"]
     out += [n for r in tsv("langinfo.tsv") for n in r["name"].split("/")]
+    # HEADERS-STAGE2-GAPS-D (Yohane stage 2): perl's pp_sys.c casts to `__priority_which_t`, perl and heimdal read
+    # `struct hostent`'s `h_addr`; glib calls IN_MULTICAST, with the other address-class tests of RFC 791 / RFC 1112
+    # (class A to D, experimental, bad class); google-perftools waits with `__WALL` (wait(2) names __WALL, __WCLONE,
+    # __WNOTHREAD); icu reads `__timezone` (exported with `__daylight` and `__tzname`, versions.tsv). perl's Socket
+    # module defines its IN6ADDR_ANY / IN6ADDR_LOOPBACK constants where POSIX's IN6ADDR_ANY_INIT / IN6ADDR_LOOPBACK_INIT are.
+    out += ["__priority_which_t", "h_addr", "IN_CLASSA", "IN_CLASSB", "IN_CLASSC", "IN_CLASSD", "IN_MULTICAST",
+            "IN_EXPERIMENTAL", "IN_BADCLASS", "__WALL", "__WCLONE", "__WNOTHREAD", "__timezone", "__daylight", "__tzname",
+            "IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT"]
+    # NL-LOCALE-NAME-ABI: perl's perl.h tests `_NL_LOCALE_NAME` to choose how it learns a locale object's names, and
+    # the interpreter structure's layout with it. (`static_assert`, which perl.h also tests, is a stage2_names candidate.)
+    out += ["_NL_LOCALE_NAME"]
     # HEADERS-GETTEXT-CLANG (Yohane's stage 2 on snapshot 2026-11-25.2): the struct utmp compatibility member names
     # sysvinit and procps use (utmp(5): `ut_name`, `ut_time`, `ut_addr`; `ut_xtime` beside them) and the login
     # accounting file name macros of the same header; psutil's struct ifaddrs union member names (getifaddrs(3):
@@ -419,6 +430,36 @@ def stage2e_names():
             "S_TYPEISSEM", "S_TYPEISSHM", "S_TYPEISTMO", "st_atime", "st_ctime", "st_mtime", "timeradd",
             "timerclear", "timercmp", "timerisset", "timersub", "TCSETS2", "bswap_16", "bswap_32", "bswap_64",
             "index", "rindex"]
+    return out
+
+
+# The ELF type names of the System V gABI and the GNU extensions (symbol versioning, compressed sections, RELR,
+# move and library entries, auxiliary vector), each in its 32- and 64-bit form (HEADERS-STAGE2-GAPS-B).
+ELF_TYPES = ("Half", "Word", "Sword", "Xword", "Sxword", "Addr", "Off", "Section", "Versym", "Ehdr", "Shdr", "Chdr",
+             "Sym", "Syminfo", "Rel", "Rela", "Relr", "Phdr", "Dyn", "Verdef", "Verdaux", "Verneed", "Vernaux",
+             "auxv_t", "Nhdr", "Move", "Lib", "Conflict")
+
+
+def stage2_gaps_b_names():
+    """Names that package builds against libniji's headers failed on (HEADERS-STAGE2-GAPS-B, Yohane stage 2): apt's
+    `__RES` (resolver interface version), gprofng's `RTLD_DI_SERINFOSIZE` with the other dlinfo(3) requests and the
+    dladdr1(3) flags, krb5's `IN6ADDR_ANY_INIT` and `IN6ADDR_LOOPBACK_INIT` (RFC 3493 section 3.8), and babeltrace's
+    `Elf32_Chdr`/`Elf64_Sword` with every 32/64-bit ELF type name (ELF_TYPES). A candidate is only a name to test."""
+    out = ["__RES", "IN6ADDR_ANY_INIT", "IN6ADDR_LOOPBACK_INIT", "RTLD_DL_SYMENT", "RTLD_DL_LINKMAP"]
+    out += [f"RTLD_DI_{r}" for r in ("LMID", "LINKMAP", "CONFIGADDR", "SERINFO", "SERINFOSIZE", "ORIGIN", "PROFILENAME",
+                                     "PROFILEOUT", "TLS_MODID", "TLS_DATA", "PHDR", "MAX")]
+    out += [f"Elf{w}_{t}" for w in (32, 64) for t in ELF_TYPES]
+    # netinet/udp.h's socket options and encapsulation types (udp(7) and the kernel UAPI linux/udp.h's macro names),
+    # and elf.h's ELFMAG, the string beside ELFMAG0..ELFMAG3 and SELFMAG (chrpath).
+    out += ["SOL_UDP", "TCP_ENCAP_ESPINTCP", "ELFMAG"]
+    out += [f"UDP_{n}" for n in ("CORK", "ENCAP", "NO_CHECK6_TX", "NO_CHECK6_RX", "SEGMENT", "GRO")]
+    out += [f"UDP_ENCAP_{n}" for n in ("ESPINUDP_NON_IKE", "ESPINUDP", "L2TPINUDP", "GTP0", "GTP1U", "RXRPC")]
+    # elf.h's r_info, st_info, st_other and m_info accessors (gABI "Relocation Entries", "Symbol Table"; the move
+    # entries of the GNU toolchain), each width and the unsized spelling (gnu-efi).
+    out += [f"ELF{w}_{m}" for w in ("32", "64", "") for m in ("R_SYM", "R_TYPE", "R_INFO", "ST_BIND", "ST_TYPE",
+                                                              "ST_INFO", "ST_VISIBILITY", "M_SYM", "M_SIZE", "M_INFO")]
+    # resolv.h's base64 helpers, the unprefixed names (resolver(3) family: the exported __b64_ntop and __b64_pton).
+    out += ["b64_ntop", "b64_pton"]
     return out
 
 
@@ -748,6 +789,7 @@ def candidates():
     names.update(standard_names())
     names.update(math_names())
     names.update(package_names())
+    names.update(stage2_gaps_b_names())
     # The public type name of each reserved one (`__blksize_t` spells struct stat's member, `blksize_t` is the
     # name XBD <sys/types.h> gives programs): a header that shows the reserved type may show its public name.
     names.update(n[2:] for n in list(names) if n.startswith("__") and n.endswith("_t") and not n.startswith("___"))
@@ -758,6 +800,7 @@ def candidates():
     names.update(bb)
     tags.update(bb_tags)
     names.update(stage2e_names())
+    tags.add("ip_mreq_source")  # HEADERS-STAGE2-GAPS-D: perl's Configure (d_ip_mreq_source); ip(7) IP_ADD_SOURCE_MEMBERSHIP
     s2, s2_tags = stage2_names()
     names.update(s2)
     tags.update(s2_tags)

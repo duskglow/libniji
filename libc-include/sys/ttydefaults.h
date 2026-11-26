@@ -25,13 +25,13 @@ __NIJI_BEGIN_C
 #  define CEOL '\000'
 # endif
 # ifndef CEOT
-#  define CEOT 4
+#  define CEOT CEOF
 # endif
 # ifndef CERASE
 #  define CERASE 127
 # endif
 # ifndef CFLUSH
-#  define CFLUSH 15
+#  define CFLUSH CDISCARD
 # endif
 # ifndef CINTR
 #  define CINTR 3
@@ -52,7 +52,7 @@ __NIJI_BEGIN_C
 #  define CREPRINT 18
 # endif
 # ifndef CRPRNT
-#  define CRPRNT 18
+#  define CRPRNT CREPRINT
 # endif
 # ifndef CSTART
 #  define CSTART 17

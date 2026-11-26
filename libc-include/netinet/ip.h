@@ -100,7 +100,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_DEBMEAS 64
 # endif
 # ifndef IPOPT_END
-#  define IPOPT_END 0
+#  define IPOPT_END IPOPT_EOL
 # endif
 # ifndef IPOPT_EOL
 #  define IPOPT_EOL 0
@@ -109,13 +109,13 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_LSRR 131
 # endif
 # ifndef IPOPT_MEASUREMENT
-#  define IPOPT_MEASUREMENT 64
+#  define IPOPT_MEASUREMENT IPOPT_DEBMEAS
 # endif
 # ifndef IPOPT_MINOFF
 #  define IPOPT_MINOFF 4
 # endif
 # ifndef IPOPT_NOOP
-#  define IPOPT_NOOP 1
+#  define IPOPT_NOOP IPOPT_NOP
 # endif
 # ifndef IPOPT_NOP
 #  define IPOPT_NOP 1
@@ -148,7 +148,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_SATID 136
 # endif
 # ifndef IPOPT_SEC
-#  define IPOPT_SEC 130
+#  define IPOPT_SEC IPOPT_SECURITY
 # endif
 # ifndef IPOPT_SECURITY
 #  define IPOPT_SECURITY 130
@@ -175,13 +175,13 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_SECUR_UNCLASS 0
 # endif
 # ifndef IPOPT_SID
-#  define IPOPT_SID 136
+#  define IPOPT_SID IPOPT_SATID
 # endif
 # ifndef IPOPT_SSRR
 #  define IPOPT_SSRR 137
 # endif
 # ifndef IPOPT_TIMESTAMP
-#  define IPOPT_TIMESTAMP 68
+#  define IPOPT_TIMESTAMP IPOPT_TS
 # endif
 # ifndef IPOPT_TS
 #  define IPOPT_TS 68
@@ -220,7 +220,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPTOS_CLASS_CS7 224
 # endif
 # ifndef IPTOS_CLASS_DEFAULT
-#  define IPTOS_CLASS_DEFAULT 0
+#  define IPTOS_CLASS_DEFAULT IPTOS_CLASS_CS0
 # endif
 # ifndef IPTOS_CLASS_MASK
 #  define IPTOS_CLASS_MASK 224
@@ -292,34 +292,34 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPTOS_LOWDELAY 16
 # endif
 # ifndef IPTOS_MINCOST
-#  define IPTOS_MINCOST 2
+#  define IPTOS_MINCOST IPTOS_LOWCOST
 # endif
 # ifndef IPTOS_PREC_CRITIC_ECP
-#  define IPTOS_PREC_CRITIC_ECP 160
+#  define IPTOS_PREC_CRITIC_ECP IPTOS_CLASS_CS5
 # endif
 # ifndef IPTOS_PREC_FLASH
-#  define IPTOS_PREC_FLASH 96
+#  define IPTOS_PREC_FLASH IPTOS_CLASS_CS3
 # endif
 # ifndef IPTOS_PREC_FLASHOVERRIDE
-#  define IPTOS_PREC_FLASHOVERRIDE 128
+#  define IPTOS_PREC_FLASHOVERRIDE IPTOS_CLASS_CS4
 # endif
 # ifndef IPTOS_PREC_IMMEDIATE
-#  define IPTOS_PREC_IMMEDIATE 64
+#  define IPTOS_PREC_IMMEDIATE IPTOS_CLASS_CS2
 # endif
 # ifndef IPTOS_PREC_INTERNETCONTROL
-#  define IPTOS_PREC_INTERNETCONTROL 192
+#  define IPTOS_PREC_INTERNETCONTROL IPTOS_CLASS_CS6
 # endif
 # ifndef IPTOS_PREC_MASK
-#  define IPTOS_PREC_MASK 224
+#  define IPTOS_PREC_MASK IPTOS_CLASS_MASK
 # endif
 # ifndef IPTOS_PREC_NETCONTROL
-#  define IPTOS_PREC_NETCONTROL 224
+#  define IPTOS_PREC_NETCONTROL IPTOS_CLASS_CS7
 # endif
 # ifndef IPTOS_PREC_PRIORITY
-#  define IPTOS_PREC_PRIORITY 32
+#  define IPTOS_PREC_PRIORITY IPTOS_CLASS_CS1
 # endif
 # ifndef IPTOS_PREC_ROUTINE
-#  define IPTOS_PREC_ROUTINE 0
+#  define IPTOS_PREC_ROUTINE IPTOS_CLASS_CS0
 # endif
 # ifndef IPTOS_RELIABILITY
 #  define IPTOS_RELIABILITY 4

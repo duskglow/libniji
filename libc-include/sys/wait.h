@@ -99,42 +99,6 @@ struct timeval {
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D___ino64_t
-#  define __NIJI_D___ino64_t 1
-typedef unsigned long __ino64_t;
-# endif
-# ifndef __NIJI_D___off_t
-#  define __NIJI_D___off_t 1
-typedef long __off_t;
-# endif
-# ifndef __NIJI_D___pid_t
-#  define __NIJI_D___pid_t 1
-typedef int __pid_t;
-# endif
-# ifndef __NIJI_D___quad_t
-#  define __NIJI_D___quad_t 1
-typedef long __quad_t;
-# endif
-# ifndef __NIJI_D___u_char
-#  define __NIJI_D___u_char 1
-typedef unsigned char __u_char;
-# endif
-# ifndef __NIJI_D___u_int
-#  define __NIJI_D___u_int 1
-typedef unsigned int __u_int;
-# endif
-# ifndef __NIJI_D___u_long
-#  define __NIJI_D___u_long 1
-typedef unsigned long __u_long;
-# endif
-# ifndef __NIJI_D___u_quad_t
-#  define __NIJI_D___u_quad_t 1
-typedef unsigned long __u_quad_t;
-# endif
-# ifndef __NIJI_D___u_short
-#  define __NIJI_D___u_short 1
-typedef unsigned short __u_short;
-# endif
 # ifndef __NIJI_D_pid_t
 #  define __NIJI_D_pid_t 1
 typedef int pid_t;
@@ -202,8 +166,14 @@ extern int waitid (idtype_t, unsigned int, siginfo_t *, int);
 # ifndef WUNTRACED
 #  define WUNTRACED 2
 # endif
-# ifndef __FD_SETSIZE
-#  define __FD_SETSIZE 1024
+# ifndef __WALL
+#  define __WALL 1073741824
+# endif
+# ifndef __WCLONE
+#  define __WCLONE 2147483648U
+# endif
+# ifndef __WNOTHREAD
+#  define __WNOTHREAD 536870912
 # endif
 #endif
 #if __NIJI_MISC

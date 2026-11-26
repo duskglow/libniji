@@ -7,11 +7,31 @@
 #include <features.h>
 
 #include <sys/select.h>
-#include <sys/time.h>
 
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_itimerval
+#  define __NIJI_D_struct_itimerval 1
+struct itimerval {
+  struct timeval it_interval;
+  struct timeval it_value;
+};
+# endif
 # ifndef __NIJI_D_struct_timeval
 #  define __NIJI_D_struct_timeval 1
 struct timeval {
@@ -75,10 +95,39 @@ struct timex {
   int : 32;
 };
 # endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_struct_timezone
+#  define __NIJI_D_struct_timezone 1
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
+};
+# endif
+#endif
+#if 1
+# ifndef __NIJI_D_enum___itimer_which
+#  define __NIJI_D_enum___itimer_which 1
+enum __itimer_which {
+  ITIMER_REAL = 0,
+  ITIMER_VIRTUAL = 1,
+  ITIMER_PROF = 2,
+};
+# endif
 struct timex;
 # ifndef __NIJI_D_adjtimex
 #  define __NIJI_D_adjtimex 1
 extern int adjtimex (struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+struct itimerval;
+# ifndef __NIJI_D_getitimer
+#  define __NIJI_D_getitimer 1
+extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_gettimeofday
+#  define __NIJI_D_gettimeofday 1
+extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timex;
 # ifndef __NIJI_D_ntp_adjtime
@@ -95,6 +144,50 @@ struct ntptimeval;
 #  define __NIJI_D_ntp_gettimex 1
 extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
+struct itimerval;
+struct itimerval;
+# ifndef __NIJI_D_setitimer
+#  define __NIJI_D_setitimer 1
+extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_utimes
+#  define __NIJI_D_utimes 1
+extern int utimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+#endif
+#if __NIJI_GNU
+struct timeval;
+# ifndef __NIJI_D_futimesat
+#  define __NIJI_D_futimesat 1
+extern int futimesat (int, const char *, const struct timeval [2]) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_MISC
+struct timeval;
+struct timeval;
+# ifndef __NIJI_D_adjtime
+#  define __NIJI_D_adjtime 1
+extern int adjtime (const struct timeval *, struct timeval *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_futimes
+#  define __NIJI_D_futimes 1
+extern int futimes (int, const struct timeval [2]) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_lutimes
+#  define __NIJI_D_lutimes 1
+extern int lutimes (const char *, const struct timeval [2]) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+# endif
+struct timeval;
+struct timezone;
+# ifndef __NIJI_D_settimeofday
+#  define __NIJI_D_settimeofday 1
+extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
+# endif
+#endif
+#if 1
 # ifndef ADJ_ESTERROR
 #  define ADJ_ESTERROR 8
 # endif
@@ -134,41 +227,50 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef ADJ_TIMECONST
 #  define ADJ_TIMECONST 32
 # endif
+# ifndef ITIMER_PROF
+#  define ITIMER_PROF ITIMER_PROF
+# endif
+# ifndef ITIMER_REAL
+#  define ITIMER_REAL ITIMER_REAL
+# endif
+# ifndef ITIMER_VIRTUAL
+#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
+# endif
 # ifndef MAXTC
 #  define MAXTC 6
 # endif
 # ifndef MOD_CLKA
-#  define MOD_CLKA 32769
+#  define MOD_CLKA ADJ_OFFSET_SINGLESHOT
 # endif
 # ifndef MOD_CLKB
-#  define MOD_CLKB 16384
+#  define MOD_CLKB ADJ_TICK
 # endif
 # ifndef MOD_ESTERROR
-#  define MOD_ESTERROR 8
+#  define MOD_ESTERROR ADJ_ESTERROR
 # endif
 # ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY 2
+#  define MOD_FREQUENCY ADJ_FREQUENCY
 # endif
 # ifndef MOD_MAXERROR
-#  define MOD_MAXERROR 4
+#  define MOD_MAXERROR ADJ_MAXERROR
 # endif
 # ifndef MOD_MICRO
-#  define MOD_MICRO 4096
+#  define MOD_MICRO ADJ_MICRO
 # endif
 # ifndef MOD_NANO
-#  define MOD_NANO 8192
+#  define MOD_NANO ADJ_NANO
 # endif
 # ifndef MOD_OFFSET
-#  define MOD_OFFSET 1
+#  define MOD_OFFSET ADJ_OFFSET
 # endif
 # ifndef MOD_STATUS
-#  define MOD_STATUS 16
+#  define MOD_STATUS ADJ_STATUS
 # endif
 # ifndef MOD_TAI
-#  define MOD_TAI 128
+#  define MOD_TAI ADJ_TAI
 # endif
 # ifndef MOD_TIMECONST
-#  define MOD_TIMECONST 32
+#  define MOD_TIMECONST ADJ_TIMECONST
 # endif
 # ifndef NTP_API
 #  define NTP_API 4
@@ -225,7 +327,7 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 #  define STA_UNSYNC 64
 # endif
 # ifndef TIME_BAD
-#  define TIME_BAD 5
+#  define TIME_BAD TIME_ERROR
 # endif
 # ifndef TIME_DEL
 #  define TIME_DEL 2

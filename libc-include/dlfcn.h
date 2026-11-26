@@ -125,6 +125,63 @@ extern void *dlmopen (long, const char *, int) __NIJI_NOTHROW;
 #  define __NIJI_D_dlvsym 1
 extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
+# ifndef __NIJI_D_anon_RTLD_DI_CONFIGADDR
+#  define __NIJI_D_anon_RTLD_DI_CONFIGADDR 1
+#  if !defined RTLD_DI_LMID || !defined RTLD_DI_LINKMAP || !defined RTLD_DI_CONFIGADDR || !defined RTLD_DI_SERINFO || !defined RTLD_DI_SERINFOSIZE || !defined RTLD_DI_ORIGIN \
+    || !defined RTLD_DI_PROFILENAME || !defined RTLD_DI_PROFILEOUT || !defined RTLD_DI_TLS_MODID || !defined RTLD_DI_TLS_DATA || !defined RTLD_DI_MAX || !defined RTLD_DI_PHDR
+enum {
+#  ifndef RTLD_DI_LMID
+  RTLD_DI_LMID = 1,
+#  endif
+#  ifndef RTLD_DI_LINKMAP
+  RTLD_DI_LINKMAP = 2,
+#  endif
+#  ifndef RTLD_DI_CONFIGADDR
+  RTLD_DI_CONFIGADDR = 3,
+#  endif
+#  ifndef RTLD_DI_SERINFO
+  RTLD_DI_SERINFO = 4,
+#  endif
+#  ifndef RTLD_DI_SERINFOSIZE
+  RTLD_DI_SERINFOSIZE = 5,
+#  endif
+#  ifndef RTLD_DI_ORIGIN
+  RTLD_DI_ORIGIN = 6,
+#  endif
+#  ifndef RTLD_DI_PROFILENAME
+  RTLD_DI_PROFILENAME = 7,
+#  endif
+#  ifndef RTLD_DI_PROFILEOUT
+  RTLD_DI_PROFILEOUT = 8,
+#  endif
+#  ifndef RTLD_DI_TLS_MODID
+  RTLD_DI_TLS_MODID = 9,
+#  endif
+#  ifndef RTLD_DI_TLS_DATA
+  RTLD_DI_TLS_DATA = 10,
+#  endif
+#  ifndef RTLD_DI_MAX
+  RTLD_DI_MAX = 11,
+#  endif
+#  ifndef RTLD_DI_PHDR
+  RTLD_DI_PHDR = 11,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_RTLD_DL_LINKMAP
+#  define __NIJI_D_anon_RTLD_DL_LINKMAP 1
+#  if !defined RTLD_DL_SYMENT || !defined RTLD_DL_LINKMAP
+enum {
+#  ifndef RTLD_DL_SYMENT
+  RTLD_DL_SYMENT = 1,
+#  endif
+#  ifndef RTLD_DL_LINKMAP
+  RTLD_DL_LINKMAP = 2,
+#  endif
+};
+#  endif
+# endif
 #endif
 #if 1
 # ifndef RTLD_BINDING_MASK

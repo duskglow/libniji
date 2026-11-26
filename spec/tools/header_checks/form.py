@@ -528,7 +528,8 @@ FAILING = ("type differs", "enumeration differs")
 C_CONFIGS = frozenset(cid for cid, lang, _ in CONFIGS if lang == "c")
 ENFORCED = {("PTHREAD_STACK_MIN", "pthread.h"): None, ("PTHREAD_STACK_MIN", "dirent.h"): None,
             ("PTHREAD_STACK_MIN", "limits.h"): None, ("basename", "libgen.h"): None, ("res_init", "resolv.h"): None,
-            ("res_ninit", "resolv.h"): None, ("res_nclose", "resolv.h"): None, ("INFINITY", "sys/vlimit.h"): None,
+            ("res_ninit", "resolv.h"): None, ("res_nclose", "resolv.h"): None,
+            ("b64_ntop", "resolv.h"): None, ("b64_pton", "resolv.h"): None,("INFINITY", "sys/vlimit.h"): None,
             ("MS_NOUSER", "sys/mount.h"): C_CONFIGS}
 
 

@@ -1,13 +1,48 @@
-# Function parameters a header declares in the array form of an array typedef (`prgregset_t`, `T [N]`) where
-# prototypes.tsv spells the decayed pointer (`elf_greg_t *`). Both are the same type, but GCC compares the form
-# (-Warray-parameter): a definition with the array parameter is an error under -Werror against a pointer
-# declaration, and one with the pointer against an array declaration. `param` is 1-based; the generator checks
-# that the declared parameter is a pointer to the typedef's element type (`const` kept).
+# Function parameters a header declares in an array form where prototypes.tsv spells the decayed pointer
+# (`elf_greg_t *`): the array typedef (`prgregset_t`) or a plain bound (`[2]`: `const struct timespec [2]`). Both are
+# the same type, but GCC compares the form (-Warray-parameter): a definition with the array parameter is an error under
+# -Werror against a pointer declaration, and one with the pointer against an array declaration. `param` is 1-based;
+# `typedef` is the array typedef or `[N]`; the generator checks that the declared parameter is a pointer to the
+# typedef's element type (`const` kept), or, for `[N]`, keeps the parameter's own pointee as the element type.
 # Source: black-box probe of the reference's headers (a definition of each function after its header, with the
 # array and then the pointer parameter, compiled with -Werror=array-parameter: the array form passes, the pointer
-# form fails), and gdb's proc_service callbacks, which define ps_lgetregs/ps_lsetregs with prgregset_t.
+# form fails), and gdb's proc_service callbacks, which define ps_lgetregs/ps_lsetregs with prgregset_t. The `[N]` rows
+# (HEADERS-STAGE2-GAPS-D; faketime defines utimensat and futimens with `const struct timespec [2]` under
+# -Werror=array-parameter): a sweep of every prototypes.tsv function redeclared as the table spells it after a header
+# showing it (-std=gnu17 -D_GNU_SOURCE), failing only with -Werror=array-parameter; each pointer parameter then
+# redeclared as `T [N]`, N = 1..64, one N compiling. regexec's `pmatch` is a variable-length bound (on `nmatch`), not
+# a row here.
 function	param	typedef	source
 ps_lgetregs	3	prgregset_t	probe
 ps_lsetregs	3	prgregset_t	probe
 td_thr_getgregs	2	prgregset_t	probe
 td_thr_setgregs	2	prgregset_t	probe
+__sigsetjmp	1	[1]	probe
+__sigsetjmp_cancel	1	[1]	probe
+_longjmp	1	[1]	probe
+_setjmp	1	[1]	probe
+erand48	1	[3]	probe
+erand48_r	1	[3]	probe
+futimens	2	[2]	probe
+futimes	2	[2]	probe
+futimesat	3	[2]	probe
+if_indextoname	2	[16]	probe
+jrand48	1	[3]	probe
+jrand48_r	1	[3]	probe
+lcong48	1	[7]	probe
+lcong48_r	1	[7]	probe
+longjmp	1	[1]	probe
+lutimes	2	[2]	probe
+nrand48	1	[3]	probe
+nrand48_r	1	[3]	probe
+pipe	1	[2]	probe
+pipe2	1	[2]	probe
+seed48	1	[3]	probe
+seed48_r	1	[3]	probe
+setjmp	1	[1]	probe
+siglongjmp	1	[1]	probe
+socketpair	4	[2]	probe
+tmpnam	1	[20]	probe
+tmpnam_r	1	[20]	probe
+utimensat	3	[2]	probe
+utimes	2	[2]	probe
