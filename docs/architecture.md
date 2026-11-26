@@ -331,7 +331,10 @@ owner writes, with plain loads and stores and no atomic read-modify-write; a fre
 thread sets a bit in the slab's remote bitmap and queues the slab on the owner's lock-free
 pending list (D-3.11). A thread's NUMA node is read on slow paths only, from rseq or the vDSO
 `getcpu`, and memory is placed with `MPOL_PREFERRED`, never a hard binding, so a full node
-degrades to remote memory rather than failing (D-3.12, rule M3). Caches of exited threads are
+degrades to remote memory rather than failing (D-3.12, rule M3). The first segment maps 16 slabs;
+a later segment (a second NUMA node's, or a node's next one) maps its metadata and 8 slabs, 2,304
+KiB of address space, and grows by the same step, so a thread that moves to another node costs
+little address space under a limit (D-3.24). Caches of exited threads are
 parked per node and reused whole.
 
 **Buffered streams** (spec §12; [crates/core/src/stream.rs](../crates/core/src/stream.rs),
