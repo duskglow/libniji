@@ -47,3 +47,6 @@ plants), proof6 (openssh above). Earlier legs' jobs are superseded by these (see
   (add them to header_probe's stage2_gaps_b_names, run `header_probe.py --headers resolv.h --names <file>`, merge the rows,
   add the macros to headers/resolv.h.in, a unit and a plant). Left to a follow-up story: it needs a table regeneration
   and a second gate, and this run's gate would be stale.
+
+## State after HEADERS-STAGE2-GAPS-B-4 (merge-only run)
+Branch task/headers-stage2-gaps-b-4. origin/next merged; conflicts resolved keeping both sides; generated files regenerated (abi-gen, headers-gen). header_probe.py: this story's list is stage2_gaps_b_names (the -C story owns stage2_names). Gate (direct) and 3 plants green. Next: the train lands it. Nothing else owed.
