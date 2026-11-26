@@ -705,12 +705,29 @@ extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # define LITTLE_ENDIAN 1234
 # define NFDBITS 64
 # define PDP_ENDIAN 3412
+# ifndef __NIJI_D_m___BIG_ENDIAN
+#  define __NIJI_D_m___BIG_ENDIAN 1
 # define __BIG_ENDIAN 4321
+# endif
+# ifndef __NIJI_D_m___BYTE_ORDER
+#  define __NIJI_D_m___BYTE_ORDER 1
 # define __BYTE_ORDER 1234
-# define __FLOAT_WORD_ORDER 1234
+# endif
+# ifndef __NIJI_D_m___FLOAT_WORD_ORDER
+#  define __NIJI_D_m___FLOAT_WORD_ORDER 1
+# ifndef __FLOAT_WORD_ORDER
+#  define __FLOAT_WORD_ORDER 1234
+# endif
+# endif
+# ifndef __NIJI_D_m___LITTLE_ENDIAN
+#  define __NIJI_D_m___LITTLE_ENDIAN 1
 # define __LITTLE_ENDIAN 1234
+# endif
 # define __NFDBITS 64
+# ifndef __NIJI_D_m___PDP_ENDIAN
+#  define __NIJI_D_m___PDP_ENDIAN 1
 # define __PDP_ENDIAN 3412
+# endif
 #endif
 
 /* __bswap_16, __bswap_32, __bswap_64: the bytes of x in reverse order, as static inline functions of the 16-, 32- and

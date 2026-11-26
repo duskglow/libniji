@@ -323,7 +323,11 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     // The prototypes redeclared from the table's own text: a declaration the emitter spelled differently is a
     // conflicting redeclaration (C) or a different exception specification (C++17).
     let mut redecl = Tu::default();
-    for (n, d) in t.protos.iter().filter(|(n, _)| named(n)) {
+    // A function some configuration binds to a headers/redirects.tsv symbol is declared there with that row's text
+    // (functions.rs `redirect_line`: XSI strerror_r returns int), which this placement-free unit can see in place of
+    // the prototypes.tsv one: no redeclaration for it (its per-configuration form is header_check's s05.d check).
+    let redirected: BTreeSet<String> = tsv(root, super::functions::REDIRECTS)?.into_iter().map(|r| r["symbol"].clone()).collect();
+    for (n, d) in t.protos.iter().filter(|(n, _)| named(n) && !t.addr.get(*n).is_some_and(|v| v.iter().any(|(_, s)| redirected.contains(s)))) {
         let i = c.row("prototypes", n);
         let nx = if t.nothrow.contains(n) { " NIJI_NX" } else { "" };
         // Spelling equivalences only: the decayed `va_list` and `complex`, the macro of <complex.h> for `_Complex`,

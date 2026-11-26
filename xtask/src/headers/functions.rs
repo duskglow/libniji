@@ -4,7 +4,7 @@ use super::*;
 
 /// headers/redirects.tsv: the declaration a function has in the configurations whose calls bind to another symbol,
 /// where that form differs from prototypes.tsv's (strerror_r's XSI form, `__xpg_strerror_r`).
-const REDIRECTS: &str = "headers/redirects.tsv";
+pub(super) const REDIRECTS: &str = "headers/redirects.tsv";
 
 /// The declaration of `name` bound to `sym` in a redirects.tsv row's form: its declaration (spelled with `name`),
 /// its nonnull parameters and, `wur` 1, warn_unused_result.

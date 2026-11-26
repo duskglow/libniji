@@ -11,6 +11,17 @@
 
 __NIJI_BEGIN_C
 
+/* ELF_NOTE_SOLARIS, ELF_NOTE_GNU, ELF_NOTE_FDO: the owner names (strings) of ELF notes. <elf.h> and <sys/auxv.h> show
+   them; each carries this definition under one guard, so the first one included defines them (a program's earlier
+   definition is replaced, as in the reference: black-box probe; R-H7). */
+#if 1
+# ifndef __NIJI_D_elf_note_names
+#  define __NIJI_D_elf_note_names 1
+#  define ELF_NOTE_SOLARIS "SUNW Solaris"
+#  define ELF_NOTE_GNU "GNU"
+#  define ELF_NOTE_FDO "FDO"
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_Elf32_Addr
 #  define __NIJI_D_Elf32_Addr 1
@@ -926,14 +937,11 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # define ELFOSABI_SYSV 0
 # define ELFOSABI_TRU64 10
 # define ELF_NOTE_ABI NT_GNU_ABI_TAG
-# define ELF_NOTE_FDO "FDO"
-# define ELF_NOTE_GNU "GNU"
 # define ELF_NOTE_OS_FREEBSD 3
 # define ELF_NOTE_OS_GNU 1
 # define ELF_NOTE_OS_LINUX 0
 # define ELF_NOTE_OS_SOLARIS2 2
 # define ELF_NOTE_PAGESIZE_HINT 1
-# define ELF_NOTE_SOLARIS "SUNW Solaris"
 # define EM_386 3
 # define EM_56800EX 200
 # define EM_68HC05 72

@@ -1013,23 +1013,38 @@ extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_
 # endif
 #endif
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400
+# ifndef __NIJI_D_m___BIG_ENDIAN
+#  define __NIJI_D_m___BIG_ENDIAN 1
 # ifndef __BIG_ENDIAN
 #  define __BIG_ENDIAN 4321
 # endif
+# endif
+# ifndef __NIJI_D_m___BYTE_ORDER
+#  define __NIJI_D_m___BYTE_ORDER 1
 # ifndef __BYTE_ORDER
 #  define __BYTE_ORDER 1234
+# endif
 # endif
 # ifndef __FD_SETSIZE
 #  define __FD_SETSIZE 1024
 # endif
+# ifndef __NIJI_D_m___FLOAT_WORD_ORDER
+#  define __NIJI_D_m___FLOAT_WORD_ORDER 1
 # ifndef __FLOAT_WORD_ORDER
 #  define __FLOAT_WORD_ORDER 1234
 # endif
+# endif
+# ifndef __NIJI_D_m___LITTLE_ENDIAN
+#  define __NIJI_D_m___LITTLE_ENDIAN 1
 # ifndef __LITTLE_ENDIAN
 #  define __LITTLE_ENDIAN 1234
 # endif
+# endif
+# ifndef __NIJI_D_m___PDP_ENDIAN
+#  define __NIJI_D_m___PDP_ENDIAN 1
 # ifndef __PDP_ENDIAN
 #  define __PDP_ENDIAN 3412
+# endif
 # endif
 #endif
 #if __NIJI_FORTIFY > 0

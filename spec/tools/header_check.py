@@ -264,7 +264,7 @@ def guard_units(ctx):
     per configuration. Where shown, the guard is defined with its macros.tsv value, usable in #if (perl's nostdio.h
     and the kernel's linux/libc-compat.h test it with #if); where not shown, it is not defined, since it states that
     its header was included. P1 leaves the reserved names out (they are emitted only where reserved.tsv says)."""
-    emit = {r["name"] for r in ctx.rows("headers/reserved.tsv") if r["policy"] == "emit"}
+    emit = {r["name"] for r in ctx.rows("headers/reserved.tsv") if r["policy"] in ("emit", "emit-once")}
     guards = {n for n in emit if n.startswith("_") and not n.startswith("__") and n.rstrip("_").endswith("_H")}
     p1 = {r["header"] for r in ctx.slice_rows if r["p1"] == "1"}
     units = {}

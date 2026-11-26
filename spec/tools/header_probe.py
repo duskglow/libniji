@@ -203,7 +203,7 @@ def candidates():
     # (slice 20: `__locale_t`, which the C++ library's locale support names, appears in no prototype).
     with open(os.path.join(ROOT, "headers", "reserved.tsv"), newline="") as f:
         names.update(r["name"] for r in csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t")
-                     if r["policy"] == "emit")
+                     if r["policy"] in ("emit", "emit-once"))
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)

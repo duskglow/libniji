@@ -21,7 +21,10 @@ typedef union pthread_attr_t pthread_attr_t;
 #endif
 #if 1
 # define SOL_ATALK 258
+# ifndef __NIJI_D_m___LITTLE_ENDIAN
+#  define __NIJI_D_m___LITTLE_ENDIAN 1
 # define __LITTLE_ENDIAN 1234
+# endif
 #endif
 
 __NIJI_END_C

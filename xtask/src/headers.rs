@@ -583,7 +583,7 @@ pub(crate) fn guard_candidates(header: &str) -> Vec<String> {
 
 pub(crate) fn omitted(reserved: &BTreeMap<String, String>, name: &str) -> bool {
     match reserved.get(name).map(String::as_str) {
-        Some("emit") => false,
+        Some("emit" | "emit-once") => false,
         Some(_) => true,
         None => name.starts_with("__") || (name.starts_with('_') && (name.ends_with("_H") || name.ends_with("_H_"))),
     }
@@ -727,35 +727,49 @@ impl Gen<'_> {
         }
     }
 
+    /// The definition of macro `name` in this header's form ([`Gen::item`]).
+    fn macro_def(&mut self, name: &str) {
+        // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
+        // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
+        // reference names it (enum-macros.tsv), where this header declares it, else its value.
+        // An alias the header shows in only some of the macro's configurations names it there only.
+        if let Some((a, Some(c))) = self.macro_alias(name) {
+            let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
+            if self.t.redefined(&self.header, name) {
+                // As below: the reference's definition replaces a program's earlier one.
+                self.out.extend([format!("# if {c}"), format!("#  define {name} {a}"), "# else".into(), format!("#  define {name} {v}"), "# endif".into()]);
+            } else {
+                self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
+            }
+            return;
+        }
+        let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
+            Some(e) => e,
+            None => self.value(name),
+        };
+        // The reference's form (macro-forms.tsv): a definition that replaces a program's earlier one is emitted
+        // unconditionally, so the program's spelling (flex's `SIZE_MAX (~(size_t)0)`) is not the one in force.
+        if self.t.redefined(&self.header, name) {
+            self.out.push(format!("# define {name} {v}"));
+        } else {
+            self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+        }
+    }
+
     /// The declaration of one table name of a visibility.tsv kind: every placement (`@@emit`, the rows test of
     /// [`rows`]) goes through here to the emitter of its construct.
     fn item(&mut self, name: &str, kind: &str) {
         match kind {
             "macro" => {
-                // A macro the reference spells as another name (macro-aliases.tsv: the one-step form, `MSG_TRYHARD` as
-                // `MSG_DONTROUTE` though both are enumerators) names it. Else a macro that is an enumerator in the
-                // reference names it (enum-macros.tsv), where this header declares it, else its value.
-                // An alias the header shows in only some of the macro's configurations names it there only.
-                if let Some((a, Some(c))) = self.macro_alias(name) {
-                    let v = self.enum_macro(name).unwrap_or_else(|| self.value(name));
-                    if self.t.redefined(&self.header, name) {
-                        // As below: the reference's definition replaces a program's earlier one.
-                        self.out.extend([format!("# if {c}"), format!("#  define {name} {a}"), "# else".into(), format!("#  define {name} {v}"), "# endif".into()]);
-                    } else {
-                        self.out.extend([format!("# ifndef {name}"), format!("#  if {c}"), format!("#   define {name} {a}"), "#  else".into(), format!("#   define {name} {v}"), "#  endif".into(), "# endif".into()]);
-                    }
-                    return;
-                }
-                let v = match self.macro_alias(name).map(|(a, _)| a).or_else(|| self.enum_macro(name)) {
-                    Some(e) => e,
-                    None => self.value(name),
-                };
-                // The reference's form (macro-forms.tsv): a definition that replaces a program's earlier one is emitted
-                // unconditionally, so the program's spelling (flex's `SIZE_MAX (~(size_t)0)`) is not the one in force.
-                if self.t.redefined(&self.header, name) {
-                    self.out.push(format!("# define {name} {v}"));
-                } else {
-                    self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+                let at = self.out.len();
+                self.macro_def(name);
+                // reserved.tsv `emit-once`: a name the reference defines in one internal header that each of its
+                // headers reaches. Each libniji header that shows it carries the definition under one guard, so the
+                // first one included defines it, in the form above, and no header defines it again
+                // (spec/tools/header_checks/dup.py).
+                if self.t.reserved.get(name).is_some_and(|p| p == "emit-once") {
+                    let body = self.out.split_off(at);
+                    self.guard(&format!("m_{name}"), body);
                 }
             }
             "enumerator" => {

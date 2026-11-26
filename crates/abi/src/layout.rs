@@ -11,6 +11,7 @@
 //! offset, so bitfield offsets are not tested; the members after them are).
 //!
 //! Opaque members (inner layout not checked; declared from their table extent):
+//! * `FTSENT64.fts_ino (ino64_t)`
 //! * `struct___res_state.sort_list (struct <anon>[10])`
 //! * `La_x86_64_regs.__glibc_unused1 (__int128[4])`
 //! * `La_x86_64_retval.__glibc_unused1 (__int128)`
@@ -1427,6 +1428,46 @@ pub struct FTSENT {
     pub fts_pathlen: u16,
     pub fts_namelen: u16,
     pub fts_ino: u64,
+    pub fts_dev: u64,
+    pub fts_nlink: u64,
+    pub fts_level: i16,
+    pub fts_info: u16,
+    pub fts_flags: u16,
+    pub fts_instr: u16,
+    pub fts_statp: usize,
+    pub fts_name: [i8; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct FTS64 {
+    pub fts_cur: usize,
+    pub fts_child: usize,
+    pub fts_array: usize,
+    pub fts_dev: u64,
+    pub fts_path: usize,
+    pub fts_rfd: i32,
+    pub fts_pathlen: i32,
+    pub fts_nitems: i32,
+    pub fts_compar: usize,
+    pub fts_options: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct FTSENT64 {
+    pub fts_cycle: usize,
+    pub fts_parent: usize,
+    pub fts_link: usize,
+    pub fts_number: i64,
+    pub fts_pointer: usize,
+    pub fts_accpath: usize,
+    pub fts_path: usize,
+    pub fts_errno: i32,
+    pub fts_symfd: i32,
+    pub fts_pathlen: u16,
+    pub fts_namelen: u16,
+    pub fts_ino: [u64; 1],
     pub fts_dev: u64,
     pub fts_nlink: u64,
     pub fts_level: i16,
