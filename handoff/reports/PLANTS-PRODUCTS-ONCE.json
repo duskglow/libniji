@@ -1,6 +1,6 @@
 {"task": "PLANTS-PRODUCTS-ONCE", "model": "opus", "tokens": null,
  "result": "cargo xtask plants builds the products only in copies whose plants read them (decided from what each command runs), mutant rebuilds unchanged; header and xtask-only plants jobs 70-78% less wall, libm all-readers job +3.7% wall / -24% CPU; verdicts identical in all three pairs",
- "branch": "task/plants-products-once", "head": null,
+ "branch": "task/plants-products-once", "head": "61c5fb86a",
  "gate": {"affected": "718 passed / 0 failed (direct tier, 7 suites)", "peak": "3.6G"},
  "accepted_first_attempt": null,
  "rulings": [{"item": "All-readers plants files: concentrating readers in one building copy saves a build (-24% CPU) but costs wall (+3.7% on LIBM-PARTIAL-WRITE-CHECK)", "recommendation": "land as is (host load is the trend alert's main cause); follow-up story copies the built products into the other copies so readers spread without a second build"}],
