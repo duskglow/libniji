@@ -38,7 +38,12 @@ as stale, job affected-layout-rows-2-proof-b4, SUPERSEDED). Scripts: `~/work/aff
   (ops' gate wrapper, not measured here).
 - Plants: out of scope (brief item 5).
 
+## Gate
+
+affected-layout-rows-2-gate1 (94fbcfbb0, direct tier, mei): ok, 7 suites, 709 passed, 732 s, peak anon 2.85 GiB.
+Lint: affected-layout-rows-2-lint3 (clippy + static) green; unit: affected-layout-rows-2-unit4 (118 passed).
+Scratch worktrees removed.
+
 ## Next step
 
-Own gate on the final head (`cargo xtask affected --run`), precheck, handback-check; then remove the scratch
-worktrees `b4` and `libm` (`git worktree remove`).
+Land. Then, if wanted: measure a gate with a larger CPU share (more than two steps).
