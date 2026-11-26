@@ -52,9 +52,7 @@ extern int *__errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # define ECONNREFUSED 111
 # define ECONNRESET 104
 # define EDEADLK 35
-# ifndef EDEADLOCK
-#  define EDEADLOCK EDEADLK
-# endif
+# define EDEADLOCK EDEADLK
 # define EDESTADDRREQ 89
 # define EDOM 33
 # define EDOTDOT 73
@@ -162,9 +160,7 @@ extern int *__errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # define EUCLEAN 117
 # define EUNATCH 49
 # define EUSERS 87
-# ifndef EWOULDBLOCK
-#  define EWOULDBLOCK EAGAIN
-# endif
+# define EWOULDBLOCK EAGAIN
 # define EXDEV 18
 # define EXFULL 54
 #endif

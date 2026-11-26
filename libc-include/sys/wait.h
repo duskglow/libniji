@@ -203,9 +203,15 @@ extern int wait3 (int *, int, struct rusage *) __NIJI_NOTHROW;
 #  define WUNTRACED 2
 # endif
 # define __FD_SETSIZE 1024
-# define __WALL 1073741824
-# define __WCLONE 2147483648U
-# define __WNOTHREAD 536870912
+# ifndef __WALL
+#  define __WALL 1073741824
+# endif
+# ifndef __WCLONE
+#  define __WCLONE 2147483648U
+# endif
+# ifndef __WNOTHREAD
+#  define __WNOTHREAD 536870912
+# endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # ifndef WCONTINUED

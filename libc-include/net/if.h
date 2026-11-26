@@ -231,7 +231,9 @@ enum {
 # define IFF_SLAVE IFF_SLAVE
 # define IFF_UP IFF_UP
 # define IFHWADDRLEN 6
-# define IFNAMSIZ IF_NAMESIZE
+# ifndef IFNAMSIZ
+#  define IFNAMSIZ IF_NAMESIZE
+# endif
 #endif
 
 /* netdevice(7): the members of struct ifreq and struct ifconf are named through their unions; each name is a macro

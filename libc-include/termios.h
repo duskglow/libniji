@@ -460,12 +460,8 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # ifndef ECHOPRT
 #  define ECHOPRT 1024
 # endif
-# ifndef EXTA
-#  define EXTA B19200
-# endif
-# ifndef EXTB
-#  define EXTB B38400
-# endif
+# define EXTA B19200
+# define EXTB B38400
 # ifndef EXTPROC
 #  define EXTPROC 65536
 # endif

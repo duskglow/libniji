@@ -170,9 +170,7 @@ extern int fanotify_mark (int, unsigned int, unsigned long, int, const char *) _
 # ifndef FAN_NONBLOCK
 #  define FAN_NONBLOCK 2
 # endif
-# ifndef FAN_NOPIDFD
-#  define FAN_NOPIDFD FAN_NOFD
-# endif
+# define FAN_NOPIDFD FAN_NOFD
 # ifndef FAN_ONDIR
 #  define FAN_ONDIR 1073741824
 # endif

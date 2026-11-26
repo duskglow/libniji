@@ -147,9 +147,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTF_MODIFIED
 #  define RTF_MODIFIED 32
 # endif
-# ifndef RTF_MSS
-#  define RTF_MSS RTF_MTU
-# endif
+# define RTF_MSS RTF_MTU
 # ifndef RTF_MTU
 #  define RTF_MTU 64
 # endif

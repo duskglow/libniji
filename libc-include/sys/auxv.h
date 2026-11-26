@@ -912,7 +912,9 @@ extern long unsigned int getauxval (long unsigned int) __NIJI_NOTHROW;
 # define ELFOSABI_GNU 3
 # define ELFOSABI_HPUX 1
 # define ELFOSABI_IRIX 8
-# define ELFOSABI_LINUX ELFOSABI_GNU
+# ifndef ELFOSABI_LINUX
+#  define ELFOSABI_LINUX ELFOSABI_GNU
+# endif
 # define ELFOSABI_MODESTO 11
 # define ELFOSABI_NETBSD 2
 # define ELFOSABI_NONE 0

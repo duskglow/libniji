@@ -137,33 +137,15 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # define MAXTC 6
 # define MOD_CLKA ADJ_OFFSET_SINGLESHOT
 # define MOD_CLKB ADJ_TICK
-# ifndef MOD_ESTERROR
-#  define MOD_ESTERROR ADJ_ESTERROR
-# endif
-# ifndef MOD_FREQUENCY
-#  define MOD_FREQUENCY ADJ_FREQUENCY
-# endif
-# ifndef MOD_MAXERROR
-#  define MOD_MAXERROR ADJ_MAXERROR
-# endif
-# ifndef MOD_MICRO
-#  define MOD_MICRO ADJ_MICRO
-# endif
-# ifndef MOD_NANO
-#  define MOD_NANO ADJ_NANO
-# endif
-# ifndef MOD_OFFSET
-#  define MOD_OFFSET ADJ_OFFSET
-# endif
-# ifndef MOD_STATUS
-#  define MOD_STATUS ADJ_STATUS
-# endif
-# ifndef MOD_TAI
-#  define MOD_TAI ADJ_TAI
-# endif
-# ifndef MOD_TIMECONST
-#  define MOD_TIMECONST ADJ_TIMECONST
-# endif
+# define MOD_ESTERROR ADJ_ESTERROR
+# define MOD_FREQUENCY ADJ_FREQUENCY
+# define MOD_MAXERROR ADJ_MAXERROR
+# define MOD_MICRO ADJ_MICRO
+# define MOD_NANO ADJ_NANO
+# define MOD_OFFSET ADJ_OFFSET
+# define MOD_STATUS ADJ_STATUS
+# define MOD_TAI ADJ_TAI
+# define MOD_TIMECONST ADJ_TIMECONST
 # define NTP_API 4
 # ifndef STA_CLK
 #  define STA_CLK 32768
@@ -216,9 +198,7 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef STA_UNSYNC
 #  define STA_UNSYNC 64
 # endif
-# ifndef TIME_BAD
-#  define TIME_BAD TIME_ERROR
-# endif
+# define TIME_BAD TIME_ERROR
 # define TIME_DEL 2
 # define TIME_ERROR 5
 # define TIME_INS 1

@@ -369,22 +369,42 @@ typedef union pthread_attr_t pthread_attr_t;
 # define AX25_T2 5
 # define AX25_T3 4
 # define AX25_WINDOW 1
-# define ROSE_ACCESS_BARRED 11
+# ifndef ROSE_ACCESS_BARRED
+#  define ROSE_ACCESS_BARRED 11
+# endif
 # define ROSE_DEFER 1
-# define ROSE_DTE_ORIGINATED 0
+# ifndef ROSE_DTE_ORIGINATED
+#  define ROSE_DTE_ORIGINATED 0
+# endif
 # define ROSE_HOLDBACK 7
 # define ROSE_IDLE 5
-# define ROSE_INVALID_FACILITY 3
-# define ROSE_LOCAL_PROCEDURE 19
+# ifndef ROSE_INVALID_FACILITY
+#  define ROSE_INVALID_FACILITY 3
+# endif
+# ifndef ROSE_LOCAL_PROCEDURE
+#  define ROSE_LOCAL_PROCEDURE 19
+# endif
 # define ROSE_MAX_DIGIS 6
 # define ROSE_MTU 251
-# define ROSE_NETWORK_CONGESTION 5
-# define ROSE_NOT_OBTAINABLE 13
-# define ROSE_NUMBER_BUSY 1
-# define ROSE_OUT_OF_ORDER 9
+# ifndef ROSE_NETWORK_CONGESTION
+#  define ROSE_NETWORK_CONGESTION 5
+# endif
+# ifndef ROSE_NOT_OBTAINABLE
+#  define ROSE_NOT_OBTAINABLE 13
+# endif
+# ifndef ROSE_NUMBER_BUSY
+#  define ROSE_NUMBER_BUSY 1
+# endif
+# ifndef ROSE_OUT_OF_ORDER
+#  define ROSE_OUT_OF_ORDER 9
+# endif
 # define ROSE_QBITINCL 6
-# define ROSE_REMOTE_PROCEDURE 17
-# define ROSE_SHIP_ABSENT 57
+# ifndef ROSE_REMOTE_PROCEDURE
+#  define ROSE_REMOTE_PROCEDURE 17
+# endif
+# ifndef ROSE_SHIP_ABSENT
+#  define ROSE_SHIP_ABSENT 57
+# endif
 # define ROSE_T1 2
 # define ROSE_T2 3
 # define ROSE_T3 4

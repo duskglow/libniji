@@ -566,7 +566,9 @@ enum {
 # define AF_NFC PF_NFC
 # define AF_PACKET PF_PACKET
 # define AF_PHONET PF_PHONET
-# define AF_PPPOX PF_PPPOX
+# ifndef AF_PPPOX
+#  define AF_PPPOX PF_PPPOX
+# endif
 # define AF_QIPCRTR PF_QIPCRTR
 # define AF_RDS PF_RDS
 # define AF_ROSE PF_ROSE
@@ -575,7 +577,9 @@ enum {
 # define AF_SECURITY PF_SECURITY
 # define AF_SMC PF_SMC
 # define AF_SNA PF_SNA
-# define AF_TIPC PF_TIPC
+# ifndef AF_TIPC
+#  define AF_TIPC PF_TIPC
+# endif
 # define AF_UNIX PF_UNIX
 # define AF_UNSPEC PF_UNSPEC
 # define AF_VSOCK PF_VSOCK
@@ -764,23 +768,13 @@ enum {
 # ifndef FIOSETOWN
 #  define FIOSETOWN 35073
 # endif
-# ifndef SCM_TIMESTAMP
-#  define SCM_TIMESTAMP SO_TIMESTAMP
-# endif
-# ifndef SCM_TIMESTAMPING
-#  define SCM_TIMESTAMPING SO_TIMESTAMPING
-# endif
+# define SCM_TIMESTAMP SO_TIMESTAMP
+# define SCM_TIMESTAMPING SO_TIMESTAMPING
 # define SCM_TIMESTAMPING_OPT_STATS 54
 # define SCM_TIMESTAMPING_PKTINFO 58
-# ifndef SCM_TIMESTAMPNS
-#  define SCM_TIMESTAMPNS SO_TIMESTAMPNS
-# endif
-# ifndef SCM_TXTIME
-#  define SCM_TXTIME SO_TXTIME
-# endif
-# ifndef SCM_WIFI_STATUS
-#  define SCM_WIFI_STATUS SO_WIFI_STATUS
-# endif
+# define SCM_TIMESTAMPNS SO_TIMESTAMPNS
+# define SCM_TXTIME SO_TXTIME
+# define SCM_WIFI_STATUS SO_WIFI_STATUS
 # ifndef SIOCATMARK
 #  define SIOCATMARK 35077
 # endif
@@ -809,15 +803,11 @@ enum {
 # define SO_BUSY_POLL_BUDGET 70
 # define SO_CNX_ADVICE 53
 # define SO_COOKIE 57
-# ifndef SO_DETACH_BPF
-#  define SO_DETACH_BPF SO_DETACH_FILTER
-# endif
+# define SO_DETACH_BPF SO_DETACH_FILTER
 # define SO_DETACH_FILTER 27
 # define SO_DETACH_REUSEPORT_BPF 68
 # define SO_DOMAIN 39
-# ifndef SO_GET_FILTER
-#  define SO_GET_FILTER SO_ATTACH_FILTER
-# endif
+# define SO_GET_FILTER SO_ATTACH_FILTER
 # define SO_INCOMING_CPU 49
 # define SO_INCOMING_NAPI_ID 56
 # define SO_LOCK_FILTER 44

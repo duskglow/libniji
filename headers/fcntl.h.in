@@ -16,11 +16,9 @@ __NIJI_BEGIN_C
 
 /* struct stat's times (POSIX XSH <sys/stat.h>), named as there: st_atime is the seconds of st_atim. */
 @@when st_atime
-# ifndef st_atime
-#  define st_atime st_atim.tv_sec
-#  define st_mtime st_mtim.tv_sec
-#  define st_ctime st_ctim.tv_sec
-# endif
+# define st_atime st_atim.tv_sec
+# define st_mtime st_mtim.tv_sec
+# define st_ctime st_ctim.tv_sec
 #endif
 
 

@@ -254,9 +254,7 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef SIOCSRARP
 #  define SIOCSRARP 35170
 # endif
-# ifndef SIOGIFINDEX
-#  define SIOGIFINDEX SIOCGIFINDEX
-# endif
+# define SIOGIFINDEX SIOCGIFINDEX
 # ifndef TCFLSH
 #  define TCFLSH 21515
 # endif
@@ -359,9 +357,7 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef TIOCGWINSZ
 #  define TIOCGWINSZ 21523
 # endif
-# ifndef TIOCINQ
-#  define TIOCINQ FIONREAD
-# endif
+# define TIOCINQ FIONREAD
 # ifndef TIOCLINUX
 #  define TIOCLINUX 21532
 # endif
@@ -383,9 +379,7 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef TIOCM_CAR
 #  define TIOCM_CAR 64
 # endif
-# ifndef TIOCM_CD
-#  define TIOCM_CD TIOCM_CAR
-# endif
+# define TIOCM_CD TIOCM_CAR
 # ifndef TIOCM_CTS
 #  define TIOCM_CTS 32
 # endif
@@ -398,9 +392,7 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef TIOCM_LE
 #  define TIOCM_LE 1
 # endif
-# ifndef TIOCM_RI
-#  define TIOCM_RI TIOCM_RNG
-# endif
+# define TIOCM_RI TIOCM_RNG
 # ifndef TIOCM_RNG
 #  define TIOCM_RNG 128
 # endif

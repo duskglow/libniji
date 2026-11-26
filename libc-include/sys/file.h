@@ -415,11 +415,15 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # endif
 # define F_SETFD 2
 # define F_SETFL 4
-# define F_SETLK F_SETLK64
+# ifndef F_SETLK
+#  define F_SETLK F_SETLK64
+# endif
 # ifndef F_SETLK64
 #  define F_SETLK64 6
 # endif
-# define F_SETLKW F_SETLKW64
+# ifndef F_SETLKW
+#  define F_SETLKW F_SETLKW64
+# endif
 # ifndef F_SETLKW64
 #  define F_SETLKW64 7
 # endif
@@ -749,9 +753,7 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 # ifndef O_TMPFILE
 #  define O_TMPFILE 4259840
 # endif
-# ifndef RWF_WRITE_LIFE_NOT_SET
-#  define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
-# endif
+# define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
 # define RWH_WRITE_LIFE_EXTREME 5
 # define RWH_WRITE_LIFE_LONG 4
 # define RWH_WRITE_LIFE_MEDIUM 3
@@ -798,11 +800,9 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unu
 
 /* struct stat's times (POSIX XSH <sys/stat.h>), named as there: st_atime is the seconds of st_atim. */
 #if __NIJI_POSIX >= 200809
-# ifndef st_atime
-#  define st_atime st_atim.tv_sec
-#  define st_mtime st_mtim.tv_sec
-#  define st_ctime st_ctim.tv_sec
-# endif
+# define st_atime st_atim.tv_sec
+# define st_mtime st_mtim.tv_sec
+# define st_ctime st_ctim.tv_sec
 #endif
 
 __NIJI_END_C

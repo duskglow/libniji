@@ -606,7 +606,7 @@ extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHR
 # define S_TYPEISSHM(buf) ((void) (buf), 0)
 #endif
 /* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
-# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC) && !defined st_atime
+# if (__NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC)
 #  define st_atime st_atim.tv_sec
 #  define st_mtime st_mtim.tv_sec
 #  define st_ctime st_ctim.tv_sec

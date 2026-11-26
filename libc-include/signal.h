@@ -3066,8 +3066,12 @@ enum {
 # define SIGHUP 1
 # define SIGILL 4
 # define SIGINT 2
-# define SIGIO SIGPOLL
-# define SIGIOT SIGABRT
+# ifndef SIGIO
+#  define SIGIO SIGPOLL
+# endif
+# ifndef SIGIOT
+#  define SIGIOT SIGABRT
+# endif
 # define SIGKILL 9
 # define SIGPIPE 13
 # ifndef SIGPOLL
@@ -3782,12 +3786,8 @@ enum {
 #  define NSIG _NSIG
 # endif
 # define SA_INTERRUPT 536870912
-# ifndef SA_NOMASK
-#  define SA_NOMASK SA_NODEFER
-# endif
-# ifndef SA_ONESHOT
-#  define SA_ONESHOT SA_RESETHAND
-# endif
+# define SA_NOMASK SA_NODEFER
+# define SA_ONESHOT SA_RESETHAND
 # define SA_STACK SA_ONSTACK
 #endif
 #if defined __USE_MISC || __NIJI_XSI >= 450
