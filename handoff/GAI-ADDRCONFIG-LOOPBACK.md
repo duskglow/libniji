@@ -1,43 +1,48 @@
 # GAI-ADDRCONFIG-LOOPBACK handoff
 
-State: branch `task/gai-addrconfig-loopback`, code head 7d75c2a7c (on origin/next 9cfa6166c). Role shiki:~/w/sh1.
+State: branch `task/gai-addrconfig-loopback` (on origin/next 9cfa6166c), finished; head is the commit that adds this
+note (see the report json). Role shiki:~/w/sh1. Plants results: handoff/GAI-ADDRCONFIG-LOOPBACK-plants.txt.
 Decision in force: D-16.2 (revised, AI_ADDRCONFIG clause at the end of the row); owner ruling #8731 "match stock".
+D-16.10 unchanged: the interface check still runs on every call and never inside the cache.
 
-## Done
-- Probe (black box, stock 2.39 vs libniji static, `unshare -r -n -m` namespaces with fixture /etc:
-  hosts files only). Probe sources and runners: ~/work/gai-addrconfig-loopback/ on shiki (gai_probe.c,
-  probe_run.sh = 16 scenarios, probe_run2.sh = 5 more). Outputs out_<scenario>_{host,niji}.txt there.
-- Rule observed on the reference:
-  - IPv4 configured iff some interface (up or down, any name incl. `lo`) has an IPv4 address other than
-    exactly 127.0.0.1 (127.5.0.1 on lo or d0 counts; 169.254/16 counts; 127.0.0.1 on d0 alone does not).
-  - IPv6 configured iff some interface has an IPv6 address other than exactly ::1 (link-local counts,
-    global on lo counts).
-  - Narrowing before the node is read: both configured -> unchanged; one -> AF_UNSPEC becomes it, the
-    other family is EAI_NONAME; neither -> AF_UNSPEC unchanged, AF_INET/AF_INET6 EAI_NONAME. The
-    EAI_NONAME comes ahead of EAI_ADDRFAMILY, EAI_SERVICE, EAI_SOCKTYPE. INET6|V4MAPPED keeps mapped
-    answers whenever IPv6 is configured.
-- Implemented in crates/legacy/src/gai.rs (`configured`, `addrconfig`, pub `addrconfig_families`); old
-  post-filter removed. Docs: differences row removed; D-16.2, spec/behaviour/netdb.md, spec line
-  (§16.2 s16_2_c_2_5, clauses.tsv regenerated). Tests: s16_2_c_2_5 (host case + full probed table),
-  netdb_diff.c gains 7 loopback-only rows (end-to-end vs reference under sudo harness).
-- clippy (workspace, all targets, all features, -D warnings) and `cargo xtask static` green on the role
-  (job gai-addrconfig-loopback-lint2, same tree as 7d75c2a7c).
+## What changed
+- crates/legacy/src/gai.rs: `configured`, `addrconfig`, pub `addrconfig_families`. AI_ADDRCONFIG now narrows the
+  request before the node is read, using the probed rule below. The old post-filter is removed.
+- Docs: the differences row is removed; D-16.2, spec/behaviour/netdb.md and the spec line (§16.2 s16_2_c_2_5;
+  clauses.tsv regenerated) are updated.
+- Tests: s16_2_c_2_5 (the host case and the full probed table). netdb_diff.c gains 7 loopback-only rows,
+  checked end to end against the reference under the sudo harness.
+- crates/core/tests/oracle/nscache_check.c (addrconfig-after-the-cache):
+  - the dummy interface now gets `addrgenmode none`, because its automatic IPv6 link-local address now counts as
+    configured IPv6;
+  - the narrowed AF_INET lookup uses a different cache key, so it misses once and then hits. The check now makes it
+    twice and expects exactly two hits.
 
-## Jobs started (shiki), on the 7d75c2a7c tree
-- gai-addrconfig-loopback-gate1 (direct-tier gate, --base origin/next)
-- gai-addrconfig-loopback-plants1 (plants file ~/work/gai-addrconfig-loopback/plants.txt: 4 plants;
-  gac-callsite relies on netdb_products, which skips without passwordless sudo: if it SURVIVES for that
-  reason, look at its log and report it, do not loosen it)
+## Rule (black-box probe: stock 2.39 vs libniji static, `unshare -r -n -m`, fixture /etc with hosts files only)
+- IPv4 counts as configured if any interface (up or down, including `lo`) has an IPv4 address other than exactly
+  127.0.0.1.
+- IPv6 counts as configured if any interface has an IPv6 address other than exactly ::1.
+- Both configured: the request is unchanged. One configured: AF_UNSPEC becomes that family, and a request for the
+  other family is EAI_NONAME. Neither configured: AF_UNSPEC is unchanged, and AF_INET or AF_INET6 is EAI_NONAME.
+- This EAI_NONAME is returned ahead of EAI_ADDRFAMILY, EAI_SERVICE and EAI_SOCKTYPE.
+
+## Results
+- gate1 (direct tier, 7d75c2a7c): 1572 passed, 1 failed (nscache_products, the fixture above); peak 4.9G.
+  After the fix, the failing suite alone (nscache3) passed: 1/1.
+- plants1: 4 plants, all 4 CAUGHT, no WARN lines.
+- Final probe on the new products (probe3, then probe4 with control flag sets AI_V4MAPPED and
+  AI_V4MAPPED|AI_ALL without AI_ADDRCONFIG), 21 scenarios:
+  - 0 AI_ADDRCONFIG rows have a difference of their own.
+  - The 50 AI_ADDRCONFIG rows that differ show the same difference without the flag. Classifier script:
+    scratch classify.py.
+- INFORMATIONAL (not this story). Each difference below also occurs without AI_ADDRCONFIG:
+  1. `ip6-localhost` AF_INET: stock 127.0.0.1, libniji EAI_NONAME. This is the gethostent `::1` row of D-16.2;
+     the AF_INET6 AI_V4MAPPED|AI_ALL row follows from it.
+  2. Passive AF_UNSPEC wildcard when no interface has any address: stock `:: 0.0.0.0`, libniji `0.0.0.0 ::`.
+  3. AF_INET6 AI_V4MAPPED|AI_ALL result order (destination address selection):
+     - `dual` with IPv4 plus only link-local or no IPv6: stock puts the mapped address first, libniji the native
+       one (4 scenarios);
+     - `localhost` with 127.0.0.1 on a dummy interface only: stock `::ffff:127.0.0.1 ::1`, libniji the reverse.
 
 ## Exact next step
-1. `~/bin/jobwait gai-addrconfig-loopback-gate1 gai-addrconfig-loopback-plants1` on shiki; fix reds.
-2. Final probe on the new products: `cargo xtask so` on the role (jobrun), then rerun probe_run.sh and
-   probe_run2.sh as jobs (probe3/probe4); every C (AI_ADDRCONFIG) row must be SAME. Known non-AI_ADDRCONFIG
-   diffs, not this story: `ip6-localhost` AF_INET (stock 127.0.0.1, libniji EAI_NONAME; the gethostent
-   `::1` row, D-16.2) and the passive AF_UNSPEC wildcard order when NO interface address exists at all
-   (stock `:: 0.0.0.0`, libniji `0.0.0.0 ::`; lo down). Report both INFORMATIONAL.
-3. Write handoff/reports/GAI-ADDRCONFIG-LOOPBACK.json, sync, precheck --jobs <labels> --head <sha>,
-   handback-check, hand back.
-
-Probe-only rows (no test on the gate hosts): the one-family branch's wiring (h.family rewrite) and the
-exact-127.0.0.1 IPv4 rule; the pure table test covers the decision itself.
+None for this story: CI and landing. Follow-up candidates are the INFORMATIONAL items 1 to 3.
