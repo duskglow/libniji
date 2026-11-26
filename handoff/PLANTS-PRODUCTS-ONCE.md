@@ -1,50 +1,61 @@
-# PLANTS-PRODUCTS-ONCE (handoff, leg 1 of the run)
+# PLANTS-PRODUCTS-ONCE (handoff, end of leg 2 of run 1)
 
-State: branch `task/plants-products-once` (from origin/next 45f916b8d). Role mei:~/w/s1. Code: `xtask/src/plants.rs`,
-`xtask/src/affected.rs` (`unit_tests_may_read_products`). Leg 1 commit is WIP: written, NOT YET COMPILED (no cargo on
-the agent host); scratch scripts in the run's scratch dir (`measure.py`, `agg.py`, `paths.py`, `measure.tsv`).
+State: branch `task/plants-products-once` (from origin/next 45f916b8d). Role mei:~/w/s1. Code: `xtask/src/plants.rs`
+(Need, needs, assign, simple_commands, RUNS_NO_PRODUCTS, cmd_reads_products, may_change_products, run_copy),
+`xtask/src/affected.rs` (`unit_tests_may_read_products`, `product_unit_tests_at`, `filter_may_select`), `docs/plants.md`,
+plants file `handoff/PLANTS-PRODUCTS-ONCE-plants.txt`. Compiles; `cargo clippy -p xtask --all-targets -D warnings`
+clean; `cargo test -p xtask --bin xtask -- plants:: affected::` 158 passed (job plants-products-once-unit3).
 
-## Step 1: measurement (plants logs 11-24..26 on mei, keke, shiki; jobs.tsv wall; read-only)
+## Done (do not redo)
+
+- Leg 1: measurement (table below), design.
+- Leg 2: compiled, fixed (doc placement in affected.rs; a plant that reads nothing no longer forces a restore build;
+  `distribute` replaced by `assign`); unit tests: assign (in-turn dealing, fewest building copies), needs,
+  may_change_products, simple_commands, header chain, unit-test rule (plants.rs), unit_tests_may_read_products
+  (affected.rs); the two-copy toy run asserts the copy without readers builds nothing. Found and fixed a soundness gap:
+  libtest filters match the whole test path, the unit rule compared bare names (`plants::` never matched); now
+  `filter_may_select` over-approximates over the file's module names (commit 70f1ca22f).
+- Plants: mei job `plants-products-once-plants` on e32aa39ad: 12 of 12 CAUGHT, no WARN (incl. ppo-mutant-shared:
+  a mutant plant reusing products another plant's mutant built; ppo-src-reuses: may_change_products false for src).
+  The run itself built no products (0 of 12 read them), 315 s wall.
+
+## Step 1 measurement (leg 1; plants logs 11-24..26 on mei, keke, shiki)
 
 | | value |
 |---|---|
 | plants jobs | 155 (keke 119, mei 24, shiki 12); wall sum 80.6 h |
-| product builds on each job's critical path (longest copy: baseline + mutant + restore builds) | 60.5 h (75 %) |
-| jobs where no plant read the products (every build unused, by the tool's own per-plant line) | 32 (21 %): 6.8 h of their 9.5 h wall |
-| jobs where one copy's plants read none (that copy's baseline unused) | 6 (5415 cpu-s) |
+| product builds on each job's critical path | 60.5 h (75 %) |
+| jobs where no plant read the products | 32 (21 %): 6.8 h of their 9.5 h wall |
 | mutant builds / restores | 775 (40.7 h) / 19 (0.8 h) |
 | median wall / median build path | keke 30.7 / 23.2 min; mei 14.5 / 11.3; shiki 24.6 / 16.9 |
-| two-copy jobs, baseline build per copy (median) | 908 s (both copies build it at the same time) |
-| plants on test-only paths over all 903 committed plants files | 119 of 5804 (2 %); 21 files only such plants |
 
-Examples: affected-layout-rows-plants3 (mei, xtask unit tests only): 544 s wall, 344+344 s baseline builds, 0 read.
-Header stories (headers-stage2-gaps-d-5, mei, 1835 s; d-6 on keke ~4050 s): every plant's command is
-`sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py ...'` (shell syntax, so "may use") or
-`cargo test -p xtask --bin xtask layout_offsets`: 16 full rebuilds, none read (header_check.py compiles against
-libc-include/ with -nostdinc -fsyntax-only; header_checks/*.py name no products).
+## Step 4 proof (in progress; mei, --copies 2, each pair before/after started together)
 
-## Design (in the WIP commit)
+"before" = origin/next's tool in a copy of the base tree: `/mnt/zram/claude/plants-products-once/base` (xtask prebuilt),
+plants file passed by path from ~/w/s1/handoff. "after" = ~/w/s1. Dirs `/mnt/zram/claude/plants-products-once/<x>-1`.
 
-- `simple_commands`: a `sh -c '<list>'` or bare list of simple commands (`&&`, `||`, `;`, quoted words) judged one by
-  one; any other shell syntax -> None (may use).
-- `RUNS_NO_PRODUCTS`: `cargo xtask headers-gen`, `python3 spec/tools/header_check.py`, `python3
-  spec/tools/header_checks/<x>` (no argument naming products) read none.
-- `Need { reads, mutant }` per plant (`needs`): reads = uses || unit tests may read (`unit_tests_may_read_products`:
-  xtask by `product_unit_tests` against libtest filters; other crates: src names products) || traced; mutant = (uses
-  || traced) && `may_change_products(path)` (false only under crates/*/{tests,benches,examples}/ and xtask/tests/).
-- `assign`: mutant plants dealt over min(copies, #mutant) builder copies; read-only plants join builders (one
-  builder when no mutant plant); no-read plants fill non-builder copies. Copy builds baseline only if one of its
-  plants reads (per layout). Restore rule: a reads plant needs held unmutated products in its layout.
+| file | before job (wall) | after job (wall) | verdicts same? |
+|---|---|---|---|
+| AFFECTED-LAYOUT-ROWS-plants.txt (xtask-only) | plants-products-once-alr-before 624.5 s | plants-products-once-alr-after 204.4 s, 0 of 2 copies built | identical: 7 CAUGHT each |
+| HEADERS-STAGE2-GAPS-D-plants.txt (header) | plants-products-once-hdr-before (started 06:13Z, RUNNING at refresh) | plants-products-once-hdr-after (started 06:13Z, RUNNING; "0 of 20 plants read them, built in 0 of 2 copies") | |
+| libm-special-fast-tier-6-plants.txt (libm) | plants-products-once-libm-before | plants-products-once-libm-after | |
+
+Compare verdicts on mei: `sh ~/work/plants-products-once/verdicts.sh <before-label> <after-label>` (installed; prints
+"verdicts: identical" or the diff, and the summary/products lines). Wall: column 6 of the jobwait / jobs.tsv line.
 
 ## Exact next step
 
-1. Sync, `cargo clippy -p xtask --all-targets -D warnings`, fix compile errors; `cargo test -p xtask --bin xtask plants::`.
-2. Unit tests to add: `simple_commands` cases; header chain -> no use; `may_change_products`; `needs`; `assign`
-   (mutant plants never in a non-building copy; read-only plants never add a builder); a toy run where a copy whose
-   plants read nothing builds nothing.
-3. Plants for the new rule (docs: brief step 4: a plant making `may_change_products` false for `crates/x/src` must be
-   caught; one sending a mutant plant to a non-building copy).
-4. Proof on mei: before (origin/next tool) / after on AFFECTED-LAYOUT-ROWS-plants.txt, a header plants file that
-   applies to the tree, a libm plants file; same verdict per plant.
+1. `~/bin/jobwait plants-products-once-hdr-before plants-products-once-hdr-after` on mei (one call, 600 s, repeat on
+   exit 3), then verdicts.sh on them; then start the libm pair; start the next wave only when
+   the previous pair ended (header, then libm), same command shape as alr (see `~/logs/plants-products-once-alr-*.log`
+   first line or jobs.tsv): before `cd /mnt/zram/claude/plants-products-once/base && cargo xtask plants
+   ~/w/s1/handoff/<file> --dir /mnt/zram/claude/plants-products-once/<x>-before-1 --copies 2 --timeout 600`, after the
+   same from ~/w/s1 with `<x>-after-1`. If a file is REFUSED (plant no longer applies), pick another header/libm file.
+2. Fill the table, diff verdicts. Then `cargo clippy --workspace --all-targets --all-features -- -D warnings` and
+   `cargo xtask static` on mei:~/w/s1 (foreground), a direct-tier gate (`cargo xtask affected --run` under jobrun gate),
+   precheck, report json (`handoff/reports/PLANTS-PRODUCTS-ONCE.json`), handback-check, hand back.
+3. D-row: none reserved yet; reserve with `ops reserve --story PLANTS-PRODUCTS-ONCE D-X` if a decision row is wanted
+   (the rule is local tooling; a one-line row is enough).
 
-Slip to report: one `sed -i` on a scratch file (not the repo) in leg 1.
+Open: an assignment that puts all read-only plants in one copy can leave the other copy idle (load balance traded
+for one fewer product build); note in the report. Slip to report: one `sed -i` on a scratch file (not the repo) in leg 1.
