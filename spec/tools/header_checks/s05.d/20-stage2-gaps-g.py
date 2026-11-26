@@ -3,8 +3,13 @@ header_checks/README.md). Also the checks of this story's <string.h>, <ctype.h>,
 (slice 17) changes: those slices have no check module to hang a fragment on."""
 import os
 import subprocess
+import sys
+import tempfile
+import types
 
-from header_check import clang_compilers
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+from header_check import ROOT, clang_compilers  # noqa: E402
 
 ORDER = ("__BYTE_ORDER", "__LITTLE_ENDIAN", "__BIG_ENDIAN", "__PDP_ENDIAN", "__FLOAT_WORD_ORDER")
 # The headers that define __bswap_16/32/64 themselves (headers/<h>.d/010-bswap.frag).
@@ -140,3 +145,15 @@ def problems(ctx):
             fails += [f"clang fortify c: {s} not referenced" for s in CLANG_CHK if s not in und]
         fails += [f"clang fortify {ext}: references {s}" for s in und if "va_arg_pack" in s or s.startswith("__open")]
     return fails
+
+
+if __name__ == "__main__":
+    # The clang fortify check alone (header_check.py runs `problems` only without --only; a plant's command):
+    # `python3 spec/tools/header_checks/s05.d/20-stage2-gaps-g.py [include dir]`, exit 1 with FAIL lines.
+    ctx = types.SimpleNamespace(inc=os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "libc-include")),
+                                work=tempfile.mkdtemp(prefix="s2g-clang."))
+    bad = problems(ctx)
+    for line in bad:
+        print(f"FAIL {line}")
+    print(f"stage2-gaps-g clang fortify: {len(bad)} failed")
+    sys.exit(1 if bad else 0)

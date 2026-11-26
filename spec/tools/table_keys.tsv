@@ -22,6 +22,7 @@ headers/fortify.tsv	name	key	row
 headers/iso10646.tsv	unicode	-	row
 headers/levels.tsv	id	-	row
 headers/providers.tsv	name	-	row
+headers/redirects.tsv	symbol	key	row
 headers/reserved.tsv	name	-	row
 headers/rows-exceptions.tsv	table,name	-	row
 headers/slices/s05.tsv	header	-	row
