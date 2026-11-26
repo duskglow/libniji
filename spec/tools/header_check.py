@@ -23,8 +23,9 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value (in each header that
           shows the macro, whichever header owns its row; reserved names only in the owner), typedefs.tsv size and
           alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
-* slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`); a module
-          may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
+* slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`), each
+          followed by its fragments `header_checks/<slice>.d/<NN-family>.py` in file-name order (the same interface:
+          a story adds a family's checks as a new fragment, HEADERS-FRAGMENTS); a module or fragment may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
           unit, and a unit titled "... must fail" passes only when it fails with libniji's "is not provided" #error);
 * P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
 * P9      each header that shows a typedef the compiler's <stddef.h> or <stdarg.h> defines, with those headers
@@ -37,6 +38,7 @@ only the units whose title matches (no slice-module problems, no P8; a plant's c
 """
 import argparse
 import glob
+import hashlib
 import importlib.util
 import os
 import re
@@ -45,6 +47,9 @@ import sys
 import tempfile
 import types
 
+# Check fragments (header_checks/<slice>.d/*.py) import shared helpers (`expand`) from this module by name, also when
+# it runs as a script.
+sys.modules.setdefault("header_check", sys.modules[__name__])
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 
@@ -102,16 +107,28 @@ def slice_rows():
 
 
 def slice_checks():
-    """The per-slice check modules spec/tools/header_checks/*.py, in file-name order."""
+    """The per-slice check modules spec/tools/header_checks/*.py, in file-name order, each followed by its fragments
+    header_checks/<slice>.d/*.py in file-name order (named `<slice>.d/<fragment>`)."""
     mods = []
+
+    def load(name, path):
+        key = re.sub(r"[^A-Za-z0-9_]", "_", name)
+        spec = importlib.util.spec_from_file_location(f"header_checks_{key}", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mods.append((name, mod))
+
     for path in sorted(glob.glob(os.path.join(CHECKS, "*.py"))):
         name = os.path.basename(path)[:-3]
         if name.startswith("_"):
             continue
-        spec = importlib.util.spec_from_file_location(f"header_checks_{name}", path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        mods.append((name, mod))
+        load(name, path)
+        for frag in sorted(glob.glob(os.path.join(CHECKS, name + ".d", "*.py"))):
+            load(f"{name}.d/{os.path.basename(frag)[:-3]}", frag)
+    # A fragment directory without its slice module would be skipped silently.
+    for d in sorted(glob.glob(os.path.join(CHECKS, "*.d"))):
+        if not os.path.isfile(d[:-2] + ".py"):
+            raise SystemExit(f"{d}: no slice module {os.path.basename(d)[:-2]}.py beside it")
     return mods
 
 
@@ -398,7 +415,11 @@ def main():
     # langinfo.h _NL_ITEM forms`, ...) matches; the slice modules' problems, their reports and P8 are not run. A
     # pattern that selects no unit is a failure, never a vacuous pass.
     ap.add_argument("--only", default="", metavar="REGEX")
+    # The result list (HEADERS-FRAGMENTS): one line per configuration unit, `config  index  title  text-sha1  ok|FAIL`,
+    # so a restructuring of the checks can show that it ran the same units with the same results (diff two lists).
+    ap.add_argument("--list", default="", metavar="FILE")
     args = ap.parse_args()
+    listing = open(args.list, "w") if args.list else None
     only = re.compile(args.only) if args.only else None
     inc = os.path.abspath(args.include)
     if not os.path.isfile(os.path.join(inc, "features.h")):
@@ -476,6 +497,9 @@ def main():
                 ok = r.returncode != 0 and "is not provided" in r.stderr
             else:
                 ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
+            if listing:
+                digest = hashlib.sha1(text.encode()).hexdigest()
+                listing.write(f"{c['id']}\t{i}\t{what}\t{digest}\t{'ok' if ok else 'FAIL'}\n")
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
@@ -488,6 +512,8 @@ def main():
     else:
         f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
         fails, total = fails + f8, total + t8
+    if listing:
+        listing.close()
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0
 

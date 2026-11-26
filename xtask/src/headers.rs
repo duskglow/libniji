@@ -22,6 +22,10 @@
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
 //!   `st_atime` and `__st_atimensec` where `struct timespec` belongs to the program (C 7.1.3).
+//! * `@@fragments` (at most once): the fragments `headers/<path>.h.d/*.frag`, in file-name order, their text in
+//!   place of this line before any other marker is read, so a fragment holds markers too (`@@owns`, `@@if`, ...).
+//!   A header family that stories add to is one fragment each: adding a family adds a file (HEADERS-FRAGMENTS).
+//!   A `.d` directory needs the marker in its template, and holds only `.frag` files.
 //!
 //! Markers and inputs of one slice only (`@@intc`, `@@syscalls`, ...) live in that slice's module,
 //! `headers/slices/<slice>.rs` (a [`Slice`]), which `xtask/build.rs` finds by listing the directory, and the headers
@@ -789,6 +793,83 @@ fn files_below(base: &Path) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// The marker line that takes a template's fragments (`headers/<path>.h.d/*.frag`).
+const FRAGMENTS: &str = "@@fragments";
+
+/// The text of template `h` (path without `.in`) with its `@@fragments` line replaced by its fragments, in file-name
+/// order. Each fragment ends in a newline. A `.d` directory without the marker, a second marker, a marker without
+/// a directory, or a file in it that is not `.frag`, is an error: a fragment is never dropped silently.
+fn template_text(root: &Path, h: &str) -> Result<String, String> {
+    let at = root.join(TEMPLATES).join(format!("{h}.in"));
+    let text = fs::read_to_string(&at).map_err(|e| format!("{}: {e}", at.display()))?;
+    let dir = root.join(TEMPLATES).join(format!("{h}.d"));
+    let markers = text.lines().filter(|l| l.trim_end() == FRAGMENTS).count();
+    if markers == 0 {
+        return if dir.exists() { Err(format!("headers/{h}.d: headers/{h}.in has no {FRAGMENTS} line")) } else { Ok(text) };
+    }
+    if markers > 1 {
+        return Err(format!("headers/{h}.in: {markers} {FRAGMENTS} lines (at most one)"));
+    }
+    if !dir.is_dir() {
+        return Err(format!("headers/{h}.in: {FRAGMENTS} but no directory headers/{h}.d"));
+    }
+    let mut frags = Vec::new();
+    for e in fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+        let p = e.map_err(|e| e.to_string())?.path();
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        if !p.is_file() || !name.ends_with(".frag") {
+            return Err(format!("headers/{h}.d/{name}: not a .frag file"));
+        }
+        frags.push((name, p));
+    }
+    frags.sort();
+    let mut body = String::new();
+    for (name, p) in &frags {
+        let t = fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
+        if !t.ends_with('\n') {
+            return Err(format!("headers/{h}.d/{name}: does not end in a newline"));
+        }
+        if t.lines().any(|l| l.trim_end() == FRAGMENTS) {
+            return Err(format!("headers/{h}.d/{name}: a fragment holds no {FRAGMENTS} line"));
+        }
+        body.push_str(&t);
+    }
+    let mut out = String::with_capacity(text.len() + body.len());
+    for l in text.split_inclusive('\n') {
+        if l.trim_end() == FRAGMENTS {
+            out.push_str(&body);
+        } else {
+            out.push_str(l);
+        }
+    }
+    Ok(out)
+}
+
+/// `headers/<path>.h.d` directories whose template does not exist (a fragment of no header).
+fn orphan_fragment_dirs(root: &Path, names: &[String]) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    let mut stack = vec![root.join(TEMPLATES)];
+    while let Some(d) = stack.pop() {
+        for e in fs::read_dir(&d).map_err(|e| format!("{}: {e}", d.display()))?.flatten() {
+            let p = e.path();
+            if !p.is_dir() {
+                continue;
+            }
+            let rel = p.strip_prefix(root.join(TEMPLATES)).ok().and_then(|r| r.to_str()).unwrap_or("").to_string();
+            match rel.strip_suffix(".d") {
+                Some(h) if h.ends_with(".h") => {
+                    if !names.iter().any(|n| n == h) {
+                        out.push(format!("headers/{rel}: no template headers/{h}.in"));
+                    }
+                }
+                _ => stack.push(p),
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
 /// Every template under `headers/` (path relative to it, without `.in`).
 fn templates(root: &Path) -> Result<Vec<String>, String> {
     Ok(files_below(&root.join(TEMPLATES))?.into_iter().filter_map(|r| r.strip_suffix(".in").map(String::from)).collect())
@@ -892,8 +973,9 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     errors.extend(slice_table_problems(root, &names)?);
     let mut texts = BTreeMap::new();
     for h in &names {
-        texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
+        texts.insert(h.clone(), template_text(root, h)?);
     }
+    errors.extend(orphan_fragment_dirs(root, &names)?);
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
     // An include right after `@@when` or an `#if` line is conditional (its names stay emitted here, under this header's own conditions).
     let includes = |text: &str| unconditional_includes(text, |x| texts.contains_key(x));
