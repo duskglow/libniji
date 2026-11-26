@@ -1,6 +1,6 @@
 {"task": "HEADERS-STAGE2-GAPS-E-4", "model": "sonnet", "tokens": null,
  "result": "Merged origin/next (7 conflicted files; nameser.h.in takes the landed accessor text); dropped the now-duplicate GETSHORT family from nameser_compat.h; plants and gate rerun on the merged head",
- "branch": "task/headers-stage2-gaps-e-4", "head": "HEAD_PLACEHOLDER",
+ "branch": "task/headers-stage2-gaps-e-4", "head": "287de832a",
  "gate": {"affected": "gate2 green on the merged head before the plants-file-only commit", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [], "informational": ["origin/next's arpa/nameser.h.in landed the same ns_msg_*/ns_rr_*/NS_GET* accessors this story added; the E-3 gate had not seen it, so the merge produced a GETSHORT redefinition in the compat header (fixed)"],
@@ -9,4 +9,4 @@
  "improvement": "A merge-only brief should name the plants file as part of the merge: plant patterns on a template that another story rewrote fail only when plants run.",
  "next_step": "land",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-E-4.md",
- "jobs": ["keke:headers-stage2-gaps-e-4-gate2", "keke:headers-stage2-gaps-e-4-plants4"]}
+ "jobs": ["headers-stage2-gaps-e-4-gate2", "headers-stage2-gaps-e-4-plants4"]}
