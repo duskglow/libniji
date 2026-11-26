@@ -2,7 +2,9 @@
 /* shadow.h: shadow password database (shadow(5), getspnam(3)). */
 #ifndef __NIJI_H_shadow_h
 #define __NIJI_H_shadow_h 1
-#define _SHADOW_H 1
+#ifndef _SHADOW_H
+# define _SHADOW_H 1
+#endif
 
 #include <features.h>
 

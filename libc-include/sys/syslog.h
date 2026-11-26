@@ -2,7 +2,9 @@
 /* sys/syslog.h: another name of <syslog.h> (plan/headers.md section 1). */
 #ifndef __NIJI_H_sys_syslog_h
 #define __NIJI_H_sys_syslog_h 1
-#define _SYS_SYSLOG_H 1
+#ifndef _SYS_SYSLOG_H
+# define _SYS_SYSLOG_H 1
+#endif
 
 #include <syslog.h>
 

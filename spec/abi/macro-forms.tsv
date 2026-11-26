@@ -499,6 +499,8 @@ ifaddrs.h	_SYS_SOCKET_H	kept
 ifaddrs.h	_SYS_TYPES_H	kept
 ifaddrs.h	_THREAD_MUTEX_INTERNAL_H	kept
 ifaddrs.h	_THREAD_SHARED_TYPES_H	kept
+ifaddrs.h	ifa_broadaddr	kept
+ifaddrs.h	ifa_dstaddr	kept
 inttypes.h	PRIX16	replaced-form
 inttypes.h	PRIX32	replaced-form
 inttypes.h	PRIX64	replaced-form
@@ -2689,6 +2691,7 @@ resolv.h	_GETOPT_CORE_H	kept
 resolv.h	_GETOPT_POSIX_H	kept
 resolv.h	_LIBC_LIMITS_H_	kept
 resolv.h	_NETINET_IN_H	kept
+resolv.h	_PATH_RESCONF	kept
 resolv.h	_SIGSET_NWORDS	replaced-form
 resolv.h	_SS_PADSIZE	replaced-form
 resolv.h	_STDINT_H	kept

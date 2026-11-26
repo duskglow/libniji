@@ -3,7 +3,9 @@
    <proc_service.h> callbacks). */
 #ifndef __NIJI_H_thread_db_h
 #define __NIJI_H_thread_db_h 1
-#define _THREAD_DB_H 1
+#ifndef _THREAD_DB_H
+# define _THREAD_DB_H 1
+#endif
 
 #include <features.h>
 #include <pthread.h>

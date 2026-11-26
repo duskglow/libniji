@@ -2,7 +2,9 @@
 /* sys/timeb.h: ftime(3), the 4.2BSD time of day */
 #ifndef __NIJI_H_sys_timeb_h
 #define __NIJI_H_sys_timeb_h 1
-#define _SYS_TIMEB_H 1
+#ifndef _SYS_TIMEB_H
+# define _SYS_TIMEB_H 1
+#endif
 
 #include <features.h>
 
@@ -18,9 +20,139 @@ struct timeb {
   short dstflag;
 };
 # endif
+# ifndef __NIJI_D___blkcnt64_t
+#  define __NIJI_D___blkcnt64_t 1
+typedef long __blkcnt64_t;
+# endif
+# ifndef __NIJI_D___blkcnt_t
+#  define __NIJI_D___blkcnt_t 1
+typedef long __blkcnt_t;
+# endif
+# ifndef __NIJI_D___blksize_t
+#  define __NIJI_D___blksize_t 1
+typedef long __blksize_t;
+# endif
+# ifndef __NIJI_D___caddr_t
+#  define __NIJI_D___caddr_t 1
+typedef char * __caddr_t;
+# endif
+# ifndef __NIJI_D___clock_t
+#  define __NIJI_D___clock_t 1
+typedef long __clock_t;
+# endif
+# ifndef __NIJI_D___clockid_t
+#  define __NIJI_D___clockid_t 1
+typedef int __clockid_t;
+# endif
+# ifndef __NIJI_D___daddr_t
+#  define __NIJI_D___daddr_t 1
+typedef int __daddr_t;
+# endif
+# ifndef __NIJI_D___dev_t
+#  define __NIJI_D___dev_t 1
+typedef unsigned long __dev_t;
+# endif
+# ifndef __NIJI_D___fsblkcnt64_t
+#  define __NIJI_D___fsblkcnt64_t 1
+typedef unsigned long __fsblkcnt64_t;
+# endif
+# ifndef __NIJI_D___fsblkcnt_t
+#  define __NIJI_D___fsblkcnt_t 1
+typedef unsigned long __fsblkcnt_t;
+# endif
+# ifndef __NIJI_D___fsfilcnt64_t
+#  define __NIJI_D___fsfilcnt64_t 1
+typedef unsigned long __fsfilcnt64_t;
+# endif
+# ifndef __NIJI_D___fsfilcnt_t
+#  define __NIJI_D___fsfilcnt_t 1
+typedef unsigned long __fsfilcnt_t;
+# endif
+# ifndef __NIJI_D___fsid_t
+#  define __NIJI_D___fsid_t 1
+typedef struct {
+  int __val[2];
+} __fsid_t;
+# endif
+# ifndef __NIJI_D___fsword_t
+#  define __NIJI_D___fsword_t 1
+typedef long __fsword_t;
+# endif
+# ifndef __NIJI_D___gid_t
+#  define __NIJI_D___gid_t 1
+typedef unsigned int __gid_t;
+# endif
+# ifndef __NIJI_D___id_t
+#  define __NIJI_D___id_t 1
+typedef unsigned int __id_t;
+# endif
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
 typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___ino_t
+#  define __NIJI_D___ino_t 1
+typedef unsigned long __ino_t;
+# endif
+# ifndef __NIJI_D___int16_t
+#  define __NIJI_D___int16_t 1
+typedef short __int16_t;
+# endif
+# ifndef __NIJI_D___int32_t
+#  define __NIJI_D___int32_t 1
+typedef int __int32_t;
+# endif
+# ifndef __NIJI_D___int64_t
+#  define __NIJI_D___int64_t 1
+typedef long __int64_t;
+# endif
+# ifndef __NIJI_D___int8_t
+#  define __NIJI_D___int8_t 1
+typedef signed char __int8_t;
+# endif
+# ifndef __NIJI_D___int_least16_t
+#  define __NIJI_D___int_least16_t 1
+typedef short __int_least16_t;
+# endif
+# ifndef __NIJI_D___int_least32_t
+#  define __NIJI_D___int_least32_t 1
+typedef int __int_least32_t;
+# endif
+# ifndef __NIJI_D___int_least64_t
+#  define __NIJI_D___int_least64_t 1
+typedef long __int_least64_t;
+# endif
+# ifndef __NIJI_D___int_least8_t
+#  define __NIJI_D___int_least8_t 1
+typedef signed char __int_least8_t;
+# endif
+# ifndef __NIJI_D___intmax_t
+#  define __NIJI_D___intmax_t 1
+typedef long __intmax_t;
+# endif
+# ifndef __NIJI_D___intptr_t
+#  define __NIJI_D___intptr_t 1
+typedef long __intptr_t;
+# endif
+# ifndef __NIJI_D___key_t
+#  define __NIJI_D___key_t 1
+typedef int __key_t;
+# endif
+# ifndef __NIJI_D___loff_t
+#  define __NIJI_D___loff_t 1
+typedef long __loff_t;
+# endif
+# ifndef __NIJI_D___mode_t
+#  define __NIJI_D___mode_t 1
+typedef unsigned int __mode_t;
+# endif
+# ifndef __NIJI_D___nlink_t
+#  define __NIJI_D___nlink_t 1
+typedef unsigned long __nlink_t;
+# endif
+# ifndef __NIJI_D___off64_t
+#  define __NIJI_D___off64_t 1
+typedef long __off64_t;
 # endif
 # ifndef __NIJI_D___off_t
 #  define __NIJI_D___off_t 1
@@ -33,6 +165,50 @@ typedef int __pid_t;
 # ifndef __NIJI_D___quad_t
 #  define __NIJI_D___quad_t 1
 typedef long __quad_t;
+# endif
+# ifndef __NIJI_D___rlim64_t
+#  define __NIJI_D___rlim64_t 1
+typedef unsigned long __rlim64_t;
+# endif
+# ifndef __NIJI_D___rlim_t
+#  define __NIJI_D___rlim_t 1
+typedef unsigned long __rlim_t;
+# endif
+# ifndef __NIJI_D___sig_atomic_t
+#  define __NIJI_D___sig_atomic_t 1
+typedef int __sig_atomic_t;
+# endif
+# ifndef __NIJI_D___socklen_t
+#  define __NIJI_D___socklen_t 1
+typedef unsigned int __socklen_t;
+# endif
+# ifndef __NIJI_D___ssize_t
+#  define __NIJI_D___ssize_t 1
+typedef long __ssize_t;
+# endif
+# ifndef __NIJI_D___suseconds64_t
+#  define __NIJI_D___suseconds64_t 1
+typedef long __suseconds64_t;
+# endif
+# ifndef __NIJI_D___suseconds_t
+#  define __NIJI_D___suseconds_t 1
+typedef long __suseconds_t;
+# endif
+# ifndef __NIJI_D___syscall_slong_t
+#  define __NIJI_D___syscall_slong_t 1
+typedef long __syscall_slong_t;
+# endif
+# ifndef __NIJI_D___syscall_ulong_t
+#  define __NIJI_D___syscall_ulong_t 1
+typedef unsigned long __syscall_ulong_t;
+# endif
+# ifndef __NIJI_D___time_t
+#  define __NIJI_D___time_t 1
+typedef long __time_t;
+# endif
+# ifndef __NIJI_D___timer_t
+#  define __NIJI_D___timer_t 1
+typedef void * __timer_t;
 # endif
 # ifndef __NIJI_D___u_char
 #  define __NIJI_D___u_char 1
@@ -53,6 +229,50 @@ typedef unsigned long __u_quad_t;
 # ifndef __NIJI_D___u_short
 #  define __NIJI_D___u_short 1
 typedef unsigned short __u_short;
+# endif
+# ifndef __NIJI_D___uid_t
+#  define __NIJI_D___uid_t 1
+typedef unsigned int __uid_t;
+# endif
+# ifndef __NIJI_D___uint16_t
+#  define __NIJI_D___uint16_t 1
+typedef unsigned short __uint16_t;
+# endif
+# ifndef __NIJI_D___uint32_t
+#  define __NIJI_D___uint32_t 1
+typedef unsigned int __uint32_t;
+# endif
+# ifndef __NIJI_D___uint64_t
+#  define __NIJI_D___uint64_t 1
+typedef unsigned long __uint64_t;
+# endif
+# ifndef __NIJI_D___uint8_t
+#  define __NIJI_D___uint8_t 1
+typedef unsigned char __uint8_t;
+# endif
+# ifndef __NIJI_D___uint_least16_t
+#  define __NIJI_D___uint_least16_t 1
+typedef unsigned short __uint_least16_t;
+# endif
+# ifndef __NIJI_D___uint_least32_t
+#  define __NIJI_D___uint_least32_t 1
+typedef unsigned int __uint_least32_t;
+# endif
+# ifndef __NIJI_D___uint_least64_t
+#  define __NIJI_D___uint_least64_t 1
+typedef unsigned long __uint_least64_t;
+# endif
+# ifndef __NIJI_D___uint_least8_t
+#  define __NIJI_D___uint_least8_t 1
+typedef unsigned char __uint_least8_t;
+# endif
+# ifndef __NIJI_D___uintmax_t
+#  define __NIJI_D___uintmax_t 1
+typedef unsigned long __uintmax_t;
+# endif
+# ifndef __NIJI_D___useconds_t
+#  define __NIJI_D___useconds_t 1
+typedef unsigned int __useconds_t;
 # endif
 # ifndef __NIJI_D_time_t
 #  define __NIJI_D_time_t 1

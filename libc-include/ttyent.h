@@ -2,7 +2,9 @@
 /* ttyent.h: terminal table (ttyent(3)). */
 #ifndef __NIJI_H_ttyent_h
 #define __NIJI_H_ttyent_h 1
-#define _TTYENT_H 1
+#ifndef _TTYENT_H
+# define _TTYENT_H 1
+#endif
 
 #include <features.h>
 

@@ -291,7 +291,9 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # define RES_USEVC 8
 # define RES_USE_DNSSEC 8388608
 # define RES_USE_EDNS0 1048576
-# define _PATH_RESCONF "/etc/resolv.conf"
+# ifndef _PATH_RESCONF
+#  define _PATH_RESCONF "/etc/resolv.conf"
+# endif
 # define __RES 19991006
 #endif
 

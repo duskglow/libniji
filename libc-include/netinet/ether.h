@@ -2,7 +2,9 @@
 /* netinet/ether.h: Ethernet address conversion */
 #ifndef __NIJI_H_netinet_ether_h
 #define __NIJI_H_netinet_ether_h 1
-#define _NETINET_ETHER_H 1
+#ifndef _NETINET_ETHER_H
+# define _NETINET_ETHER_H 1
+#endif
 
 #include <features.h>
 #include <netinet/if_ether.h>

@@ -2,7 +2,9 @@
 /* elf.h: the Executable and Linking Format (System V gABI, x86-64 psABI, the ELF extensions of the GNU toolchain). */
 #ifndef __NIJI_H_elf_h
 #define __NIJI_H_elf_h 1
-#define _ELF_H 1
+#ifndef _ELF_H
+# define _ELF_H 1
+#endif
 
 #include <features.h>
 #include <stdint.h>

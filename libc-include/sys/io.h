@@ -2,7 +2,9 @@
 /* sys/io.h: iopl(2), ioperm(2) */
 #ifndef __NIJI_H_sys_io_h
 #define __NIJI_H_sys_io_h 1
-#define _SYS_IO_H 1
+#ifndef _SYS_IO_H
+# define _SYS_IO_H 1
+#endif
 
 #include <features.h>
 
@@ -17,6 +19,135 @@ extern int ioperm (long unsigned int, long unsigned int, int) __NIJI_NOTHROW;
 #  define __NIJI_D_iopl 1
 extern int iopl (int) __NIJI_NOTHROW;
 # endif
+#endif
+
+/* outb(2): x86 port input and output, for a program that ioperm(2) or iopl(2) gave access to the ports. They are
+   static inline functions in every configuration and at every optimisation level, with no library symbol (black-box
+   probe: a call compiles to the instruction, or to a local copy at -O0), and they are not noexcept in C++. The value
+   comes first in out*, the port first in in*, ins* and outs*. The _p forms pause after the access with a write to
+   port 0x80, the PC's unused diagnostic port. The string forms move COUNT units between the port and memory at ADDR
+   (rep ins/outs; the psABI keeps the direction flag clear at a call). x86 only: this header's one architecture today
+   is x86-64. */
+#if defined __x86_64__ || defined __i386__
+static __inline unsigned char
+inb (unsigned short int __port)
+{
+  unsigned char __v;
+  __asm__ __volatile__ ("inb %w1,%0" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline unsigned char
+inb_p (unsigned short int __port)
+{
+  unsigned char __v;
+  __asm__ __volatile__ ("inb %w1,%0\n\toutb %%al,$0x80" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline unsigned short int
+inw (unsigned short int __port)
+{
+  unsigned short int __v;
+  __asm__ __volatile__ ("inw %w1,%0" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline unsigned short int
+inw_p (unsigned short int __port)
+{
+  unsigned short int __v;
+  __asm__ __volatile__ ("inw %w1,%0\n\toutb %%al,$0x80" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline unsigned int
+inl (unsigned short int __port)
+{
+  unsigned int __v;
+  __asm__ __volatile__ ("inl %w1,%0" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline unsigned int
+inl_p (unsigned short int __port)
+{
+  unsigned int __v;
+  __asm__ __volatile__ ("inl %w1,%0\n\toutb %%al,$0x80" : "=a" (__v) : "Nd" (__port));
+  return __v;
+}
+
+static __inline void
+outb (unsigned char __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outb %b0,%w1" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+outb_p (unsigned char __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outb %b0,%w1\n\toutb %%al,$0x80" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+outw (unsigned short int __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outw %w0,%w1" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+outw_p (unsigned short int __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outw %w0,%w1\n\toutb %%al,$0x80" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+outl (unsigned int __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outl %0,%w1" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+outl_p (unsigned int __value, unsigned short int __port)
+{
+  __asm__ __volatile__ ("outl %0,%w1\n\toutb %%al,$0x80" : : "a" (__value), "Nd" (__port));
+}
+
+static __inline void
+insb (unsigned short int __port, void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep insb" : "+D" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
+
+static __inline void
+insw (unsigned short int __port, void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep insw" : "+D" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
+
+static __inline void
+insl (unsigned short int __port, void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep insl" : "+D" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
+
+static __inline void
+outsb (unsigned short int __port, const void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep outsb" : "+S" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
+
+static __inline void
+outsw (unsigned short int __port, const void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep outsw" : "+S" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
+
+static __inline void
+outsl (unsigned short int __port, const void *__addr, unsigned long int __count)
+{
+  __asm__ __volatile__ ("rep outsl" : "+S" (__addr), "+c" (__count) : "d" (__port) : "memory");
+}
 #endif
 
 __NIJI_END_C

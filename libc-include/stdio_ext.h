@@ -2,7 +2,9 @@
 /* stdio_ext.h: stream state queries (stdio_ext(3)). */
 #ifndef __NIJI_H_stdio_ext_h
 #define __NIJI_H_stdio_ext_h 1
-#define _STDIO_EXT_H 1
+#ifndef _STDIO_EXT_H
+# define _STDIO_EXT_H 1
+#endif
 
 #include <features.h>
 #include <stdio.h>

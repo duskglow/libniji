@@ -23,7 +23,7 @@ __NIJI_BEGIN_C
 /* The descriptor-set macros are visible here in every configuration, where sys/types.h defines them only in some:
    until sys/select.h (slice 7) exists to be included, the same text under its own guard. */
 @@when FD_SET
-# ifndef FD_SET
+# ifndef __NIJI_FD_BITS
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))

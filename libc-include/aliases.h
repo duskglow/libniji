@@ -2,7 +2,9 @@
 /* aliases.h: the mail aliases database (aliases(5)) */
 #ifndef __NIJI_H_aliases_h
 #define __NIJI_H_aliases_h 1
-#define _ALIASES_H 1
+#ifndef _ALIASES_H
+# define _ALIASES_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

@@ -2,7 +2,9 @@
 /* ifaddrs.h: network interface addresses (getifaddrs(3)) */
 #ifndef __NIJI_H_ifaddrs_h
 #define __NIJI_H_ifaddrs_h 1
-#define _IFADDRS_H 1
+#ifndef _IFADDRS_H
+# define _IFADDRS_H 1
+#endif
 
 #include <features.h>
 #include <sys/socket.h>
@@ -47,10 +49,15 @@ extern int getifaddrs (struct ifaddrs **) __NIJI_NOTHROW;
 #endif
 
 /* getifaddrs(3): the broadcast address (IFF_BROADCAST) and the point-to-point destination (IFF_POINTOPOINT) share
-   the union ifa_ifu; each name is a macro for its member. */
+   the union ifa_ifu; each name is a macro for its member. A program's earlier definition stays in force here
+   (spec/abi/macro-forms.tsv `kept`; <net/if.h> replaces it). */
 #if 1
-# define ifa_broadaddr ifa_ifu.ifu_broadaddr
-# define ifa_dstaddr ifa_ifu.ifu_dstaddr
+# ifndef ifa_broadaddr
+#  define ifa_broadaddr ifa_ifu.ifu_broadaddr
+# endif
+# ifndef ifa_dstaddr
+#  define ifa_dstaddr ifa_ifu.ifu_dstaddr
+# endif
 #endif
 
 __NIJI_END_C

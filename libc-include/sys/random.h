@@ -2,7 +2,9 @@
 /* sys/random.h: getrandom(2): random bytes from the kernel. */
 #ifndef __NIJI_H_sys_random_h
 #define __NIJI_H_sys_random_h 1
-#define _SYS_RANDOM_H 1
+#ifndef _SYS_RANDOM_H
+# define _SYS_RANDOM_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

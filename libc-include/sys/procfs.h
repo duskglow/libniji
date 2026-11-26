@@ -2,7 +2,9 @@
 /* sys/procfs.h: the structures of an ELF core file's notes (prstatus, prpsinfo, ...). */
 #ifndef __NIJI_H_sys_procfs_h
 #define __NIJI_H_sys_procfs_h 1
-#define _SYS_PROCFS_H 1
+#ifndef _SYS_PROCFS_H
+# define _SYS_PROCFS_H 1
+#endif
 
 #include <features.h>
 #include <sys/time.h>
@@ -269,7 +271,7 @@ typedef union pthread_attr_t pthread_attr_t;
 /* The descriptor-set macros are visible here in every configuration, where sys/types.h defines them only in some:
    until sys/select.h (slice 7) exists to be included, the same text under its own guard. */
 #if 1
-# ifndef FD_SET
+# ifndef __NIJI_FD_BITS
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))

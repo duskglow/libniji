@@ -2,7 +2,9 @@
 /* printf.h: printf extension interface (GNU C Library manual, Customizing Printf; printf.h(3head)). */
 #ifndef __NIJI_H_printf_h
 #define __NIJI_H_printf_h 1
-#define _PRINTF_H 1
+#ifndef _PRINTF_H
+# define _PRINTF_H 1
+#endif
 
 #include <features.h>
 

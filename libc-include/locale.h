@@ -2,7 +2,9 @@
 /* locale.h: locale handling (C 7.11, XSH <locale.h>). */
 #ifndef __NIJI_H_locale_h
 #define __NIJI_H_locale_h 1
-#define _LOCALE_H 1
+#ifndef _LOCALE_H
+# define _LOCALE_H 1
+#endif
 
 #include <features.h>
 

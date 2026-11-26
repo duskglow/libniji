@@ -619,7 +619,15 @@ impl Gen<'_> {
                 // A condition tests the `__NIJI_*` levels, which <features.h> defines: the guard sits before the
                 // template's own includes, so it includes <features.h> first (both headers include it anyway).
                 let c = self.cond(&n, Some("macro"));
-                let def = if c == "1" { format!("#define {n}{v}") } else { format!("#include <features.h>\n#if {c}\n# define {n}{v}\n#endif") };
+                // The reference's form (macro-forms.tsv `kept`): a program's earlier definition of the guard stays in
+                // force (HEADERS-STAGE2-GAPS-F); a guard without a row there is defined outright, as before.
+                let kept = !self.t.redefined(&self.header, &n);
+                let def = match (c == "1", kept) {
+                    (true, false) => format!("#define {n}{v}"),
+                    (true, true) => format!("#ifndef {n}\n# define {n}{v}\n#endif"),
+                    (false, false) => format!("#include <features.h>\n#if {c}\n# define {n}{v}\n#endif"),
+                    (false, true) => format!("#include <features.h>\n#if ({c}) && !defined {n}\n# define {n}{v}\n#endif"),
+                };
                 out.push((n.clone(), def));
             }
         }

@@ -2,7 +2,9 @@
 /* sys/auxv.h: getauxval(3): the auxiliary vector. */
 #ifndef __NIJI_H_sys_auxv_h
 #define __NIJI_H_sys_auxv_h 1
-#define _SYS_AUXV_H 1
+#ifndef _SYS_AUXV_H
+# define _SYS_AUXV_H 1
+#endif
 
 #include <features.h>
 #include <stdint.h>

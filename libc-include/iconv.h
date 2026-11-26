@@ -2,7 +2,9 @@
 /* iconv.h: character set conversion (XSH <iconv.h>). */
 #ifndef __NIJI_H_iconv_h
 #define __NIJI_H_iconv_h 1
-#define _ICONV_H 1
+#ifndef _ICONV_H
+# define _ICONV_H 1
+#endif
 
 #include <features.h>
 

@@ -2,7 +2,9 @@
 /* ucontext.h: user context switching (XSH <ucontext.h>, obsolescent in POSIX.1-2008 but exported). */
 #ifndef __NIJI_H_ucontext_h
 #define __NIJI_H_ucontext_h 1
-#define _UCONTEXT_H 1
+#ifndef _UCONTEXT_H
+# define _UCONTEXT_H 1
+#endif
 
 #include <features.h>
 #include <sys/ucontext.h>

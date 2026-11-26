@@ -2,7 +2,9 @@
 /* utmp.h: login accounting records (utmp(5), getutent(3)). */
 #ifndef __NIJI_H_utmp_h
 #define __NIJI_H_utmp_h 1
-#define _UTMP_H 1
+#ifndef _UTMP_H
+# define _UTMP_H 1
+#endif
 
 #include <features.h>
 #include <sys/time.h>

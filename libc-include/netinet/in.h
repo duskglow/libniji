@@ -3,7 +3,9 @@
    On x86-64 (little endian) the host/network conversions are byte swaps (spec 8.8). */
 #ifndef __NIJI_H_netinet_in_h
 #define __NIJI_H_netinet_in_h 1
-#define _NETINET_IN_H 1
+#ifndef _NETINET_IN_H
+# define _NETINET_IN_H 1
+#endif
 
 #include <features.h>
 #include <sys/socket.h>

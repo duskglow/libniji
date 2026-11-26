@@ -2,7 +2,9 @@
 /* execinfo.h: stack backtraces (backtrace(3)). */
 #ifndef __NIJI_H_execinfo_h
 #define __NIJI_H_execinfo_h 1
-#define _EXECINFO_H 1
+#ifndef _EXECINFO_H
+# define _EXECINFO_H 1
+#endif
 
 #include <features.h>
 

@@ -45,7 +45,7 @@ __NIJI_BEGIN_C
 
 /* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
 @@when FD_SET
-# ifndef FD_SET
+# ifndef __NIJI_FD_BITS
 /* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
 extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 #  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))

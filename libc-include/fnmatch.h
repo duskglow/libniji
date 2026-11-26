@@ -2,7 +2,9 @@
 /* fnmatch.h: file name matching (XSH <fnmatch.h>). */
 #ifndef __NIJI_H_fnmatch_h
 #define __NIJI_H_fnmatch_h 1
-#define _FNMATCH_H 1
+#ifndef _FNMATCH_H
+# define _FNMATCH_H 1
+#endif
 
 /* This header does not leave the feature-test macros that features.h derives defined for the program. */
 #pragma push_macro("_ATFILE_SOURCE")

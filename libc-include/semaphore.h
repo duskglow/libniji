@@ -2,7 +2,9 @@
 /* semaphore.h: semaphores (XSH <semaphore.h>). */
 #ifndef __NIJI_H_semaphore_h
 #define __NIJI_H_semaphore_h 1
-#define _SEMAPHORE_H 1
+#ifndef _SEMAPHORE_H
+# define _SEMAPHORE_H 1
+#endif
 
 #include <features.h>
 #include <sys/types.h>

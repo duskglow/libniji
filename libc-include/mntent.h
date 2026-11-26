@@ -2,7 +2,9 @@
 /* mntent.h: mounted file system table (getmntent(3)) */
 #ifndef __NIJI_H_mntent_h
 #define __NIJI_H_mntent_h 1
-#define _MNTENT_H 1
+#ifndef _MNTENT_H
+# define _MNTENT_H 1
+#endif
 
 #include <features.h>
 

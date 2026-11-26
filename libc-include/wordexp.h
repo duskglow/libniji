@@ -2,7 +2,9 @@
 /* wordexp.h: word expansion (XSH <wordexp.h>). */
 #ifndef __NIJI_H_wordexp_h
 #define __NIJI_H_wordexp_h 1
-#define _WORDEXP_H 1
+#ifndef _WORDEXP_H
+# define _WORDEXP_H 1
+#endif
 
 #include <features.h>
 

@@ -2,7 +2,9 @@
 /* libintl.h: message translation (GNU C Library manual, gettext(3)). */
 #ifndef __NIJI_H_libintl_h
 #define __NIJI_H_libintl_h 1
-#define _LIBINTL_H 1
+#ifndef _LIBINTL_H
+# define _LIBINTL_H 1
+#endif
 
 #include <features.h>
 

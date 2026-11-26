@@ -2,7 +2,9 @@
 /* getopt.h: command-line option parsing (GNU C Library manual, getopt(3)). */
 #ifndef __NIJI_H_getopt_h
 #define __NIJI_H_getopt_h 1
-#define _GETOPT_H 1
+#ifndef _GETOPT_H
+# define _GETOPT_H 1
+#endif
 
 #include <features.h>
 
