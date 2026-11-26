@@ -703,15 +703,22 @@ static void keys_do_not_leak(void)
     struct sub k = run(NOENV, "gai", "xn--bcher-kva.test");
     check("idna-after-the-cache", !strcmp(i.answer, "192.0.2.50 canon=b\xc3\xbc" "cher.test") && !strcmp(j.answer, "eai=-105") && !strcmp(k.answer, "192.0.2.50") && k.hits == 1,
           "[%s] [%s] [%s]", i.answer, j.answer, k.answer);
-    /* AI_ADDRCONFIG runs after the cache: an IPv4-only interface drops the IPv6 address of a
-     * cached answer, in the same process and in another. */
-    char x[512], y[512], z[512];
+    /* AI_ADDRCONFIG is read on every call, never cached: once an IPv4-only interface exists,
+     * the call asks the cache for IPv4 only (D-16.2 narrows AF_UNSPEC before the lookup; the
+     * family is part of the key, so the first such call misses and the second hits), and a call
+     * without the flag still gets the cached answer with both families. The interface gets no
+     * IPv6 link-local address (addrgenmode none): a link-local address counts as configured IPv6. */
+    char x[512], y[512], y2[512], z[512];
     look("gaicfg", "both", x, sizeof x);
-    if (system("ip link add nsc0 type dummy && ip addr add 10.9.9.9/24 dev nsc0 && ip link set nsc0 up") == 0) {
+    if (system("ip link add nsc0 type dummy && ip link set nsc0 addrgenmode none && ip addr add 10.9.9.9/24 dev nsc0 && ip link set nsc0 up") == 0) {
         unsigned long long h0 = st().hits;
         look("gaicfg", "both", y, sizeof y);
+        look("gaicfg", "both", y2, sizeof y2);
         look("gai", "both", z, sizeof z);
-        check("addrconfig-after-the-cache", strstr(x, "2001:db8::2") && !strstr(y, "2001:db8::2") && strstr(z, "2001:db8::2") && st().hits == h0 + 2, "[%s] [%s] [%s]", x, y, z);
+        unsigned long long dh = st().hits - h0;
+        check("addrconfig-after-the-cache",
+              strstr(x, "2001:db8::2") && !strcmp(y, "192.0.2.2") && !strcmp(y2, "192.0.2.2") && strstr(z, "2001:db8::2") && dh == 2,
+              "[%s] [%s] [%s] [%s] hits+%llu", x, y, y2, z, dh);
         (void)!system("ip link del nsc0");
     } else {
         printf("ok addrconfig-after-the-cache (skipped: no dummy interface)\n");

@@ -3271,7 +3271,8 @@ defined only by glibc's implementation and manual.
   * `AI_CANONNAME`;
   * `AI_NUMERICHOST`, `AI_NUMERICSERV`;
   * `AI_V4MAPPED`, `AI_ALL`;
-  * `AI_ADDRCONFIG` (return only families configured on the host);
+  * `AI_ADDRCONFIG` (return only families configured on the host: a family counts when an
+    interface has an address of it other than `127.0.0.1` or `::1`);
   * `AI_IDN` (IDNA via `libidn2`, loaded with `dlopen`), `AI_CANONIDN`.
 * The result list is **sorted by RFC 3484/6724 destination address selection**. That needs
   the source address for each candidate, which glibc learns by `connect`ing a UDP socket and

@@ -61,6 +61,13 @@ fixture's `nsswitch.conf` names only `files`; there is no `host.conf`.
   unknown family `EAI_FAMILY`, unknown flag bits `EAI_BADFLAGS`; a port of 65536 is accepted as
   0 and -1 rejected; a zone suffix is accepted with `AI_NUMERICHOST`; `AI_ADDRCONFIG` with only
   loopback still returns IPv4.
+* `AI_ADDRCONFIG` (probed 2026-11-26 in network namespaces, D-16.2): a family counts as configured
+  when some interface, up or down, has an address of it other than exactly `127.0.0.1` or `::1`
+  (link-local IPv6, 169.254/16, other 127/8 addresses and any address on `lo` count). The flag
+  narrows the request before the node is read: with one family configured `AF_UNSPEC` asks for it
+  alone and a request for the other family is `EAI_NONAME`; with neither, `AF_UNSPEC` is unchanged
+  and `AF_INET` or `AF_INET6` is `EAI_NONAME`, ahead of `EAI_ADDRFAMILY`, `EAI_SERVICE` and
+  `EAI_SOCKTYPE`. A host with `::1` and link-local IPv6 therefore resolves `::1` for `AF_INET6`.
 * `getnameinfo`: a reverse miss gives the numeric host unless `NI_NAMEREQD` (`EAI_NONAME`); an
   unknown port gives the number; unknown flag bits are `EAI_BADFLAGS`; a host buffer too small is
   `EAI_OVERFLOW`; a bad address length `EAI_FAMILY`; asking for neither host nor service

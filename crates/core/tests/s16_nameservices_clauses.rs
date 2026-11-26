@@ -528,19 +528,43 @@ fn s16_2_c_2_4() {
 #[test]
 fn s16_2_c_2_5() {
     let fx = Fx::new("addrconfig");
-    // The families configured, as the test reads the interfaces itself: non-loopback, and for
-    // IPv6 non-link-local addresses.
+    // D-16.2 (probed on the reference): a family is configured when some interface has an
+    // address of it other than 127.0.0.1 or ::1 (link-local and other 127/8 addresses count);
+    // the test reads the interfaces itself (IPv6 from /proc, not through libniji).
     let text = std::fs::read_to_string("/proc/net/if_inet6").unwrap_or_default();
-    let v6 = text.lines().any(|l| {
-        let a = l.split_whitespace().next().unwrap_or("");
-        a != "00000000000000000000000000000001" && !["fe8", "fe9", "fea", "feb"].iter().any(|p| a.starts_with(p))
-    });
+    let v6 = text.lines().any(|l| l.split_whitespace().next().is_some_and(|a| a != "00000000000000000000000000000001"));
     let addrs = niji::net::iface::addrs(&CSys).unwrap();
-    let v4 = addrs.iter().any(|a| a.family == 2 && a.own().is_some_and(|x| x[0] != 127));
-    let (keep4, keep6) = (v4 || !v6, v6 || !v4);
-    let n = |node: &str| gai(&fx, Some(node), Some("80"), hints(gai::AI_ADDRCONFIG, 0, 1, 0)).map(|v| v.len());
-    assert_eq!(n("127.0.0.1"), if keep4 { Ok(1) } else { Err(gai::EAI_NONAME) }, "IPv4 configured: {v4}, IPv6: {v6}");
-    assert_eq!(n("2001:db8::1"), if keep6 { Ok(1) } else { Err(gai::EAI_NONAME) });
+    let v4 = addrs.iter().any(|a| a.family == 2 && a.own().is_some_and(|x| x.get(..4) != Some(&[127, 0, 0, 1][..])));
+    let n = |node: &str, family: i32, flags: i32| gai(&fx, Some(node), Some("80"), hints(flags, family, 1, 0)).map(|v| v.len());
+    let (unspec, inet, inet6) = (0, 2, 10);
+    let why = format!("IPv4 configured: {v4}, IPv6: {v6}");
+    let ac = gai::AI_ADDRCONFIG;
+    // A family asked for that is not configured is EAI_NONAME, before the node is read.
+    assert_eq!(n("127.0.0.1", inet, ac), if v4 { Ok(1) } else { Err(gai::EAI_NONAME) }, "{why}");
+    assert_eq!(n("::1", inet6, ac), if v6 { Ok(1) } else { Err(gai::EAI_NONAME) }, "{why}");
+    assert_eq!(n("::1", inet, ac), Err(if v4 { gai::EAI_ADDRFAMILY } else { gai::EAI_NONAME }), "{why}");
+    // AF_UNSPEC asks for the one configured family only, or is left as it is when neither or both are.
+    let only4 = v4 && !v6;
+    let only6 = v6 && !v4;
+    assert_eq!(n("::1", unspec, ac), if only4 { Err(gai::EAI_ADDRFAMILY) } else { Ok(1) }, "{why}");
+    assert_eq!(n("127.0.0.1", unspec, ac), if only6 { Err(gai::EAI_ADDRFAMILY) } else { Ok(1) }, "{why}");
+    // AF_INET6 with AI_V4MAPPED keeps the mapped address whenever IPv6 is configured.
+    assert_eq!(n("127.0.0.1", inet6, ac | gai::AI_V4MAPPED), if v6 { Ok(1) } else { Err(gai::EAI_NONAME) }, "{why}");
+    // Without the flag nothing is narrowed.
+    assert_eq!(n("::1", inet6, 0), Ok(1));
+    // The whole rule, as probed on the reference in network namespaces with each combination of
+    // configured families (D-16.2): (configured, asked) -> asked after narrowing (None: EAI_NONAME).
+    let (u, i4, i6) = ((true, true), (true, false), (false, true));
+    for (c, rows) in [
+        ((true, true), [Some(u), Some(i4), Some(i6)]),
+        ((true, false), [Some(i4), Some(i4), None]),
+        ((false, true), [Some(i6), None, Some(i6)]),
+        ((false, false), [Some(u), None, None]),
+    ] {
+        for (asked, want) in [u, i4, i6].into_iter().zip(rows) {
+            assert_eq!(gai::addrconfig_families(c, asked), want, "configured {c:?}, asked {asked:?}");
+        }
+    }
 }
 
 #[test]

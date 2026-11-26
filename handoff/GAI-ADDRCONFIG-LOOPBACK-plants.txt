@@ -1,0 +1,10 @@
+# GAI-ADDRCONFIG-LOOPBACK plants (D-16.2 AI_ADDRCONFIG rule)
+gac-v6-linklocal | crates/legacy/src/gai.rs | lit:v6 |= x != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]; ==> v6 |= x != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] && x.first() != Some(&0xfe); | cargo test -p niji --test s16_nameservices_clauses s16_2_c_2_5 | msg:s16_2_c_2_5.*(FAILED|panicked)|panicked.*s16_2_c_2_5
+gac-unspec-narrow | crates/legacy/src/gai.rs | lit:return Some(if c4 != c6 { (c4, c6) } else { asked }); ==> return Some(asked); | cargo test -p niji --test s16_nameservices_clauses s16_2_c_2_5 | msg:configured \(true, false\)
+gac-neither | crates/legacy/src/gai.rs | lit:((v4 && c4) || (v6 && c6)).then_some(asked) ==> Some(asked) | cargo test -p niji --test s16_nameservices_clauses s16_2_c_2_5 | msg:configured \((true, false|false, true|false, false)\)
+gac-callsite | crates/legacy/src/gai.rs | lit:if h.flags & AI_ADDRCONFIG != 0 { addrconfig( ==> if false { addrconfig( | cargo test -p niji --test netdb_products | msg:lines that differ|line counts differ
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# gac-v6-linklocal: CAUGHT, caught by s16_nameservices_clauses s16_2_c_2_5
+# gac-unspec-narrow: CAUGHT, caught by s16_nameservices_clauses s16_2_c_2_5
+# gac-neither: CAUGHT, caught by s16_nameservices_clauses s16_2_c_2_5
+# gac-callsite: CAUGHT, caught by netdb_products netdb_equals_the_reference
