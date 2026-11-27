@@ -1,42 +1,51 @@
-# HEADERS-STAGE2-GAPS-K: handoff (run 1, end of leg 3: generator fixed after the gate; proof jobs running)
+# HEADERS-STAGE2-GAPS-K: handoff (run 1, leg 4: done; full report below)
 
-Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Code head b1b53ab1a. Role shiki:~/w/sh1
-(Skylake-SP class, no clang: header_check's clang P5 is skipped there). clang-19 and the llvm-19 source are on keke.
-Job scripts and outputs: shiki ~/work/headers-stage2-gaps-k/ (r1.sh TAG = headers-gen + j1 (p1 + form) + j2 (p2 pairs);
-pk1.sh COMMIT EPOCH = system-flavour debs into ~/work/headers-stage2-gaps-k/debs/system). keke
-~/work/headers-stage2-gaps-k/pk2.sh (installed, checked): extracts ~/work/headers-stage2-gaps-k/debs/libc6-dev_*.deb
-and compiles llvm-19's sanitizer_platform_limits_posix.cpp with clang-19 and g++, stock and libniji (J's pf1.sh step 2).
+Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Code head eb9361a0e (later commits:
+handoff only). Role shiki:~/w/sh1 (Skylake-SP class, no clang: header_check's clang P5 is skipped there); clang-19 and
+the llvm-19 source are on keke. Job scripts: shiki ~/work/headers-stage2-gaps-k/ (g6.sh gate chain, r1.sh/j1/j2
+probes, pk1.sh system debs); keke ~/work/headers-stage2-gaps-k/ (pk2.sh llvm-19 unit, pk3.sh addstock + pk2, tp.sh).
 
-## Done
-* Leg 1-2 (see commits): `spec/abi/macro-spellings.tsv` (109 rows; generator `spellings`), `<netipx/ipx.h>` requests
-  and sipx_special, header_checks/s13.d/60-stage2-gaps-k.py, form.py ENFORCED PPP/BLK requests.
-* Leg 3: 3cd48a055 parenthesis check fixed (+0 could not see missing parentheses) and plants file. Gate run 1
-  (label -gate, head 1756f2310+) RED: dup.py `TIOCSER_TEMT` defined outright in 5 headers, `SYNC_FILE_RANGE_WRITE_AND_WAIT`
-  in 3; the `net/if_ppp.h`+`linux/ppp-ioctl.h` pair fails on struct npioctl (stock too). 6a74db8ca put kernel-sourced
-  spelled names under #ifndef and dropped that pair: gate2 green, but probes k3 showed p1 `earlier-def-kept` DIFF for
-  the PPP requests (stock replaces a program's earlier definition) and p2 SC_MASK. b1b53ab1a: spelled names outright
-  again (redefined() override kept) AND under the emit-once guard (`item()`: `|| self.t.spellings.contains_key(name)`),
-  so the first header included defines each; features.py forms check no longer skips spelled kernel-spelled names.
+## What the branch does
+1. `<netipx/ipx.h>`: SIOCAIPXITFCRT, SIOCAIPXPRISLT, SIOCIPXCFGDATA, SIOCIPXNCPCONN (SIOCPROTOPRIVATE+0..3,
+   parenthesised) and sipx_special, per configuration (headers/netipx/ipx.h.in, visibility.tsv).
+2. `spec/abi/macro-spellings.tsv` (generator input, 109 rows: name, the kernel's spelling, its source header):
+   the generator emits each name in that form (PPPIOC*, BLK*, MTIO*, TIOCSER_TEMT, ...), outright and once (the
+   emit-once guard: the first header included defines it). form.py ENFORCED for the PPP/BLK/MTIO requests: FORM-DIFF 0
+   for ioctl requests (k5-form.diff).
+3. `<termios.h>` + `<sys/ioctl.h>` (and the other PAIRS in 60-stage2-gaps-k.py): no redefinition, C and C++.
+   TTYDEF_SPEED dropped from headers/dup-listed.tsv (now defined once).
+4. (coordinator note, #8803) `<protocols/timed.h>` no longer includes `<sys/socket.h>` (the reference's shows no
+   socket name; struct osockaddr came with it since GAPS-I). No other header source includes `<sys/socket.h>` where the
+   reference's header lacks `_SYS_SOCKET_H`.
+Tests: header_checks/s13.d/60-stage2-gaps-k.py (142 units: pairs, kernel spelling, netipx requests, TTYDEF_SPEED,
+timed.h own socket names); features.py forms no longer skips spelled kernel-spelled names.
 
-## Jobs running at the end of leg 3 (shiki; all on b1b53ab1a)
-* `headers-stage2-gaps-k-gate3` (test): clippy, static, headers-gen, dup.py, header_check --only GAPS-K, features.py,
-  cargo test -p xtask (full header_check inside), form.py, then r1.sh k4 (probes; outputs k4-*).
-* `headers-stage2-gaps-k-plants3` (plants; 9 plants; dir /mnt/zram/claude/headers-stage2-gaps-k/plants-3).
-* `headers-stage2-gaps-k-debs2` (test): waits for gate3, then pk1.sh b1b53ab1a (system debs).
-SUPERSEDED: -gate (red, fixed), -plants (baseline red, same cause), -gate2/-probe3/-plants2 (6a74db8ca; plants2 refused:
-k-spelling-off pattern stale), -debs (6a74db8ca, killed).
+## Proof (final code head eb9361a0e unless noted)
+* gate6 (shiki): clippy, static, headers-gen, dup.py 0, header_check GAPS-K 0/142, features.py forms 0, header_check
+  protocols/timed.h 0/135, cargo test -p xtask, probes k6 + form.py. FULL: the train's (xtask and generator inputs).
+* plants6 (shiki): 10 plants, 10 CAUGHT, no WARN (handoff/HEADERS-STAGE2-GAPS-K-plants.txt).
+* keke llvm19-2 (pk3.sh on debs3: eb9361a0e's system libc6-dev, sha256 2f8c2bd8...): RELEASE-SNAPSHOT-1127B's
+  addstock.sh against RELEASE-SNAPSHOT-1126C's libc6-dev: user-namespace names not in stock only in sched.h (28) and
+  spawn.h (27), the recorded sched_attr family; protocols/timed.h no longer listed (1127B's run: osockaddr). Then
+  llvm-19 compiler-rt 19.1.7 sanitizer_platform_limits_posix.cpp: clang-19 stock=0 niji=0, g++ stock=0 niji=0.
+* Probes (k5/k6): p2 differs from stock only in asm/termbits.h+termios.h (stock warns of 111 redefinitions, libniji
+  none); p1 only TTYDEF_{C,I,L,O}FLAG with `<sys/ioctl.h>` alone (stock cannot evaluate them, libniji can): both on
+  base, not this story's names.
 
-## Next step (leg 4)
-1. `~/bin/jobwait headers-stage2-gaps-k-gate3 headers-stage2-gaps-k-plants3` on shiki. Probe check: `W=~/work/headers-stage2-gaps-k;
-   diff $W/k4-p2-stock.out $W/k4-p2-niji.out` must show only `asm/termbits.h+termios.h` (pre-existing, INFORMATIONAL);
-   `diff $W/k4-stock.out $W/k4-niji.out` only TTYDEF_IFLAG/OFLAG/LFLAG/CFLAG with <sys/ioctl.h> (pre-existing, 28 lines,
-   INFORMATIONAL). If features.py forms fails on a spelled name with a kernel header in front: look at that name only.
-2. Plants: every one CAUGHT (k-*). Copy `/mnt/zram/claude/headers-stage2-gaps-k/plants-3/results.txt` over
-   handoff/HEADERS-STAGE2-GAPS-K-plants.txt and commit (docs/plants.md).
-3. After debs2: copy `~/work/headers-stage2-gaps-k/debs/system/libc6-dev_*.deb` shiki -> local scratch -> keke
-   `~/work/headers-stage2-gaps-k/debs/`, then on keke `setsid nohup ~/bin/jobrun headers-stage2-gaps-k-llvm19 test --
-   sh ~/work/headers-stage2-gaps-k/pk2.sh` and jobwait it: RESULT lines (niji=0 for clang and gxx, or the first stop).
-4. precheck `--jobs headers-stage2-gaps-k-gate3,headers-stage2-gaps-k-plants3,keke:headers-stage2-gaps-k-llvm19`
-   on the synced final head; report json handoff/reports/HEADERS-STAGE2-GAPS-K.json (FULL: the train's: xtask and
-   generator inputs); handback-check. INFORMATIONAL: asm/termbits.h+termios.h; TTYDEF_*FLAG with <sys/ioctl.h> alone;
-   kernel-spelled.tsv not regenerated (the override makes it unnecessary).
+## INFORMATIONAL
+* features.py run standalone compiles its units with `-nostdinc` and no kernel UAPI dir; base `<sched.h>` (GNU) now
+  includes `<linux/sched/types.h>` (sched_attr, ruling #8766), so standalone `FEATURES pkg npth rwlock gnu` fails
+  ("linux/sched/types.h: No such file"). Inside header_check (line ~497, kernel-uapi dir) it passes. Fix: give
+  `_compile` the same kernel dir. Not this story's code; the gate runs features.py `--only "FEATURES forms"`.
+* The GAPS-K kernel-spelling unit respells with the table's own text: it proves the generator emits the table's
+  spelling; the value is P1's (plant k-ppp-nr names P1 net/if_ppp.h).
+* spec/abi/kernel-spelled.tsv not regenerated (the spellings override makes it unnecessary).
+
+## Superseded jobs
+-gate (red: dup), -plants (baseline red), -gate2/-probe3/-plants2 (6a74db8ca), -debs (killed), -gate3 (red: stale
+TTYDEF_SPEED row in dup-listed.tsv), -plants3 (baseline red, same), -debs2/keke -llvm19 (b1b53ab1a, headers before item
+4), -gate4 (standalone features.py, see INFORMATIONAL), -plants4 (k-ppp-nr survived: command too narrow), -gate5 and
+-plants5 (87f6d3e5a, before item 4).
+
+## Next step
+None for this story: land through the train. Plan rows: none new.
