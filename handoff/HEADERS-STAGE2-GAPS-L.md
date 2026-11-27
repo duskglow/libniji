@@ -33,8 +33,20 @@ cls.py (sweep classifier) in the story scratch dir. Plants: handoff/HEADERS-STAG
   C library has those functions).
 * features.py --only "FEATURES pkg npth rwlock": 0 failed standalone.
 
+7. Found by the first gate and fixed: the generator's table test spelled the union-nested tags `icmp::ih_idseq` in
+   C++ (no such member of the class): rows.rs cxx_nested now names a tag nested in an unnamed-union member as that
+   member's `__typeof__` (layouts.tsv path); `__iscanonicall` (newly declared) gets attribute const as the
+   reference's (diagattrs.tsv row; attr_probe check); the provider test's valid `generic` example moved from
+   fpclassify (a C++ macro now) to iszero; nested-tags.tsv sorted by tag (table-keys).
+8. First plants run: l-environ-omit SURVIVED (the unit declared __environ itself before using it: fixed, it now uses
+   it first); l-nested-spelling SURVIVED and is recorded equivalent (the nested tags are shown in C only, where both
+   spellings name one type: header_check's nested_spelling change has no observable effect for today's rows);
+   l-math-cxx-vis WARN-NO-MSG (the generator refused the mutant first; the plant now hides fpclassify in math.h and
+   tgmath.h so the GAPS-L unit catches it).
+
 ## Jobs (final head)
-gate headers-stage2-gaps-l-gate, plants headers-stage2-gaps-l-plants; results in the report.
+gate headers-stage2-gaps-l-gate2, plants headers-stage2-gaps-l-plants2. Superseded: -gate (3 xtask tests + static
+red, fixed), -plants (2 survivors, fixed above).
 
 ## Not to redo
 The sweep (local sweep2/, sweepgnu2/, cls2.tsv), the units, the p1/p3 comparisons.
