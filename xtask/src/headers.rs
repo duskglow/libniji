@@ -1590,7 +1590,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
         fs::create_dir_all(dir.join("headers")).unwrap();
         assert_eq!(t.providers.get("iszero").map(String::as_str), Some("generic"));
-        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nEOF\tgeneric\tx\nfpclassify\tgeneric\tx\n";
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nEOF\tgeneric\tx\niszero\tgeneric\tx\n";
         fs::write(dir.join(PROVIDERS), rows).unwrap();
         let r = load_providers(&dir, &t.vis, &t.protos, &t.typedefs, &t.exported);
         let _ = fs::remove_dir_all(&dir);
@@ -1602,7 +1602,7 @@ mod tests {
         // macro in many headers, a function in none).
         assert!(e.contains("sin: generic, but a prototypes.tsv"), "{e}");
         assert!(e.contains("EOF: generic, but no header"), "{e}");
-        assert!(!e.contains("getumask") && !e.contains("fpclassify"), "{e}");
+        assert!(!e.contains("getumask") && !e.contains("iszero"), "{e}");
     }
 
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`
