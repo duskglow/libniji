@@ -106,6 +106,14 @@ size_t niji_size_form;
 USES += [(h, "va_list", VA_FORM.format(h=h), "form ") for h in ("stdio.h", "wchar.h")]
 USES += [(h, "va_list", VA_PREDEFINED.format(h=h), "predefined ") for h in ("stdio.h", "wchar.h")]
 USES += [("printf.h", "va_list", PRINTF_STDARG, "stdarg ")]
+# <ctype.h>'s _ISbit (libstdc++'s GNU locale model, ctype_members.cc): a function-like macro whose values the reference
+# gives as below (black-box run, bits 0..15), usable in a constant expression.
+ISBIT = """#include <ctype.h>
+enum { niji_isbit = _ISbit (2) };
+typedef char niji_isbit_values[_ISbit (0) == 256 && _ISbit (7) == 32768 && _ISbit (8) == 1 && _ISbit (15) == 128
+                               && _ISbit (0) == _ISupper && _ISbit (11) == _ISalnum && niji_isbit == 1024 ? 1 : -1];
+"""
+USES += [("ctype.h", "_ISupper", ISBIT, "isbit ")]
 USES += [(h, "size_t", SIZE_FORM.format(h=h), "form ") for h in ("stdlib.h", "unistd.h", "sys/types.h")]
 
 
