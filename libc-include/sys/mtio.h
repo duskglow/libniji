@@ -98,16 +98,25 @@ typedef union pthread_attr_t pthread_attr_t;
 # define MTFSFM 11
 # define MTFSR 3
 # define MTFSS 25
-# ifndef MTIOCGET
-#  define MTIOCGET 2150657282UL
+# ifndef __NIJI_D_m_MTIOCGET
+#  define __NIJI_D_m_MTIOCGET 1
+# define MTIOCGET _IOR('m', 2, struct mtget)
 # endif
-# define MTIOCGETCONFIG 2150657284UL
-# ifndef MTIOCPOS
-#  define MTIOCPOS 2148035843UL
+# ifndef __NIJI_D_m_MTIOCGETCONFIG
+#  define __NIJI_D_m_MTIOCGETCONFIG 1
+# define MTIOCGETCONFIG _IOR('m', 4, struct mtconfiginfo)
 # endif
-# define MTIOCSETCONFIG 1076915461UL
-# ifndef MTIOCTOP
-#  define MTIOCTOP 1074294017UL
+# ifndef __NIJI_D_m_MTIOCPOS
+#  define __NIJI_D_m_MTIOCPOS 1
+# define MTIOCPOS _IOR('m', 3, struct mtpos)
+# endif
+# ifndef __NIJI_D_m_MTIOCSETCONFIG
+#  define __NIJI_D_m_MTIOCSETCONFIG 1
+# define MTIOCSETCONFIG _IOW('m', 5, struct mtconfiginfo)
+# endif
+# ifndef __NIJI_D_m_MTIOCTOP
+#  define __NIJI_D_m_MTIOCTOP 1
+# define MTIOCTOP _IOW('m', 1, struct mtop)
 # endif
 # define MTLOAD 30
 # define MTLOCK 28
@@ -130,147 +139,193 @@ typedef union pthread_attr_t pthread_attr_t;
 # define MTUNLOCK 29
 # define MTWEOF 5
 # define MTWSM 27
-# ifndef MT_ISARCHIVESC499
-#  define MT_ISARCHIVESC499 10
+# ifndef __NIJI_D_m_MT_ISARCHIVESC499
+#  define __NIJI_D_m_MT_ISARCHIVESC499 1
+# define MT_ISARCHIVESC499 0x0A
 # endif
-# ifndef MT_ISARCHIVE_2060L
-#  define MT_ISARCHIVE_2060L 9
+# ifndef __NIJI_D_m_MT_ISARCHIVE_2060L
+#  define __NIJI_D_m_MT_ISARCHIVE_2060L 1
+# define MT_ISARCHIVE_2060L 0x09
 # endif
-# ifndef MT_ISARCHIVE_2150L
-#  define MT_ISARCHIVE_2150L 8
+# ifndef __NIJI_D_m_MT_ISARCHIVE_2150L
+#  define __NIJI_D_m_MT_ISARCHIVE_2150L 1
+# define MT_ISARCHIVE_2150L 0x08
 # endif
-# ifndef MT_ISARCHIVE_5945L2
-#  define MT_ISARCHIVE_5945L2 4
+# ifndef __NIJI_D_m_MT_ISARCHIVE_5945L2
+#  define __NIJI_D_m_MT_ISARCHIVE_5945L2 1
+# define MT_ISARCHIVE_5945L2 0x04
 # endif
-# ifndef MT_ISARCHIVE_VP60I
-#  define MT_ISARCHIVE_VP60I 7
+# ifndef __NIJI_D_m_MT_ISARCHIVE_VP60I
+#  define __NIJI_D_m_MT_ISARCHIVE_VP60I 1
+# define MT_ISARCHIVE_VP60I 0x07
 # endif
-# ifndef MT_ISCMSJ500
-#  define MT_ISCMSJ500 5
+# ifndef __NIJI_D_m_MT_ISCMSJ500
+#  define __NIJI_D_m_MT_ISCMSJ500 1
+# define MT_ISCMSJ500 0x05
 # endif
-# ifndef MT_ISDDS1
-#  define MT_ISDDS1 81
+# ifndef __NIJI_D_m_MT_ISDDS1
+#  define __NIJI_D_m_MT_ISDDS1 1
+# define MT_ISDDS1 0x51
 # endif
-# ifndef MT_ISDDS2
-#  define MT_ISDDS2 82
+# ifndef __NIJI_D_m_MT_ISDDS2
+#  define __NIJI_D_m_MT_ISDDS2 1
+# define MT_ISDDS2 0x52
 # endif
-# ifndef MT_ISEVEREX_FT40A
-#  define MT_ISEVEREX_FT40A 50
+# ifndef __NIJI_D_m_MT_ISEVEREX_FT40A
+#  define __NIJI_D_m_MT_ISEVEREX_FT40A 1
+# define MT_ISEVEREX_FT40A 0x32
 # endif
-# ifndef MT_ISFTAPE_FLAG
-#  define MT_ISFTAPE_FLAG 8388608
+# ifndef __NIJI_D_m_MT_ISFTAPE_FLAG
+#  define __NIJI_D_m_MT_ISFTAPE_FLAG 1
+# define MT_ISFTAPE_FLAG 0x800000
 # endif
-# ifndef MT_ISFTAPE_UNKNOWN
-#  define MT_ISFTAPE_UNKNOWN 8388608
+# ifndef __NIJI_D_m_MT_ISFTAPE_UNKNOWN
+#  define __NIJI_D_m_MT_ISFTAPE_UNKNOWN 1
+# define MT_ISFTAPE_UNKNOWN 0x800000
 # endif
-# ifndef MT_ISQIC02
-#  define MT_ISQIC02 2
+# ifndef __NIJI_D_m_MT_ISQIC02
+#  define __NIJI_D_m_MT_ISQIC02 1
+# define MT_ISQIC02 0x02
 # endif
-# ifndef MT_ISQIC02_ALL_FEATURES
-#  define MT_ISQIC02_ALL_FEATURES 15
+# ifndef __NIJI_D_m_MT_ISQIC02_ALL_FEATURES
+#  define __NIJI_D_m_MT_ISQIC02_ALL_FEATURES 1
+# define MT_ISQIC02_ALL_FEATURES 0x0F
 # endif
-# ifndef MT_ISSCSI1
-#  define MT_ISSCSI1 113
+# ifndef __NIJI_D_m_MT_ISSCSI1
+#  define __NIJI_D_m_MT_ISSCSI1 1
+# define MT_ISSCSI1 0x71
 # endif
-# ifndef MT_ISSCSI2
-#  define MT_ISSCSI2 114
+# ifndef __NIJI_D_m_MT_ISSCSI2
+#  define __NIJI_D_m_MT_ISSCSI2 1
+# define MT_ISSCSI2 0x72
 # endif
-# ifndef MT_ISTDC3610
-#  define MT_ISTDC3610 6
+# ifndef __NIJI_D_m_MT_ISTDC3610
+#  define __NIJI_D_m_MT_ISTDC3610 1
+# define MT_ISTDC3610 0x06
 # endif
-# ifndef MT_ISTEAC_MT2ST
-#  define MT_ISTEAC_MT2ST 18
+# ifndef __NIJI_D_m_MT_ISTEAC_MT2ST
+#  define __NIJI_D_m_MT_ISTEAC_MT2ST 1
+# define MT_ISTEAC_MT2ST 0x12
 # endif
-# ifndef MT_ISUNKNOWN
-#  define MT_ISUNKNOWN 1
+# ifndef __NIJI_D_m_MT_ISUNKNOWN
+#  define __NIJI_D_m_MT_ISUNKNOWN 1
+# define MT_ISUNKNOWN 0x01
 # endif
-# ifndef MT_ISWT5099EEN24
-#  define MT_ISWT5099EEN24 17
+# ifndef __NIJI_D_m_MT_ISWT5099EEN24
+#  define __NIJI_D_m_MT_ISWT5099EEN24 1
+# define MT_ISWT5099EEN24 0x11
 # endif
-# ifndef MT_ISWT5150
-#  define MT_ISWT5150 3
+# ifndef __NIJI_D_m_MT_ISWT5150
+#  define __NIJI_D_m_MT_ISWT5150 1
+# define MT_ISWT5150 0x03
 # endif
-# ifndef MT_ST_ASYNC_WRITES
-#  define MT_ST_ASYNC_WRITES 2
+# ifndef __NIJI_D_m_MT_ST_ASYNC_WRITES
+#  define __NIJI_D_m_MT_ST_ASYNC_WRITES 1
+# define MT_ST_ASYNC_WRITES 0x2
 # endif
-# ifndef MT_ST_AUTO_LOCK
-#  define MT_ST_AUTO_LOCK 64
+# ifndef __NIJI_D_m_MT_ST_AUTO_LOCK
+#  define __NIJI_D_m_MT_ST_AUTO_LOCK 1
+# define MT_ST_AUTO_LOCK 0x40
 # endif
-# ifndef MT_ST_BLKSIZE_MASK
-#  define MT_ST_BLKSIZE_MASK 16777215
+# ifndef __NIJI_D_m_MT_ST_BLKSIZE_MASK
+#  define __NIJI_D_m_MT_ST_BLKSIZE_MASK 1
+# define MT_ST_BLKSIZE_MASK 0xffffff
 # endif
 # define MT_ST_BLKSIZE_SHIFT 0
-# ifndef MT_ST_BOOLEANS
-#  define MT_ST_BOOLEANS 268435456
+# ifndef __NIJI_D_m_MT_ST_BOOLEANS
+#  define __NIJI_D_m_MT_ST_BOOLEANS 1
+# define MT_ST_BOOLEANS 0x10000000
 # endif
-# ifndef MT_ST_BUFFER_WRITES
-#  define MT_ST_BUFFER_WRITES 1
+# ifndef __NIJI_D_m_MT_ST_BUFFER_WRITES
+#  define __NIJI_D_m_MT_ST_BUFFER_WRITES 1
+# define MT_ST_BUFFER_WRITES 0x1
 # endif
-# ifndef MT_ST_CAN_BSR
-#  define MT_ST_CAN_BSR 256
+# ifndef __NIJI_D_m_MT_ST_CAN_BSR
+#  define __NIJI_D_m_MT_ST_CAN_BSR 1
+# define MT_ST_CAN_BSR 0x100
 # endif
-# ifndef MT_ST_CAN_PARTITIONS
-#  define MT_ST_CAN_PARTITIONS 1024
+# ifndef __NIJI_D_m_MT_ST_CAN_PARTITIONS
+#  define __NIJI_D_m_MT_ST_CAN_PARTITIONS 1
+# define MT_ST_CAN_PARTITIONS 0x400
 # endif
-# ifndef MT_ST_CLEARBOOLEANS
-#  define MT_ST_CLEARBOOLEANS 1073741824
+# ifndef __NIJI_D_m_MT_ST_CLEARBOOLEANS
+#  define __NIJI_D_m_MT_ST_CLEARBOOLEANS 1
+# define MT_ST_CLEARBOOLEANS 0x40000000
 # endif
-# ifndef MT_ST_CLEAR_DEFAULT
-#  define MT_ST_CLEAR_DEFAULT 1048575
+# ifndef __NIJI_D_m_MT_ST_CLEAR_DEFAULT
+#  define __NIJI_D_m_MT_ST_CLEAR_DEFAULT 1
+# define MT_ST_CLEAR_DEFAULT 0xfffff
 # endif
-# ifndef MT_ST_DEBUGGING
-#  define MT_ST_DEBUGGING 8
+# ifndef __NIJI_D_m_MT_ST_DEBUGGING
+#  define __NIJI_D_m_MT_ST_DEBUGGING 1
+# define MT_ST_DEBUGGING 0x8
 # endif
-# ifndef MT_ST_DEF_BLKSIZE
-#  define MT_ST_DEF_BLKSIZE 1342177280
+# ifndef __NIJI_D_m_MT_ST_DEF_BLKSIZE
+#  define __NIJI_D_m_MT_ST_DEF_BLKSIZE 1
+# define MT_ST_DEF_BLKSIZE 0x50000000
 # endif
-# ifndef MT_ST_DEF_COMPRESSION
-#  define MT_ST_DEF_COMPRESSION 1612709888
+# ifndef __NIJI_D_m_MT_ST_DEF_COMPRESSION
+#  define __NIJI_D_m_MT_ST_DEF_COMPRESSION 1
+# define MT_ST_DEF_COMPRESSION (MT_ST_DEF_OPTIONS | 0x200000)
 # endif
-# ifndef MT_ST_DEF_DENSITY
-#  define MT_ST_DEF_DENSITY 1611661312
+# ifndef __NIJI_D_m_MT_ST_DEF_DENSITY
+#  define __NIJI_D_m_MT_ST_DEF_DENSITY 1
+# define MT_ST_DEF_DENSITY (MT_ST_DEF_OPTIONS | 0x100000)
 # endif
-# ifndef MT_ST_DEF_DRVBUFFER
-#  define MT_ST_DEF_DRVBUFFER 1613758464
+# ifndef __NIJI_D_m_MT_ST_DEF_DRVBUFFER
+#  define __NIJI_D_m_MT_ST_DEF_DRVBUFFER 1
+# define MT_ST_DEF_DRVBUFFER (MT_ST_DEF_OPTIONS | 0x300000)
 # endif
-# ifndef MT_ST_DEF_OPTIONS
-#  define MT_ST_DEF_OPTIONS 1610612736
+# ifndef __NIJI_D_m_MT_ST_DEF_OPTIONS
+#  define __NIJI_D_m_MT_ST_DEF_OPTIONS 1
+# define MT_ST_DEF_OPTIONS 0x60000000
 # endif
-# ifndef MT_ST_DEF_WRITES
-#  define MT_ST_DEF_WRITES 128
+# ifndef __NIJI_D_m_MT_ST_DEF_WRITES
+#  define __NIJI_D_m_MT_ST_DEF_WRITES 1
+# define MT_ST_DEF_WRITES 0x80
 # endif
-# ifndef MT_ST_DENSITY_MASK
-#  define MT_ST_DENSITY_MASK 4278190080U
+# ifndef __NIJI_D_m_MT_ST_DENSITY_MASK
+#  define __NIJI_D_m_MT_ST_DENSITY_MASK 1
+# define MT_ST_DENSITY_MASK 0xff000000
 # endif
 # define MT_ST_DENSITY_SHIFT 24
-# ifndef MT_ST_FAST_MTEOM
-#  define MT_ST_FAST_MTEOM 32
+# ifndef __NIJI_D_m_MT_ST_FAST_MTEOM
+#  define __NIJI_D_m_MT_ST_FAST_MTEOM 1
+# define MT_ST_FAST_MTEOM 0x20
 # endif
 # define MT_ST_HPLOADER_OFFSET 10000
-# ifndef MT_ST_NO_BLKLIMS
-#  define MT_ST_NO_BLKLIMS 512
+# ifndef __NIJI_D_m_MT_ST_NO_BLKLIMS
+#  define __NIJI_D_m_MT_ST_NO_BLKLIMS 1
+# define MT_ST_NO_BLKLIMS 0x200
 # endif
-# ifndef MT_ST_OPTIONS
-#  define MT_ST_OPTIONS 4026531840U
+# ifndef __NIJI_D_m_MT_ST_OPTIONS
+#  define __NIJI_D_m_MT_ST_OPTIONS 1
+# define MT_ST_OPTIONS 0xf0000000
 # endif
-# ifndef MT_ST_READ_AHEAD
-#  define MT_ST_READ_AHEAD 4
+# ifndef __NIJI_D_m_MT_ST_READ_AHEAD
+#  define __NIJI_D_m_MT_ST_READ_AHEAD 1
+# define MT_ST_READ_AHEAD 0x4
 # endif
-# ifndef MT_ST_SCSI2LOGICAL
-#  define MT_ST_SCSI2LOGICAL 2048
+# ifndef __NIJI_D_m_MT_ST_SCSI2LOGICAL
+#  define __NIJI_D_m_MT_ST_SCSI2LOGICAL 1
+# define MT_ST_SCSI2LOGICAL 0x800
 # endif
-# ifndef MT_ST_SETBOOLEANS
-#  define MT_ST_SETBOOLEANS 805306368
+# ifndef __NIJI_D_m_MT_ST_SETBOOLEANS
+#  define __NIJI_D_m_MT_ST_SETBOOLEANS 1
+# define MT_ST_SETBOOLEANS 0x30000000
 # endif
-# ifndef MT_ST_SOFTERR_MASK
-#  define MT_ST_SOFTERR_MASK 65535
+# ifndef __NIJI_D_m_MT_ST_SOFTERR_MASK
+#  define __NIJI_D_m_MT_ST_SOFTERR_MASK 1
+# define MT_ST_SOFTERR_MASK 0xffff
 # endif
 # define MT_ST_SOFTERR_SHIFT 0
-# ifndef MT_ST_TWO_FM
-#  define MT_ST_TWO_FM 16
+# ifndef __NIJI_D_m_MT_ST_TWO_FM
+#  define __NIJI_D_m_MT_ST_TWO_FM 1
+# define MT_ST_TWO_FM 0x10
 # endif
-# ifndef MT_ST_WRITE_THRESHOLD
-#  define MT_ST_WRITE_THRESHOLD 536870912
+# ifndef __NIJI_D_m_MT_ST_WRITE_THRESHOLD
+#  define __NIJI_D_m_MT_ST_WRITE_THRESHOLD 1
+# define MT_ST_WRITE_THRESHOLD 0x20000000
 # endif
 #endif
 

@@ -60,147 +60,193 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef PPPIOCGASYNCMAP
-#  define PPPIOCGASYNCMAP 2147775576UL
+# ifndef __NIJI_D_m_PPPIOCGASYNCMAP
+#  define __NIJI_D_m_PPPIOCGASYNCMAP 1
+# define PPPIOCGASYNCMAP _IOR('t', 88, int)
 # endif
-# ifndef PPPIOCGDEBUG
-#  define PPPIOCGDEBUG 2147775553UL
+# ifndef __NIJI_D_m_PPPIOCGDEBUG
+#  define __NIJI_D_m_PPPIOCGDEBUG 1
+# define PPPIOCGDEBUG _IOR('t', 65, int)
 # endif
-# ifndef PPPIOCGFLAGS
-#  define PPPIOCGFLAGS 2147775578UL
+# ifndef __NIJI_D_m_PPPIOCGFLAGS
+#  define __NIJI_D_m_PPPIOCGFLAGS 1
+# define PPPIOCGFLAGS _IOR('t', 90, int)
 # endif
-# ifndef PPPIOCGIDLE
-#  define PPPIOCGIDLE 2148561983UL
+# ifndef __NIJI_D_m_PPPIOCGIDLE
+#  define __NIJI_D_m_PPPIOCGIDLE 1
+# define PPPIOCGIDLE _IOR('t', 63, struct ppp_idle)
 # endif
-# ifndef PPPIOCGMRU
-#  define PPPIOCGMRU 2147775571UL
+# ifndef __NIJI_D_m_PPPIOCGMRU
+#  define __NIJI_D_m_PPPIOCGMRU 1
+# define PPPIOCGMRU _IOR('t', 83, int)
 # endif
-# ifndef PPPIOCGNPMODE
-#  define PPPIOCGNPMODE 3221779532UL
+# ifndef __NIJI_D_m_PPPIOCGNPMODE
+#  define __NIJI_D_m_PPPIOCGNPMODE 1
+# define PPPIOCGNPMODE _IOWR('t', 76, struct npioctl)
 # endif
-# ifndef PPPIOCGRASYNCMAP
-#  define PPPIOCGRASYNCMAP 2147775573UL
+# ifndef __NIJI_D_m_PPPIOCGRASYNCMAP
+#  define __NIJI_D_m_PPPIOCGRASYNCMAP 1
+# define PPPIOCGRASYNCMAP _IOR('t', 85, int)
 # endif
-# ifndef PPPIOCGUNIT
-#  define PPPIOCGUNIT 2147775574UL
+# ifndef __NIJI_D_m_PPPIOCGUNIT
+#  define __NIJI_D_m_PPPIOCGUNIT 1
+# define PPPIOCGUNIT _IOR('t', 86, int)
 # endif
-# ifndef PPPIOCGXASYNCMAP
-#  define PPPIOCGXASYNCMAP 2149610576UL
+# ifndef __NIJI_D_m_PPPIOCGXASYNCMAP
+#  define __NIJI_D_m_PPPIOCGXASYNCMAP 1
+# define PPPIOCGXASYNCMAP _IOR('t', 80, ext_accm)
 # endif
-# ifndef PPPIOCSASYNCMAP
-#  define PPPIOCSASYNCMAP 1074033751UL
+# ifndef __NIJI_D_m_PPPIOCSASYNCMAP
+#  define __NIJI_D_m_PPPIOCSASYNCMAP 1
+# define PPPIOCSASYNCMAP _IOW('t', 87, int)
 # endif
-# ifndef PPPIOCSCOMPRESS
-#  define PPPIOCSCOMPRESS 1074820173UL
+# ifndef __NIJI_D_m_PPPIOCSCOMPRESS
+#  define __NIJI_D_m_PPPIOCSCOMPRESS 1
+# define PPPIOCSCOMPRESS _IOW('t', 77, struct ppp_option_data)
 # endif
-# ifndef PPPIOCSDEBUG
-#  define PPPIOCSDEBUG 1074033728UL
+# ifndef __NIJI_D_m_PPPIOCSDEBUG
+#  define __NIJI_D_m_PPPIOCSDEBUG 1
+# define PPPIOCSDEBUG _IOW('t', 64, int)
 # endif
-# ifndef PPPIOCSFLAGS
-#  define PPPIOCSFLAGS 1074033753UL
+# ifndef __NIJI_D_m_PPPIOCSFLAGS
+#  define __NIJI_D_m_PPPIOCSFLAGS 1
+# define PPPIOCSFLAGS _IOW('t', 89, int)
 # endif
-# ifndef PPPIOCSMAXCID
-#  define PPPIOCSMAXCID 1074033745UL
+# ifndef __NIJI_D_m_PPPIOCSMAXCID
+#  define __NIJI_D_m_PPPIOCSMAXCID 1
+# define PPPIOCSMAXCID _IOW('t', 81, int)
 # endif
-# ifndef PPPIOCSMRU
-#  define PPPIOCSMRU 1074033746UL
+# ifndef __NIJI_D_m_PPPIOCSMRU
+#  define __NIJI_D_m_PPPIOCSMRU 1
+# define PPPIOCSMRU _IOW('t', 82, int)
 # endif
-# ifndef PPPIOCSNPMODE
-#  define PPPIOCSNPMODE 1074295883UL
+# ifndef __NIJI_D_m_PPPIOCSNPMODE
+#  define __NIJI_D_m_PPPIOCSNPMODE 1
+# define PPPIOCSNPMODE _IOW('t', 75, struct npioctl)
 # endif
-# ifndef PPPIOCSRASYNCMAP
-#  define PPPIOCSRASYNCMAP 1074033748UL
+# ifndef __NIJI_D_m_PPPIOCSRASYNCMAP
+#  define __NIJI_D_m_PPPIOCSRASYNCMAP 1
+# define PPPIOCSRASYNCMAP _IOW('t', 84, int)
 # endif
-# ifndef PPPIOCSXASYNCMAP
-#  define PPPIOCSXASYNCMAP 1075868751UL
+# ifndef __NIJI_D_m_PPPIOCSXASYNCMAP
+#  define __NIJI_D_m_PPPIOCSXASYNCMAP 1
+# define PPPIOCSXASYNCMAP _IOW('t', 79, ext_accm)
 # endif
-# ifndef PPPIOCXFERUNIT
-#  define PPPIOCXFERUNIT 29774U
+# ifndef __NIJI_D_m_PPPIOCXFERUNIT
+#  define __NIJI_D_m_PPPIOCXFERUNIT 1
+# define PPPIOCXFERUNIT _IO('t', 78)
 # endif
 # define PPP_MAGIC 20482
 # define PPP_MAXMRU 65000
 # define PPP_MTU 1500
 # define PPP_VERSION "2.2.0"
-# ifndef SC_CCP_OPEN
-#  define SC_CCP_OPEN 64
+# ifndef __NIJI_D_m_SC_CCP_OPEN
+#  define __NIJI_D_m_SC_CCP_OPEN 1
+# define SC_CCP_OPEN 0x00000040
 # endif
-# ifndef SC_CCP_UP
-#  define SC_CCP_UP 128
+# ifndef __NIJI_D_m_SC_CCP_UP
+#  define __NIJI_D_m_SC_CCP_UP 1
+# define SC_CCP_UP 0x00000080
 # endif
-# ifndef SC_COMP_AC
-#  define SC_COMP_AC 2
+# ifndef __NIJI_D_m_SC_COMP_AC
+#  define __NIJI_D_m_SC_COMP_AC 1
+# define SC_COMP_AC 0x00000002
 # endif
-# ifndef SC_COMP_PROT
-#  define SC_COMP_PROT 1
+# ifndef __NIJI_D_m_SC_COMP_PROT
+#  define __NIJI_D_m_SC_COMP_PROT 1
+# define SC_COMP_PROT 0x00000001
 # endif
-# ifndef SC_COMP_RUN
-#  define SC_COMP_RUN 4096
+# ifndef __NIJI_D_m_SC_COMP_RUN
+#  define __NIJI_D_m_SC_COMP_RUN 1
+# define SC_COMP_RUN 0x00001000
 # endif
-# ifndef SC_COMP_TCP
-#  define SC_COMP_TCP 4
+# ifndef __NIJI_D_m_SC_COMP_TCP
+#  define __NIJI_D_m_SC_COMP_TCP 1
+# define SC_COMP_TCP 0x00000004
 # endif
-# ifndef SC_DC_ERROR
-#  define SC_DC_ERROR 4194304
+# ifndef __NIJI_D_m_SC_DC_ERROR
+#  define __NIJI_D_m_SC_DC_ERROR 1
+# define SC_DC_ERROR 0x00400000
 # endif
-# ifndef SC_DC_FERROR
-#  define SC_DC_FERROR 8388608
+# ifndef __NIJI_D_m_SC_DC_FERROR
+#  define __NIJI_D_m_SC_DC_FERROR 1
+# define SC_DC_FERROR 0x00800000
 # endif
-# ifndef SC_DEBUG
-#  define SC_DEBUG 65536
+# ifndef __NIJI_D_m_SC_DEBUG
+#  define __NIJI_D_m_SC_DEBUG 1
+# define SC_DEBUG 0x00010000
 # endif
-# ifndef SC_DECOMP_RUN
-#  define SC_DECOMP_RUN 8192
+# ifndef __NIJI_D_m_SC_DECOMP_RUN
+#  define __NIJI_D_m_SC_DECOMP_RUN 1
+# define SC_DECOMP_RUN 0x00002000
 # endif
-# ifndef SC_ENABLE_IP
-#  define SC_ENABLE_IP 256
+# ifndef __NIJI_D_m_SC_ENABLE_IP
+#  define __NIJI_D_m_SC_ENABLE_IP 1
+# define SC_ENABLE_IP 0x00000100
 # endif
-# ifndef SC_LOG_FLUSH
-#  define SC_LOG_FLUSH 1048576
+# ifndef __NIJI_D_m_SC_LOG_FLUSH
+#  define __NIJI_D_m_SC_LOG_FLUSH 1
+# define SC_LOG_FLUSH 0x00100000
 # endif
-# ifndef SC_LOG_INPKT
-#  define SC_LOG_INPKT 131072
+# ifndef __NIJI_D_m_SC_LOG_INPKT
+#  define __NIJI_D_m_SC_LOG_INPKT 1
+# define SC_LOG_INPKT 0x00020000
 # endif
-# ifndef SC_LOG_OUTPKT
-#  define SC_LOG_OUTPKT 262144
+# ifndef __NIJI_D_m_SC_LOG_OUTPKT
+#  define __NIJI_D_m_SC_LOG_OUTPKT 1
+# define SC_LOG_OUTPKT 0x00040000
 # endif
-# ifndef SC_LOG_RAWIN
-#  define SC_LOG_RAWIN 524288
+# ifndef __NIJI_D_m_SC_LOG_RAWIN
+#  define __NIJI_D_m_SC_LOG_RAWIN 1
+# define SC_LOG_RAWIN 0x00080000
 # endif
-# ifndef SC_MASK
-#  define SC_MASK 266403839
+# ifndef __NIJI_D_m_SC_MASK
+#  define __NIJI_D_m_SC_MASK 1
+# define SC_MASK 266403839
 # endif
-# ifndef SC_NO_TCP_CCID
-#  define SC_NO_TCP_CCID 8
+# ifndef __NIJI_D_m_SC_NO_TCP_CCID
+#  define __NIJI_D_m_SC_NO_TCP_CCID 1
+# define SC_NO_TCP_CCID 0x00000008
 # endif
-# ifndef SC_RCV_B7_0
-#  define SC_RCV_B7_0 16777216
+# ifndef __NIJI_D_m_SC_RCV_B7_0
+#  define __NIJI_D_m_SC_RCV_B7_0 1
+# define SC_RCV_B7_0 0x01000000
 # endif
-# ifndef SC_RCV_B7_1
-#  define SC_RCV_B7_1 33554432
+# ifndef __NIJI_D_m_SC_RCV_B7_1
+#  define __NIJI_D_m_SC_RCV_B7_1 1
+# define SC_RCV_B7_1 0x02000000
 # endif
-# ifndef SC_RCV_EVNP
-#  define SC_RCV_EVNP 67108864
+# ifndef __NIJI_D_m_SC_RCV_EVNP
+#  define __NIJI_D_m_SC_RCV_EVNP 1
+# define SC_RCV_EVNP 0x04000000
 # endif
-# ifndef SC_RCV_ODDP
-#  define SC_RCV_ODDP 134217728
+# ifndef __NIJI_D_m_SC_RCV_ODDP
+#  define __NIJI_D_m_SC_RCV_ODDP 1
+# define SC_RCV_ODDP 0x08000000
 # endif
-# ifndef SC_REJ_COMP_AC
-#  define SC_REJ_COMP_AC 16
+# ifndef __NIJI_D_m_SC_REJ_COMP_AC
+#  define __NIJI_D_m_SC_REJ_COMP_AC 1
+# define SC_REJ_COMP_AC 0x00000010
 # endif
-# ifndef SC_REJ_COMP_TCP
-#  define SC_REJ_COMP_TCP 32
+# ifndef __NIJI_D_m_SC_REJ_COMP_TCP
+#  define __NIJI_D_m_SC_REJ_COMP_TCP 1
+# define SC_REJ_COMP_TCP 0x00000020
 # endif
-# ifndef SC_XMIT_BUSY
-#  define SC_XMIT_BUSY 268435456
+# ifndef __NIJI_D_m_SC_XMIT_BUSY
+#  define __NIJI_D_m_SC_XMIT_BUSY 1
+# define SC_XMIT_BUSY 0x10000000
 # endif
-# ifndef SIOCGPPPCSTATS
-#  define SIOCGPPPCSTATS 35314
+# ifndef __NIJI_D_m_SIOCGPPPCSTATS
+#  define __NIJI_D_m_SIOCGPPPCSTATS 1
+# define SIOCGPPPCSTATS (SIOCDEVPRIVATE + 2)
 # endif
-# ifndef SIOCGPPPSTATS
-#  define SIOCGPPPSTATS 35312
+# ifndef __NIJI_D_m_SIOCGPPPSTATS
+#  define __NIJI_D_m_SIOCGPPPSTATS 1
+# define SIOCGPPPSTATS (SIOCDEVPRIVATE + 0)
 # endif
-# ifndef SIOCGPPPVER
-#  define SIOCGPPPVER 35313
+# ifndef __NIJI_D_m_SIOCGPPPVER
+#  define __NIJI_D_m_SIOCGPPPVER 1
+# define SIOCGPPPVER (SIOCDEVPRIVATE + 1)
 # endif
 #endif
 

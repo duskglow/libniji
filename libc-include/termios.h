@@ -691,14 +691,18 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # ifndef PENDIN
 #  define PENDIN 16384
 # endif
-# ifndef TIOCSER_TEMT
-#  define TIOCSER_TEMT 1
+# ifndef __NIJI_D_m_TIOCSER_TEMT
+#  define __NIJI_D_m_TIOCSER_TEMT 1
+# define TIOCSER_TEMT 0x01
 # endif
 # define TTYDEF_CFLAG 1440
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
+# ifndef __NIJI_D_m_TTYDEF_SPEED
+#  define __NIJI_D_m_TTYDEF_SPEED 1
 # define TTYDEF_SPEED B9600
+# endif
 # ifndef XTABS
 #  define XTABS 6144
 # endif
