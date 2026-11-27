@@ -1400,3 +1400,7 @@ anon thrd_busy	thrd_busy	1
 anon thrd_busy	thrd_error	2
 anon thrd_busy	thrd_nomem	3
 anon thrd_busy	thrd_timedout	4
+enum NPmode	NPMODE_PASS	0
+enum NPmode	NPMODE_DROP	1
+enum NPmode	NPMODE_ERROR	2
+enum NPmode	NPMODE_QUEUE	3

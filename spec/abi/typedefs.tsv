@@ -571,6 +571,7 @@ function	__jnf64	complex.h			_Float64 (int, _Float64)
 function	__jnf64x	complex.h			_Float64x (int, _Float64x)
 function	__jnl	complex.h			long double (int, long double)
 typedef	__kernel_long_t	arpa/inet.h	8	8	long
+typedef	__kernel_old_time_t	net/if_ppp.h	8	8	long
 typedef	__kernel_ulong_t	arpa/inet.h	8	8	unsigned long
 typedef	__key_t	aio.h	4	4	int
 function	__ldexp	complex.h			double (double, int)
