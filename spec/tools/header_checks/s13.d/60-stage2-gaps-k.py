@@ -32,6 +32,15 @@ typedef char niji_gk_special[offsetof (struct sockaddr_ipx, sipx_special) == 2 &
 SPEED = """#include <{h}>
 typedef char niji_gk_speed[(TTYDEF_SPEED) == (B9600) ? 1 : -1];
 """
+# <protocols/timed.h> shows no <sys/socket.h> name: a program's own struct osockaddr, struct sockaddr and socket
+# compile after it, C and C++, with and without _GNU_SOURCE (black-box probe of the reference, HEADERS-STAGE2-GAPS-K
+# item 4, from RELEASE-SNAPSHOT-1127B's added-name audit).
+TIMED = """#include <protocols/timed.h>
+struct osockaddr { int niji_gk_a; };
+struct sockaddr { int niji_gk_b; };
+int socket (int);
+int niji_gk_timed;
+"""
 
 
 def units(ctx):
@@ -39,10 +48,11 @@ def units(ctx):
     sanitizer_platform_limits_posix.cpp, Yohane stage 2): (1) the PAIRS together, either order, without a
     redefinition; (2) each spec/abi/macro-spellings.tsv name with a kernel source, in each header that shows it,
     respelled after the header in the kernel's text without a redefinition; (3) <netipx/ipx.h>'s requests count from
-    SIOCPROTOPRIVATE, parenthesised, and sipx_special is the port member; (4) TTYDEF_SPEED is B9600 where both show.
-    Defects: TTYDEF_SPEED or TIOCSER_TEMT spelled two ways (termios.h against sys/ioctl.h or the kernel's
-    asm/ioctls.h), a PPP, BLK*, MTIO* name spelled otherwise than the kernel's header (a redefinition with it), an
-    IPX request missing, unparenthesised or off by one, sipx_special aliasing another member."""
+    SIOCPROTOPRIVATE, parenthesised, and sipx_special is the port member; (4) TTYDEF_SPEED is B9600 where both show;
+    (5) <protocols/timed.h> leaves the <sys/socket.h> names to the program. Defects: TTYDEF_SPEED or TIOCSER_TEMT
+    spelled two ways (termios.h against sys/ioctl.h or the kernel's asm/ioctls.h), a PPP, BLK*, MTIO* name spelled
+    otherwise than the kernel's header (a redefinition with it), an IPX request missing, unparenthesised or off by
+    one, sipx_special aliasing another member, <protocols/timed.h> including <sys/socket.h> (struct osockaddr)."""
     shown = {}
     for r in ctx.vis:
         shown.setdefault((r["header"], r["name"]), set()).update(expand(r["configs"], ctx.ids))
@@ -69,4 +79,6 @@ def units(ctx):
     for h in ("termios.h", "termio.h", "pty.h", "sys/termios.h"):
         out += [(cid, f"GAPS-K TTYDEF_SPEED {h}", SPEED.format(h=h)) for cid in pick
                 if cid in shown.get((h, "TTYDEF_SPEED"), ()) and cid in shown.get((h, "B9600"), ())]
+    out += [(cid, "GAPS-K timed.h own socket names", TIMED) for cid in pick
+            if cid in shown.get(("protocols/timed.h", "TSP_ANY"), ())]
     return out

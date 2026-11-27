@@ -8,3 +8,14 @@ k-ipx-special | headers/netipx/ipx.h.in | lit:# define sipx_special sipx_port ==
 k-spelling-off | xtask/src/headers.rs | lit:if let Some(s) = self.t.spellings.get(name) { ==> if let Some(s) = self.t.spellings.get("") { | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-K"' | msg:FAIL.*GAPS-K (pair|kernel spelling)
 k-spelled-once | xtask/src/headers.rs | lit:|| self.t.spellings.contains_key(name) { ==> { | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:FAIL DUP macro (TIOCSER_TEMT|SYNC_FILE_RANGE_WRITE_AND_WAIT)
 k-spelled-guarded | xtask/src/headers.rs | lit:&& (!self.kernel_spelled.contains(name) || self.spellings.contains_key(name)) ==> && !self.kernel_spelled.contains(name) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/features.py --only "FEATURES forms net/if_ppp.h"' | msg:FAIL.*FEATURES forms
+k-timed-socket | headers/protocols/timed.h.in | perl:s/^#include <sys\/time.h>$/#include <sys\/socket.h>\n#include <sys\/time.h>/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-K"' | msg:FAIL.*GAPS-K timed.h own socket names
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# k-temt-spelling: CAUGHT, caught by no test the log names
+# k-ppp-nr: CAUGHT, caught by no test the log names
+# k-speed-row: CAUGHT, caught by no test the log names
+# k-ipx-nr: CAUGHT, caught by no test the log names
+# k-ipx-paren: CAUGHT, caught by no test the log names
+# k-ipx-special: CAUGHT, caught by no test the log names
+# k-spelling-off: CAUGHT, caught by no test the log names
+# k-spelled-once: CAUGHT, caught by no test the log names
+# k-spelled-guarded: CAUGHT, caught by no test the log names
