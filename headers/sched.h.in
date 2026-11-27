@@ -58,6 +58,8 @@ __NIJI_BEGIN_C
 # define CPU_XOR(dest, set1, set2) CPU_XOR_S (sizeof (cpu_set_t), dest, set1, set2)
 #endif
 
+@@fragments
+
 __NIJI_END_C
 
 #endif

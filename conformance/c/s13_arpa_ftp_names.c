@@ -4,7 +4,9 @@
  * MODE_S .. MODE_C, FORM_N .. FORM_C; entry 0 is "0") with exactly these strings and no terminating null pointer.
  * The header_check unit "FTP_NAMES arpa/ftp.h" covers the declarations' form; this program covers the contents,
  * which only a run can read. Defects: an entry misspelt, swapped or missing, a table not indexed by its code.
- * Prints each mismatch, exits 1 if any. */
+ * Prints each mismatch, exits 1 if any. Built against libniji's staged headers (the reference system's header
+ * has the same tables, so a build against it would test nothing of libniji's). */
+/* NIJI-HEADERS: yes */
 #define FTP_NAMES
 #include <arpa/ftp.h>
 #include <stdio.h>
