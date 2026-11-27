@@ -24,6 +24,11 @@ fixincl_check.sh, uuid*.sh; scratch copies in `~/w/.scratch/HEADERS-STAGE2-GAPS-
   uuid_time.c against our tree, linked with libuuid.sym, exports `uuid_time64@@UUID_2.40` (stock 2.39:
   `uuid_time@@UUID_1.0` only).
 
+## Jobs (final head)
+shiki headers-stage2-gaps-i-test2 (niji-abi 384, xtask 692 + 31, 0 failed); shiki headers-stage2-gaps-i-plants3 (9/9
+CAUGHT); mei headers-stage2-gaps-i-units5 (fixincl 0 rewritten, 89 unit/mode ok); mei headers-stage2-gaps-i-uuid2.
+FULL: the train's (crates/abi generated layouts, generator inputs). header_check 0 failed of 25494 (regen5).
+
 ## Further gaps (reported, not chased)
 * `<termios.h>` + `<sys/ioctl.h>` in one unit: TTYDEF_SPEED and TIOCSER_TEMT are redefined (stock is clean). This is pre-existing.
 * timed.h TSPTYPES/tsptype and routed.h RIPCMDS/ripcmds tables (program-switched, like FTP_NAMES) are not added.

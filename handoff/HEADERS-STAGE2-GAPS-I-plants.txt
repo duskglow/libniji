@@ -13,3 +13,13 @@ s2i-tsp-time | headers/protocols/timed.h.in | lit:# define tsp_time tsp_u.tspu_t
 # features.problems(), which header_check runs only without --only (header_check.py, the mods loop), so no focused
 # command reaches it; the full header_check run on the final head covers it (0 failed of 25494). plants-2: SURVIVED.
 s2i-isbit | headers/ctype.h.in | lit:# define _ISbit(bit) ((bit) < 8 ? ((1 << (bit)) << 8) : ((1 << (bit)) >> 8)) ==> # define _ISbit(bit) (1 << (bit)) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use isbit _ISupper ctype.h"' | msg:FAIL.*GAPS-I use isbit _ISupper ctype\.h
+# cargo xtask plants results, job headers-stage2-gaps-i-plants3 on shiki (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s2i-va-define: CAUGHT, by its msg (header_check FAIL line)
+# s2i-va-guard: CAUGHT, by its msg (header_check FAIL line)
+# s2i-wchar-define: CAUGHT, by its msg (header_check FAIL line)
+# s2i-printf-stdarg: CAUGHT, by its msg (header_check FAIL line)
+# s2i-size-stddef: CAUGHT, by its msg (header_check FAIL line)
+# s2i-glob64-type: CAUGHT, by its msg (header_check FAIL line)
+# s2i-glob-cond: CAUGHT, by its msg (header_check FAIL line)
+# s2i-tsp-time: CAUGHT, by its msg (header_check FAIL line)
+# s2i-isbit: CAUGHT, by its msg (header_check FAIL line)
