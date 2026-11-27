@@ -12,3 +12,15 @@ s2h-sched-const | headers/sched.h.d/010-sched-attr.frag | lit:extern int sched_s
 s2h-sched-value | headers/sched.h.d/010-sched-attr.frag | lit:0x40 ==> 0x80 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr declared sched.h"' | msg:FAIL.*sched_attr declared sched\.h
 s2h-sched-form | headers/sched.h.d/010-sched-attr.frag | lit:(SCHED_FLAG_KEEP_POLICY ==> (0 + SCHED_FLAG_KEEP_POLICY | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr declared sched.h"' | msg:FAIL.*sched_attr declared sched\.h
 s2h-attr-additions | spec/tools/attr_probe.py | lit:added = additions() ==> added = {} | cargo test -q -p xtask diagnostic_attributes_match_the_reference | msg:diagnostic_attributes_match_the_reference.*FAILED|attr_probe check failed
+# cargo xtask plants results (11 plants: 11 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s2h-no-switch: CAUGHT, caught by no test the log names
+# s2h-if-switch: CAUGHT, caught by no test the log names
+# s2h-const-elem: CAUGHT, caught by no test the log names
+# s2h-null-end: CAUGHT, caught by no test the log names
+# s2h-swap: CAUGHT, caught by no test the log names
+# s2h-spelling: CAUGHT, caught by no test the log names
+# s2h-sched-strict: CAUGHT, caught by no test the log names
+# s2h-sched-const: CAUGHT, caught by no test the log names
+# s2h-sched-value: CAUGHT, caught by no test the log names
+# s2h-sched-form: CAUGHT, caught by no test the log names
+# s2h-attr-additions: CAUGHT, caught by headers::slices::s19::tests::diagnostic_attributes_match_the_reference (the test binary is not named in the log)
