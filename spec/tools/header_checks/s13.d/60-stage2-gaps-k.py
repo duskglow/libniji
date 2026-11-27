@@ -27,7 +27,7 @@ typedef char niji_gk_crt[(SIOCAIPXITFCRT) == SIOCPROTOPRIVATE + 0 ? 1 : -1];
 typedef char niji_gk_slt[(SIOCAIPXPRISLT) == SIOCPROTOPRIVATE + 1 ? 1 : -1];
 typedef char niji_gk_cfg[(SIOCIPXCFGDATA) == SIOCPROTOPRIVATE + 2 ? 1 : -1];
 typedef char niji_gk_ncp[(SIOCIPXNCPCONN) == SIOCPROTOPRIVATE + 3 ? 1 : -1];
-typedef char niji_gk_par[2 * SIOCAIPXITFCRT == 2 * (SIOCPROTOPRIVATE + 0) ? 1 : -1];
+typedef char niji_gk_par[2 * SIOCAIPXPRISLT == 2 * (SIOCPROTOPRIVATE + 1) && 2 * SIOCIPXNCPCONN == 2 * (SIOCPROTOPRIVATE + 3) ? 1 : -1];
 typedef char niji_gk_special[offsetof (struct sockaddr_ipx, sipx_special) == 2 && sizeof (((struct sockaddr_ipx *) 0)->sipx_special) == 2 ? 1 : -1];
 """
 SPEED = """#include <{h}>
