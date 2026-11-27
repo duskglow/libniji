@@ -18,7 +18,7 @@ import re
 import sys
 import tarfile
 
-SIDES = ("stockA", "stockB", "niji")
+SIDES = ("stockA", "stockB", "niji", "s239")
 ACOUT = re.compile(r"^(LIBS|LIBOBJS|LTLIBOBJS|ALLOCA|\w*_LIBS|\w*LIBS|POW_LIB|LIBM|LIB_\w+|\w*_LIBADD)$")
 PERLKEY = re.compile(r"^(d_\w+|i_\w+|\w*size|\w*type|\w*types|sig_\w+|libs|perllibs|\w*_r_proto|ccflags|ldflags|"
                      r"usethreads|useithreads|uselargefiles|use64bitint|use64bitall|longdblkind|doublekind|"
