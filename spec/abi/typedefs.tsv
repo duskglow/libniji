@@ -76,6 +76,7 @@ typedef	La_x86_64_xmm	link.h	16	16	float __vector(4)
 typedef	La_x86_64_ymm	link.h	32	16	float __vector(8)
 typedef	La_x86_64_zmm	link.h	64	16	double __vector(8)
 typedef	Lmid_t	dlfcn.h	8	8	long
+enum	NPmode	net/if_ppp.h	4	4	NPmode
 typedef	Sg_io_hdr	scsi/sg.h	88	8	sg_io_hdr
 typedef	Sg_req_info	scsi/sg.h	24	8	sg_req_info
 typedef	Sg_scsi_id	scsi/sg.h	32	4	sg_scsi_id
@@ -1201,9 +1202,11 @@ function	atol	complex.h			long (char const*)
 function	atoll	complex.h			long long (char const*)
 object	authtype_names	arpa/telnet.h			char* []
 typedef	ax25_address	netax25/ax25.h	7	1	ax25_address
+struct	ax25_bpqaddr_struct	netax25/ax25.h	23	1	ax25_bpqaddr_struct
 struct	ax25_ctl_struct	netax25/ax25.h	104	8	ax25_ctl_struct
 struct	ax25_fwd_struct	netax25/ax25.h	14	1	ax25_fwd_struct
 struct	ax25_info_struct	netax25/ax25.h	52	4	ax25_info_struct
+struct	ax25_parms_struct	netax25/ax25.h	48	2	ax25_parms_struct
 struct	ax25_route_opt_struct	netax25/ax25.h	24	4	ax25_route_opt_struct
 struct	ax25_routes_struct	netax25/ax25.h	71	1	ax25_routes_struct
 function	backtrace	execinfo.h			int (void**, int)
@@ -1299,6 +1302,7 @@ typedef	cnd_t	threads.h	48	8	cnd_t
 function	cnd_timedwait	threads.h			int (cnd_t*, mtx_t*, timespec const*)
 function	cnd_wait	threads.h			int (cnd_t*, mtx_t*)
 typedef	comparison_fn_t	search.h	8	8	int (*)(void const*, void const*)
+struct	compstat	net/if_ppp.h	40	8	compstat
 function	confstr	arpa/nameser.h			unsigned long (int, char*, unsigned long)
 function	connect	arpa/inet.h			int (int, sockaddr const*, unsigned int)
 typedef	cookie_close_function_t	argp.h			int (void*)
@@ -1519,6 +1523,7 @@ function	expm1f32x	complex.h			_Float32x (_Float32x)
 function	expm1f64	complex.h			_Float64 (_Float64)
 function	expm1f64x	complex.h			_Float64x (_Float64x)
 function	expm1l	complex.h			long double (long double)
+typedef	ext_accm	net/if_ppp.h	32	4	unsigned int [8]
 function	f32addf128	complex.h			_Float32 (_Float128, _Float128)
 function	f32addf32x	complex.h			_Float32 (_Float32x, _Float32x)
 function	f32addf64	complex.h			_Float32 (_Float64, _Float64)
@@ -2167,6 +2172,8 @@ struct	ifaddr	net/if.h	48	8	ifaddr
 struct	ifaddrs	ifaddrs.h	56	8	ifaddrs
 struct	ifconf	net/if.h	16	8	ifconf
 struct	ifmap	net/if.h	24	8	ifmap
+struct	ifpppcstatsreq	net/if_ppp.h	120	8	ifpppcstatsreq
+struct	ifpppstatsreq	net/if_ppp.h	120	8	ifpppstatsreq
 struct	ifreq	net/if.h	40	8	ifreq
 struct	igmp	netinet/igmp.h	8	4	igmp
 struct	ih_idseq	netinet/ip_icmp.h	4	2	
@@ -2743,6 +2750,9 @@ typedef	nl_item	langinfo.h	4	4	int
 function	nl_langinfo	langinfo.h			char* (int)
 function	nl_langinfo_l	langinfo.h			char* (int, __locale_struct*)
 typedef	nlink_t	aio.h	8	8	unsigned long
+struct	npioctl	net/if_ppp.h	8	4	npioctl
+struct	nr_ctl_struct	netrom/netrom.h	16	8	nr_ctl_struct
+struct	nr_parms_struct	netrom/netrom.h	36	4	nr_parms_struct
 struct	nr_route_struct	netrom/netrom.h	112	4	nr_route_struct
 function	nrand48	complex.h			long (unsigned short*)
 function	nrand48_r	complex.h			int (unsigned short*, drand48_data*, long*)
@@ -2889,6 +2899,13 @@ function	powf64	complex.h			_Float64 (_Float64, _Float64)
 function	powf64x	complex.h			_Float64x (_Float64x, _Float64x)
 function	powl	complex.h			long double (long double, long double)
 function	ppoll	poll.h			int (pollfd*, unsigned long, timespec const*, __sigset_t const*)
+struct	ppp_comp_stats	net/if_ppp.h	80	8	ppp_comp_stats
+struct	ppp_idle	net/if_ppp.h	16	8	ppp_idle
+struct	ppp_idle32	net/if_ppp.h	8	4	ppp_idle32
+struct	ppp_idle64	net/if_ppp.h	16	8	ppp_idle64
+struct	ppp_option_data	net/if_ppp.h	16	8	ppp_option_data
+struct	ppp_stats	net/if_ppp.h	76	4	ppp_stats
+struct	pppstat	net/if_ppp.h	44	4	pppstat
 function	prctl	sys/prctl.h			int (int, ...)
 function	pread	arpa/nameser.h			long (int, void*, unsigned long, long)
 function	pread64	arpa/nameser.h			long (int, void*, unsigned long, long)
@@ -4023,6 +4040,7 @@ function	vfscanf	argp.h			int (_IO_FILE*, char const*, __va_list_tag*)
 function	vfwprintf	complex.h			int (_IO_FILE*, wchar_t const*, __va_list_tag*)
 function	vfwscanf	complex.h			int (_IO_FILE*, wchar_t const*, __va_list_tag*)
 function	vhangup	arpa/nameser.h			int ()
+struct	vjstat	net/if_ppp.h	32	4	vjstat
 function	vlimit	sys/vlimit.h			int (__vlimit_resource, int)
 function	vmsplice	fcntl.h			long (int, iovec const*, unsigned long, unsigned int)
 function	vprintf	argp.h			int (char const*, __va_list_tag*)
@@ -4154,21 +4172,3 @@ function	ynf32x	complex.h			_Float32x (int, _Float32x)
 function	ynf64	complex.h			_Float64 (int, _Float64)
 function	ynf64x	complex.h			_Float64x (int, _Float64x)
 function	ynl	complex.h			long double (int, long double)
-enum	NPmode	net/if_ppp.h	4	4	NPmode
-struct	ax25_bpqaddr_struct	netax25/ax25.h	23	1	ax25_bpqaddr_struct
-struct	ax25_parms_struct	netax25/ax25.h	48	2	ax25_parms_struct
-struct	compstat	net/if_ppp.h	40	8	compstat
-typedef	ext_accm	net/if_ppp.h	32	4	unsigned int [8]
-struct	ifpppcstatsreq	net/if_ppp.h	120	8	ifpppcstatsreq
-struct	ifpppstatsreq	net/if_ppp.h	120	8	ifpppstatsreq
-struct	npioctl	net/if_ppp.h	8	4	npioctl
-struct	nr_ctl_struct	netrom/netrom.h	16	8	nr_ctl_struct
-struct	nr_parms_struct	netrom/netrom.h	36	4	nr_parms_struct
-struct	ppp_comp_stats	net/if_ppp.h	80	8	ppp_comp_stats
-struct	ppp_idle	net/if_ppp.h	16	8	ppp_idle
-struct	ppp_idle32	net/if_ppp.h	8	4	ppp_idle32
-struct	ppp_idle64	net/if_ppp.h	16	8	ppp_idle64
-struct	ppp_option_data	net/if_ppp.h	16	8	ppp_option_data
-struct	ppp_stats	net/if_ppp.h	76	4	ppp_stats
-struct	pppstat	net/if_ppp.h	44	4	pppstat
-struct	vjstat	net/if_ppp.h	32	4	vjstat
