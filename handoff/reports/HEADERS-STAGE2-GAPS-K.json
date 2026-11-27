@@ -1,7 +1,7 @@
 {"task": "HEADERS-STAGE2-GAPS-K", "model": "opus", "tokens": null,
  "result": "<netipx/ipx.h> SIOC*IPX* requests and sipx_special; ioctl requests in the kernel's _IO* spelling from spec/abi/macro-spellings.tsv, defined once; termios/ioctl pairs without redefinition; <protocols/timed.h> without <sys/socket.h> (struct osockaddr); llvm-19 sanitizer_platform_limits_posix.cpp compiles with clang-19 and g++ on the system flavour",
- "branch": "task/headers-stage2-gaps-k", "head": "eb9361a0e",
- "gate": {"affected": "FULL: the train's (xtask and generator inputs); gate6: clippy, static, dup 0, header_check GAPS-K 0 of 142, features forms 0, header_check protocols/timed.h 0 of 135, cargo test -p xtask ok, probes k6, FORM-DIFF 0 for ioctl requests", "peak": null},
+ "branch": "task/headers-stage2-gaps-k", "head": null,
+ "gate": {"affected": "FULL: the train's (xtask and generator inputs); gate7: clippy, static, dup 0, header_check GAPS-K 0 of 142, features forms 0, header_check protocols/timed.h 0 of 135, cargo test -p xtask ok, probes k6, FORM-DIFF 0 for ioctl requests", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
@@ -18,7 +18,7 @@
    {"kind": "coverage", "what": "GAPS-K header-check units (header_checks/s13.d/60-stage2-gaps-k.py)", "before": 0, "after": 142, "unit": "units", "measured": true},
    {"kind": "coverage", "what": "plants, all CAUGHT", "before": 0, "after": 10, "unit": "plants", "measured": true},
    {"kind": "unblock", "what": "Yohane llvm-19 / stage-2 path past sanitizer_platform_limits_posix.cpp", "before": null, "after": null, "unit": null, "measured": false}],
- "improvement": "a circular check (respelling with the table's own text) passed its own plant only because the plant command was narrow; plants whose command runs one module should say which check owns the value",
+ "improvement": "the generated libc-include went uncommitted for three legs because every gate regenerated it in the role; a gate step that fails when headers-gen changes the synced tree (as precheck does) would have caught it in leg 1; also, a circular check (respelling with the table's own text) passed its own plant only because the plant command was narrow; plants whose command runs one module should say which check owns the value",
  "next_step": "land through the train; optional: features.py standalone _compile gets the kernel UAPI dir",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-K.md",
- "jobs": ["shiki:headers-stage2-gaps-k-gate6", "shiki:headers-stage2-gaps-k-plants6", "keke:headers-stage2-gaps-k-llvm19-2"]}
+ "jobs": ["shiki:headers-stage2-gaps-k-gate7", "shiki:headers-stage2-gaps-k-plants7", "keke:headers-stage2-gaps-k-llvm19-2"]}
