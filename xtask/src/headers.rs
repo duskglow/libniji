@@ -275,10 +275,10 @@ struct Tables {
     /// macro-spellings.tsv (HEADERS-STAGE2-GAPS-K): macro -> its replacement text in every header that shows it, where
     /// the reference's spelling matters beyond the value: a kernel UAPI header's own text (the reference's, token for
     /// token: `PPPIOCGFLAGS` as `_IOR('t', 90, int)`), so the two headers meet without a redefinition and the ioctl
-    /// requests keep their `_IOR` form. Value: (spelling, whether its source is a kernel header). A kernel-sourced name
-    /// stays under `#ifndef` whatever kernel-spelled.tsv says: with the kernel's text the same, several libniji headers
-    /// show it (TIOCSER_TEMT in five) and one definition is in force (header_checks/dup.py).
-    spellings: BTreeMap<String, (String, bool)>,
+    /// requests keep their `_IOR` form. Such a name takes the header's form (`redefined`) despite `kernel_spelled`
+    /// (the kernel's text is the same), under the emit-once guard: several libniji headers show some of them
+    /// (TIOCSER_TEMT in five), the first one included defines it (header_checks/dup.py).
+    spellings: BTreeMap<String, String>,
     /// headers/nested-tags.tsv (HEADERS-STAGE2-GAPS-J): structure tag -> the layouts.tsv aggregate whose definition
     /// defines it, at its member, as the reference does (`struct whoent` inside `struct whod`: C++ names it
     /// `whod::whoent`; in C the tag's scope is the file's either way).
@@ -353,13 +353,13 @@ impl Tables {
     }
 
     /// Whether `header` defines the macro `name` outright (see `guarded`): visible there under `_GNU_SOURCE`
-    /// (configuration `gnu`, where the form was probed), not a macro-forms.tsv row, not `kernel_spelled` and not a
-    /// kernel-sourced `spellings` row.
+    /// (configuration `gnu`, where the form was probed), not a macro-forms.tsv row and not `kernel_spelled` (unless a
+    /// `spellings` row: the kernel's own text).
     fn redefined(&self, header: &str, name: &str) -> bool {
         let gnu = self.lv.ids.iter().position(|i| i == "gnu");
         let shown = self.vis_row(header, name, "macro").and_then(|r| mask_of(&self.lv, &r["configs"]).ok());
         matches!((gnu, shown), (Some(g), Some(m)) if m >> g & 1 == 1) && !self.guarded.contains(&(header.to_string(), name.to_string()))
-            && !self.kernel_spelled.contains(name) && !self.spellings.get(name).is_some_and(|&(_, kernel)| kernel)
+            && (!self.kernel_spelled.contains(name) || self.spellings.contains_key(name))
     }
 
     /// The visibility.tsv rows of `header`, in table order.
@@ -480,7 +480,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     let guarded = tsv(root, "spec/abi/macro-forms.tsv")?.into_iter().filter(|r| !r["result"].starts_with("replaced")).map(|r| (r["header"].clone(), r["name"].clone())).collect();
     let macro_aliases = tsv(root, "spec/abi/macro-aliases.tsv")?.into_iter().map(|r| ((r["header"].clone(), r["name"].clone()), r["alias"].clone())).collect();
     let header_values = tsv(root, MACRO_VALUES)?.into_iter().map(|r| ((r["header"].clone(), r["name"].clone()), (r["type"].clone(), r["value"].clone()))).collect();
-    let spellings = tsv(root, MACRO_SPELLINGS)?.into_iter().map(|r| (r["name"].clone(), (r["spelling"].clone(), r["source"] != "-"))).collect();
+    let spellings = tsv(root, MACRO_SPELLINGS)?.into_iter().map(|r| (r["name"].clone(), r["spelling"].clone())).collect();
     let mut nested_tags = BTreeMap::new();
     for r in tsv(root, NESTED_TAGS)? {
         if !layouts.contains_key(&r["outer"]) || !layouts.contains_key(&r["tag"]) {
@@ -765,7 +765,7 @@ impl Gen<'_> {
         // reference names it (enum-macros.tsv), where this header declares it, else its value.
         // An alias the header shows in only some of the macro's configurations names it there only.
         // A macro-spellings.tsv row is the text everywhere (the kernel header's, token for token), in the header's form.
-        if let Some((s, _)) = self.t.spellings.get(name) {
+        if let Some(s) = self.t.spellings.get(name) {
             if self.t.redefined(&self.header, name) {
                 self.out.push(format!("# define {name} {s}"));
             } else {
@@ -806,8 +806,8 @@ impl Gen<'_> {
                 // reserved.tsv `emit-once`: a name the reference defines in one internal header that each of its
                 // headers reaches. Each libniji header that shows it carries the definition under one guard, so the
                 // first one included defines it, in the form above, and no header defines it again
-                // (spec/tools/header_checks/dup.py).
-                if self.t.reserved.get(name).is_some_and(|p| p == "emit-once") {
+                // (spec/tools/header_checks/dup.py). A macro-spellings.tsv name likewise (HEADERS-STAGE2-GAPS-K).
+                if self.t.reserved.get(name).is_some_and(|p| p == "emit-once") || self.t.spellings.contains_key(name) {
                     let body = self.out.split_off(at);
                     self.guard(&format!("m_{name}"), body);
                 }

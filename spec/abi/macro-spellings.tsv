@@ -1,14 +1,14 @@
 # A macro's replacement text, where the reference's spelling matters beyond its value (HEADERS-STAGE2-GAPS-K). The
-# generator emits `name` as `spelling` in every header that shows it. A row with a kernel source is always under
-# `#ifndef` (one definition in force where several libniji headers show it: header_checks/dup.py; the kernel's, when
-# its header comes first, is the same text); a `-` row takes the header's form (macro-forms.tsv, kernel-spelled.tsv).
+# generator emits `name` as `spelling` in every header that shows it, in the header's form (macro-forms.tsv): outright
+# where the reference's definition replaces a program's earlier one, kernel-spelled.tsv notwithstanding; under the
+# emit-once guard, so where several libniji headers show it the first one included defines it (header_checks/dup.py).
 # * source = a kernel UAPI header: the reference spells the name token for token as that header does (black-box
 #   probe: the two headers in one unit, either order, `-Wsystem-headers -Werror`, no redefinition), so the spelling
 #   is the kernel header's text (comments dropped, whitespace collapsed); its value is the macros.tsv row's
 #   (header_check.py P1). The ioctl requests are then `_IO`/`_IOR`/`_IOW`/`_IOWR` expressions, not usable in `#if`,
 #   as the reference's (form.py FORM-DIFF).
-# * source `-`: no kernel header defines the name, or the reference's text differs from the kernel's (SC_MASK: the
-#   kernel's <linux/ppp-ioctl.h> spells it otherwise; kernel-spelled.tsv keeps it under `#ifndef`). MTIOC*CONFIG: the `_IOR`/`_IOW` form of
+# * source `-`: no kernel header defines the name, or the reference's text differs from the kernel's (SC_MASK: a
+#   redefinition either order, its definition still replaces a program's). MTIOC*CONFIG: the `_IOR`/`_IOW` form of
 #   their value ('m', 4 and 5, sizeof (struct mtconfiginfo) 48). TTYDEF_SPEED: B9600 in every header (the termios
 #   constant; with <sys/ioctl.h> alone it is no integer constant, as the reference's).
 name	spelling	source
