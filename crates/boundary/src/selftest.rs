@@ -607,6 +607,21 @@ pub fn with_counting_handler<R>(sig: i32, body: impl FnOnce() -> R) -> KResult<(
     with_handler_flags(sig, 0, body)
 }
 
+extern "C" fn abort_again(_sig: i32) {
+    let _ = CSys.write(niji_kernel::fd::Fd::STDERR, b"[handler]");
+    crate::ret::abort()
+}
+
+/// Install a `SIGABRT` handler that writes `[handler]` to standard error and calls `abort` again,
+/// staying installed (no `SA_RESETHAND`, no `SA_NODEFER`), then run `body` (D-1.15: an abort
+/// reached again ends the process by `SIGABRT`).
+pub fn with_aborting_handler<R>(body: impl FnOnce() -> R) -> KResult<R> {
+    let old = raw::install_handler(niji_kernel::uapi::SIGABRT, abort_again, 0, SigSet::empty())?;
+    let r = body();
+    raw::restore_action(niji_kernel::uapi::SIGABRT, &old)?;
+    Ok(r)
+}
+
 /// [`with_counting_handler`] with `sa_flags` (for example `SA_RESTART`).
 pub fn with_handler_flags<R>(sig: i32, flags: u64, body: impl FnOnce() -> R) -> KResult<(R, u32)> {
     if sig == SIGKILL || sig == SIGSTOP {

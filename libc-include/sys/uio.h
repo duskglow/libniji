@@ -34,24 +34,24 @@ typedef union pthread_attr_t pthread_attr_t;
 struct iovec;
 # ifndef __NIJI_D_readv
 #  define __NIJI_D_readv 1
-extern long readv (int, const struct iovec *, int) __attribute__ ((__warn_unused_result__));
+extern long readv (int, const struct iovec *, int) __NIJI_FWUR;
 # endif
 struct iovec;
 # ifndef __NIJI_D_writev
 #  define __NIJI_D_writev 1
-extern long writev (int, const struct iovec *, int) __attribute__ ((__warn_unused_result__));
+extern long writev (int, const struct iovec *, int) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_LFS64
 struct iovec;
 # ifndef __NIJI_D_preadv64
 #  define __NIJI_D_preadv64 1
-extern long preadv64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+extern long preadv64 (int, const struct iovec *, int, long) __NIJI_FWUR;
 # endif
 struct iovec;
 # ifndef __NIJI_D_pwritev64
 #  define __NIJI_D_pwritev64 1
-extern long pwritev64 (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+extern long pwritev64 (int, const struct iovec *, int, long) __NIJI_FWUR;
 # endif
 #endif
 #if defined __USE_GNU
@@ -59,15 +59,15 @@ struct iovec;
 # ifndef __NIJI_D_preadv2
 #  define __NIJI_D_preadv2 1
 #  if __NIJI_FOB64
-extern long preadv2 (int, const struct iovec *, int, long, int) __asm__ ("preadv64v2") __attribute__ ((__warn_unused_result__));
+extern long preadv2 (int, const struct iovec *, int, long, int) __asm__ ("preadv64v2") __NIJI_FWUR;
 #  else
-extern long preadv2 (int, const struct iovec *, int, long, int) __attribute__ ((__warn_unused_result__));
+extern long preadv2 (int, const struct iovec *, int, long, int) __NIJI_FWUR;
 #  endif
 # endif
 struct iovec;
 # ifndef __NIJI_D_preadv64v2
 #  define __NIJI_D_preadv64v2 1
-extern long preadv64v2 (int, const struct iovec *, int, long, int) __attribute__ ((__warn_unused_result__));
+extern long preadv64v2 (int, const struct iovec *, int, long, int) __NIJI_FWUR;
 # endif
 struct iovec;
 struct iovec;
@@ -85,15 +85,15 @@ struct iovec;
 # ifndef __NIJI_D_pwritev2
 #  define __NIJI_D_pwritev2 1
 #  if __NIJI_FOB64
-extern long pwritev2 (int, const struct iovec *, int, long, int) __asm__ ("pwritev64v2") __attribute__ ((__warn_unused_result__));
+extern long pwritev2 (int, const struct iovec *, int, long, int) __asm__ ("pwritev64v2") __NIJI_FWUR;
 #  else
-extern long pwritev2 (int, const struct iovec *, int, long, int) __attribute__ ((__warn_unused_result__));
+extern long pwritev2 (int, const struct iovec *, int, long, int) __NIJI_FWUR;
 #  endif
 # endif
 struct iovec;
 # ifndef __NIJI_D_pwritev64v2
 #  define __NIJI_D_pwritev64v2 1
-extern long pwritev64v2 (int, const struct iovec *, int, long, int) __attribute__ ((__warn_unused_result__));
+extern long pwritev64v2 (int, const struct iovec *, int, long, int) __NIJI_FWUR;
 # endif
 #endif
 #if defined __USE_MISC
@@ -101,18 +101,18 @@ struct iovec;
 # ifndef __NIJI_D_preadv
 #  define __NIJI_D_preadv 1
 #  if defined __USE_MISC && !__NIJI_FOB64
-extern long preadv (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+extern long preadv (int, const struct iovec *, int, long) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64") __attribute__ ((__warn_unused_result__));
+extern long preadv (int, const struct iovec *, int, long) __asm__ ("preadv64") __NIJI_FWUR;
 #  endif
 # endif
 struct iovec;
 # ifndef __NIJI_D_pwritev
 #  define __NIJI_D_pwritev 1
 #  if defined __USE_MISC && !__NIJI_FOB64
-extern long pwritev (int, const struct iovec *, int, long) __attribute__ ((__warn_unused_result__));
+extern long pwritev (int, const struct iovec *, int, long) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64") __attribute__ ((__warn_unused_result__));
+extern long pwritev (int, const struct iovec *, int, long) __asm__ ("pwritev64") __NIJI_FWUR;
 #  endif
 # endif
 #endif

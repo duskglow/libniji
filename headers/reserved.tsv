@@ -163,3 +163,11 @@ __SIGRTMIN	emit	R-H7: the kernel's real-time signal range, which gcc-14's libgcc
 __SIGRTMAX	emit	R-H7: the kernel's real-time signal range, beside __SIGRTMIN (Yohane stage 2, HEADERS-STAGE2-GAPS-G)
 __toupper_l	emit	R-H7: the exported function the reference's <ctype.h> declares; postgresql-17 calls it (Yohane stage 2, HEADERS-STAGE2-GAPS-G)
 __tolower_l	emit	R-H7: the exported function the reference's <ctype.h> declares, beside __toupper_l (Yohane stage 2, HEADERS-STAGE2-GAPS-G)
+__exp10	emit	R-H7: the reference's <math.h> declares it where exp10 is visible (C2X, GNU, C++; black-box probe, HEADERS-STAGE2-GAPS-M), no export (providers.tsv none); xapian-core AC_CHECK_DECLS in C++
+__exp10f	emit	R-H7: as __exp10
+__exp10l	emit	R-H7: as __exp10
+__exp10f32	emit	R-H7: as __exp10
+__exp10f64	emit	R-H7: as __exp10
+__exp10f32x	emit	R-H7: as __exp10
+__exp10f64x	emit	R-H7: as __exp10
+__exp10f128	emit	R-H7: as __exp10

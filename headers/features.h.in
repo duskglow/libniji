@@ -98,6 +98,15 @@
 #else
 # define __NIJI_POSIX_RT 0
 #endif
+/* A GNU language mode whose only feature-test macros are ISO C ones (_ISOC99_SOURCE, _ISOC11_SOURCE): the POSIX 2008
+   level above also defines _POSIX_C_SOURCE, _POSIX_SOURCE and _ATFILE_SOURCE, which the configuration conditions
+   below (strict -std rows) leave out (black-box probe of the reference, -std=gnu89/gnu17, HEADERS-STAGE2-GAPS-M). */
+#if !__NIJI_MISC && !defined __STRICT_ANSI__ && !defined _POSIX_SOURCE && !defined _POSIX_C_SOURCE \
+  && !defined _XOPEN_SOURCE
+# define __NIJI_POSIX_ISOGNU 1
+#else
+# define __NIJI_POSIX_ISOGNU 0
+#endif
 
 /* The C99 names under C90 (-std=c89 or gnu89): in the default set and from POSIX 2001 on, whose base is C99 (black-box
    probe of the reference: strtoll, snprintf, llabs, round, wcstoll after -std=gnu89, -std=c89 -D_DEFAULT_SOURCE and
@@ -160,6 +169,14 @@
 # endif
 #else
 # define __NIJI_FORTIFY 0
+#endif
+/* warn_unused_result where the reference checks a result only under _FORTIFY_SOURCE (diagattrs.tsv wur `fortify`,
+   and sys/cdefs.h's __wur): black-box probe of the reference, -Werror builds with and without -O2 -D_FORTIFY_SOURCE
+   (HEADERS-STAGE2-GAPS-M). */
+#if __NIJI_FORTIFY > 0
+# define __NIJI_FWUR __attribute__ ((__warn_unused_result__))
+#else
+# define __NIJI_FWUR
 #endif
 
 /* Header-inline bodies (Appendix C.9 protocols, and calls a function is specified to be equivalent to): in effect when
@@ -279,7 +296,10 @@
 #if __NIJI_INLINES
 # define __USE_EXTERN_INLINES 1
 #endif
-#if !__NIJI_GNU && !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && (__NIJI_MISC || __NIJI_XSI >= 500)
+/* Also where a GNU language mode's header defines _POSIX_C_SOURCE itself (__NIJI_POSIX_ISOGNU, or _REENTRANT raising
+   the level), as the reference's (black-box probe, HEADERS-STAGE2-GAPS-M). */
+#if !__NIJI_GNU && !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && (__NIJI_MISC || __NIJI_XSI >= 500 \
+  || __NIJI_POSIX_ISOGNU || (__NIJI_POSIX_RT && !defined __STRICT_ANSI__))
 # define __USE_POSIX_IMPLICITLY 1
 #endif
 
@@ -404,6 +424,17 @@ typedef long double _Float64x;
 # define _POSIX_C_SOURCE __NIJI_POSIX_C /* @@computed */
 # ifndef _POSIX_SOURCE
 #  define _POSIX_SOURCE @@value(_POSIX_SOURCE)
+# endif
+#endif
+#if __NIJI_POSIX_ISOGNU
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE __NIJI_POSIX_C /* @@computed */
+# endif
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE @@value(_POSIX_SOURCE)
+# endif
+# ifndef _ATFILE_SOURCE
+#  define _ATFILE_SOURCE @@value(_ATFILE_SOURCE)
 # endif
 #endif
 @@if _XOPEN_SOURCE

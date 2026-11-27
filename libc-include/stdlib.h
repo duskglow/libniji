@@ -758,7 +758,7 @@ typedef int volatile pthread_spinlock_t;
 #if 1
 # ifndef __NIJI_D___ctype_get_mb_cur_max
 #  define __NIJI_D___ctype_get_mb_cur_max 1
-extern unsigned long __ctype_get_mb_cur_max (void) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern unsigned long __ctype_get_mb_cur_max (void) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_abort
 #  define __NIJI_D_abort 1
@@ -774,15 +774,15 @@ extern int atexit (void (*) (void)) __NIJI_NOTHROW __attribute__ ((__nonnull__ (
 # endif
 # ifndef __NIJI_D_atof
 #  define __NIJI_D_atof 1
-extern double atof (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern double atof (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_atoi
 #  define __NIJI_D_atoi 1
-extern int atoi (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int atoi (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_atol
 #  define __NIJI_D_atol 1
-extern long int atol (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long int atol (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D___compar_fn_t
 #  define __NIJI_D___compar_fn_t 1
@@ -790,7 +790,7 @@ typedef int (*__compar_fn_t)(void const *, void const *);
 # endif
 # ifndef __NIJI_D_bsearch
 #  define __NIJI_D_bsearch 1
-extern void *bsearch (const void *, const void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1, 2, 5), __warn_unused_result__));
+extern void *bsearch (const void *, const void *, unsigned long, unsigned long, __compar_fn_t) __attribute__ ((__nonnull__ (1, 2, 5))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_calloc
 #  define __NIJI_D_calloc 1
@@ -798,7 +798,7 @@ extern void *calloc (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ 
 # endif
 # ifndef __NIJI_D_div
 #  define __NIJI_D_div 1
-extern div_t div (int, int) __attribute__ ((__const__, __warn_unused_result__));
+extern div_t div (int, int) __attribute__ ((__const__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_exit
 #  define __NIJI_D_exit 1
@@ -810,7 +810,7 @@ extern void free (void *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getenv
 #  define __NIJI_D_getenv 1
-extern char *getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern char *getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_labs
 #  define __NIJI_D_labs 1
@@ -818,7 +818,7 @@ extern long int labs (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ldiv
 #  define __NIJI_D_ldiv 1
-extern ldiv_t ldiv (long int, long int) __NIJI_NOTHROW __attribute__ ((__const__, __warn_unused_result__));
+extern ldiv_t ldiv (long int, long int) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_malloc
 #  define __NIJI_D_malloc 1
@@ -878,7 +878,7 @@ extern long unsigned int strtoul (const char *, char **, int) __NIJI_NOTHROW __a
 # endif
 # ifndef __NIJI_D_system
 #  define __NIJI_D_system 1
-extern int system (const char *) __attribute__ ((__warn_unused_result__));
+extern int system (const char *) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_wcstombs
 #  define __NIJI_D_wcstombs 1
@@ -886,7 +886,7 @@ extern unsigned long wcstombs (char *, const wchar_t *, unsigned long) __NIJI_NO
 # endif
 # ifndef __NIJI_D_wctomb
 #  define __NIJI_D_wctomb 1
-extern int wctomb (char *, wchar_t) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int wctomb (char *, wchar_t) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
@@ -896,7 +896,7 @@ extern void _Exit (int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 # ifndef __NIJI_D_atoll
 #  define __NIJI_D_atoll 1
-extern long long int atoll (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long long int atoll (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_llabs
 #  define __NIJI_D_llabs 1
@@ -904,7 +904,7 @@ extern long long int llabs (long long int) __NIJI_NOTHROW __attribute__ ((__cons
 # endif
 # ifndef __NIJI_D_lldiv
 #  define __NIJI_D_lldiv 1
-extern lldiv_t lldiv (long long int, long long int) __NIJI_NOTHROW __attribute__ ((__const__, __warn_unused_result__));
+extern lldiv_t lldiv (long long int, long long int) __NIJI_NOTHROW __attribute__ ((__const__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_strtof
 #  define __NIJI_D_strtof 1
@@ -962,11 +962,11 @@ extern int strfroml (char *, unsigned long, const char *, long double) __NIJI_NO
 #if __NIJI_LFS64
 # ifndef __NIJI_D_mkstemp64
 #  define __NIJI_D_mkstemp64 1
-extern int mkstemp64 (char *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemp64 (char *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_mkstemps64
 #  define __NIJI_D_mkstemps64 1
-extern int mkstemps64 (char *, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemps64 (char *, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 450
@@ -984,7 +984,7 @@ extern int rand_r (unsigned int *) __NIJI_NOTHROW;
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_posix_memalign
 #  define __NIJI_D_posix_memalign 1
-extern int posix_memalign (void **, unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int posix_memalign (void **, unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_setenv
 #  define __NIJI_D_setenv 1
@@ -998,24 +998,24 @@ extern int unsetenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_mkdtemp
 #  define __NIJI_D_mkdtemp 1
-extern char *mkdtemp (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern char *mkdtemp (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # ifndef __NIJI_D_getsubopt
 #  define __NIJI_D_getsubopt 1
-extern int getsubopt (char **, char *const *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3), __warn_unused_result__));
+extern int getsubopt (char **, char *const *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_mkstemp
 #  define __NIJI_D_mkstemp 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int mkstemp (char *) __asm__ ("mkstemp64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemp (char *) __asm__ ("mkstemp64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #   else
-extern int mkstemp (char *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemp (char *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #   endif
 #  elif __NIJI_FOB64
-extern int mkstemp (char *) __asm__ ("mkstemp64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemp (char *) __asm__ ("mkstemp64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 #endif
@@ -1026,7 +1026,7 @@ extern int grantpt (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ptsname
 #  define __NIJI_D_ptsname 1
-extern char *ptsname (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *ptsname (int) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_unlockpt
 #  define __NIJI_D_unlockpt 1
@@ -1036,13 +1036,13 @@ extern int unlockpt (int) __NIJI_NOTHROW;
 #if __NIJI_XSI >= 600
 # ifndef __NIJI_D_posix_openpt
 #  define __NIJI_D_posix_openpt 1
-extern int posix_openpt (int) __attribute__ ((__warn_unused_result__));
+extern int posix_openpt (int) __NIJI_FWUR;
 # endif
 #endif
 #if defined __USE_GNU
 # ifndef __NIJI_D_canonicalize_file_name
 #  define __NIJI_D_canonicalize_file_name 1
-extern char *canonicalize_file_name (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
+extern char *canonicalize_file_name (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_getpt
 #  define __NIJI_D_getpt 1
@@ -1051,26 +1051,26 @@ extern int getpt (void);
 # ifndef __NIJI_D_mkostemp
 #  define __NIJI_D_mkostemp 1
 #  if __NIJI_FOB64
-extern int mkostemp (char *, int) __asm__ ("mkostemp64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemp (char *, int) __asm__ ("mkostemp64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  else
-extern int mkostemp (char *, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemp (char *, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_mkostemp64
 #  define __NIJI_D_mkostemp64 1
-extern int mkostemp64 (char *, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemp64 (char *, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_mkostemps
 #  define __NIJI_D_mkostemps 1
 #  if __NIJI_FOB64
-extern int mkostemps (char *, int, int) __asm__ ("mkostemps64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemps (char *, int, int) __asm__ ("mkostemps64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  else
-extern int mkostemps (char *, int, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemps (char *, int, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_mkostemps64
 #  define __NIJI_D_mkostemps64 1
-extern int mkostemps64 (char *, int, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkostemps64 (char *, int, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D___compar_d_fn_t
 #  define __NIJI_D___compar_d_fn_t 1
@@ -1082,7 +1082,7 @@ extern void qsort_r (void *, unsigned long, unsigned long, __compar_d_fn_t, void
 # endif
 # ifndef __NIJI_D_secure_getenv
 #  define __NIJI_D_secure_getenv 1
-extern char *secure_getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern char *secure_getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_strfromf128
 #  define __NIJI_D_strfromf128 1
@@ -1240,7 +1240,7 @@ extern void *alloca (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, _
 # endif
 # ifndef __NIJI_D_arc4random
 #  define __NIJI_D_arc4random 1
-extern unsigned int arc4random (void) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern unsigned int arc4random (void) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_arc4random_buf
 #  define __NIJI_D_arc4random_buf 1
@@ -1248,7 +1248,7 @@ extern void arc4random_buf (void *, unsigned long) __NIJI_NOTHROW __attribute__ 
 # endif
 # ifndef __NIJI_D_arc4random_uniform
 #  define __NIJI_D_arc4random_uniform 1
-extern unsigned int arc4random_uniform (unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern unsigned int arc4random_uniform (unsigned int) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_clearenv
 #  define __NIJI_D_clearenv 1
@@ -1299,9 +1299,9 @@ extern int lrand48_r (struct drand48_data *, long int *) __NIJI_NOTHROW __attrib
 # ifndef __NIJI_D_mkstemps
 #  define __NIJI_D_mkstemps 1
 #  if defined __USE_MISC && !__NIJI_FOB64
-extern int mkstemps (char *, int) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemps (char *, int) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern int mkstemps (char *, int) __asm__ ("mkstemps64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int mkstemps (char *, int) __asm__ ("mkstemps64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 struct drand48_data;
@@ -1331,7 +1331,7 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 # ifndef __NIJI_D_qecvt
 #  define __NIJI_D_qecvt 1
-extern char *qecvt (long double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4), __warn_unused_result__));
+extern char *qecvt (long double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_qecvt_r
 #  define __NIJI_D_qecvt_r 1
@@ -1339,7 +1339,7 @@ extern int qecvt_r (long double, int, int *, int *, char *, unsigned long) __NIJ
 # endif
 # ifndef __NIJI_D_qfcvt
 #  define __NIJI_D_qfcvt 1
-extern char *qfcvt (long double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4), __warn_unused_result__));
+extern char *qfcvt (long double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_qfcvt_r
 #  define __NIJI_D_qfcvt_r 1
@@ -1347,7 +1347,7 @@ extern int qfcvt_r (long double, int, int *, int *, char *, unsigned long) __NIJ
 # endif
 # ifndef __NIJI_D_qgcvt
 #  define __NIJI_D_qgcvt 1
-extern char *qgcvt (long double, int, char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern char *qgcvt (long double, int, char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 struct random_data;
 # ifndef __NIJI_D_random_r
@@ -1360,7 +1360,7 @@ extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW 
 # endif
 # ifndef __NIJI_D_rpmatch
 #  define __NIJI_D_rpmatch 1
-extern int rpmatch (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int rpmatch (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 struct drand48_data;
 # ifndef __NIJI_D_seed48_r
@@ -1407,21 +1407,21 @@ extern long long unsigned int strtouq (const char *, char **, int) __NIJI_NOTHRO
 #if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 450)
 # ifndef __NIJI_D_valloc
 #  define __NIJI_D_valloc 1
-extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1), __warn_unused_result__));
+extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1))) __NIJI_FWUR;
 # endif
 #endif
 #if defined __USE_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)
 # ifndef __NIJI_D_ecvt
 #  define __NIJI_D_ecvt 1
-extern char *ecvt (double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4), __warn_unused_result__));
+extern char *ecvt (double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fcvt
 #  define __NIJI_D_fcvt 1
-extern char *fcvt (double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4), __warn_unused_result__));
+extern char *fcvt (double, int, int *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3, 4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_gcvt
 #  define __NIJI_D_gcvt 1
-extern char *gcvt (double, int, char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern char *gcvt (double, int, char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_mktemp
 #  define __NIJI_D_mktemp 1
@@ -1473,7 +1473,7 @@ extern void srand48 (long int) __NIJI_NOTHROW;
 #if defined __USE_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_a64l
 #  define __NIJI_D_a64l 1
-extern long int a64l (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__, __warn_unused_result__));
+extern long int a64l (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_initstate
 #  define __NIJI_D_initstate 1
@@ -1481,7 +1481,7 @@ extern char *initstate (unsigned int, char *, unsigned long) __NIJI_NOTHROW __at
 # endif
 # ifndef __NIJI_D_l64a
 #  define __NIJI_D_l64a 1
-extern char *l64a (long int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *l64a (long int) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_random
 #  define __NIJI_D_random 1
@@ -1489,7 +1489,7 @@ extern long int random (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_realpath
 #  define __NIJI_D_realpath 1
-extern char *realpath (const char *, char *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *realpath (const char *, char *) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_setstate
 #  define __NIJI_D_setstate 1

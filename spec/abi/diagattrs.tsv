@@ -1,21 +1,21 @@
 name	nonnull	wur	noreturn	format	malloc	alloc_size	deprecated	sentinel	pure	format_arg
 _Exit			1							
 __ctype_b_loc									const	
-__ctype_get_mb_cur_max		1								
+__ctype_get_mb_cur_max		fortify								
 __ctype_tolower_loc									const	
 __ctype_toupper_loc									const	
 __errno_location									const	
-__getdelim	4	1								
+__getdelim	4	fortify								
 __h_errno_location									const	
 __iscanonicall									const	
 __pthread_unwind_next			1							
 __res_state									const	
-__sched_cpualloc		1								
+__sched_cpualloc		fortify								
 __x86_get_cpuid_feature_leaf									1	
 _exit			1							
 _longjmp			1							
 _obstack_memory_used									1	
-a64l	1	1							1	
+a64l	1	fortify							1	
 abort			1							
 abs									const	
 access	1									
@@ -37,9 +37,9 @@ aligned_alloc		1			1	2
 alloca					1	1				
 alphasort	1,2								1	
 alphasort64	1,2								1	
-arc4random		1								
+arc4random		fortify								
 arc4random_buf	1									
-arc4random_uniform		1								
+arc4random_uniform		fortify								
 argp_error				printf:2:3						
 argp_failure				printf:4:5						
 argz_count									1	
@@ -51,7 +51,7 @@ asinhf32x									const
 asinhf64									const	
 asinhf64x									const	
 asinhl									const	
-asprintf		1		printf:2:3						
+asprintf		fortify		printf:2:3						
 at_quick_exit	1									
 atan									const	
 atanf									const	
@@ -62,21 +62,21 @@ atanf64									const
 atanf64x									const	
 atanl									const	
 atexit	1									
-atof	1	1								
-atoi	1	1								
-atol	1	1								
-atoll	1	1								
+atof	1	fortify								
+atoi	1	fortify								
+atol	1	fortify								
+atoll	1	fortify								
 backtrace	1									
 backtrace_symbols	1									
 backtrace_symbols_fd	1									
 basename	1									
 bcmp	1,2								1	
 bcopy	1,2									
-brk		1								
-bsearch	1,2,5	1								
+brk		fortify								
+bsearch	1,2,5	fortify								
 bzero	1									
 calloc		1			1	1,2				
-canonicalize_file_name	1	1			1					
+canonicalize_file_name	1	fortify			1					
 catclose	1									
 catgets	1									
 catopen	1									
@@ -96,10 +96,10 @@ ceilf32x									const
 ceilf64									const	
 ceilf64x									const	
 ceill									const	
-chdir	1	1								
+chdir	1	fortify								
 chmod	1									
-chown	1	1								
-chroot	1	1								
+chown	1	fortify								
+chroot	1	fortify								
 clearerr	1									
 clearerr_unlocked	1									
 clock_adjtime	2									
@@ -125,13 +125,13 @@ cosl									const
 creat	1									
 creat64	1									
 crypt	1,2									
-daemon		1								
+daemon		fortify								
 dcgettext										2
 dcngettext										2,3
 dgettext										2
 difftime									const	
 dirfd	1									
-div		1							const	
+div		fortify							const	
 dladdr	2									
 dladdr1	2									
 dlclose	1									
@@ -141,10 +141,10 @@ dlvsym	2,3
 dngettext										2,3
 dprintf				printf:2:3						
 drand48_r	1,2									
-dup		1								
+dup		fortify								
 dysize									const	
 eaccess	1									
-ecvt	3,4	1								
+ecvt	3,4	fortify								
 ecvt_r	3,4,5									
 envz_entry									1	
 envz_get									1	
@@ -184,21 +184,21 @@ fabsf32x									const
 fabsf64									const	
 fabsf64x									const	
 fabsl									const	
-faccessat	2	1								
-fchdir		1								
-fchmodat	2	1								
-fchown		1								
-fchownat	2	1								
+faccessat	2	fortify								
+fchdir		fortify								
+fchmodat	2	fortify								
+fchown		fortify								
+fchownat	2	fortify								
 fclose	1									
-fcvt	3,4	1								
+fcvt	3,4	fortify								
 fcvt_r	3,4,5									
-fdopen		1			1					
+fdopen		fortify			1					
 fdopendir					1					
 fegetround									1	
-feof	1	1								
-feof_unlocked	1	1								
-ferror	1	1								
-ferror_unlocked	1	1								
+feof	1	fortify								
+feof_unlocked	1	fortify								
+ferror	1	fortify								
+ferror_unlocked	1	fortify								
 fexecve	2									
 ffs									const	
 ffsl									const	
@@ -209,12 +209,12 @@ fgetpos	1
 fgetpos64	1									
 fgetpwent	1									
 fgetpwent_r	1,2,3,5									
-fgets	3	1								
-fgets_unlocked	3	1								
-fgetws		1								
-fgetws_unlocked		1								
-fileno	1	1								
-fileno_unlocked	1	1								
+fgets	3	fortify								
+fgets_unlocked	3	fortify								
+fgetws		fortify								
+fgetws_unlocked		fortify								
+fileno	1	fortify								
+fileno_unlocked	1	fortify								
 finite									const	
 finitef									const	
 finitel									const	
@@ -283,7 +283,7 @@ fmaxmagf32x									const
 fmaxmagf64									const	
 fmaxmagf64x									const	
 fmaxmagl									const	
-fmemopen		1			1					
+fmemopen		fortify			1					
 fmin									const	
 fminf									const	
 fminf128									const	
@@ -332,18 +332,18 @@ fminmagf32x									const
 fminmagf64									const	
 fminmagf64x									const	
 fminmagl									const	
-fopen		1			1					
-fopen64		1			1					
+fopen		fortify			1					
+fopen64		fortify			1					
 fprintf	1			printf:2:3						
 fputc	2									
 fputc_unlocked	2									
 fputs	2									
 fputs_unlocked	2									
-fread	4	1								
-fread_unlocked	4	1								
-freopen	3	1								
-freopen64	3	1								
-fscanf	1	1		scanf:2:3						
+fread	4	fortify								
+fread_unlocked	4	fortify								
+freopen	3	fortify								
+freopen64	3	fortify								
+fscanf	1	fortify		scanf:2:3						
 fseek	1									
 fseeko	1									
 fseeko64	1									
@@ -357,32 +357,32 @@ fstatfs	2
 fstatfs64	2									
 fstatvfs	2									
 fstatvfs64	2									
-ftell	1	1								
-ftello	1	1								
-ftello64	1	1								
+ftell	1	fortify								
+ftello	1	fortify								
+ftello64	1	fortify								
 ftime	1						1			
-ftruncate		1								
-ftruncate64		1								
-ftrylockfile	1	1								
+ftruncate		fortify								
+ftruncate64		fortify								
+ftrylockfile	1	fortify								
 ftw	1,2									
 ftw64	1,2									
 funlockfile	1									
 fwrite	4									
 fwrite_unlocked	4									
-gcvt	3	1								
+gcvt	3	fortify								
 getc	1									
 getc_unlocked	1									
-getcwd		1								
-getdelim	4	1								
+getcwd		fortify								
+getdelim	4	fortify								
 getdents64	2									
 getdirentries	2,4									
 getdirentries64	2,4									
-getdomainname	1	1								
-getentropy		1								
-getenv	1	1								
-getgroups		1								
+getdomainname	1	fortify								
+getentropy		fortify								
+getenv	1	fortify								
+getgroups		fortify								
 gethostname	1									
-getline	3	1								
+getline	3	fortify								
 getloadavg	1									
 getlogin_r	1									
 getopt	2,3									
@@ -394,14 +394,14 @@ getpwent_r	1,2,4
 getpwnam	1									
 getpwnam_r	1,2,3,5									
 getpwuid_r	2,3,5									
-getrandom		1								
+getrandom		fortify								
 getrlimit	2									
 getrlimit64	2									
-getsubopt	1,2,3	1								
+getsubopt	1,2,3	fortify								
 gettext										1
 gettimeofday	1									
 getw	1									
-getwd	1	1					1			
+getwd	1	fortify					1			
 gnu_dev_major									const	
 gnu_dev_makedev									const	
 gnu_dev_minor									const	
@@ -435,21 +435,21 @@ iswupper									1
 iswxdigit									1	
 jrand48	1									
 jrand48_r	1,2									
-l64a		1								
+l64a		fortify								
 labs									const	
 lchmod	1									
-lchown	1	1								
+lchown	1	fortify								
 lcong48	1									
 lcong48_r	1,2									
-ldiv		1							const	
-link	1,2	1								
-linkat	2,4	1								
+ldiv		fortify							const	
+link	1,2	fortify								
+linkat	2,4	fortify								
 lio_listio	2									
 lio_listio64	2									
 llabs									const	
-lldiv		1							const	
-lockf		1								
-lockf64		1								
+lldiv		fortify							const	
+lockf		fortify								
+lockf64		fortify								
 longjmp			1							
 lrand48_r	1,2									
 lstat	1,2									
@@ -458,7 +458,7 @@ lutimes	1
 mallinfo							1			
 malloc		1			1	1				
 mbsinit									1	
-memalign		1			1	2				
+memalign		fortify			1	2				
 memccpy	1,2									
 memchr	1								1	
 memcmp	1,2								1	
@@ -471,19 +471,19 @@ memrchr	1								1
 memset	1									
 mkdir	1									
 mkdirat	2									
-mkdtemp	1	1								
+mkdtemp	1	fortify								
 mkfifo	1									
 mkfifoat	2									
 mknod	1									
 mknodat	2									
-mkostemp	1	1								
-mkostemp64	1	1								
-mkostemps	1	1								
-mkostemps64	1	1								
-mkstemp	1	1								
-mkstemp64	1	1								
-mkstemps	1	1								
-mkstemps64	1	1								
+mkostemp	1	fortify								
+mkostemp64	1	fortify								
+mkostemps	1	fortify								
+mkostemps64	1	fortify								
+mkstemp	1	fortify								
+mkstemp64	1	fortify								
+mkstemps	1	fortify								
+mkstemps64	1	fortify								
 mktemp	1									
 mq_getattr	2									
 mq_open	1									
@@ -513,7 +513,7 @@ nearbyintl									const
 nftw	1,2									
 nftw64	1,2									
 ngettext										1,2
-nice		1								
+nice		fortify								
 nrand48	1									
 nrand48_r	1,2									
 ns_datetosecs							1			
@@ -533,7 +533,7 @@ obstack_vprintf				printf:2:0
 on_exit	1									
 open	1									
 open64	1									
-open_memstream		1			1					
+open_memstream		fortify			1					
 open_wmemstream					1					
 openat	2									
 openat64	2									
@@ -542,11 +542,11 @@ pathconf	1
 pclose	1									
 pidfd_spawn	2,5									
 pidfd_spawnp	1,2,5									
-pipe		1								
-pipe2		1								
-popen		1			1					
-posix_memalign	1	1								
-posix_openpt		1								
+pipe		fortify								
+pipe2		fortify								
+popen		fortify			1					
+posix_memalign	1	fortify								
+posix_openpt		fortify								
 posix_spawn	2,5									
 posix_spawn_file_actions_addchdir_np	1,2									
 posix_spawn_file_actions_addclose	1									
@@ -574,12 +574,12 @@ posix_spawnattr_setschedpolicy	1
 posix_spawnattr_setsigdefault	1,2									
 posix_spawnattr_setsigmask	1,2									
 posix_spawnp	2,5									
-pread		1								
-pread64		1								
-preadv		1								
-preadv2		1								
-preadv64		1								
-preadv64v2		1								
+pread		fortify								
+pread64		fortify								
+preadv		fortify								
+preadv2		fortify								
+preadv64		fortify								
+preadv64v2		fortify								
 printf				printf:1:2						
 profil	1									
 pthread_attr_destroy	1									
@@ -688,44 +688,44 @@ pthread_spin_lock	1
 pthread_spin_trylock	1									
 pthread_spin_unlock	1									
 pthread_yield							1			
-ptsname		1								
+ptsname		fortify								
 ptsname_r	2									
 putc	2									
 putc_unlocked	2									
 putenv	1									
 putw	2									
-pvalloc		1			1					
-pwrite		1								
-pwrite64		1								
-pwritev		1								
-pwritev2		1								
-pwritev64		1								
-pwritev64v2		1								
-qecvt	3,4	1								
+pvalloc		fortify			1					
+pwrite		fortify								
+pwrite64		fortify								
+pwritev		fortify								
+pwritev2		fortify								
+pwritev64		fortify								
+pwritev64v2		fortify								
+qecvt	3,4	fortify								
 qecvt_r	3,4,5									
-qfcvt	3,4	1								
+qfcvt	3,4	fortify								
 qfcvt_r	3,4,5									
-qgcvt	3	1								
+qgcvt	3	fortify								
 qsort	1,4									
 qsort_r	1,4									
 quick_exit			1							
 random_r	1,2									
 rawmemchr	1								1	
-read		1								
+read		fortify								
 readdir	1									
 readdir64	1									
 readdir64_r	1,2,3						1			
 readdir_r	1,2,3						1			
-readlink	1,2	1								
-readlinkat	2,3	1								
-readv		1								
+readlink	1,2	fortify								
+readlinkat	2,3	fortify								
+readv		fortify								
 realloc		1				2				
 reallocarray		1				2,3				
-realpath		1								
+realpath		fortify								
 register_printf_function							1			
-register_printf_modifier		1								
-register_printf_type		1								
-revoke	1	1								
+register_printf_modifier		fortify								
+register_printf_type		fortify								
+revoke	1	fortify								
 rewind	1									
 rewinddir	1									
 rindex	1								1	
@@ -754,13 +754,13 @@ roundf32x									const
 roundf64									const	
 roundf64x									const	
 roundl									const	
-rpmatch	1	1								
+rpmatch	1	fortify								
 scandir	1,2									
 scandir64	1,2									
 scandirat	2,3									
 scandirat64	2,3									
-scanf		1		scanf:1:2						
-secure_getenv	1	1								
+scanf		fortify		scanf:1:2						
+secure_getenv	1	fortify								
 seed48	1									
 seed48_r	1,2									
 seekdir	1									
@@ -777,24 +777,24 @@ sem_unlink	1
 sem_wait	1									
 setbuf	1									
 setbuffer	1									
-setdomainname	1	1								
-setegid		1								
+setdomainname	1	fortify								
+setegid		fortify								
 setenv	2									
-seteuid		1								
-setgid		1								
-sethostid		1								
-sethostname	1	1								
+seteuid		fortify								
+setgid		fortify								
+sethostid		fortify								
+sethostname	1	fortify								
 setlinebuf	1									
 setlogin	1									
-setregid		1								
-setresgid		1								
-setresuid		1								
-setreuid		1								
+setregid		fortify								
+setresgid		fortify								
+setresuid		fortify								
+setreuid		fortify								
 setrlimit	2									
 setrlimit64	2									
 setstate	1									
 setstate_r	1,2									
-setuid		1								
+setuid		fortify								
 setvbuf	1									
 sigaddset	1									
 sigandset	1,2,3									
@@ -855,7 +855,7 @@ strcoll_l	1,2,3								1
 strcpy	1,2									
 strcspn	1,2								1	
 strdup	1	1			1					
-strerror_r	2	1								
+strerror_r	2	fortify								
 strfmon				strfmon:3:4						
 strfmon_l				strfmon:4:5						
 strfromd	3									
@@ -915,10 +915,10 @@ strverscmp	1,2								1
 strxfrm	2									
 strxfrm_l	2,4									
 swab	1,2									
-symlink	1,2	1								
-symlinkat	1,3	1								
+symlink	1,2	fortify								
+symlinkat	1,3	fortify								
 syslog				printf:2:3						
-system		1								
+system		fortify								
 tan									const	
 tanf									const	
 tanf128									const	
@@ -936,13 +936,13 @@ tanhf64x									const
 tanhl									const	
 tanl									const	
 telldir	1									
-tempnam		1			1					
+tempnam		fortify			1					
 thrd_exit			1							
 timespec_get	1									
-tmpfile		1			1					
-tmpfile64		1			1					
-tmpnam		1								
-tmpnam_r		1								
+tmpfile		fortify			1					
+tmpfile64		fortify			1					
+tmpnam		fortify								
+tmpnam_r		fortify								
 totalorder									1	
 totalorderf									1	
 totalorderf128									1	
@@ -962,8 +962,8 @@ totalordermagl									1
 towlower									1	
 towupper									1	
 trunc									const	
-truncate	1	1								
-truncate64	1	1								
+truncate	1	fortify								
+truncate64	1	fortify								
 truncf									const	
 truncf128									const	
 truncf32									const	
@@ -971,7 +971,7 @@ truncf32x									const
 truncf64									const	
 truncf64x									const	
 truncl									const	
-ttyname_r	2	1								
+ttyname_r	2	fortify								
 ungetc	2									
 unlink	1									
 unlinkat	2									
@@ -979,17 +979,17 @@ unsetenv	1
 utime	1									
 utimensat	2									
 utimes	1									
-valloc		1			1	1				
-vasprintf		1		printf:2:0						
+valloc		fortify			1	1				
+vasprintf		fortify		printf:2:0						
 vdprintf				printf:2:0						
 verr			1	printf:2:0						
 verrx			1	printf:2:0						
 versionsort	1,2								1	
 versionsort64	1,2								1	
 vfprintf	1			printf:2:0						
-vfscanf	1	1		scanf:2:0						
+vfscanf	1	fortify		scanf:2:0						
 vprintf				printf:1:0						
-vscanf		1		scanf:1:0						
+vscanf		fortify		scanf:1:0						
 vsnprintf				printf:3:0						
 vsprintf				printf:2:0						
 vsscanf				scanf:2:0						
@@ -998,7 +998,7 @@ vwarn				printf:1:0
 vwarnx				printf:1:0						
 warn				printf:1:2						
 warnx				printf:1:2						
-wcrtomb		1								
+wcrtomb		fortify								
 wcscat	1,2									
 wcschr									1	
 wcschrnul									1	
@@ -1018,8 +1018,8 @@ wcsrchr									1
 wcsspn									1	
 wcsstr									1	
 wcswcs									1	
-wctomb		1								
+wctomb		fortify								
 wmemchr									1	
 wmemcmp									1	
-write		1								
-writev		1								
+write		fortify								
+writev		fortify								

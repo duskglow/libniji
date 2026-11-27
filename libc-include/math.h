@@ -982,6 +982,18 @@ extern long double truncl (long double) __NIJI_NOTHROW __attribute__ ((__const__
 # endif
 #endif
 #if __NIJI_ISOC >= 2023
+# ifndef __NIJI_D___exp10
+#  define __NIJI_D___exp10 1
+extern double __exp10 (double) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___exp10f
+#  define __NIJI_D___exp10f 1
+extern float __exp10f (float) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___exp10l
+#  define __NIJI_D___exp10l 1
+extern long double __exp10l (long double) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D___iscanonicall
 #  define __NIJI_D___iscanonicall 1
 extern int __iscanonicall (long double) __NIJI_NOTHROW __attribute__ ((__const__));
@@ -1276,6 +1288,44 @@ extern unsigned long ufromfpxl (long double, int, unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
 #if defined __USE_GNU
+# ifndef __NIJI_D___exp10f128
+#  define __NIJI_D___exp10f128 1
+#  if __NIJI_FLOAT128
+extern _Float128 __exp10f128 (_Float128) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D___exp10f32
+#  define __NIJI_D___exp10f32 1
+#  if __NIJI_FLOATN
+extern _Float32 __exp10f32 (_Float32) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern float __exp10f32 (float) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D___exp10f32x
+#  define __NIJI_D___exp10f32x 1
+#  if __NIJI_FLOATN
+extern _Float32x __exp10f32x (_Float32x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double __exp10f32x (double) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D___exp10f64
+#  define __NIJI_D___exp10f64 1
+#  if __NIJI_FLOATN
+extern _Float64 __exp10f64 (_Float64) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern double __exp10f64 (double) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D___exp10f64x
+#  define __NIJI_D___exp10f64x 1
+#  if __NIJI_FLOATN
+extern _Float64x __exp10f64x (_Float64x) __NIJI_NOTHROW;
+#  elif !defined __cplusplus
+extern long double __exp10f64x (long double) __NIJI_NOTHROW;
+#  endif
+# endif
 # ifndef __NIJI_D_acosf128
 #  define __NIJI_D_acosf128 1
 #  if __NIJI_FLOAT128

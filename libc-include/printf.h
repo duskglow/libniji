@@ -110,7 +110,7 @@ extern int register_printf_function (int, printf_function (*), printf_arginfo_fu
 # endif
 # ifndef __NIJI_D_register_printf_modifier
 #  define __NIJI_D_register_printf_modifier 1
-extern int register_printf_modifier (const wchar_t *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int register_printf_modifier (const wchar_t *) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_register_printf_specifier
 #  define __NIJI_D_register_printf_specifier 1
@@ -118,7 +118,7 @@ extern int register_printf_specifier (int, printf_function (*), printf_arginfo_s
 # endif
 # ifndef __NIJI_D_register_printf_type
 #  define __NIJI_D_register_printf_type 1
-extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_anon_PA_INT
 #  define __NIJI_D_anon_PA_INT 1

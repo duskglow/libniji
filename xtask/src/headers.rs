@@ -446,6 +446,9 @@ fn load(root: &Path) -> Result<Tables, String> {
     let diag = tsv(root, "spec/abi/diagattrs.tsv")?;
     let mut nonzero_noreturn = BTreeMap::new();
     for r in &diag {
+        if !matches!(r["wur"].as_str(), "" | "1" | "fortify") {
+            return Err(format!("spec/abi/diagattrs.tsv: {}: wur {:?} is neither 1 nor fortify", r["name"], r["wur"]));
+        }
         match r["noreturn"].as_str() {
             "" | "1" => {}
             v => match v.strip_prefix("nonzero:").and_then(|k| k.parse::<usize>().ok()).filter(|&k| k > 0) {
@@ -595,10 +598,21 @@ fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
     if !r["deprecated"].is_empty() {
         a.push("__deprecated__".into());
     }
-    if !r["wur"].is_empty() {
+    if r["wur"] == "1" {
         a.push("__warn_unused_result__".into());
     }
-    if a.is_empty() { None } else { Some(format!(" __attribute__ (({}))", a.join(", "))) }
+    let fw = fortify_wur(r);
+    match (a.is_empty(), fw.is_empty()) {
+        (true, true) => None,
+        (true, false) => Some(fw.into()),
+        (false, _) => Some(format!(" __attribute__ (({})){fw}", a.join(", "))),
+    }
+}
+
+/// wur `fortify` (attr_probe: the reference checks the result only under _FORTIFY_SOURCE): ` __NIJI_FWUR`, which
+/// features.h defines as warn_unused_result when __NIJI_FORTIFY > 0 and as nothing otherwise.
+pub(crate) fn fortify_wur(r: &BTreeMap<String, String>) -> &'static str {
+    if r["wur"] == "fortify" { " __NIJI_FWUR" } else { "" }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):

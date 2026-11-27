@@ -5,6 +5,7 @@
 //! gathered write, so that two dying threads do not interleave inside it (D-22.12
 //! (8)).
 
+use core::sync::atomic::{AtomicBool, Ordering};
 use niji_kernel::errno::Errno;
 use niji_kernel::fd::Fd;
 use niji_kernel::mem::IoVec;
@@ -65,16 +66,23 @@ pub fn decimal(v: u64, buf: &mut [u8; 20]) -> &[u8] {
     buf.get(at..).unwrap_or_default()
 }
 
+/// Set by the first [`abort`] of the process and never cleared (D-1.15).
+static ABORTED: AtomicBool = AtomicBool::new(false);
+
 /// `abort()` (spec §1.2): unblock `SIGABRT` and raise it; if a handler returns, reset the
 /// disposition to the default and raise it again; if the process still survives, execute the
 /// architecture trap instruction (`trap`), then `_exit(127)`. Streams are not flushed.
+/// An abort reached again in the same process (from a `SIGABRT` handler, or after one left by
+/// `longjmp`) skips the handler: the default action at once (D-1.15).
 pub fn abort<S: Sys>(sys: &S, trap: impl FnOnce()) -> ! {
     let abrt = SigSet::empty().with(SIGABRT);
     let raise = || {
         let _ = sys.tgkill(sys.getpid(), sys.gettid(), SIGABRT);
     };
-    let _ = sys.sigprocmask(SIG_UNBLOCK, Some(&abrt));
-    raise();
+    if !ABORTED.swap(true, Ordering::SeqCst) {
+        let _ = sys.sigprocmask(SIG_UNBLOCK, Some(&abrt));
+        raise();
+    }
     // A handler caught it and returned (or it was ignored): the default action now.
     let _ = sys.sigaction_set(SIGABRT, Disposition::Default, 0, SigSet::empty());
     let _ = sys.sigprocmask(SIG_UNBLOCK, Some(&abrt));

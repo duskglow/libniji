@@ -485,11 +485,11 @@ extern int fclose (FILE *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_feof
 #  define __NIJI_D_feof 1
-extern int feof (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int feof (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_ferror
 #  define __NIJI_D_ferror 1
-extern int ferror (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int ferror (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fflush
 #  define __NIJI_D_fflush 1
@@ -509,14 +509,14 @@ extern int fgetpos (FILE *, fpos_t *) __asm__ ("fgetpos64") __attribute__ ((__no
 # endif
 # ifndef __NIJI_D_fgets
 #  define __NIJI_D_fgets 1
-extern char *fgets (char *, int, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern char *fgets (char *, int, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fopen
 #  define __NIJI_D_fopen 1
 #  if !__NIJI_FOB64
-extern FILE *fopen (const char *, const char *) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fopen (const char *, const char *) __attribute__ ((__malloc__)) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern FILE *fopen (const char *, const char *) __asm__ ("fopen64") __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fopen (const char *, const char *) __asm__ ("fopen64") __attribute__ ((__malloc__)) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_fprintf
@@ -533,24 +533,24 @@ extern int fputs (const char *, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fread
 #  define __NIJI_D_fread 1
-extern unsigned long fread (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+extern unsigned long fread (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_freopen
 #  define __NIJI_D_freopen 1
 #  if !__NIJI_FOB64
-extern FILE *freopen (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern FILE *freopen (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern FILE *freopen (const char *, const char *, FILE *) __asm__ ("freopen64") __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern FILE *freopen (const char *, const char *, FILE *) __asm__ ("freopen64") __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_fscanf
 #  define __NIJI_D_fscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc23_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc23_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1))) __NIJI_FWUR;
 #  elif __NIJI_ISOC < 2023
-extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc99_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __asm__ ("__isoc99_fscanf") __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1))) __NIJI_FWUR;
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int fscanf (FILE *, const char *, ...) __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1), __warn_unused_result__));
+extern int fscanf (FILE *, const char *, ...) __attribute__ ((__format__ (__scanf__, 2, 3), __nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_fseek
@@ -567,7 +567,7 @@ extern int fsetpos (FILE *, const fpos_t *) __asm__ ("fsetpos64") __attribute__ 
 # endif
 # ifndef __NIJI_D_ftell
 #  define __NIJI_D_ftell 1
-extern long int ftell (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long int ftell (FILE *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fwrite
 #  define __NIJI_D_fwrite 1
@@ -616,11 +616,11 @@ extern void rewind (FILE *) __attribute__ ((__nonnull__ (1)));
 # ifndef __NIJI_D_scanf
 #  define __NIJI_D_scanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int scanf (const char *, ...) __asm__ ("__isoc23_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
+extern int scanf (const char *, ...) __asm__ ("__isoc23_scanf") __attribute__ ((__format__ (__scanf__, 1, 2))) __NIJI_FWUR;
 #  elif __NIJI_ISOC < 2023
-extern int scanf (const char *, ...) __asm__ ("__isoc99_scanf") __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
+extern int scanf (const char *, ...) __asm__ ("__isoc99_scanf") __attribute__ ((__format__ (__scanf__, 1, 2))) __NIJI_FWUR;
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int scanf (const char *, ...) __attribute__ ((__format__ (__scanf__, 1, 2), __warn_unused_result__));
+extern int scanf (const char *, ...) __attribute__ ((__format__ (__scanf__, 1, 2))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_setbuf
@@ -648,14 +648,14 @@ extern int sscanf (const char *, const char *, ...) __NIJI_NOTHROW __attribute__
 # ifndef __NIJI_D_tmpfile
 #  define __NIJI_D_tmpfile 1
 #  if !__NIJI_FOB64
-extern FILE *tmpfile (void) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *tmpfile (void) __attribute__ ((__malloc__)) __NIJI_FWUR;
 #  elif __NIJI_FOB64
-extern FILE *tmpfile (void) __asm__ ("tmpfile64") __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *tmpfile (void) __asm__ ("tmpfile64") __attribute__ ((__malloc__)) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_tmpnam
 #  define __NIJI_D_tmpnam 1
-extern char *tmpnam (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam (char [20]) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_ungetc
 #  define __NIJI_D_ungetc 1
@@ -682,21 +682,21 @@ extern int snprintf (char *, unsigned long, const char *, ...) __NIJI_NOTHROW __
 # ifndef __NIJI_D_vfscanf
 #  define __NIJI_D_vfscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc23_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc23_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1))) __NIJI_FWUR;
 #  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc99_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __asm__ ("__isoc99_vfscanf") __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1))) __NIJI_FWUR;
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int vfscanf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1), __warn_unused_result__));
+extern int vfscanf (FILE *, const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 2, 0), __nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_vscanf
 #  define __NIJI_D_vscanf 1
 #  if __NIJI_CXX >= 2 || (__NIJI_ISOC >= 2023 && __NIJI_CXX < 1)
-extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc23_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc23_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0))) __NIJI_FWUR;
 #  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
-extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc99_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __asm__ ("__isoc99_vscanf") __attribute__ ((__format__ (__scanf__, 1, 0))) __NIJI_FWUR;
 #  elif __NIJI_CXX >= 1 && __NIJI_CXX < 2
-extern int vscanf (const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 1, 0), __warn_unused_result__));
+extern int vscanf (const char *, __builtin_va_list) __attribute__ ((__format__ (__scanf__, 1, 0))) __NIJI_FWUR;
 #  endif
 # endif
 # ifndef __NIJI_D_vsnprintf
@@ -721,11 +721,11 @@ extern int fgetpos64 (FILE *, fpos64_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fopen64
 #  define __NIJI_D_fopen64 1
-extern FILE *fopen64 (const char *, const char *) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fopen64 (const char *, const char *) __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_freopen64
 #  define __NIJI_D_freopen64 1
-extern FILE *freopen64 (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern FILE *freopen64 (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fseeko64
 #  define __NIJI_D_fseeko64 1
@@ -737,11 +737,11 @@ extern int fsetpos64 (FILE *, const fpos64_t *) __attribute__ ((__nonnull__ (1))
 # endif
 # ifndef __NIJI_D_ftello64
 #  define __NIJI_D_ftello64 1
-extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_tmpfile64
 #  define __NIJI_D_tmpfile64 1
-extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *tmpfile64 (void) __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
@@ -757,11 +757,11 @@ extern char *ctermid (char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_fdopen
 #  define __NIJI_D_fdopen 1
-extern FILE *fdopen (int, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fdopen (int, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fileno
 #  define __NIJI_D_fileno 1
-extern int fileno (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int fileno (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
@@ -771,7 +771,7 @@ extern void flockfile (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_ftrylockfile
 #  define __NIJI_D_ftrylockfile 1
-extern int ftrylockfile (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int ftrylockfile (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_funlockfile
 #  define __NIJI_D_funlockfile 1
@@ -801,7 +801,7 @@ extern int pclose (FILE *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_popen
 #  define __NIJI_D_popen 1
-extern FILE *popen (const char *, const char *) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *popen (const char *, const char *) __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
@@ -821,19 +821,19 @@ extern int fseeko (FILE *, long, int) __asm__ ("fseeko64") __attribute__ ((__non
 #  define __NIJI_D_ftello 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 500
 #   if __NIJI_FOB64
-extern long ftello (FILE *) __asm__ ("ftello64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long ftello (FILE *) __asm__ ("ftello64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #   else
-extern long ftello (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long ftello (FILE *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #   endif
 #  elif __NIJI_FOB64
-extern long ftello (FILE *) __asm__ ("ftello64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long ftello (FILE *) __asm__ ("ftello64") __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D___getdelim
 #  define __NIJI_D___getdelim 1
-extern long __getdelim (char **, unsigned long *, int, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+extern long __getdelim (char **, unsigned long *, int, FILE *) __attribute__ ((__nonnull__ (4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_dprintf
 #  define __NIJI_D_dprintf 1
@@ -841,19 +841,19 @@ extern int dprintf (int, const char *, ...) __attribute__ ((__format__ (__printf
 # endif
 # ifndef __NIJI_D_fmemopen
 #  define __NIJI_D_fmemopen 1
-extern FILE *fmemopen (void *, unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fmemopen (void *, unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_getdelim
 #  define __NIJI_D_getdelim 1
-extern long getdelim (char **, unsigned long *, int, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+extern long getdelim (char **, unsigned long *, int, FILE *) __attribute__ ((__nonnull__ (4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_getline
 #  define __NIJI_D_getline 1
-extern long getline (char **, unsigned long *, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern long getline (char **, unsigned long *, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_open_memstream
 #  define __NIJI_D_open_memstream 1
-extern FILE *open_memstream (char **, unsigned long *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *open_memstream (char **, unsigned long *) __NIJI_NOTHROW __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_renameat
 #  define __NIJI_D_renameat 1
@@ -871,7 +871,7 @@ extern int fcloseall (void);
 # endif
 # ifndef __NIJI_D_fgets_unlocked
 #  define __NIJI_D_fgets_unlocked 1
-extern char *fgets_unlocked (char *, int, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern char *fgets_unlocked (char *, int, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fputs_unlocked
 #  define __NIJI_D_fputs_unlocked 1
@@ -901,7 +901,7 @@ extern char *cuserid (char *);
 #if defined __USE_MISC
 # ifndef __NIJI_D_asprintf
 #  define __NIJI_D_asprintf 1
-extern int asprintf (char **, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3), __warn_unused_result__));
+extern int asprintf (char **, const char *, ...) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_clearerr_unlocked
 #  define __NIJI_D_clearerr_unlocked 1
@@ -909,11 +909,11 @@ extern void clearerr_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull_
 # endif
 # ifndef __NIJI_D_feof_unlocked
 #  define __NIJI_D_feof_unlocked 1
-extern int feof_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int feof_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_ferror_unlocked
 #  define __NIJI_D_ferror_unlocked 1
-extern int ferror_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int ferror_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fflush_unlocked
 #  define __NIJI_D_fflush_unlocked 1
@@ -925,7 +925,7 @@ extern int fgetc_unlocked (FILE *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fileno_unlocked
 #  define __NIJI_D_fileno_unlocked 1
-extern int fileno_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern int fileno_unlocked (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fopencookie
 #  define __NIJI_D_fopencookie 1
@@ -937,7 +937,7 @@ extern int fputc_unlocked (int, FILE *) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fread_unlocked
 #  define __NIJI_D_fread_unlocked 1
-extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+extern unsigned long fread_unlocked (void *, unsigned long, unsigned long, FILE *) __attribute__ ((__nonnull__ (4))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fwrite_unlocked
 #  define __NIJI_D_fwrite_unlocked 1
@@ -953,11 +953,11 @@ extern void setlinebuf (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)))
 # endif
 # ifndef __NIJI_D_tmpnam_r
 #  define __NIJI_D_tmpnam_r 1
-extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern char *tmpnam_r (char [20]) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_vasprintf
 #  define __NIJI_D_vasprintf 1
-extern int vasprintf (char **, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0), __warn_unused_result__));
+extern int vasprintf (char **, const char *, __builtin_va_list) __NIJI_NOTHROW __attribute__ ((__format__ (__printf__, 2, 0))) __NIJI_FWUR;
 # endif
 #endif
 #if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)
@@ -973,7 +973,7 @@ extern int putw (int, FILE *) __attribute__ ((__nonnull__ (2)));
 #if defined __USE_MISC || __NIJI_XSI >= 400
 # ifndef __NIJI_D_tempnam
 #  define __NIJI_D_tempnam 1
-extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 #endif
 #if 1

@@ -7,7 +7,7 @@ use super::*;
 pub(super) const REDIRECTS: &str = "headers/redirects.tsv";
 
 /// The declaration of `name` bound to `sym` in a redirects.tsv row's form: its declaration (spelled with `name`),
-/// its nonnull parameters and, `wur` 1, warn_unused_result.
+/// its nonnull parameters and, `wur` 1, warn_unused_result (`fortify`: under _FORTIFY_SOURCE only).
 fn redirect_line(name: &str, sym: &str, nt: &str, r: &BTreeMap<String, String>) -> String {
     let mut a = Vec::new();
     if !r["nonnull"].is_empty() {
@@ -16,7 +16,8 @@ fn redirect_line(name: &str, sym: &str, nt: &str, r: &BTreeMap<String, String>) 
     if r["wur"] == "1" {
         a.push("__warn_unused_result__".to_string());
     }
-    let at = if a.is_empty() { String::new() } else { format!(" __attribute__ (({}))", a.join(", ")) };
+    let fw = fortify_wur(r);
+    let at = if a.is_empty() { fw.to_string() } else { format!(" __attribute__ (({})){fw}", a.join(", ")) };
     let decl = r["declaration"].replacen(&format!("{sym} ("), &format!("{name} ("), 1);
     format!("extern {decl}{nt} __asm__ (\"{sym}\"){at};")
 }

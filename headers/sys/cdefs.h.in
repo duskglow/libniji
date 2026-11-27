@@ -38,7 +38,9 @@
 
 #define __nonnull(params) __attribute__ ((__nonnull__ params))
 #define __attribute_warn_unused_result__ __attribute__ ((__warn_unused_result__))
-#define __wur __attribute_warn_unused_result__
+/* __wur checks a result only under _FORTIFY_SOURCE (features.h's __NIJI_FWUR); the long name always (black-box probe
+   of the reference: a program's own declarations, HEADERS-STAGE2-GAPS-M). */
+#define __wur __NIJI_FWUR
 #define __glibc_likely(cond) __builtin_expect ((cond), 1)
 #define __glibc_unlikely(cond) __builtin_expect ((cond), 0)
 
