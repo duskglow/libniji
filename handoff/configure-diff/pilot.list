@@ -1,0 +1,12 @@
+# CONFIGURE-DIFF pilot set: RELEASE-SNAPSHOT-1127B's ybuild packages, perl, apt (cmake), glib2.0 (meson) and
+# gcc-14 (libstdc++-v3 configure standalone), Aqours' stage-2 versions (a devuan version falls back to trixie's).
+npth 1.8-3
+gnupg2 2.4.7-21+deb13u1
+util-linux 2.41.5-0+deb13u1devuan1
+libev 1:4.33-2.1
+keyutils 1.6.3-6
+inetutils 2:2.6-3+deb13u3
+perl 5.40.1-6+deb13u1
+apt 3.0.4devuan1
+glib2.0 2.84.4-3~deb13u5
+gcc-14 14.2.0-19
