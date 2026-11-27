@@ -43,7 +43,8 @@ COMPLETE: snapshot-ready at 16e03637e78a141164666743d627418749153bdf. Steps 4-7 
   `__USE_TIME_BITS64` rows, D-X.178), as 1127A. Start-up equal to 1127A: Zen 1 pie0 156,365 instr/52 faults, pie3
   241,640/67, time 167,313/56; Skylake-SP 156,607/52, 241,897/67, 167,526/55. [heapnode-1] only #21
   `find_over_200000_entries_bounds_its_address_space` fails, as 26.3. [lint-1] bad=0. [gate-1] clippy -D warnings
-  (all features), xtask clippy, static, records check, affected: all rc 0. [plants-1] 6 CAUGHT, 0 SURVIVED, no WARN.
+  (all features), xtask clippy, static, records check, affected: all rc 0. [plants-1] 6 CAUGHT, 0 SURVIVED, no WARN. [precheck-1] GREEN (34 checks)
+  at c866b6148; the later commit is handoff/ only.
   [debs-1] DEBS bad=0. keke smoke, gaimass, install (system debs different 0), pkgdiff, stage as 1127A.
 * Header additions vs 26.3 [keke hdrdiff-1, addstock-1, addstock-a-1]: removals unchanged (14 headers, same set as
   1127A); added names 2898 (addstock's union of macro and identifier names; hdrdiff counts 2910; 27.1: 1021), of which not in stock 2.39's same header and mode 435, user-namespace 57:
