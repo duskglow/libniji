@@ -14,3 +14,13 @@ j-ppp-ioctl | spec/abi/macros.tsv | lit:2147775576 ==> 2147775577 | sh -c 'cargo
 j-ax25-ioctl | headers/netax25/ax25.h.in | lit:# define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+5) ==> # define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+6) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
 # spec/tools/dup_values.py (the per-header value audit for snapshots to rerun) is a job tool no test runs: not
 # planted; its result on the final head (diff=0 over 56 headers, 6583 values) is in the report.
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# j-header-value: CAUGHT, caught by no test the log names
+# j-nested-tag: CAUGHT, caught by no test the log names
+# j-anyaddr: CAUGHT, caught by no test the log names
+# j-tsptype-table: CAUGHT, caught by no test the log names
+# j-nested-covered: CAUGHT, caught by no test the log names
+# j-nested-covered-row: CAUGHT, caught by no test the log names
+# j-ppp-kernel: CAUGHT, caught by no test the log names
+# j-ppp-ioctl: CAUGHT, caught by no test the log names
+# j-ax25-ioctl: CAUGHT, caught by no test the log names

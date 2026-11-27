@@ -30,7 +30,10 @@ host), role ~/w/n1.
 * Gate: affected escalated to FULL (crates/abi, headers/nested-tags.tsv): the changed crates' tests instead.
   gate1: cargo test -p niji-abi ok (400 + 5 passed); cargo test -p xtask 691 passed, 1 failed (the rows test,
   fixed in dd26b37f3, rerun in fin1); headers-gen --check ok.
-* RESULTS-FINAL (fin1, plants-2, precheck): see the hand-back and the plants file.
+* RESULTS-FINAL (on c0b977b7b's tree): fin2 (job headers-stage2-gaps-j-fin2): kernel_spelled rc 0 (1506 names,
+  no change), headers-gen rc 0 (nothing changed), rows test rc 0, clippy rc 0, static rc 0, whole header_check
+  0 failed of 26728. plants-2 (headers-stage2-gaps-j-plants2): 9 plants, 9 CAUGHT, 0 SURVIVED, 0 WARN (results in
+  handoff/HEADERS-STAGE2-GAPS-J-plants.txt). precheck: see the hand-back.
 
 ## Informational
 * PPPIOC* are macros.tsv literals (unsigned long); stock spells them as _IOR/_IOW forms, unusable in `#if`
