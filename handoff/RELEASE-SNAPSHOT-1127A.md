@@ -83,7 +83,8 @@ gcc-14 units no libniji-only stop, start-up unchanged.
 fixed `yb10.sh` and `g14.sh`.
 
 ## Jobs
-JOBS (final head, fresh build): shiki: smoke-shiki-1, gate-1, debs-1, plants-1, precheck-1. keke: smoke-keke-3,
+JOBS (final head, fresh build): shiki: smoke-shiki-1, gate-1, debs-1, plants-1, lint-shiki-1 (clippy -D warnings +
+static, rc 0), precheck-1 (GREEN, 34 checks, at 7d2cf3ba6; later commits are handoff/ only). keke: smoke-keke-3,
 startup-keke-1, kstart-keke-1, rstart-keke-1, startup215-keke-1, gaimass-1, units-1, pkgdiff-1, stage-1, install-1.
 mei: the 1126C set (smoke-mei-1 ... lint-1), gi-1, g14-2, cxxp-1, dupval-1, cmp13a-1, cmp13b-1, tails-1.
 Evidence, rc != 0 by finding: shiki heapnode-1; keke hdrdiff-1, units2-1, units2-ref263-1; mei yb10-2, yb9-1,

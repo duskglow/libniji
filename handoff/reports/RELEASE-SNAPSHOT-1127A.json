@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "COMPLETE: NOT snapshot-ready at dbb8c346f (serial 2026-11-27.1): blocking: <protocols/talkd.h> DELETE is 0 (stock 2) so inetutils' talkd process.c stops on a duplicate case value; <protocols/rwhod.h> in C++ lacks whod::whoent; <scsi/scsi.h> ABORT/NOP carry telnet's values. fixincludes 0 rewritten, util-linux builds, uuid_time64@@UUID_2.40, gcc-14 units clean, start-up unchanged, everything else as 26.3",
  "branch": "task/release-snapshot-1127a",
- "head": null,
+ "head": "7d2cf3ba6cd1207911f33af436a774083ecf9f59",
  "gate": {
   "affected": "GATE bad=0 (direct tier, shiki gate-1)",
   "peak": null
@@ -145,7 +145,8 @@
   "mei:release-snapshot-1127a-cmp13a-1",
   "mei:release-snapshot-1127a-cmp13b-1",
   "mei:release-snapshot-1127a-tails-1",
-  "mei:release-snapshot-1127a-dupval-ref263-1"
+  "mei:release-snapshot-1127a-dupval-ref263-1",
+  "shiki:release-snapshot-1127a-lint-shiki-1"
  ],
  "evidence_jobs_rc_nonzero_by_finding": {
   "shiki:release-snapshot-1127a-heapnode-1": "#21 find_over_200000_entries_bounds_its_address_space, as 26.3",
