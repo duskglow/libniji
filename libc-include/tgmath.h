@@ -6,13 +6,12 @@
    use does not compile (the C++ library's <cmath> and <complex> are the C++ forms). */
 #ifndef __NIJI_H_tgmath_h
 #define __NIJI_H_tgmath_h 1
-#include <features.h>
-#if __NIJI_CXX < 2
-# define _TGMATH_H 1
-#endif
+#define _TGMATH_H 1
 
 #include <math.h>
 #include <complex.h>
+/* In C++ the reference's tgmath.h alone (-nostdinc++) shows complex.h's CMPLX family and _Complex_I: the
+   <complex.h> above defines them (HEADERS-STAGE2-GAPS-L), so @@emit-c skips their rows here. */
 
 
 /* The functions of one macro, each followed by a comma: float, double and long double, then the _FloatN and _FloatNx

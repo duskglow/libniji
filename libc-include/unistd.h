@@ -317,6 +317,12 @@ typedef long intptr_t;
 typedef unsigned int socklen_t;
 # endif
 #endif
+#if 1
+# ifndef __NIJI_D___environ
+#  define __NIJI_D___environ 1
+extern char * * __environ;
+# endif
+#endif
 #if __NIJI_POSIX >= 2
 # ifndef __NIJI_D_optarg
 #  define __NIJI_D_optarg 1

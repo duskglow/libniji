@@ -42,19 +42,13 @@ struct ip6_hbh {
   unsigned char ip6h_len;
 };
 # endif
-# ifndef __NIJI_D_struct_ip6_hdrctl
-#  define __NIJI_D_struct_ip6_hdrctl 1
-struct ip6_hdrctl {
-  unsigned int ip6_un1_flow;
-  unsigned short ip6_un1_plen;
-  unsigned char ip6_un1_nxt;
-  unsigned char ip6_un1_hlim;
-};
-# endif
 # ifndef __NIJI_D_struct_ip6_hdr
 #  define __NIJI_D_struct_ip6_hdr 1
 struct ip6_hdr {
-  union { struct ip6_hdrctl ip6_un1; unsigned char ip6_un2_vfc; } ip6_ctlun;
+  union {
+  struct ip6_hdrctl { unsigned int ip6_un1_flow; unsigned short ip6_un1_plen; unsigned char ip6_un1_nxt; unsigned char ip6_un1_hlim; } ip6_un1;
+  unsigned char ip6_un2_vfc;
+  } ip6_ctlun;
   struct in6_addr ip6_src;
   struct in6_addr ip6_dst;
 };
@@ -122,13 +116,15 @@ struct ip6_rthdr0 {
 # endif
 #endif
 #if __NIJI_CXX < 1
-# ifndef __NIJI_D_struct_ip6_hdrctl
-#  define __NIJI_D_struct_ip6_hdrctl 1
-struct ip6_hdrctl {
-  unsigned int ip6_un1_flow;
-  unsigned short ip6_un1_plen;
-  unsigned char ip6_un1_nxt;
-  unsigned char ip6_un1_hlim;
+# ifndef __NIJI_D_struct_ip6_hdr
+#  define __NIJI_D_struct_ip6_hdr 1
+struct ip6_hdr {
+  union {
+  struct ip6_hdrctl { unsigned int ip6_un1_flow; unsigned short ip6_un1_plen; unsigned char ip6_un1_nxt; unsigned char ip6_un1_hlim; } ip6_un1;
+  unsigned char ip6_un2_vfc;
+  } ip6_ctlun;
+  struct in6_addr ip6_src;
+  struct in6_addr ip6_dst;
 };
 # endif
 #endif

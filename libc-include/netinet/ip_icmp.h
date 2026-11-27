@@ -34,28 +34,6 @@ struct icmphdr {
 # endif
 #endif
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_ih_idseq
-#  define __NIJI_D_struct_ih_idseq 1
-struct ih_idseq {
-  unsigned short icd_id;
-  unsigned short icd_seq;
-};
-# endif
-# ifndef __NIJI_D_struct_ih_pmtu
-#  define __NIJI_D_struct_ih_pmtu 1
-struct ih_pmtu {
-  unsigned short ipm_void;
-  unsigned short ipm_nextmtu;
-};
-# endif
-# ifndef __NIJI_D_struct_ih_rtradv
-#  define __NIJI_D_struct_ih_rtradv 1
-struct ih_rtradv {
-  unsigned char irt_num_addrs;
-  unsigned char irt_wpa;
-  unsigned short irt_lifetime;
-};
-# endif
 # ifndef __NIJI_D_struct_icmp_ra_addr
 #  define __NIJI_D_struct_icmp_ra_addr 1
 struct icmp_ra_addr {
@@ -69,7 +47,14 @@ struct icmp {
   unsigned char icmp_type;
   unsigned char icmp_code;
   unsigned short icmp_cksum;
-  union { unsigned char ih_pptr; struct in_addr ih_gwaddr; struct ih_idseq ih_idseq; unsigned int ih_void; struct ih_pmtu ih_pmtu; struct ih_rtradv ih_rtradv; } icmp_hun;
+  union {
+  unsigned char ih_pptr;
+  struct in_addr ih_gwaddr;
+  struct ih_idseq { unsigned short icd_id; unsigned short icd_seq; } ih_idseq;
+  unsigned int ih_void;
+  struct ih_pmtu { unsigned short ipm_void; unsigned short ipm_nextmtu; } ih_pmtu;
+  struct ih_rtradv { unsigned char irt_num_addrs; unsigned char irt_wpa; unsigned short irt_lifetime; } ih_rtradv;
+  } icmp_hun;
   union {
   struct { unsigned int its_otime; unsigned int its_rtime; unsigned int its_ttime; } id_ts;
   struct { struct ip idi_ip; } id_ip;
@@ -88,26 +73,94 @@ struct icmp_ra_addr {
 # endif
 #endif
 #if defined __USE_MISC && __NIJI_CXX < 1
-# ifndef __NIJI_D_struct_ih_idseq
-#  define __NIJI_D_struct_ih_idseq 1
-struct ih_idseq {
-  unsigned short icd_id;
-  unsigned short icd_seq;
+# ifndef __NIJI_D_struct_icmp_ra_addr
+#  define __NIJI_D_struct_icmp_ra_addr 1
+struct icmp_ra_addr {
+  unsigned int ira_addr;
+  unsigned int ira_preference;
 };
 # endif
-# ifndef __NIJI_D_struct_ih_pmtu
-#  define __NIJI_D_struct_ih_pmtu 1
-struct ih_pmtu {
-  unsigned short ipm_void;
-  unsigned short ipm_nextmtu;
+# ifndef __NIJI_D_struct_icmp
+#  define __NIJI_D_struct_icmp 1
+struct icmp {
+  unsigned char icmp_type;
+  unsigned char icmp_code;
+  unsigned short icmp_cksum;
+  union {
+  unsigned char ih_pptr;
+  struct in_addr ih_gwaddr;
+  struct ih_idseq { unsigned short icd_id; unsigned short icd_seq; } ih_idseq;
+  unsigned int ih_void;
+  struct ih_pmtu { unsigned short ipm_void; unsigned short ipm_nextmtu; } ih_pmtu;
+  struct ih_rtradv { unsigned char irt_num_addrs; unsigned char irt_wpa; unsigned short irt_lifetime; } ih_rtradv;
+  } icmp_hun;
+  union {
+  struct { unsigned int its_otime; unsigned int its_rtime; unsigned int its_ttime; } id_ts;
+  struct { struct ip idi_ip; } id_ip;
+  struct icmp_ra_addr id_radv;
+  unsigned int id_mask;
+  unsigned char id_data[1];
+  } icmp_dun;
 };
 # endif
-# ifndef __NIJI_D_struct_ih_rtradv
-#  define __NIJI_D_struct_ih_rtradv 1
-struct ih_rtradv {
-  unsigned char irt_num_addrs;
-  unsigned char irt_wpa;
-  unsigned short irt_lifetime;
+# ifndef __NIJI_D_struct_icmp_ra_addr
+#  define __NIJI_D_struct_icmp_ra_addr 1
+struct icmp_ra_addr {
+  unsigned int ira_addr;
+  unsigned int ira_preference;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp
+#  define __NIJI_D_struct_icmp 1
+struct icmp {
+  unsigned char icmp_type;
+  unsigned char icmp_code;
+  unsigned short icmp_cksum;
+  union {
+  unsigned char ih_pptr;
+  struct in_addr ih_gwaddr;
+  struct ih_idseq { unsigned short icd_id; unsigned short icd_seq; } ih_idseq;
+  unsigned int ih_void;
+  struct ih_pmtu { unsigned short ipm_void; unsigned short ipm_nextmtu; } ih_pmtu;
+  struct ih_rtradv { unsigned char irt_num_addrs; unsigned char irt_wpa; unsigned short irt_lifetime; } ih_rtradv;
+  } icmp_hun;
+  union {
+  struct { unsigned int its_otime; unsigned int its_rtime; unsigned int its_ttime; } id_ts;
+  struct { struct ip idi_ip; } id_ip;
+  struct icmp_ra_addr id_radv;
+  unsigned int id_mask;
+  unsigned char id_data[1];
+  } icmp_dun;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp_ra_addr
+#  define __NIJI_D_struct_icmp_ra_addr 1
+struct icmp_ra_addr {
+  unsigned int ira_addr;
+  unsigned int ira_preference;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp
+#  define __NIJI_D_struct_icmp 1
+struct icmp {
+  unsigned char icmp_type;
+  unsigned char icmp_code;
+  unsigned short icmp_cksum;
+  union {
+  unsigned char ih_pptr;
+  struct in_addr ih_gwaddr;
+  struct ih_idseq { unsigned short icd_id; unsigned short icd_seq; } ih_idseq;
+  unsigned int ih_void;
+  struct ih_pmtu { unsigned short ipm_void; unsigned short ipm_nextmtu; } ih_pmtu;
+  struct ih_rtradv { unsigned char irt_num_addrs; unsigned char irt_wpa; unsigned short irt_lifetime; } ih_rtradv;
+  } icmp_hun;
+  union {
+  struct { unsigned int its_otime; unsigned int its_rtime; unsigned int its_ttime; } id_ts;
+  struct { struct ip idi_ip; } id_ip;
+  struct icmp_ra_addr id_radv;
+  unsigned int id_mask;
+  unsigned char id_data[1];
+  } icmp_dun;
 };
 # endif
 #endif

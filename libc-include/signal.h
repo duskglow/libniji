@@ -1124,6 +1124,10 @@ typedef union sigval sigval_t;
 # endif
 #endif
 #if __NIJI_DYNSTACK
+# ifndef __NIJI_D___environ
+#  define __NIJI_D___environ 1
+extern char * * __environ;
+# endif
 # ifndef __NIJI_D_optarg
 #  define __NIJI_D_optarg 1
 extern char * optarg;
