@@ -269,7 +269,9 @@ def nested_spelling(ctx, tag):
     if outer is None:
         return None
     for r in ctx.rows("spec/abi/layouts.tsv"):
-        if r["type"] == outer and r["member"] and "." not in r["member"] and r["member_type"].split("[")[0] == tag:
+        # The member may sit in an unnamed union of the outer structure (`icmp_hun.ih_idseq`): the path is the
+        # member access as written.
+        if r["type"] == outer and r["member"] and "<anon>" not in r["member"] and r["member_type"].split("[")[0] == tag:
             idx = "[0]" if r["member_type"].endswith("]") else ""
             return f"__typeof__ ((({outer} *) 0)->{r['member']}{idx})"
     return None

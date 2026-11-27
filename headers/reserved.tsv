@@ -12,7 +12,7 @@ __locale_struct	emit	R-H3: complete as layouts.tsv has it; gnulib localename rea
 __off_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
 __pid_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __iscanonicall	emit	C.9: iscanonical on long double calls __iscanonicall (C macro and C++ overload, math.h)
-__environ	emitlibc.so.6 exports __environ@@GLIBC_2.2.5 (environ's storage); unistd.h declares it in every configuration (black-box probe, HEADERS-STAGE2-GAPS-L); fakechroot's setenv.c uses it
+__environ	emit	libc.so.6 exports __environ@@GLIBC_2.2.5 (environ's storage); unistd.h declares it in every configuration (black-box probe, HEADERS-STAGE2-GAPS-L); fakechroot's setenv.c uses it
 __sysconf	emit	C.9: PTHREAD_STACK_MIN under _DYNAMIC_STACK_SIZE_SOURCE is sysconf (_SC_THREAD_STACK_MIN)
 __xpg_basename	emit	C.9: basename (libgen.h) expands to __xpg_basename
 __res_init	emit	C.9: res_init (resolv.h) expands to __res_init

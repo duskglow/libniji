@@ -460,7 +460,8 @@ fn load(root: &Path) -> Result<Tables, String> {
     let versions = tsv(root, "spec/abi/versions.tsv")?;
     let simd = simd_scalars(&versions)?;
     let exported = versions.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
-    let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
+    let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect::<BTreeMap<_, _>>();
+    check_reserved(&reserved)?;
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
     let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
     let fnmembers = tsv(root, FNMEMBERS)?.into_iter().map(|r| ((r["type"].clone(), r["member"].clone()), r["declarator"].clone())).collect();
@@ -610,6 +611,15 @@ pub(crate) fn guard_candidates(header: &str) -> Vec<String> {
     let stem = header.strip_suffix(".h").unwrap_or(header);
     let p: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_uppercase() } else { '_' }).collect();
     vec![format!("_{p}_H"), format!("__{p}_H"), format!("_{p}_H_"), format!("__{p}_H__"), format!("{p}_H"), format!("_{p}_H_INCLUDED"), format!("_{p}_INCLUDED")]
+}
+
+/// Every `headers/reserved.tsv` policy is `emit`, `emit-once` or `omit`: any other text (a missing tab runs the
+/// reason into the policy) would make [`omitted`] leave the name out without a word.
+fn check_reserved(reserved: &BTreeMap<String, String>) -> Result<(), String> {
+    match reserved.iter().find(|(_, p)| !matches!(p.as_str(), "emit" | "emit-once" | "omit")) {
+        Some((n, p)) => Err(format!("{RESERVED}: {n}: policy {p:?} is not emit, emit-once or omit")),
+        None => Ok(()),
+    }
 }
 
 pub(crate) fn omitted(reserved: &BTreeMap<String, String>, name: &str) -> bool {
@@ -1459,6 +1469,16 @@ mod tests {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
         assert!(!omitted(&r, "__pid_t") && omitted(&r, "__off64_t") && omitted(&r, "_STDINT_H"));
         assert!(omitted(&r, "_SIGSET_NWORDS") && !omitted(&r, "_POSIX_ARG_MAX") && !omitted(&r, "INT8_MAX"));
+    }
+
+    // no spec clause: tooling (HEADERS-STAGE2-GAPS-L). A reserved.tsv row whose tab between policy and reason is
+    // missing reads as policy `emitlibc.so.6 ...`, which omitted() treats as omit: the load refuses it.
+    #[test]
+    fn reserved_policy_text_is_checked() {
+        let ok: BTreeMap<String, String> = [("__environ".to_string(), "emit".to_string()), ("__x".to_string(), "emit-once".to_string()), ("_Y".to_string(), "omit".to_string())].into();
+        assert!(check_reserved(&ok).is_ok());
+        let bad: BTreeMap<String, String> = [("__environ".to_string(), "emitlibc.so.6 exports __environ".to_string())].into();
+        assert!(check_reserved(&bad).unwrap_err().contains("__environ"));
     }
 
     fn copy_dir(src: &Path, dst: &Path) {

@@ -10,8 +10,8 @@
 #include <math.h>
 #include <complex.h>
 /* In C++ the reference's tgmath.h alone (-nostdinc++) shows complex.h's CMPLX family and _Complex_I: the
-   <complex.h> above defines them (HEADERS-STAGE2-GAPS-L). */
-@@owns CMPLX CMPLXF CMPLXL CMPLXF32 CMPLXF64 CMPLXF128 CMPLXF32X CMPLXF64X _Complex_I
+   <complex.h> above defines them (HEADERS-STAGE2-GAPS-L), so @@emit-c skips their rows here. */
+@@owns-macro CMPLX CMPLXF CMPLXL CMPLXF32 CMPLXF64 CMPLXF128 CMPLXF32X CMPLXF64X _Complex_I
 
 @@owns-macro acos acosh asin asinh atan atanh cos cosh exp log pow sin sinh sqrt tan tanh fabs atan2 cbrt ceil copysign erf erfc exp2 expm1 fdim floor fma fmax fmin fmod frexp hypot ilogb ldexp lgamma llrint llround log10 log1p log2 logb lrint lround nearbyint nextafter remainder remquo rint round scalbln scalbn tgamma trunc nexttoward scalb carg cimag conj cproj creal exp10 fmaximum fmaximum_mag fmaximum_mag_num fmaximum_num fminimum fminimum_mag fminimum_mag_num fminimum_num fromfp fromfpx llogb nextdown nextup roundeven ufromfp ufromfpx fmaxmag fminmag fadd dadd f32add f32xadd f64add f64xadd fsub dsub f32sub f32xsub f64sub f64xsub fmul dmul f32mul f32xmul f64mul f64xmul fdiv ddiv f32div f32xdiv f64div f64xdiv fsqrt dsqrt f32sqrt f32xsqrt f64sqrt f64xsqrt ffma dfma f32fma f32xfma f64fma f64xfma
 @@emit-c
