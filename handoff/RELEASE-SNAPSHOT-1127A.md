@@ -1,67 +1,67 @@
 # RELEASE-SNAPSHOT-1127A: snapshot validation of dbb8c346f (serial 2026-11-27.1: HEADERS-STAGE2-GAPS-H, -I)
 
-**State (leg 1 end, 06:28Z; REFRESH).** Head under validation `dbb8c346f932dbc5abed577e2a1ca333467aa32e` (origin/next at
-the start, "Regenerate train-owned views"; commit time 2026-11-27T04:43:28Z, epoch 1795754608). First-parent log since
+**State (leg 2 end, ~07:30Z; REFRESH).** Head under validation `dbb8c346f932dbc5abed577e2a1ca333467aa32e` (origin/next
+at the start, "Regenerate train-owned views"; commit time 2026-11-27T04:43:28Z, epoch 1795754608). First-parent log since
 26.3 (0f7aa0180): release-snapshot-1126c (1f8d402ce), gcc-fixincludes-probe (9c04be00f), headers-stage2-gaps-h
-(2dfb5aa3b), train regen (68af8ce95), headers-stage2-gaps-i (8643d0109), train regen (dbb8c346f). crates/ + csys/: 2
-files changed (so libc.so.6 may change too: nothing skipped). **Serial 1** for 2026-11-27 (keke staging has no 27.x):
-system `2.39+niji20261127.1-1`, coexist `0.0~snapshot20261127.1+dbb8c346f932`. Branch = head + handoff/ only.
-Hosts as 1126C: builds in the shiki role `~/w/sh1` (Haswell-EP); counts and checks on keke (Zen 1) and mei
-(Skylake-SP, stock 2.39). Job dirs shiki, keke, mei `~/work/RELEASE-SNAPSHOT-1127A/` = 1126C's via copy.sh + subst.sed
-(local copies in the scratch dir `~/w/.scratch/RELEASE-SNAPSHOT-1127A/`; data file names untouched: y23p/ref241.txt
-kept, leftover check clean). tree.tgz = `git archive` of the head (sha256 e6f84cd5...), on all three hosts, checked.
-mei `logs-ystage2-stock` copied from 1126C (as before). Plants file handoff/RELEASE-SNAPSHOT-1127A-plants.txt (1126C's
-six, paths/ids/version changed; tools/deb unchanged since 0f7aa0180).
+(2dfb5aa3b), train regen (68af8ce95), headers-stage2-gaps-i (8643d0109), train regen (dbb8c346f). **Serial 1**: system
+`2.39+niji20261127.1-1`, coexist `0.0~snapshot20261127.1+dbb8c346f932` (both `dpkg --compare-versions` gt 26.3's,
+checked). Branch = head + handoff/ only. Hosts as 1126C: builds in the shiki role `~/w/sh1`; counts/checks on keke
+(Zen 1) and mei (Skylake-SP). Job dirs `~/work/RELEASE-SNAPSHOT-1127A/` on all three; local copies of my scripts in
+the scratch dir `~/w/.scratch/RELEASE-SNAPSHOT-1127A/{mei,keke}/` (edit there, put with `put.sh <host> <dir> <file>`).
+libc.so.6 `7ebc2614c2e9462a` (26.3 `1e9123e44e15e601`), ld.so `b75237e0db57db1f` (26.3 `c1b0814f16ab99e3`).
 
-## Running (started 06:17Z, detached)
-* shiki `run-shiki.sh` (-> run-shiki.out): smoke-shiki-1 **done, SMOKE: RESULT bad=0**; then products.tgz/sha,
-  gate-1, debs-1 (+ debs.sha), plants-1, heapnode-1, in that order.
-* keke `run-keke2.sh`, mei `run-mei.sh`, `run-hdr.sh`, `run-extra.sh`: wait (poll) for `products.sha` and `debs.sha`
-  in their own `~/work/RELEASE-SNAPSHOT-1127A/` (sha256-checked), then start 1126C's job set with 1127a labels.
-  **They wait for a relay that is not automatic**: see next step 1.
-
-## New job scripts (installed, tested on 26.3's debs as the before picture)
-* mei `fp.sh`: names = 1126C's names.txt + the `stage2-gaps-i` probe family (the only family GAPS-H/I added).
-* mei `yb10.sh COEXIST SYSTEM` (step 4): every GAPS-H/GAPS-I row: compile rows and value rows (constants, sizeof,
-  offsetof from -S) vs stock 2.39; sched_attr family and __USE_TIME_BITS64 vs stock 2.41 (`x/r241`, relayed from
-  keke GAPS-H's excalibur root, x86-64 parts). TSPTYPES/RIPCMDS tables counted apart (GAPS-I's reported gaps).
-  On 26.3 (yb10-ref263-2): same=412 diff=332, exactly the GAPS-H/I names (aiocb64, comparison-fn, ftp-*, glob64*,
-  igmp, isbit, printf-h-stdarg, routed*, rwhod, sched-*, talkd, termio, time-bits64*, timed, uapi-then-sched 6,
-  sched-with-uapi 6). Expect diff=0 on 27.1; if uapi-then-sched / sched-with-uapi still DIFF, read the "stock error"
-  line (the 2.41 side compiles its own UAPI; libniji gets the same UAPI via -idirafter).
-* mei `gi.sh` (steps 5, 6): validation/fixincl_check.sh (this head's; prints whether equal to GAPS-I's) with
-  GCC-FIXINCLUDES-PROBE's gcc-14 build over the installed system tree (installed form and merged form), GAPS-I's
-  units.sh unit part (taken at run time), uuid2 (must show `uuid_time64@@UUID_2.40`). Not yet run.
-* mei `g14.sh` (step 7, gcc-14 part): libstdc++ config/locale/gnu/*.cc with the Aqours gcc-14 log's flags (cow:
-  gnu++98 + _GLIBCXX_USE_CXX11_ABI=0; cxx11: gnu++11), stock vs libniji; libgomp C units after a standalone libgomp
-  configure (extracts libgomp from the orig once). The Aqours log (/srv/aqours/logs/stage2/gcc-14_14.2.0-19.log.zst,
-  copied to g14/gcc14.log) stops in monetary_members_cow.cc on `__MON_DECIMAL_POINT`, `__MON_THOUSANDS_SEP`,
-  `__MON_GROUPING`, `__POSITIVE_SIGN`, `__NEGATIVE_SIGN`. Not yet run (untested: fix and rerun if it errors).
-* keke `units2.sh [SYSDEBDIR]` (step 6 extra units): fakechroot glob64.c, compiler-rt 19.1.7
-  sanitizer_platform_limits_posix.cpp (clang-19 and g++), nftables 1.1.3 src/proto.c (igmp); sources in
-  `u2/pkgs`. On 26.3 (units2-ref263-1): stock=0 for all 4, niji=1 (glob64_t members, struct termio, igmp members;
-  sanitizer also ax25_parms_struct, nr_parms_struct, ppp_stats incomplete).
+## Done (do not redo)
+* shiki: smoke-shiki-1 bad=0; gate-1 GATE bad=0; debs-1 DEBS bad=0 (check PASS 7+2 packages, check-symbols PASS 4492
+  lines, 14 libraries = 26.3); plants-1 **6 CAUGHT, 0 SURVIVED**, 0 WARN-RC-ONLY/NO-MSG (one WARN-DEV-SHM line: the dir
+  is /dev/shm on the Haswell-EP host; list it). heapnode-1 runs after plants (not yet read; 26.3: 6 passed / 1 FAILED
+  `find_over_200000_entries_bounds_its_address_space`).
+* Relay done: products + debs on keke and mei, sha256 -c at every hop.
+* keke: startup/kstart/rstart/startup215 done: **start-up unchanged from 26.3** (every libniji row equal: Zen 1 pie0
+  156,365/52, pie3 241,640/67, time 167,313/56; Skylake-SP 156,607/52, 241,897/67, 167,526/55; kstart/rstart user
+  side equal). gaimass-1 bad=0; install-1 `inst: RESULT fails=0`; stage-1: keke `~/release-staging/snapshot-20261127.1/`
+  9 debs + SHA256SUMS + MANIFEST; pkgdiff-1 file counts equal to 26.3 for all 9 packages; hdrdiff-1 (rc 1 by finding,
+  read: 25 headers changed size; removals are internal `__niji_*`/`__NIJI_D_*`/`__aligned__` names only, as GAPS-H/I).
+  units-1 rc 0 (GAPS-G's 15 units; verdict lines not yet read).
+* **smoke-keke-1 FAILED** (1 s, "a negative control does not build"; its log dir was later removed: gaimass.sh by design
+  re-extracts 27.1's then 26.3's products into tree/target and runs cargo there). smoke-keke-2 = SUPERSEDED (ran on
+  26.3's products left by gaimass). **smoke-keke-3** (re-extracts 27.1 products, sha-checked) **bad=0, selftest PASS**.
+  Report: single unexplained selftest failure, not reproduced (INFORMATIONAL).
+* keke units2-1 (step 6 extra units): fakechroot glob64 stock=0 niji=0 and nftables igmp 0/0 (both niji=1 on 26.3);
+  llvm-19 sanitizer_platform_limits_posix.cpp niji=1 (clang and g++): further header gaps (non-blocking): `<netax25/ax25.h>`
+  struct ax25_parms_struct, `<netrom/netrom.h>` struct nr_parms_struct, `<net/if_ppp.h>` struct ppp_stats incomplete and
+  PPPIOCGASYNCMAP undeclared. keke ppp.sh probe: both missing via `<net/if_ppp.h>` on 26.3 AND 27.1, stock has both ->
+  not a regression (26.3's unit log did not list PPPIOCGASYNCMAP; not chased).
+* mei gi-1 (steps 5, 6): **fixincl_check 0 rewritten** (installed form 242 headers, merged 331; GAPS-I reported 243),
+  units ok=89 fail=3 = c_locale.cc gcc/clang on libniji AND on the host libc (harness, as GAPS-I's report), uuid
+  `uuid_time64@@UUID_2.40` yes.
+* mei yb9-1: same=28 diff=20, all DIFF = sched-attr/sched-setattr vs 2.39 (expected: recorded difference).
+* **yb10 fixed** (my leg-1 probe was wrong; yb10-1 and yb10-ref263-1/-2 SUPERSEDED): x/r241's asm/ was 66 dangling
+  symlinks into `lib/linux/uapi/x86/asm` (relayed now from keke excal/usr/lib/...; mei `x/r241/lib/`); value rows with
+  both sides failing now count as both-fail SAME; sizeof(time_t) dropped for features.h/stdio.h (no time_t there).
+  **yb10-2 (27.1): same=708 diff=36** (both-fail 114; gaps TSPTYPES/RIPCMDS diff=24, counted apart); yb10-ref263-3
+  (26.3): same=418 diff=326. Every sched_attr / __USE_TIME_BITS64 row (ref 241) now SAME.
+* g14-1 SUPERSEDED (shell precedence bug `A && B || C && D` in the verdict: both-0 rows printed DIFF). g14.sh fixed,
+  **g14-2 started** (not read).
 
 ## Exact next steps
-1. `~/bin/jobwait` shiki gate-1 / debs-1 as they come (products.tgz appears right after smoke). Relay with
-   `bash ~/w/.scratch/RELEASE-SNAPSHOT-1127A/put.sh --get shiki '~/work/RELEASE-SNAPSHOT-1127A/<f>' <localdir>/` then
-   `put.sh <keke|mei> '~/work/RELEASE-SNAPSHOT-1127A' <files>`, `sha256sum -c` at every hop: first products.tgz,
-   products.sha, products-so.sha; later `debs/system/*.deb`, `debs/coexist/*.deb` into `debs/` plus debs.sha (put
-   the debs dir with rsync -a so debs/system and debs/coexist keep their names; the waiters check `cd debs &&
-   sha256sum -c ../debs.sha`). Put debs.sha LAST (it is the trigger).
-2. After the debs reach mei: start (setsid nohup ~/bin/jobrun ... </dev/null, `-n` ssh with `timeout 15`, see
-   below) `release-snapshot-1127a-yb10-1 test -- sh $W/yb10.sh $W/debs/coexist $W/debs/system`,
-   `-gi-1 test -- bash $W/gi.sh`, `-g14-1 test -- bash $W/g14.sh`, `-yb9-1 test -- sh $W/yb9.sh C Y` (yb9's
-   sched rows compare with 2.39 and are expected DIFF = the recorded difference; yb10 holds the 2.41 verdict).
-   On keke: `-units2-1 test -- bash $W/units2.sh`.
-3. Step 7: mei ybuild-1 (in run-extra) builds util-linux and inetutils (blocking): read its verdicts.
-4. cmp13 on mei: cmp12.sh with the mask widened (`202611(2[0-7])`, `dbb8c346f|0f7aa0180|...` in the HEAD
-   alternation, `112[0-7]`), both job lists as cmp12-a/-b.
-5. Steps 8-10 as 1126C (startup numbers vs 26.3, lint, docs grep, stage on keke `~/release-staging/snapshot-20261127.1/`).
-6. Report (this file, rewritten), handoff/reports/RELEASE-SNAPSHOT-1127A.json, precheck on shiki, handback-check.
+1. yb10-2's 36 DIFF (read `~/logs/release-snapshot-1127a-yb10-2.log`, the `values` / `error` lines under each DIFF):
+   ftp-tables gcc (both flavours, 3 modes) values differ; talkd gcc+g++ values differ; rwhod g++ and timed-members
+   gcc+g++: stock 2.39 FAILS, libniji compiles (read the stock error: a probe body defect, or libniji wider than stock?).
+   Decide per class: probe defect (fix yb10, rerun as yb10-3) or a real finding (step 4 is blocking: report it).
+2. jobwait mei g14-2; read RESULT and the first libniji-only stop (step 7 gcc-14 part, non-blocking).
+3. mei main job set still running/queued (ybuild-1 = util-linux/inetutils, blocking; ystage2-niji perl; ~20 more).
+   When done: `sh ~/work/RELEASE-SNAPSHOT-1127A/cmp13.sh $(cat cmp13-a.list)` and `... $(cat cmp13-b.list)` (cmp13 =
+   cmp12 mask widened to 27.x/0f7aa0180/-ref26x; X-ref263 compared with 1126C's X) -> masked diffs vs 26.3. Also fp-1,
+   hp*, hp4 (14 syslog-names-alone DIFF as 26.3), yb6/yb7/yb8 verdicts, exp-1, gai6-1/gai6s-1.
+4. ybuild-1: util-linux and inetutils must build (stock 43 / 24 debs).
+5. Read shiki heapnode-1, keke units-1 verdicts. Then report (rewrite this file), handoff/reports/RELEASE-SNAPSHOT-1127A.json
+   (`jobs` + `evidence_jobs_rc_nonzero_by_finding` as 1126C), precheck on shiki (sync first), handback-check.
+6. Note for the report: I ran `sed -i` on a remote data list (cmp13-b.list, -ref262 -> -ref263) before noticing the
+   no-`sed -i` rule; say so.
 
-## Notes
-* ssh: a detached start over plain ssh kept the session open (shiki); use `timeout 15 ssh -n '... (setsid nohup X
-  > out 2>&1 < /dev/null &)'`.
-* Jobs so far: shiki smoke-shiki-1 (rc 0). Evidence/debug (26.3 debs): mei yb10-ref263-1 (superseded: sh variable
-  clobbering in my probe(), fixed), yb10-ref263-2; keke units2-ref263-1.
+## Jobs so far (27.1 build)
+shiki: smoke-shiki-1, gate-1, debs-1, plants-1 (heapnode-1 pending). keke: smoke-keke-3, startup-keke-1, kstart-keke-1,
+rstart-keke-1, startup215-keke-1, gaimass-1, units-1, units2-1, pkgdiff-1, stage-1, install-1, hdrdiff-1 (evidence).
+mei: yb10-2, yb9-1 (evidence), gi-1, g14-2 (pending), + the main set. SUPERSEDED: keke smoke-keke-1 (unexplained
+selftest fail), smoke-keke-2 (wrong products); mei yb10-1, yb10-ref263-1/-2 (probe defects), g14-1 (verdict bug);
+keke units2-ref263-1 and mei yb10-ref263-3 are 26.3 before-pictures (evidence).
