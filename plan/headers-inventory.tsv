@@ -176,7 +176,7 @@ bits/time64.h	multiarch	both	internal	-	0	-	reference's internal split: not repr
 bits/timerfd.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
 bits/timesize.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
 bits/timex.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
-bits/types.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types.h	multiarch	both	public	0	0	5	the reference's internal header with its 63 __ typedefs, shipped because configure probes include it directly (openldap, psmisc; HEADERS-STAGE2-GAPS-M L7)
 bits/types/FILE.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
 bits/types/__FILE.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
 bits/types/__fpos64_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
