@@ -58,6 +58,22 @@ extern char **__environ;
 char **niji_gl_env (void) { return __environ; }
 """
 
+# headers/nested-tags.tsv: in C++ the tags of struct icmp's and struct ip6_hdr's union members are nested (the
+# reference's g++ shows none at namespace scope), so a program's own struct of the same tag after the header is a new
+# type, and from C++11 the nested one is named through the member's type.
+NESTED = {"netinet/ip_icmp.h": (("icmp", "icmp_hun", "ih_idseq", 4), ("icmp", "icmp_hun", "ih_pmtu", 4),
+                                ("icmp", "icmp_hun", "ih_rtradv", 4)),
+          "netinet/ip6.h": (("ip6_hdr", "ip6_ctlun", "ip6_hdrctl", 8),)}
+
+
+def _nested(h, cid):
+    body = f"#include <{h}>\n"
+    for i, (outer, member, tag, size) in enumerate(NESTED[h]):
+        body += f"struct {tag} {{ char niji[3]; }};\ntypedef char niji_gl_nt{i}[sizeof (struct {tag}) == 3 ? 1 : -1];\n"
+        if cid != "cxx98":
+            body += f"static_assert (sizeof (decltype ({outer}::{member})::{tag}) == {size}, \"{tag}\");\n"
+    return body
+
 
 def units(ctx):
     """No spec clause beyond the reference's headers (HEADERS-STAGE2-GAPS-L; Yohane R-H7 on snapshot 27.2: gcc-14's
@@ -65,10 +81,12 @@ def units(ctx):
     (1) <math.h> in C++ defines the classification and comparison macros, libstdc++'s configure tests compile;
     (2) the PA_* argument types of <printf.h>: values, combinations with PA_FLAG_*, no macros, one unnamed enumeration;
     (3) __environ after <unistd.h>; (4) TTYDEF_{C,I,L,O}FLAG: the value where the header shows the flag names, and
-    otherwise the flag names' spelling (a program's own definitions of the names, after the header, give the value).
+    otherwise the flag names' spelling (a program's own definitions of the names, after the header, give the value);
+    (5) C++: the union members' tags of struct icmp and struct ip6_hdr are nested, not at namespace scope.
     Defects: the math macros hidden from C++ (configure then disables C99 math in libstdc++), a PA_* value off or a
     macro, __environ undeclared or declared with another type, TTYDEF_* evaluable where the reference's is not (a
-    number) or spelled with other names."""
+    number) or spelled with other names, a nested tag at namespace scope (a program's own struct of that tag is a
+    redefinition)."""
     shown = {}
     for r in ctx.vis:
         shown.setdefault((r["header"], r["name"]), set()).update(expand(r["configs"], ctx.ids))
@@ -81,6 +99,9 @@ def units(ctx):
     out += [(cid, "GAPS-L printf.h PA types", PA_UNIT) for cid in pick if cid in shown.get(("printf.h", "PA_INT"), ())]
     out += [(cid, "GAPS-L printf.h PA enum", PA_CXX) for cid in ("cxx98", "cxx17") if cid in shown.get(("printf.h", "PA_INT"), ())]
     out += [(cid, "GAPS-L unistd.h __environ", ENVIRON) for cid in pick if cid in shown.get(("unistd.h", "__environ"), ())]
+    for h, rows in NESTED.items():
+        out += [(cid, f"GAPS-L C++ nested tags {h}", _nested(h, cid)) for cid in cxx
+                if cid in shown.get((h, rows[0][0]), ())]
     for h in TTY_HEADERS:
         for cid in ("c17", "xopen700", "gnu17", "cxx17"):
             body = ""
