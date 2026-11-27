@@ -9,6 +9,7 @@
 
 __NIJI_BEGIN_C
 
+@@owns SIOCAIPXPRISLT SIOCIPXCFGDATA SIOCIPXNCPCONN
 @@emit
 
 /* The IPX ioctl requests count from SIOCPROTOPRIVATE, which this header does not define: a program takes it from
