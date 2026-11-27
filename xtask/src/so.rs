@@ -1318,6 +1318,67 @@ impl Drop for EarlyBuilds {
     }
 }
 
+/// The data products: the charmaps, the locale charmaps and the locale sources, which read the source tree and no
+/// built product. PIPELINE-TEST-TIME-1127: they were written one after the other after the last library build
+/// (15-29 s on the Zen 1 build host, 48 CPUs, `cargo run -p niji-charmaps` and `gzip -9n` per file among them), on
+/// the build's critical path; now a thread writes them from the start, beside the library builds, and
+/// [`EarlyData::wait`] joins it before the placement check, so every later step sees the same files as before.
+/// Dropping this waits for the thread, so none outlives `run_so_as`, on an error path too.
+struct EarlyData(Option<std::thread::JoinHandle<Result<Vec<String>, String>>>);
+
+impl EarlyData {
+    fn start(root: &Path, release: &Path) -> EarlyData {
+        let (root, release) = (root.to_path_buf(), release.to_path_buf());
+        EarlyData(Some(std::thread::spawn(move || {
+            let started = std::time::Instant::now();
+            let r = write_data_products(&root, &release);
+            // Beside the library builds, so these seconds overlap the other phases' (named `early-` for that).
+            println!("{}", phase_line("early-data", started.elapsed()));
+            r
+        })))
+    }
+
+    /// The data products' lines for the log, once they are all written; the first error otherwise.
+    fn wait(mut self) -> Result<Vec<String>, String> {
+        match self.0.take().map(std::thread::JoinHandle::join) {
+            Some(Ok(r)) => r,
+            Some(Err(_)) => Err("so: the thread writing the charmaps and locale sources panicked".into()),
+            None => Ok(Vec::new()),
+        }
+    }
+}
+
+impl Drop for EarlyData {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+/// Write the data products into `release`; returns the log line of each.
+fn write_data_products(root: &Path, release: &Path) -> Result<Vec<String>, String> {
+    let mut lines = Vec::new();
+    // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
+    // packages install for iconv_open (D-6.8's directory).
+    let n = crate::charmaps::write(root, &release.join("charmaps"))?;
+    lines.push(format!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)"));
+    // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
+    let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
+    lines.push(format!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)"));
+    // LOCALE-SOURCES-GEN (D-31.27): the locale sources generated from Unicode CLDR, which
+    // `locales` ships in /usr/share/i18n/locales. Written afresh, so a name the generator no
+    // longer writes leaves no stale product behind.
+    let sources = release.join("locale-sources");
+    match std::fs::remove_dir_all(&sources) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", sources.display())),
+        _ => {}
+    }
+    let n = crate::locales::write(root, &sources)?;
+    lines.push(format!("so: target/niji/locale-sources ({n} locale sources from Unicode CLDR {})", crate::locales::CLDR));
+    Ok(lines)
+}
+
 /// `cargo xtask so`: the products with the test profile (see `Profile::for_tests`).
 pub fn run_so(root: &Path) -> Result<(), String> {
     run_so_as(root, Profile::for_tests())
@@ -2111,6 +2172,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         return Ok(());
     }
     let early = EarlyBuilds::start(root, &product, profile);
+    let data = EarlyData::start(root, &release);
     // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
     crate::headers::stage(root, &release)?;
     phases.mark("headers-gen");
@@ -2316,23 +2378,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_iconv(root, &cc, &cdebug)?;
     run_ldd(root, &cc, &release, &cdebug)?;
     phases.mark("utilities");
-    // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
-    // packages install for iconv_open (D-6.8's directory).
-    let n = crate::charmaps::write(root, &release.join("charmaps"))?;
-    println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
-    // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
-    let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
-    println!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)");
-    // LOCALE-SOURCES-GEN (D-31.27): the locale sources generated from Unicode CLDR, which
-    // `locales` ships in /usr/share/i18n/locales. Written afresh, so a name the generator no
-    // longer writes leaves no stale product behind.
-    let sources = release.join("locale-sources");
-    match std::fs::remove_dir_all(&sources) {
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", sources.display())),
-        _ => {}
+    // The data products, written beside the builds since the start ([`EarlyData`]); their lines print here, in order.
+    for line in data.wait()? {
+        println!("{line}");
     }
-    let n = crate::locales::write(root, &sources)?;
-    println!("so: target/niji/locale-sources ({n} locale sources from Unicode CLDR {})", crate::locales::CLDR);
     check_placement(root, &release)?;
     phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
