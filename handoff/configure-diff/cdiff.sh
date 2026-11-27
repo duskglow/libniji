@@ -18,7 +18,10 @@ R=$(cd "$R" && pwd)
 export TMPDIR=$R/tmp
 cp "$H/inside.sh" "$H/cfgrules.sh" "$R/stage/y/"
 cp "$D"/libc6_*.deb "$D"/libc-bin_*.deb "$D"/libc6-dev_*.deb "$D"/libc-dev-bin_*.deb "$R/stage/y/debs/" || exit 1
-chmod -R a+rX "$R/stage"; chmod 0755 "$R/stage/y/cfgrules.sh"
+# The unshared root cannot read a keyring under a private home: use a readable copy (as RELEASE-SNAPSHOT-1127B).
+cp "$K" "$R/stage/keyring.gpg" || exit 1
+K=$R/stage/keyring.gpg
+chmod -R a+rX "$R/stage"; chmod 0755 "$R" "$R/stage/y/cfgrules.sh"
 ls "$R/stage/y/debs" | sed 's/^/cdiff: libniji deb /'
 if [ ! -s "$R/base.tar" ]; then
     mmdebstrap --mode=unshare --variant=apt --keyring="$K" \

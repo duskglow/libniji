@@ -47,6 +47,8 @@ def config_log(dirn, text, out):
     for line in text.splitlines():
         if line.startswith("## ") and line.rstrip().endswith("##"):
             t = line.strip("# \n")
+            if not t.strip("-"):
+                continue  # the dashed rule around a section title
             sect = {"Cache variables.": "ac", "Output variables.": "acout"}.get(t)
             continue
         if sect is None or line.startswith("##"):

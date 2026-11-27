@@ -7,7 +7,8 @@
 # runs again as "niji". After each run the files that carry probe answers (config.log, generated headers, perl's
 # config.sh, meson-log.txt, CMakeCache.txt) are tarred to /tmp/out/<side>.tar for extract.py.
 # The configure step is the Debian build's own (cfgrules.sh under dpkg-buildpackage -T, see there).
-# Special case gcc-14: libstdc++-v3's configure runs standalone with the system g++ (stage-1 libstdc++ probes).
+# Special case gcc-14: libstdc++-v3's configure runs standalone with the system g++ under -nostdinc++, so <math.h>
+# and friends are the C library's own headers, as in gcc's build where libstdc++'s wrappers are not installed yet.
 set -u
 P=$1
 V=$2
@@ -51,7 +52,7 @@ side() {
         mkdir -p /tmp/w/libstdc++-build; W=/tmp/w/libstdc++-build
         touch /tmp/stamp; sleep 1
         (cd "$W" && timeout 1500 "$G/libstdc++-v3/configure" --build=x86_64-linux-gnu --host=x86_64-linux-gnu \
-            --disable-multilib --enable-languages=c++ CC=gcc-14 CXX=g++-14 > "$O/cfg-$s.log" 2>&1)
+            --disable-multilib --enable-languages=c++ CC=gcc-14 CXX="g++-14 -nostdinc++" > "$O/cfg-$s.log" 2>&1)
         r=$?
     else
         cp -a "/tmp/src/$D" /tmp/w/; W=/tmp/w/$D
