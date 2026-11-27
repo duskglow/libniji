@@ -984,7 +984,7 @@ extern long double truncl (long double) __NIJI_NOTHROW __attribute__ ((__const__
 #if __NIJI_ISOC >= 2023
 # ifndef __NIJI_D___iscanonicall
 #  define __NIJI_D___iscanonicall 1
-extern int __iscanonicall (long double) __NIJI_NOTHROW;
+extern int __iscanonicall (long double) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_canonicalize
 #  define __NIJI_D_canonicalize 1
