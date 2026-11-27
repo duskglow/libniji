@@ -1,64 +1,43 @@
-# HEADERS-STAGE2-GAPS-K: handoff (run 1, end of leg 1: findings and plan, no code yet)
+# HEADERS-STAGE2-GAPS-K: handoff (run 1, end of leg 2: code done, probes run; proof jobs next)
 
-Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Role shiki:~/w/sh1 (Skylake-SP class,
-no clang there; clang-19 and the llvm-19 source are on keke: ~/work/RELEASE-SNAPSHOT-1127A/u2/pkgs/compiler-rt/...,
-J's proof script keke ~/work/headers-stage2-gaps-j/pf1.sh builds the system-flavour debs and compiles the unit).
-Job scripts and outputs: shiki ~/work/headers-stage2-gaps-k/ (p1.sh probe, j1.sh runner: `j1.sh TAG` runs p1.sh on
-stock, libc-include and target/niji/include if built, then form.py; outputs TAG-stock.out, TAG-niji.out, TAG-form.diff).
-Local copies of the scripts: the run's scratch dir (.scratch/HEADERS-STAGE2-GAPS-K/).
+Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Role shiki:~/w/sh1 (Skylake-SP class, no
+clang; clang-19 and the llvm-19 source on keke: ~/work/RELEASE-SNAPSHOT-1127A/u2/pkgs/compiler-rt/..., J's proof
+script keke ~/work/headers-stage2-gaps-j/pf1.sh builds the system-flavour debs and compiles the unit).
+Job scripts and outputs: shiki ~/work/headers-stage2-gaps-k/ (p1.sh/j1.sh probes + form.py; p2.sh/j2.sh pair probes;
+kt.py kernel UAPI text of names; r1.sh TAG = headers-gen + j1 + j2). Local copies: the run's scratch dir.
 
-## Probe-settled (job headers-stage2-gaps-k-probe1, stock 2.39 vs libc-include at 16e03637e; C and C++)
-* `<netipx/ipx.h>`: stock defines SIOCAIPXITFCRT, SIOCAIPXPRISLT, SIOCIPXCFGDATA, SIOCIPXNCPCONN as
-  SIOCPROTOPRIVATE plus 0, 1, 2, 3, the expansion parenthesised (own `#define SIOCPROTOPRIVATE 1000` gives 1000+n,
-  `2*X` gives 2*(1000+n)), type int, values 35296..35299 after `<sys/ioctl.h>` (either order), not usable with the
-  header alone (SIOCPROTOPRIVATE not declared: same as libniji's AX.25 ones), defined outright (an earlier program
-  definition is replaced). Same form as headers/netax25/ax25.h.in's `@@if SIOCAX25GETUID` block: copy that pattern.
-  Stock also defines `sipx_special` (outright); libniji does not. NEXT: probe what it aliases (offsetof/sizeof of
-  `.sipx_special` in struct sockaddr_ipx against each member) and emit it like ax25's `sax25_uid` block.
-  IPX_MAX_PPROP_HOPS: equal on both sides (not defined). Include closure: stock ipx.h -> sys/types.h, stdint.h,
-  bits/sockaddr.h; libniji -> features.h, sys/types.h, stdint.h (equal in effect).
-  The rows also need visibility.tsv rows (netipx/ipx.h, macro, !time64only like the ax25 ones) and the
-  header_probe.d/radio.py note ("Not candidates: SIOCAIPX*, SIOCIPX*") updated.
-* `PPPIOC*` / `<net/if_ppp.h>`: stock's 18 PPPIOC* are not usable in `#if` and an earlier program definition is
-  replaced (libniji: literals under `#ifndef`). With the kernel's `<linux/ppp-ioctl.h>` (or `<linux/if_ppp.h>` +
-  `<linux/ppp_defs.h>`) in the same unit, either order, `-Wsystem-headers -Werror`: stock warns for SC_MASK only;
-  libniji warns for 46 names (PPPIOC*, SC_*, SIOCGPPPSTATS/VER/CSTATS) when net/if_ppp.h comes first, none when the
-  kernel's comes first (#ifndef). So stock spells every shared name except SC_MASK token-identically to the kernel's
-  UAPI header (stock net/if_ppp.h includes, depth 2: sys/types.h, stdint.h, net/if.h, sys/ioctl.h, net/ppp_defs.h;
-  not the kernel ppp header directly).
-* FORM-DIFF class (form.py on libc-include, job probe1; `#if` usable in libniji only), the ioctl requests: 18
-  PPPIOC* (<net/if_ppp.h>), BLKBSZGET BLKBSZSET BLKGETSIZE64 (<sys/mount.h>), MTIOCGET MTIOCGETCONFIG MTIOCPOS
-  MTIOCSETCONFIG MTIOCTOP (<sys/mtio.h>): 26 macros. No other ioctl-like name in the other FORM-DIFF groups.
-  Summary line: 9488 macros, 14962 pairs, 274 pairs differ (534 #if, 73 defined one side, 1158 expression one side).
-* termios: `<termios.h>` + `<sys/ioctl.h>`, `-Wsystem-headers -Werror`: stock clean both orders; libniji
-  termios-first: TIOCSER_TEMT and TTYDEF_SPEED redefined; ioctl-first: TTYDEF_SPEED. Cause: libniji spells
-  TTYDEF_SPEED `B9600` in termios.h/pty.h/termio.h (macro-aliases.tsv rows) but `13` in sys/ioctl.h,
-  sys/ttydefaults.h, sgtty.h (no alias row: B9600 not visible there); TIOCSER_TEMT `1` (kernel-spelled.tsv name; the
-  kernel's asm-generic/ioctls.h, included by sys/ioctl.h, defines it in its own spelling). Stock: TTYDEF_* with
-  `<sys/ioctl.h>` alone have no value (their expansion names termios constants: form.py audit group E1), stock
-  termios.h includes bits/termios.h and sys/ttydefaults.h. TTYDEF_IFLAG/OFLAG/LFLAG/CFLAG are literal on every
-  libniji header (no warning; E1 difference stays report mode).
+## Done (commits 60f848637, then "Own the IPX requests")
+* New table `spec/abi/macro-spellings.tsv` (name, spelling, source; 109 rows; table_keys.tsv line): the generator
+  (xtask/src/headers.rs `spellings`, `macro_def`, `redefined`) emits the spelling in every header that shows the
+  name, outright where macro-forms says so, kernel-spelled.tsv notwithstanding. Rows: 45 PPP names of
+  linux/ppp-ioctl.h (all shared but SC_MASK), 10 linux/fs.h names (BLK*, BLOCK_SIZE, SYNC_FILE_RANGE_WRITE_AND_WAIT),
+  49 linux/mtio.h names, TIOCSER_TEMT `0x01`; source `-`: MTIOCGETCONFIG/SETCONFIG `_IOR/_IOW('m', 4/5, struct
+  mtconfiginfo)`, SC_MASK `266403839` (outright, as stock: redefinition with the kernel's either order),
+  TTYDEF_SPEED `B9600` everywhere. Kernel texts from shiki /usr/include (kt.py; = what probes use).
+* `<netipx/ipx.h>`: the four (SIOCPROTOPRIVATE+n) requests, `sipx_special` -> `sipx_port` (probe: offset 2 size 2),
+  `@@owns`, 5 visibility rows (!time64only), probe candidates header_probe.d/stage2-gaps-k.py, radio.py note.
+* header_checks/s13.d/60-stage2-gaps-k.py: pairs both orders (termios/termio/pty/sgtty/ttydefaults with sys/ioctl.h
+  or termios.h, termios+asm/ioctls.h, if_ppp+linux/ppp-ioctl.h with SC_MASK undefined between, ipx+sys/ioctl.h),
+  kernel respelling per header for every source!=`-` row, IPX values/parenthesis/sipx_special, TTYDEF_SPEED==B9600;
+  `p1_skip` TTYDEF_SPEED in the 8 headers not showing B9600. form.py ENFORCED: the 26 ioctl requests.
 
-## Plan (leg 2)
-1. Generator: a way to emit a macro in the kernel UAPI header's spelling (kernel docs/UAPI headers are an allowed
-   source; libniji ships them at target/niji/uapi). Proposed: new generator input `spec/abi/macro-spellings.tsv`
-   (header, name, spelling) read like macro-values.tsv (xtask/src/headers.rs `header_values`, values.rs `macro_row`
-   / `value()`), emitted outright (not under #ifndef) where stock replaces an earlier definition; rows for the 26
-   request macros (spelled `_IOR('t', 90, int)` etc., the kernel's own text: check each header then has `_IOR`
-   visible, i.e. includes sys/ioctl.h -> asm/ioctl.h), the SC_* and SIOCGPPP* shared names of net/if_ppp.h (all but
-   SC_MASK), TIOCSER_TEMT (kernel spelling) in termios.h/pty.h/termio.h/sgtty.h/sys/ioctl.h. Check rows.rs (the rows
-   test reads header_values) and dup_values.py / kernel_spelled.py interplay. A simpler alternative if it fits: keep
-   these under the kernel's own definition by including the kernel header (NOT stock's closure: rejected).
-2. TTYDEF_SPEED: one spelling everywhere (`B9600` where stock's has no value alone; macro-aliases.tsv rows for
-   sys/ioctl.h, sys/ttydefaults.h, sgtty.h if the generator allows an alias not visible in the header).
-3. IPX: template block + sipx_special + visibility rows.
-4. header_check module spec/tools/header_checks/s13.d/60-stage2-gaps-k.py (pattern: 50-stage2-gaps-j.py): the
-   termios+ioctl pair both orders; net/if_ppp.h with linux/ppp-ioctl.h both orders (no redefinition but SC_MASK?
-   check how P5 handles -Wsystem-headers); IPX values after sys/ioctl.h; PPPIOC*/BLK*/MTIOC* not in `#if`.
-   Form enforcement: add the 26 pairs to form.py ENFORCED.
-5. Regenerate (cargo xtask headers-gen; spec/tools/kernel_spelled.py after `cargo xtask so`), rerun j1.sh -> 0
-   DIFF; plants (docs/plants.md format) ; affected gate (expect FULL escalation: changed crates' tests); llvm-19 unit
-   on keke (pf1.sh pattern, clang-19 and g++).
+## Probe results on the regenerated libc-include (job headers-stage2-gaps-k-gen2, tag k2)
+* form.py: 274 -> 245 differing pairs; 0 FORM-DIFF lines for PPPIOC*/BLK*/MTIOC*.
+* p2 (pairs, -Wsystem-headers): 0 DIFF except `asm/termbits.h + termios.h` (stock: 111/78 redefinitions; libniji
+  fails with another diagnostic in that order: both reject the unit; pre-existing, not in scope -> INFORMATIONAL).
+* p1: 28 lines left, all TTYDEF_IFLAG/OFLAG/LFLAG/CFLAG with `<sys/ioctl.h>` alone (stock: no value; libniji
+  literal): form.py audit group E1, pre-existing report mode -> INFORMATIONAL (not this brief's redefinition item).
+  IPX, PPP, termios pair items: 0 DIFF.
+* kernel-spelled.tsv NOT regenerated (needs `cargo xtask so` for target/niji/uapi; the redefined() override makes
+  it unnecessary; optional: after the gate's build run `python3 spec/tools/kernel_spelled.py` and commit if changed).
 
-## Jobs so far
-shiki: headers-stage2-gaps-k-probe1 (findings above; base tree, not a proof of the final head).
+## Next step (leg 3)
+1. On shiki sh1 (synced): `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask
+   static` (headers-gen --check runs there), `python3 spec/tools/header_check.py` slice 13 (or the affected tests).
+2. Plants in docs/plants.md (format `id | path | pattern | cmd | msg:`): e.g. a TIOCSER_TEMT row spelled `1`, a PPP
+   row text changed (`_IOR('t', 90, int)` -> `_IOR('t',90,int)` is NOT a plant: same tokens; use another nr), the
+   IPX `+2` -> `+3`, sipx_special -> sipx_family, redefined() override removed. cmd: the header_check / affected run.
+3. Gate: `cargo xtask affected --list` (expect FULL escalation for xtask/spec changes: then precheck + changed
+   crates' tests, kind test); plants job; then llvm-19 sanitizer unit on keke (pf1.sh pattern), clang-19 and g++.
+4. precheck --jobs, report json, handback-check.
+Jobs so far (shiki): headers-stage2-gaps-k-probe1, -probe2 (base tree), -gen1 (failed: owns), -gen2 (k2 probes).
