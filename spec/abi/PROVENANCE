@@ -13,7 +13,7 @@ versions.tsv: 4818 versioned symbol rows, 14 libraries, 40 version nodes
 empty-versions.tsv: 3 version definitions no exported symbol carries
 libm-ulps.tsv: 284 rows, 73 functions
 ftm-configs.tsv: 40 configurations
-visibility.tsv: 82626 rows, 240 headers, 14548 names
+visibility.tsv: 82631 rows, 240 headers, 14553 names
 callsites.tsv: 7923 call-site rows, 3799 functions
 noexcept.tsv: 3798 rows
 diagattrs.tsv: 1023 functions
