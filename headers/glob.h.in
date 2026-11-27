@@ -16,23 +16,9 @@ struct dirent;
 struct dirent64;
 struct stat;
 struct stat64;
-# define __NIJI_GLOB_DIRENT struct dirent
-# define __NIJI_GLOB_DIRENT64 struct dirent64
-# define __NIJI_GLOB_STAT struct stat
-# define __NIJI_GLOB_STAT64 struct stat64
-#else
-# define __NIJI_GLOB_DIRENT void
-# define __NIJI_GLOB_DIRENT64 void
-# define __NIJI_GLOB_STAT void
-# define __NIJI_GLOB_STAT64 void
 #endif
 
 @@emit
-
-#undef __NIJI_GLOB_DIRENT
-#undef __NIJI_GLOB_DIRENT64
-#undef __NIJI_GLOB_STAT
-#undef __NIJI_GLOB_STAT64
 
 __NIJI_END_C
 

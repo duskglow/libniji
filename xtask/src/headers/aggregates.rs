@@ -172,6 +172,17 @@ impl Gen<'_> {
         if mt.starts_with("fn(") && mt.trim_end().ends_with('*') {
             // headers/fnmembers.tsv spells the type of the members whose signature a standard or man page gives.
             let decl = self.t.fnmembers.get(&(key.to_string(), r["member"].clone())).map_or(format!("void (*{name}) (void)"), |d| d.replace('@', name));
+            // `GNU-DECL ;; OTHER-DECL`: the first with _GNU_SOURCE, the second otherwise. The tags the GNU form names are
+            // declared incomplete by the header's template (glob.h.in), so no dependency is pulled in for them.
+            if let Some((gnu, other)) = decl.split_once(";;") {
+                lv.lines.push("# ifdef __USE_GNU".into());
+                lv.lines.push(format!("  {};", gnu.trim()));
+                lv.lines.push("# else".into());
+                lv.lines.push(format!("  {};", other.trim()));
+                lv.lines.push("# endif".into());
+                lv.add(off, Some(8), Some(8));
+                return Some(());
+            }
             // The tags and typedefs the declarator names are declared first.
             let words: Vec<&str> = decl.split(|c: char| !(c.is_alphanumeric() || c == '_')).filter(|w| !w.is_empty()).collect();
             for (i, w) in words.iter().enumerate() {

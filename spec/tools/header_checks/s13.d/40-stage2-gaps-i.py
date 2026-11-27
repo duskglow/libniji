@@ -49,6 +49,7 @@ int niji_talk_use (CTL_MSG *m, const CTL_RESPONSE *r, const char *who)
 typedef char niji_talk_sizes[sizeof (((CTL_MSG *) 0)->l_name) == NAME_SIZE && sizeof (((CTL_MSG *) 0)->r_tty) == TTY_SIZE ? 1 : -1];
 """),
     ("protocols/timed.h", "tsp_time", """#include <protocols/timed.h>
+#include <stddef.h>
 long niji_tsp_use (struct tsp *t)
 {
   t->tsp_type = TSP_LOOP;
@@ -78,6 +79,34 @@ static int niji_cmp (const void *a, const void *b) { return *(const int *) a - *
 void niji_sort (int *v, size_t n) { comparison_fn_t f = niji_cmp; qsort (v, n, sizeof *v, f); }
 """),
 ]
+# Item 1's form (gcc 14's fixincludes leaves a header alone that already has it), black-box probed against the
+# reference: va_list is the compiler's __gnuc_va_list, requested through <stdarg.h>; the header defines
+# _VA_LIST_DEFINED, and a program's own earlier definition of it suppresses the typedef (then `typedef int va_list`
+# is the program's to make); <printf.h> gives the whole <stdarg.h>; size_t comes from the compiler's <stddef.h>
+# (gcc's and clang's both define _SIZE_T for it).
+VA_FORM = """#include <{h}>
+#ifndef _VA_LIST_DEFINED
+# error "_VA_LIST_DEFINED not defined"
+#endif
+__gnuc_va_list *niji_va_form = (va_list *) 0;
+"""
+VA_PREDEFINED = """#define _VA_LIST_DEFINED
+#include <{h}>
+typedef int va_list;
+"""
+PRINTF_STDARG = """#include <printf.h>
+int niji_printf_va (int n, ...) { va_list a; va_start (a, n); int r = va_arg (a, int); va_end (a); return r; }
+"""
+SIZE_FORM = """#include <{h}>
+#ifndef _SIZE_T
+# error "size_t not from the compiler's <stddef.h>"
+#endif
+size_t niji_size_form;
+"""
+USES += [(h, "va_list", VA_FORM.format(h=h), "form ") for h in ("stdio.h", "wchar.h")]
+USES += [(h, "va_list", VA_PREDEFINED.format(h=h), "predefined ") for h in ("stdio.h", "wchar.h")]
+USES += [("printf.h", "va_list", PRINTF_STDARG, "stdarg ")]
+USES += [(h, "size_t", SIZE_FORM.format(h=h), "form ") for h in ("stdlib.h", "unistd.h", "sys/types.h")]
 
 
 def offsets(ctx, key):
@@ -100,7 +129,8 @@ def units(ctx):
     glob64.c, nftables' igmp, llvm-19's sanitizer, inetutils' talk and talkd, systemd's sort-util.h): (1) in each
     configuration where visibility.tsv shows the type in the header, `__builtin_offsetof` of every member layouts.tsv
     records (the shared P1 check has size and alignment only); (2) glob_t's and glob64_t's GLOB_ALTDIRFUNC callbacks
-    have the probed types (typed with _GNU_SOURCE and in C++, `void *` elsewhere); (3) a use in each consumer's shape.
+    have the probed types (typed with _GNU_SOURCE and in C++, `void *` elsewhere); (3) a use in each consumer's shape,
+    and the compiler-provided va_list and size_t forms of item 1 (gcc's fixincludes, libgomp, libstdc++'s configure).
     Defects: an opaque or reordered member, a callback typed as `void (*) (void)` (an incompatible-pointer error in
     gcc 14), a member-name macro of a union missing, struct termio only through <termio.h>."""
     lang = {c["id"]: c["language"] for c in ctx.cfgs}
@@ -126,10 +156,10 @@ def units(ctx):
                      same(m + "gl_stat", f"int (*) (const char *, {s} *)")]
             body = "#include <glob.h>\n" + "".join(f"typedef char niji_gi_glob_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             out.append((cid, f"GAPS-I callbacks {ty}", body))
-    for h, name, body in USES:
+    for h, name, body, *tag in USES:
         shown = set()
         for (vh, vn, _), cfgs in vis.items():
             if vh == h and vn == name:
                 shown |= expand(cfgs, ctx.ids)
-        out += [(cid, f"GAPS-I use {name} {h}", body) for cid in ("gnu17", "default", "cxx98", "cxx17") if cid in shown]
+        out += [(cid, f"GAPS-I use {''.join(tag)}{name} {h}", body) for cid in ("gnu17", "default", "cxx98", "cxx17") if cid in shown]
     return out

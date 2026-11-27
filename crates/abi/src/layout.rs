@@ -4434,6 +4434,182 @@ pub struct prpsinfo_t {
     pub pr_psargs: [i8; 80],
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct glob64_t {
+    pub gl_pathc: u64,
+    pub gl_pathv: usize,
+    pub gl_offs: u64,
+    pub gl_flags: i32,
+    pub gl_closedir: usize,
+    pub gl_readdir: usize,
+    pub gl_opendir: usize,
+    pub gl_lstat: usize,
+    pub gl_stat: usize,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_igmp {
+    pub igmp_type: u8,
+    pub igmp_code: u8,
+    pub igmp_cksum: u16,
+    pub igmp_group: struct_in_addr,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_aiocb64 {
+    pub aio_fildes: i32,
+    pub aio_lio_opcode: i32,
+    pub aio_reqprio: i32,
+    pub aio_buf: usize,
+    pub aio_nbytes: u64,
+    pub aio_sigevent: struct_sigevent,
+    pub __next_prio: usize,
+    pub __abs_prio: i32,
+    pub __policy: i32,
+    pub __error_code: i32,
+    pub __return_value: i64,
+    pub aio_offset: i64,
+    pub __glibc_reserved: [i8; 32],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union fpos64_t__state__value {
+    pub __wch: u32,
+    pub __wchb: [i8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct fpos64_t__state {
+    pub __count: i32,
+    pub __value: fpos64_t__state__value,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct fpos64_t {
+    pub __pos: i64,
+    pub __state: fpos64_t__state,
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_termio {
+    pub c_iflag: u16,
+    pub c_oflag: u16,
+    pub c_cflag: u16,
+    pub c_lflag: u16,
+    pub c_line: u8,
+    pub c_cc: [u8; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct CTL_MSG {
+    pub vers: u8,
+    pub r#type: u8,
+    pub answer: u8,
+    pub pad: u8,
+    pub id_num: u32,
+    pub addr: struct_osockaddr,
+    pub ctl_addr: struct_osockaddr,
+    pub pid: i32,
+    pub l_name: [i8; 12],
+    pub r_name: [i8; 12],
+    pub r_tty: [i8; 16],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct CTL_RESPONSE {
+    pub vers: u8,
+    pub r#type: u8,
+    pub answer: u8,
+    pub pad: u8,
+    pub id_num: u32,
+    pub addr: struct_osockaddr,
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_osockaddr {
+    pub sa_family: u16,
+    pub sa_data: [u8; 14],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_whod {
+    pub wd_vers: i8,
+    pub wd_type: i8,
+    pub wd_pad: [i8; 2],
+    pub wd_sendtime: i32,
+    pub wd_recvtime: i32,
+    pub wd_hostname: [i8; 32],
+    pub wd_loadav: [i32; 3],
+    pub wd_boottime: i32,
+    pub wd_we: [struct_whoent; 42],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_whoent {
+    pub we_utmp: struct_outmp,
+    pub we_idle: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_outmp {
+    pub out_line: [i8; 8],
+    pub out_name: [i8; 8],
+    pub out_time: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_tsp__tsp_u {
+    pub tspu_time: struct_timeval,
+    pub tspu_hopcnt: i8,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_tsp {
+    pub tsp_type: u8,
+    pub tsp_vers: u8,
+    pub tsp_seq: u16,
+    pub tsp_u: struct_tsp__tsp_u,
+    pub tsp_name: [i8; 64],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_rip__ripun {
+    pub ru_nets: [struct_netinfo; 1],
+    pub ru_tracefile: [i8; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_rip {
+    pub rip_cmd: u8,
+    pub rip_vers: u8,
+    pub rip_res1: [u8; 2],
+    pub ripun: struct_rip__ripun,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_netinfo {
+    pub rip_dst: struct_sockaddr,
+    pub rip_metric: i32,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ax25_address {

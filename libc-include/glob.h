@@ -19,15 +19,6 @@ struct dirent;
 struct dirent64;
 struct stat;
 struct stat64;
-# define __NIJI_GLOB_DIRENT struct dirent
-# define __NIJI_GLOB_DIRENT64 struct dirent64
-# define __NIJI_GLOB_STAT struct stat
-# define __NIJI_GLOB_STAT64 struct stat64
-#else
-# define __NIJI_GLOB_DIRENT void
-# define __NIJI_GLOB_DIRENT64 void
-# define __NIJI_GLOB_STAT void
-# define __NIJI_GLOB_STAT64 void
 #endif
 
 #if 1
@@ -39,10 +30,22 @@ typedef struct {
   unsigned long gl_offs;
   int gl_flags;
   void (*gl_closedir)(void *);
-  __NIJI_GLOB_DIRENT *(*gl_readdir)(void *);
+# ifdef __USE_GNU
+  struct dirent *(*gl_readdir)(void *);
+# else
+  void *(*gl_readdir)(void *);
+# endif
   void *(*gl_opendir)(const char *);
-  int (*gl_lstat)(const char *, __NIJI_GLOB_STAT *);
-  int (*gl_stat)(const char *, __NIJI_GLOB_STAT *);
+# ifdef __USE_GNU
+  int (*gl_lstat)(const char *, struct stat *);
+# else
+  int (*gl_lstat)(const char *, void *);
+# endif
+# ifdef __USE_GNU
+  int (*gl_stat)(const char *, struct stat *);
+# else
+  int (*gl_stat)(const char *, void *);
+# endif
 } glob_t;
 # endif
 #endif
@@ -55,10 +58,22 @@ typedef struct {
   unsigned long gl_offs;
   int gl_flags;
   void (*gl_closedir)(void *);
-  __NIJI_GLOB_DIRENT64 *(*gl_readdir)(void *);
+# ifdef __USE_GNU
+  struct dirent64 *(*gl_readdir)(void *);
+# else
+  void *(*gl_readdir)(void *);
+# endif
   void *(*gl_opendir)(const char *);
-  int (*gl_lstat)(const char *, __NIJI_GLOB_STAT64 *);
-  int (*gl_stat)(const char *, __NIJI_GLOB_STAT64 *);
+# ifdef __USE_GNU
+  int (*gl_lstat)(const char *, struct stat64 *);
+# else
+  int (*gl_lstat)(const char *, void *);
+# endif
+# ifdef __USE_GNU
+  int (*gl_stat)(const char *, struct stat64 *);
+# else
+  int (*gl_stat)(const char *, void *);
+# endif
 } glob64_t;
 # endif
 #endif
@@ -128,11 +143,6 @@ extern int glob_pattern_p (const char *, int) __NIJI_NOTHROW;
 # define GLOB_TILDE 4096
 # define GLOB_TILDE_CHECK 16384
 #endif
-
-#undef __NIJI_GLOB_DIRENT
-#undef __NIJI_GLOB_DIRENT64
-#undef __NIJI_GLOB_STAT
-#undef __NIJI_GLOB_STAT64
 
 __NIJI_END_C
 
