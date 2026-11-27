@@ -1,0 +1,22 @@
+{"task": "CONFIGURE-DIFF", "model": "opus", "tokens": null,
+ "result": "configure-diff tool (handoff/configure-diff/) and report: 437 Aqours stage-2 packages configured on stock trixie and on snapshot 27.2's system flavour, 183,040 probes, 220 differing rows: 15 libniji header/name/configuration causes (L1-L15, incl. Yohane's <math.h> C99-in-C++ and __environ gaps), 1 unrecorded behaviour (nested abort), 6 recorded, 3 harness; stock vs stock 0 apart from one probe that is non-deterministic on stock",
+ "branch": "task/configure-diff", "head": null,
+ "gate": {"affected": "0 tests selected (handoff/ only); clippy, static, precheck on the final head", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "B1: abort() called again from a SIGABRT handler runs the next handler on libniji; stock ends the process (libsodium HAVE_CATCHABLE_ABRT)", "recommendation": "check POSIX abort for that case, then record a differences row or match"},
+  {"item": "L14: __libc_enable_secure (GLIBC_PRIVATE loader data) not provided; p11-kit configure takes its no branch", "recommendation": "do not export private ABI; revisit only if a package fails"},
+  {"item": "L13 _BSD_SOURCE deprecation #warning absent; L15 SIGTSTP text in <signal.h>/<sys/signal.h> flips perl d_bsd", "recommendation": "match both in the next header story"}],
+ "informational": [
+  "readline's build32 flavour (gcc -m32) fails every probe on libniji: x86-64-only headers (size_t), no i386 multilib",
+  "<printf.h> PA_* is not probed by any configure step in the set; compile-time only",
+  "15 of 438 chroots never started under -j 20 load (mmdebstrap hook without /tmp/out); all passed on retry; pkg.sh now retries once and keeps the chroot output"],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "rerunnable configure-probe diff for a snapshot: one job, 438 packages in about 95 min on the Skylake-SP host", "before": null, "after": 95, "unit": "minutes", "measured": true},
+  {"kind": "unblock", "what": "15 header/name/configuration rows (L1-L15) ready for the next headers story; 3 rulings", "before": null, "after": 15, "unit": "rows", "measured": true},
+  {"kind": "coverage", "what": "probes compared per snapshot", "before": 0, "after": 183040, "unit": "probes", "measured": true}],
+ "improvement": "Run this diff in every snapshot story: a configure probe that answers differently is a gap found at its source, before any build stop",
+ "next_step": "headers story takes L1-L13; owner rules on B1, L14, L13/L15",
+ "report_file": "handoff/CONFIGURE-DIFF-report.md",
+ "jobs": ["mei:configure-diff-gate1", "mei:configure-diff-precheck1"]}
