@@ -1,51 +1,52 @@
-# HEADERS-STAGE2-GAPS-J: handoff (run 1, end of leg 1; REFRESH)
+# HEADERS-STAGE2-GAPS-J: handoff (run 1, end of leg 2; REFRESH)
 
-Branch task/headers-stage2-gaps-j, cut from origin/next dbb8c346f, no merge. HEAD 073ff35ea (items 1, 2, 3, 5).
-Role keke:~/w/n1 (stock Ubuntu 24.04 glibc 2.39 in /usr/include; no cargo on the agent host: run every cargo on
-keke through jobrun, pull libc-include back with `"${VSSH[@]}" 'cd ~/w/n1 && tar cf - libc-include' | tar xf -`).
-Decision D-X.179 (records/decisions/D-X/D-X.179.toml). Job scripts keke `~/work/headers-stage2-gaps-j/`: p1.sh
-(stock probe; stock output p1-stock.out), lay.py (DWARF layouts via abi_extract), gj1.sh (p1 vs libniji tree +
-dup_values + header_check --only on the touched headers). Scratch copies in `~/w/.scratch/HEADERS-STAGE2-GAPS-J/`.
+Branch task/headers-stage2-gaps-j, cut from origin/next dbb8c346f, no merge. HEAD 5b38c470c (items 1-5 coded).
+Role keke:~/w/n1 (stock Ubuntu 24.04 glibc 2.39 in /usr/include; the role dir is NOT a git tree; no cargo on the
+agent host: run every cargo on keke through jobrun; pull generated files back with
+`"${VSSH[@]}" 'cd ~/w/n1 && tar cf - <paths>' | tar xf -` from the worktree). Decision D-X.179.
+Job scripts keke `~/work/headers-stage2-gaps-j/`: p1.sh (stock probe; p1-stock.out), lay.py/lay2.py (DWARF layouts),
+gj1.sh (p1 vs libniji tree + dup_values + header_check --only), pj2.sh (header_probe --names), pj3.sh (type_probe,
+feature_probe forms, s.c/p.c black-box prints), gen2.sh (headers-gen, so, kernel_spelled.py, headers-gen).
+Scratch copies and merge scripts (splice_vis.py, merge_tabs.py) in `~/w/.scratch/HEADERS-STAGE2-GAPS-J/`.
 
-## Done (073ff35ea)
-* 1 per-header values: spec/abi/macro-values.tsv (talkd DELETE 2, scsi ABORT 6, NOP 8), read by Gen::macro_row
-  (values.rs), header_check.py P1 (ctx.header_values) and rows.rs (`macro-values` rows). Audit: spec/tools/dup_values.py
-  [--include DIR] (1127A's dupval.py as a repo tool): keke probe1 `dupval: RESULT headers=56 same=6583 diff=0`.
-* 2 headers/nested-tags.tsv (`struct whod` / `struct whoent`): aggregates.rs nests it, tag() emits the outer;
-  header_check.py `nested_spelling` (P1 and GAPS-I offsets spell it through `wd_we[0]`).
-* 3 ANYADDR `# define ANYADDR NULL` (timed.h.in). 5 TSPTYPES/tsptype, RIPCMDS/ripcmds tables in the templates.
-* p1.sh on the generated tree: every item 1/2/3/5 line equal to stock.
-* Fragment spec/tools/header_checks/s13.d/50-stage2-gaps-j.py (value, talkd switch, whod::whoent C++, ANYADDR,
-  tables). Its first version had "replaced" units that cannot pass under -Werror (a redefinition warning); replaced
-  by plain value units in 073ff35ea, NOT yet rerun.
+## Done
+* Leg 1 (073ff35ea): items 1 (macro-values.tsv + dup_values.py), 2 (nested-tags.tsv, whod::whoent), 3 (ANYADDR),
+  5 (TSPTYPES/RIPCMDS tables). Leg 2 probe2 (`headers-stage2-gaps-j-probe2`): header_check 0 failed of 1016,
+  dupval diff=0, p1 item 1/2/3/5 lines equal stock.
+* Leg 2 item 4: da93299eb header_probe.d/stage2-gaps-j.py candidates; 5b38c470c tables + templates:
+  visibility.tsv +266 rows (net/if_ppp.h, net/ppp_defs.h, netax25/ax25.h, netrom/netrom.h, netrose/rose.h),
+  macros.tsv +107, typedefs.tsv +18, layouts.tsv +222 (16 structs), macro-forms.tsv +21, kernel-spelled.tsv rerun.
+  Templates: netrom.h and rose.h include netax25/ax25.h; ppp_defs.h includes asm/types.h + linux/ppp_defs.h
+  (@@owns the kernel's tags, ext_accm, NPmode, NPMODE_*, PPP_ADDRESS/CONTROL/PROTOCOL); if_ppp.h includes
+  net/ppp_defs.h, owns ifr__name (b.ifr_ifrn.ifrn_name) and stats_ptr (b.ifr_ifru.ifru_data); ax25.h owns
+  SIOCAX25* = (SIOCPROTOPRIVATE+0..11) and sax25_uid = sax25_ndigis; netrom.h owns SIOCNR* (+0..4).
+  Probe facts: values and parenthesised forms with SIOCPROTOPRIVATE 0 (s.c), offsetof ifr__name 0 / stats_ptr 16.
+  headers-gen passes (job headers-stage2-gaps-j-gen3), `cargo xtask so` passed in it.
 
-## Probe-settled facts for item 4 (stock, keke probe p1.sh / lay.py)
-* sizeof: ax25_parms_struct 48 align 2 (netax25/ax25.h and netrom/netrom.h), nr_parms_struct 36/4, ppp_stats 76/4.
-  Layout rows printed by lay.py (`python3 lay.py ~/w/n1` on keke): ax25_parms_struct {port_addr ax25_address @0
-  (+ port_addr.ax25_call char[7]), values short unsigned int[20] @8}; nr_parms_struct nine `unsigned int` @0..32
-  (quality obs_count ttl timeout ack_delay busy_delay tries window paclen).
-* Include closure: stock net/ppp_defs.h includes bits/types/time_t.h, <asm/types.h>, <linux/ppp_defs.h> (struct
-  ppp_stats, pppstat, vjstat come from the kernel); net/if_ppp.h includes sys/types.h, stdint.h, net/if.h,
-  sys/ioctl.h, net/ppp_defs.h and defines PPPIOC* itself (PPPIOCGASYNCMAP 2147775576, PPPIOCSXASYNCMAP 1075868751,
-  PPPIOCSMAXCID 1074033745). netax25/ax25.h includes features.h and bits/sockaddr.h only; netrom/netrom.h includes
-  netax25/ax25.h. SIOCAX25GETPARMS etc. need SIOCPROTOPRIVATE from elsewhere on stock too (not constant alone).
-* libniji today: those three structs incomplete, no PPPIOC*, SIOCAX25*, SIOCNR* names at all (visibility.tsv has
-  none: the name probe never had them as candidates).
+## Not verified yet / to check
+* PPPIOC* are emitted from macros.tsv as literals (unsigned long), as MTIOCTOP is; stock's are not usable in `#if`
+  (replaced-form): a report-mode FORM-DIFF, like MTIOCTOP. The generator refuses a template `_IOR` spelling of a
+  macros.tsv name. Mention as INFORMATIONAL (a form-of-ioctl-requests follow-up), not a blocker.
+* kernel-spelled.tsv rerun added FDDI_* and IGMP_* rows (libc-include/netinet/if_fddi.h, igmp.h changed: #ifndef
+  guards). Check that header_check passes on them; they are the tool's output, the committed table lacked them.
+* headers/dup-listed.tsv: netrom/rose now include ax25.h, so AX25_* may be defined in fewer files; header_check's
+  dup module says whether the list must shrink (regenerate it with its tool if so, never hand-edit).
 
-## Exact next step (leg 2)
-1. Rerun gj1.sh on keke (`jobrun headers-stage2-gaps-j-probe2`), expect header_check 0 failed.
-2. Item 4: add header_probe.d/stage2-gaps-j.py candidates (PPPIOC* of the kernel's linux/ppp-ioctl.h names,
-   SIOCAX25*/SIOCNR*/AX25_VALUES_*/NETROM_* names, tags ax25_parms_struct nr_parms_struct ppp_stats); run
-   header_probe.py --headers net/if_ppp.h,netax25/ax25.h,netrom/netrom.h --names FILE --out DIR on keke; splice the
-   new visibility rows; layouts.tsv rows from lay.py; macros.tsv rows (values by a black-box print, type int /
-   unsigned); net/ppp_defs.h.in: add `#include <asm/types.h>` and `#include <linux/ppp_defs.h>`; SIOC* names
-   whose stock form needs SIOCPROTOPRIVATE: define as `(SIOCPROTOPRIVATE + k)` in the template or leave out with a
-   reason. Then kernel_spelled.py after `cargo xtask so`, regenerate, p1.sh again.
-3. Proof jobs: units2-style llvm-19 sanitizer compile (keke `~/work/RELEASE-SNAPSHOT-1127A/units2.sh` shows the
-   flags; source under its u2/pkgs) and an inetutils build against the system flavour (1127A ybuild on mei), the
-   direct-tier gate (`cargo xtask affected --run`; if FULL escalated: precheck + changed crates' tests), plants
-   (handoff/HEADERS-STAGE2-GAPS-J-plants.txt via `cargo xtask plants`), clippy + static, precheck, report json.
+## Exact next step (leg 3)
+1. Update p1.sh's item-4 lines if needed (its C++ `sizeof struct` probe is malformed on both sides: use a variable),
+   add the sanitizer's names (11 PPPIOC*, SIOCAX25*/SIOCNR* with `#include <sys/ioctl.h>` first), then run gj1.sh as
+   job `headers-stage2-gaps-j-probe3` (needs target/niji/include: `cargo xtask so` already ran on keke). Expect 0
+   differing lines and header_check 0 failed; add header_check rows for item 4 to
+   spec/tools/header_checks/s13.d/50-stage2-gaps-j.py (sizes, members, ioctl values, closure) if P1 does not cover them.
+2. Proof jobs: llvm-19 sanitizer unit (keke ~/work/RELEASE-SNAPSHOT-1127A/units2.sh shows flags; it needs a
+   system-flavour libc6-dev .deb: use the tree's target/niji/include with the same -nostdinc flags instead, or build
+   the debs if a tool exists) and inetutils against the system flavour (1127A ybuild on mei; read its scripts).
+3. Direct-tier gate (`cargo xtask affected --run`; if FULL escalated: precheck + changed crates' tests), plants
+   (handoff/HEADERS-STAGE2-GAPS-J-plants.txt via `cargo xtask plants`, RAM dir /dev/shm/claude/headers-stage2-gaps-j/
+   plants-<n>), clippy + static, precheck, report json, handback-check.
 
 ## Informational so far
 * Leg 1 ran one `sed -i` by mistake on its own new fragment (docstring wording); result checked, .bak removed.
-* A stray local `python3 -` waiting on stdin was started by mistake and killed by PID (2101156).
+* A stray local `python3 -` waiting on stdin was started by mistake in leg 1 and killed by PID.
+* Jobs so far (all on keke): headers-stage2-gaps-j-probe2, -pj2, -pj3, -sprobe, -gen2 (red: template `_IOR` refused,
+  superseded), -gen3 (green).
