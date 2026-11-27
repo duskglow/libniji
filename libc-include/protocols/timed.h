@@ -11,6 +11,25 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+# ifndef __NIJI_D_struct_tsp
+#  define __NIJI_D_struct_tsp 1
+struct tsp {
+  unsigned char tsp_type;
+  unsigned char tsp_vers;
+  unsigned short tsp_seq;
+  union { struct timeval tspu_time; char tspu_hopcnt; } tsp_u;
+  char tsp_name[64];
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -23,6 +42,46 @@ typedef union pthread_attr_t pthread_attr_t;
 #endif
 #if 1
 # define MAXHOSTNAMELEN 64
+# define TSPTYPENUMBER 25
+# define TSPVERSION 1
+# define TSP_ACCEPT 9
+# define TSP_ACK 2
+# define TSP_ADJTIME 1
+# define TSP_ANY 0
+# define TSP_CONFLICT 11
+# define TSP_DATE 14
+# define TSP_DATEACK 16
+# define TSP_DATEREQ 15
+# define TSP_ELECTION 8
+# define TSP_LOOP 24
+# define TSP_MASTERACK 4
+# define TSP_MASTERREQ 3
+# define TSP_MASTERUP 6
+# define TSP_MSITE 19
+# define TSP_MSITEREQ 20
+# define TSP_QUIT 13
+# define TSP_REFUSE 10
+# define TSP_RESOLVE 12
+# define TSP_SETDATE 22
+# define TSP_SETDATEREQ 23
+# define TSP_SETTIME 5
+# define TSP_SLAVEUP 7
+# define TSP_TEST 21
+# define TSP_TRACEOFF 18
+# define TSP_TRACEON 17
+#endif
+
+/* timed(8): tsp_time and tsp_hopcnt name the members of struct tsp's union; ANYADDR, any address, is a null
+   pointer constant spelled as the compiler's NULL, which this header does not define (black-box probe of the
+   reference: `void *` in C, `__null` in C++). */
+#if 1
+# define tsp_time tsp_u.tspu_time
+# define tsp_hopcnt tsp_u.tspu_hopcnt
+# ifdef __cplusplus
+#  define ANYADDR __null
+# else
+#  define ANYADDR ((void *) 0)
+# endif
 #endif
 
 __NIJI_END_C

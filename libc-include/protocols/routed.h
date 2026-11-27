@@ -10,6 +10,45 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_netinfo
+#  define __NIJI_D_struct_netinfo 1
+struct netinfo {
+  struct sockaddr rip_dst;
+  int rip_metric;
+};
+# endif
+# ifndef __NIJI_D_struct_sockaddr
+#  define __NIJI_D_struct_sockaddr 1
+struct sockaddr {
+  unsigned short sa_family;
+  char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_netinfo
+#  define __NIJI_D_struct_netinfo 1
+struct netinfo {
+  struct sockaddr rip_dst;
+  int rip_metric;
+};
+# endif
+# ifndef __NIJI_D_struct_rip
+#  define __NIJI_D_struct_rip 1
+struct rip {
+  unsigned char rip_cmd;
+  unsigned char rip_vers;
+  unsigned char rip_res1[2];
+  union { struct netinfo ru_nets[1]; char ru_tracefile[1]; } ripun;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -19,6 +58,28 @@ union pthread_attr_t {
 };
 typedef union pthread_attr_t pthread_attr_t;
 # endif
+#endif
+#if 1
+# define EXPIRE_TIME 180
+# define GARBAGE_TIME 240
+# define HOPCNT_INFINITY 16
+# define MAXPACKETSIZE 512
+# define MAX_WAITTIME 5
+# define MIN_WAITTIME 2
+# define RIPCMD_MAX 5
+# define RIPCMD_REQUEST 1
+# define RIPCMD_RESPONSE 2
+# define RIPCMD_TRACEOFF 4
+# define RIPCMD_TRACEON 3
+# define RIPVERSION 1
+# define SUPPLY_INTERVAL 30
+# define TIMER_RATE 30
+#endif
+
+/* routed(8), RFC 1058: rip_nets and rip_tracefile name the members of struct rip's union. */
+#if 1
+# define rip_nets ripun.ru_nets
+# define rip_tracefile ripun.ru_tracefile
 #endif
 
 __NIJI_END_C

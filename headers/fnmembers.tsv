@@ -2,7 +2,7 @@
 # this table spells its type, `@` standing for the member's name. A row's type and member are layouts.tsv's. A
 # member with no row here is declared `void (*m) (void)`: the table lists the members whose signature a standard,
 # man page or the GNU C Library manual gives.
-# Sources: the GNU C Library manual (Argp Help Filtering).
+# Sources: the GNU C Library manual (Argp Help Filtering, More Flags for Globbing).
 type	member	declarator	source
 struct argp	help_filter	char *(*@)(int, const char *, void *)	GNU C Library manual, Argp Help Filtering
 struct sigaction	__sigaction_handler.sa_sigaction	void (*@)(int, siginfo_t *, void *)	POSIX struct sigaction
@@ -10,3 +10,13 @@ struct sigaction	sa_restorer	void (*@)(void)	sigaction(2)
 struct sigevent	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
 sigevent_t	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
 struct _pthread_cleanup_buffer	__routine	void (*@)(void *)	pthread_cleanup_push(3)
+glob_t	gl_closedir	void (*@)(void *)	GNU C Library manual, More Flags for Globbing
+glob_t	gl_readdir	__NIJI_GLOB_DIRENT *(*@)(void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob_t	gl_opendir	void *(*@)(const char *)	GNU C Library manual, More Flags for Globbing
+glob_t	gl_lstat	int (*@)(const char *, __NIJI_GLOB_STAT *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob_t	gl_stat	int (*@)(const char *, __NIJI_GLOB_STAT *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_closedir	void (*@)(void *)	GNU C Library manual, More Flags for Globbing
+glob64_t	gl_readdir	__NIJI_GLOB_DIRENT64 *(*@)(void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_opendir	void *(*@)(const char *)	GNU C Library manual, More Flags for Globbing
+glob64_t	gl_lstat	int (*@)(const char *, __NIJI_GLOB_STAT64 *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_stat	int (*@)(const char *, __NIJI_GLOB_STAT64 *)	GNU C Library manual, More Flags for Globbing (glob.h.in)

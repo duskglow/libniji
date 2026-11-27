@@ -9,6 +9,62 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_outmp
+#  define __NIJI_D_struct_outmp 1
+struct outmp {
+  char out_line[8];
+  char out_name[8];
+  int out_time;
+};
+# endif
+# ifndef __NIJI_D_struct_outmp
+#  define __NIJI_D_struct_outmp 1
+struct outmp {
+  char out_line[8];
+  char out_name[8];
+  int out_time;
+};
+# endif
+# ifndef __NIJI_D_struct_whoent
+#  define __NIJI_D_struct_whoent 1
+struct whoent {
+  struct outmp we_utmp;
+  int we_idle;
+};
+# endif
+# ifndef __NIJI_D_struct_whod
+#  define __NIJI_D_struct_whod 1
+struct whod {
+  char wd_vers;
+  char wd_type;
+  char wd_pad[2];
+  int wd_sendtime;
+  int wd_recvtime;
+  char wd_hostname[32];
+  int wd_loadav[3];
+  int wd_boottime;
+  struct whoent wd_we[42];
+};
+# endif
+#endif
+#if __NIJI_CXX < 1
+# ifndef __NIJI_D_struct_outmp
+#  define __NIJI_D_struct_outmp 1
+struct outmp {
+  char out_line[8];
+  char out_name[8];
+  int out_time;
+};
+# endif
+# ifndef __NIJI_D_struct_whoent
+#  define __NIJI_D_struct_whoent 1
+struct whoent {
+  struct outmp we_utmp;
+  int we_idle;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -20,6 +76,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# define WHODTYPE_STATUS 1
+# define WHODVERSION 1
 # define _PATH_BSHELL "/bin/sh"
 # define _PATH_CONSOLE "/dev/console"
 # define _PATH_CSHELL "/bin/csh"

@@ -60,6 +60,14 @@ typedef enum {
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
+#endif
+#if defined __USE_GNU
+# ifndef __NIJI_D_comparison_fn_t
+#  define __NIJI_D_comparison_fn_t 1
+typedef int (*comparison_fn_t)(void const *, void const *);
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_hcreate
 #  define __NIJI_D_hcreate 1
 extern int hcreate (unsigned long) __NIJI_NOTHROW;

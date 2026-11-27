@@ -15,9 +15,20 @@
 __NIJI_BEGIN_C
 
 #if defined __USE_MISC
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
 # ifndef __NIJI_D_struct_igmp
 #  define __NIJI_D_struct_igmp 1
-struct igmp { char __niji_opaque[8] __attribute__ ((__aligned__ (4))); };
+struct igmp {
+  unsigned char igmp_type;
+  unsigned char igmp_code;
+  unsigned short igmp_cksum;
+  struct in_addr igmp_group;
+};
 # endif
 #endif
 #if __NIJI_LFS64 || __NIJI_FOB64

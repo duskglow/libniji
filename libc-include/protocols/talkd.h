@@ -11,6 +11,63 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_osockaddr
+#  define __NIJI_D_struct_osockaddr 1
+struct osockaddr {
+  unsigned short sa_family;
+  unsigned char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_osockaddr
+#  define __NIJI_D_struct_osockaddr 1
+struct osockaddr {
+  unsigned short sa_family;
+  unsigned char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_struct_osockaddr
+#  define __NIJI_D_struct_osockaddr 1
+struct osockaddr {
+  unsigned short sa_family;
+  unsigned char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_CTL_MSG
+#  define __NIJI_D_CTL_MSG 1
+typedef struct {
+  unsigned char vers;
+  unsigned char type;
+  unsigned char answer;
+  unsigned char pad;
+  unsigned int id_num;
+  struct osockaddr addr;
+  struct osockaddr ctl_addr;
+  int pid;
+  char l_name[12];
+  char r_name[12];
+  char r_tty[16];
+} CTL_MSG;
+# endif
+# ifndef __NIJI_D_struct_osockaddr
+#  define __NIJI_D_struct_osockaddr 1
+struct osockaddr {
+  unsigned short sa_family;
+  unsigned char sa_data[14];
+};
+# endif
+# ifndef __NIJI_D_CTL_RESPONSE
+#  define __NIJI_D_CTL_RESPONSE 1
+typedef struct {
+  unsigned char vers;
+  unsigned char type;
+  unsigned char answer;
+  unsigned char pad;
+  unsigned int id_num;
+  struct osockaddr addr;
+} CTL_RESPONSE;
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -22,8 +79,24 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# define ANNOUNCE 3
+# define BADADDR 7
+# define BADCTLADDR 8
+# define BADVERSION 6
 # define DELETE 0
+# define FAILED 2
+# define LEAVE_INVITE 0
+# define LOOK_UP 1
+# define MACHINE_UNKNOWN 3
+# define MAX_LIFE 60
+# define NAME_SIZE 12
+# define NOT_HERE 1
+# define PERMISSION_DENIED 4
+# define RING_WAIT 30
 # define SUCCESS 0
+# define TALK_VERSION 1
+# define TTY_SIZE 16
+# define UNKNOWN_REQUEST 5
 #endif
 
 __NIJI_END_C

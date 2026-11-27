@@ -11,6 +11,13 @@ __NIJI_BEGIN_C
 
 @@emit
 
+/* routed(8), RFC 1058: rip_nets and rip_tracefile name the members of struct rip's union. */
+@@owns rip_tracefile
+@@if rip_nets
+# define rip_nets ripun.ru_nets
+# define rip_tracefile ripun.ru_tracefile
+#endif
+
 __NIJI_END_C
 
 #endif

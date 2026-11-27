@@ -133,6 +133,10 @@ typedef unsigned int useconds_t;
 #  define __NIJI_D___locale_t 1
 typedef struct __locale_struct * __locale_t;
 # endif
+# ifndef __NIJI_D_comparison_fn_t
+#  define __NIJI_D_comparison_fn_t 1
+typedef int (*comparison_fn_t)(void const *, void const *);
+# endif
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
 typedef struct __locale_struct * locale_t;

@@ -1,5 +1,7 @@
 kind	name	header	size	align	cxx
 typedef	ACTION	search.h	4	4	ACTION
+typedef	CTL_MSG	protocols/talkd.h	84	4	CTL_MSG
+typedef	CTL_RESPONSE	protocols/talkd.h	24	4	CTL_RESPONSE
 typedef	DIR	dirent.h			__dirstream
 typedef	Dl_info	dlfcn.h	32	8	Dl_info
 typedef	Dl_serinfo	dlfcn.h	32	8	Dl_serinfo
@@ -1296,6 +1298,7 @@ function	cnd_signal	threads.h			int (cnd_t*)
 typedef	cnd_t	threads.h	48	8	cnd_t
 function	cnd_timedwait	threads.h			int (cnd_t*, mtx_t*, timespec const*)
 function	cnd_wait	threads.h			int (cnd_t*, mtx_t*)
+typedef	comparison_fn_t	search.h	8	8	int (*)(void const*, void const*)
 function	confstr	arpa/nameser.h			unsigned long (int, char*, unsigned long)
 function	connect	arpa/inet.h			int (int, sockaddr const*, unsigned int)
 typedef	cookie_close_function_t	argp.h			int (void*)
@@ -2701,6 +2704,7 @@ function	nearbyintf64	complex.h			_Float64 (_Float64)
 function	nearbyintf64x	complex.h			_Float64x (_Float64x)
 function	nearbyintl	complex.h			long double (long double)
 struct	netent	netdb.h	24	8	netent
+struct	netinfo	protocols/routed.h	20	4	netinfo
 function	newlocale	complex.h			__locale_struct* (int, char const*, __locale_struct*)
 function	nextafter	complex.h			double (double, double)
 function	nextafterf	complex.h			float (float, float)
@@ -2809,6 +2813,7 @@ function	outb	sys/io.h			void (unsigned char, unsigned short)
 function	outb_p	sys/io.h			void (unsigned char, unsigned short)
 function	outl	sys/io.h			void (unsigned int, unsigned short)
 function	outl_p	sys/io.h			void (unsigned int, unsigned short)
+struct	outmp	protocols/rwhod.h	20	4	outmp
 function	outsb	sys/io.h			void (unsigned short, void const*, unsigned long)
 function	outsl	sys/io.h			void (unsigned short, void const*, unsigned long)
 function	outsw	sys/io.h			void (unsigned short, void const*, unsigned long)
@@ -3215,6 +3220,7 @@ function	rintf32x	complex.h			_Float32x (_Float32x)
 function	rintf64	complex.h			_Float64 (_Float64)
 function	rintf64x	complex.h			_Float64x (_Float64x)
 function	rintl	complex.h			long double (long double)
+struct	rip	protocols/routed.h	24	4	rip
 typedef	rlim64_t	sys/resource.h	8	8	unsigned long
 typedef	rlim_t	sys/resource.h	8	8	unsigned long
 struct	rlimit	sys/resource.h	16	8	rlimit
@@ -3910,6 +3916,7 @@ function	truncf64	complex.h			_Float64 (_Float64)
 function	truncf64x	complex.h			_Float64x (_Float64x)
 function	truncl	complex.h			long double (long double)
 function	tsearch	search.h			void* (void const*, void**, int (*)(void const*, void const*))
+struct	tsp	protocols/timed.h	88	8	tsp
 function	tss_create	threads.h			int (unsigned int*, void (*)(void*))
 function	tss_delete	threads.h			void (unsigned int)
 typedef	tss_dtor_t	threads.h	8	8	void (*)(void*)
@@ -4107,6 +4114,8 @@ function	wctype	complex.h			unsigned long (char const*)
 function	wctype_l	complex.h			unsigned long (char const*, __locale_struct*)
 typedef	wctype_t	wctype.h	8	8	unsigned long
 function	wcwidth	complex.h			int (wchar_t)
+struct	whod	protocols/rwhod.h	1068	4	whod
+struct	whoent	protocols/rwhod.h	24	4	
 struct	winsize	net/if_ppp.h	8	2	winsize
 typedef	wint_t	gconv.h	4	4	unsigned int
 function	wmemcmp	complex.h			int (wchar_t const*, wchar_t const*, unsigned long)

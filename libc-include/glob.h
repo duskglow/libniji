@@ -10,6 +10,26 @@
 
 __NIJI_BEGIN_C
 
+/* The GLOB_ALTDIRFUNC callbacks of glob_t and glob64_t (GNU C Library manual, "More Flags for Globbing";
+   headers/fnmembers.tsv): with _GNU_SOURCE the directory entry and the file status they pass are typed (struct dirent
+   and struct stat, struct dirent64 and struct stat64 in glob64_t), declared here as incomplete tags; in every other
+   configuration they are `void *` (black-box probe of the reference, HEADERS-STAGE2-GAPS-I). */
+#ifdef __USE_GNU
+struct dirent;
+struct dirent64;
+struct stat;
+struct stat64;
+# define __NIJI_GLOB_DIRENT struct dirent
+# define __NIJI_GLOB_DIRENT64 struct dirent64
+# define __NIJI_GLOB_STAT struct stat
+# define __NIJI_GLOB_STAT64 struct stat64
+#else
+# define __NIJI_GLOB_DIRENT void
+# define __NIJI_GLOB_DIRENT64 void
+# define __NIJI_GLOB_STAT void
+# define __NIJI_GLOB_STAT64 void
+#endif
+
 #if 1
 # ifndef __NIJI_D_glob_t
 #  define __NIJI_D_glob_t 1
@@ -18,18 +38,28 @@ typedef struct {
   char * * gl_pathv;
   unsigned long gl_offs;
   int gl_flags;
-  void (*gl_closedir) (void);
-  void (*gl_readdir) (void);
-  void (*gl_opendir) (void);
-  void (*gl_lstat) (void);
-  void (*gl_stat) (void);
+  void (*gl_closedir)(void *);
+  __NIJI_GLOB_DIRENT *(*gl_readdir)(void *);
+  void *(*gl_opendir)(const char *);
+  int (*gl_lstat)(const char *, __NIJI_GLOB_STAT *);
+  int (*gl_stat)(const char *, __NIJI_GLOB_STAT *);
 } glob_t;
 # endif
 #endif
 #if __NIJI_LFS64 || __NIJI_FOB64
 # ifndef __NIJI_D_glob64_t
 #  define __NIJI_D_glob64_t 1
-typedef struct { char __niji_opaque[72] __attribute__ ((__aligned__ (8))); } glob64_t;
+typedef struct {
+  unsigned long gl_pathc;
+  char * * gl_pathv;
+  unsigned long gl_offs;
+  int gl_flags;
+  void (*gl_closedir)(void *);
+  __NIJI_GLOB_DIRENT64 *(*gl_readdir)(void *);
+  void *(*gl_opendir)(const char *);
+  int (*gl_lstat)(const char *, __NIJI_GLOB_STAT64 *);
+  int (*gl_stat)(const char *, __NIJI_GLOB_STAT64 *);
+} glob64_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
@@ -98,6 +128,11 @@ extern int glob_pattern_p (const char *, int) __NIJI_NOTHROW;
 # define GLOB_TILDE 4096
 # define GLOB_TILDE_CHECK 16384
 #endif
+
+#undef __NIJI_GLOB_DIRENT
+#undef __NIJI_GLOB_DIRENT64
+#undef __NIJI_GLOB_STAT
+#undef __NIJI_GLOB_STAT64
 
 __NIJI_END_C
 
