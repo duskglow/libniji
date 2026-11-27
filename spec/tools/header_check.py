@@ -308,6 +308,24 @@ def uapi_flags():
     return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 
+def kernel_dir(work):
+    """The kernel's UAPI headers (linux-libc-dev; libniji ships none) for the units: a directory `work`/kernel-uapi of
+    links to the build host's `linux`, `asm-generic` and `asm`, so the C library's own headers of the host stay out."""
+    kern = os.path.join(work, "kernel-uapi")
+    os.makedirs(kern, exist_ok=True)
+    for d in ("linux", "asm-generic", "asm"):
+        for base_dir in ("/usr/include", "/usr/include/x86_64-linux-gnu"):
+            src = os.path.join(base_dir, d)
+            if os.path.isdir(src) and not os.path.lexists(os.path.join(kern, d)):
+                os.symlink(src, os.path.join(kern, d))
+    return kern
+
+
+def kernel_flags(work):
+    """`-isystem` for the kernel UAPI headers as the units get them: $NIJI_UAPI when set, else `kernel_dir(work)`."""
+    return uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kernel_dir(work)]
+
+
 # P8 (plan/headers.md section 3): a libniji header and a kernel UAPI header that defines the same names (the `uapi` cell
 # of its slice row). Both include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose
 # kernel header is not installed is skipped.
@@ -481,15 +499,7 @@ def main():
     fails, total = len(problems), len(problems)
     for p in problems:
         print(f"FAIL {p}")
-    # The kernel's UAPI headers (linux-libc-dev; libniji ships none): a directory of links to the build host's
-    # `linux`, `asm-generic` and `asm`, so the C library's own headers of the host stay out of the units.
-    kern = os.path.join(work, "kernel-uapi")
-    os.makedirs(kern, exist_ok=True)
-    for d in ("linux", "asm-generic", "asm"):
-        for base_dir in ("/usr/include", "/usr/include/x86_64-linux-gnu"):
-            src = os.path.join(base_dir, d)
-            if os.path.isdir(src) and not os.path.lexists(os.path.join(kern, d)):
-                os.symlink(src, os.path.join(kern, d))
+    kern = kernel_dir(work)
     for c in cfgs:
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"

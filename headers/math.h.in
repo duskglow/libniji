@@ -6,11 +6,9 @@
 #define __NIJI_H_math_h 1
 
 #include <features.h>
-#ifdef __cplusplus
-/* The C++ library's <math.h> wrapper takes <cmath>, which takes <cstdlib>: the names stdlib.h supplies are
-   visible after <math.h> in C++ (visibility.tsv shows them in math.h in the C++ configurations). */
-# include <stdlib.h>
-#endif
+/* visibility.tsv's C++ columns of math.h are the header alone (-nostdinc++, HEADERS-STAGE2-GAPS-L): the C++
+   library's own <math.h> and <cmath> add <stdlib.h> and undefine the classification macros themselves, and its
+   configure tests read this header without them. */
 
 __NIJI_BEGIN_C
 

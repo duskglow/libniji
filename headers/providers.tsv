@@ -60,12 +60,6 @@ outsl	none	defined static inline by <sys/io.h> itself (headers/sys/io.h.d/010-po
 __bswap_16	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
 __bswap_32	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
 __bswap_64	none	defined static inline by <byteswap.h>, <endian.h> and the headers reaching them (headers/endian.h.d/010-bswap.frag and its copies), no export; probe: the reference's headers define it static inline, no library symbol (R-H7: eudev)
-fpclassify	generic	ISO C++ [c.math]: <cmath> declares std::fpclassify as overloaded functions; probe: using std::fpclassify compiles
-isfinite	generic	ISO C++ [c.math]: <cmath> declares std::isfinite as overloaded functions; probe: using std::isfinite compiles
-isgreater	generic	ISO C++ [c.math]: <cmath> declares std::isgreater as overloaded functions; probe: using std::isgreater compiles
-isnormal	generic	ISO C++ [c.math]: <cmath> declares std::isnormal as overloaded functions; probe: using std::isnormal compiles
-isunordered	generic	ISO C++ [c.math]: <cmath> declares std::isunordered as overloaded functions; probe: using std::isunordered compiles
-signbit	generic	ISO C++ [c.math]: <cmath> declares std::signbit as overloaded functions; probe: using std::signbit compiles
 iscanonical	generic	ISO/IEC TS 18661-1 macro; probe: no std::iscanonical, the header declares the C++ overloads
 iseqsig	generic	ISO/IEC TS 18661-1 macro; probe: no std::iseqsig, the header declares the C++ overloads
 issignaling	generic	ISO/IEC TS 18661-1 macro; probe: no std::issignaling, the header declares the C++ overloads
