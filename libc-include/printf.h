@@ -10,14 +10,9 @@
 
 __NIJI_BEGIN_C
 
-/* The reference makes va_list visible through printf.h in every configuration (stdio.h only in some). */
-# ifndef __NIJI_D_va_list
-#  define __NIJI_D_va_list 1
-#  ifndef _VA_LIST_DEFINED
-#   define _VA_LIST_DEFINED
-typedef __builtin_va_list va_list;
-#  endif
-# endif
+/* The reference makes va_list visible through printf.h in every configuration (stdio.h only in some), with the whole
+   of the compiler's <stdarg.h> (va_start, va_arg and va_end too: black-box probe, HEADERS-STAGE2-GAPS-I). */
+#include <stdarg.h>
 
 #if 1
 # ifndef __NIJI_D_wchar_t

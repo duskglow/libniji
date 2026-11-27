@@ -11,6 +11,17 @@ __NIJI_BEGIN_C
 
 struct sgttyb;
 #if 1
+# ifndef __NIJI_D_struct_termio
+#  define __NIJI_D_struct_termio 1
+struct termio {
+  unsigned short c_iflag;
+  unsigned short c_oflag;
+  unsigned short c_cflag;
+  unsigned short c_lflag;
+  unsigned char c_line;
+  unsigned char c_cc[8];
+};
+# endif
 # ifndef __NIJI_D_struct_winsize
 #  define __NIJI_D_struct_winsize 1
 struct winsize {

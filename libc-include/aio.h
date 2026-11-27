@@ -136,9 +136,71 @@ struct timespec {
 # endif
 #endif
 #if __NIJI_LFS64
+# if __NIJI_POSIX >= 199309
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# endif
+# ifndef __NIJI_D___sigval_t
+#  define __NIJI_D___sigval_t 1
+#  if __NIJI_POSIX >= 199309
+typedef union sigval __sigval_t;
+#  else
+typedef union {
+  int sival_int;
+  void * sival_ptr;
+} __sigval_t;
+#  endif
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+# ifndef __NIJI_D_struct_sigevent
+#  define __NIJI_D_struct_sigevent 1
+struct sigevent {
+  __sigval_t sigev_value;
+  int sigev_signo;
+  int sigev_notify;
+  union {
+  int _pad[12];
+  int _tid;
+  struct { void (*_function)(union sigval); pthread_attr_t * _attribute; } _sigev_thread;
+  } _sigev_un;
+};
+# endif
 # ifndef __NIJI_D_struct_aiocb64
 #  define __NIJI_D_struct_aiocb64 1
-struct aiocb64 { char __niji_opaque[168] __attribute__ ((__aligned__ (8))); };
+struct aiocb64 {
+  int aio_fildes;
+  int aio_lio_opcode;
+  int aio_reqprio;
+  volatile void * aio_buf;
+  unsigned long aio_nbytes;
+  struct sigevent aio_sigevent;
+  struct aiocb * __next_prio;
+  int __abs_prio;
+  int __policy;
+  int __error_code;
+  long __return_value;
+  long aio_offset;
+  char __glibc_reserved[32];
+};
 # endif
 #endif
 #if defined __USE_GNU

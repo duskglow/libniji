@@ -2976,6 +2976,140 @@ prpsinfo_t	pr_pgrp	32		int
 prpsinfo_t	pr_sid	36		int	
 prpsinfo_t	pr_fname	40		char[16]	
 prpsinfo_t	pr_psargs	56		char[80]	
+glob64_t		72	8		
+glob64_t	gl_pathc	0		size_t	
+glob64_t	gl_pathv	8		char * *	
+glob64_t	gl_offs	16		size_t	
+glob64_t	gl_flags	24		int	
+glob64_t	gl_closedir	32		fn(...) *	
+glob64_t	gl_readdir	40		fn(...) *	
+glob64_t	gl_opendir	48		fn(...) *	
+glob64_t	gl_lstat	56		fn(...) *	
+glob64_t	gl_stat	64		fn(...) *	
+struct igmp		8	4		
+struct igmp	igmp_type	0		uint8_t	
+struct igmp	igmp_code	1		uint8_t	
+struct igmp	igmp_cksum	2		uint16_t	
+struct igmp	igmp_group	4		struct in_addr	
+struct igmp	igmp_group.s_addr	4		in_addr_t	
+struct aiocb64		168	8		
+struct aiocb64	aio_fildes	0		int	
+struct aiocb64	aio_lio_opcode	4		int	
+struct aiocb64	aio_reqprio	8		int	
+struct aiocb64	aio_buf	16		volatile void *	
+struct aiocb64	aio_nbytes	24		size_t	
+struct aiocb64	aio_sigevent	32		struct sigevent	
+struct aiocb64	aio_sigevent.sigev_value	32		__sigval_t	
+struct aiocb64	aio_sigevent.sigev_value.sival_int	32		int	
+struct aiocb64	aio_sigevent.sigev_value.sival_ptr	32		void *	
+struct aiocb64	aio_sigevent.sigev_signo	40		int	
+struct aiocb64	aio_sigevent.sigev_notify	44		int	
+struct aiocb64	aio_sigevent._sigev_un	48		union <anon>	
+struct aiocb64	aio_sigevent._sigev_un._pad	48		int[12]	
+struct aiocb64	aio_sigevent._sigev_un._tid	48		__pid_t	
+struct aiocb64	aio_sigevent._sigev_un._sigev_thread	48		struct <anon>	
+struct aiocb64	aio_sigevent._sigev_un._sigev_thread._function	48		fn(...) *	
+struct aiocb64	aio_sigevent._sigev_un._sigev_thread._attribute	56		pthread_attr_t *	
+struct aiocb64	__next_prio	96		struct aiocb *	
+struct aiocb64	__abs_prio	104		int	
+struct aiocb64	__policy	108		int	
+struct aiocb64	__error_code	112		int	
+struct aiocb64	__return_value	120		__ssize_t	
+struct aiocb64	aio_offset	128		__off64_t	
+struct aiocb64	__glibc_reserved	136		char[32]	
+fpos64_t		16	8		
+fpos64_t	__pos	0		__off64_t	
+fpos64_t	__state	8		__mbstate_t	
+fpos64_t	__state.__count	8		int	
+fpos64_t	__state.__value	12		union <anon>	
+fpos64_t	__state.__value.__wch	12		unsigned int	
+fpos64_t	__state.__value.__wchb	12		char[4]	
+struct termio		18	2		
+struct termio	c_iflag	0		short unsigned int	
+struct termio	c_oflag	2		short unsigned int	
+struct termio	c_cflag	4		short unsigned int	
+struct termio	c_lflag	6		short unsigned int	
+struct termio	c_line	8		unsigned char	
+struct termio	c_cc	9		unsigned char[8]	
+CTL_MSG		84	4		
+CTL_MSG	vers	0		unsigned char	
+CTL_MSG	type	1		unsigned char	
+CTL_MSG	answer	2		unsigned char	
+CTL_MSG	pad	3		unsigned char	
+CTL_MSG	id_num	4		uint32_t	
+CTL_MSG	addr	8		struct osockaddr	
+CTL_MSG	addr.sa_family	8		short unsigned int	
+CTL_MSG	addr.sa_data	10		unsigned char[14]	
+CTL_MSG	ctl_addr	24		struct osockaddr	
+CTL_MSG	ctl_addr.sa_family	24		short unsigned int	
+CTL_MSG	ctl_addr.sa_data	26		unsigned char[14]	
+CTL_MSG	pid	40		int32_t	
+CTL_MSG	l_name	44		char[12]	
+CTL_MSG	r_name	56		char[12]	
+CTL_MSG	r_tty	68		char[16]	
+CTL_RESPONSE		24	4		
+CTL_RESPONSE	vers	0		unsigned char	
+CTL_RESPONSE	type	1		unsigned char	
+CTL_RESPONSE	answer	2		unsigned char	
+CTL_RESPONSE	pad	3		unsigned char	
+CTL_RESPONSE	id_num	4		uint32_t	
+CTL_RESPONSE	addr	8		struct osockaddr	
+CTL_RESPONSE	addr.sa_family	8		short unsigned int	
+CTL_RESPONSE	addr.sa_data	10		unsigned char[14]	
+struct osockaddr		16	2		
+struct osockaddr	sa_family	0		short unsigned int	
+struct osockaddr	sa_data	2		unsigned char[14]	
+struct whod		1068	4		
+struct whod	wd_vers	0		char	
+struct whod	wd_type	1		char	
+struct whod	wd_pad	2		char[2]	
+struct whod	wd_sendtime	4		int	
+struct whod	wd_recvtime	8		int	
+struct whod	wd_hostname	12		char[32]	
+struct whod	wd_loadav	44		int[3]	
+struct whod	wd_boottime	56		int	
+struct whod	wd_we	60		struct whoent[42]	
+struct whod	wd_we.we_utmp	60		struct outmp	
+struct whod	wd_we.we_utmp.out_line	60		char[8]	
+struct whod	wd_we.we_utmp.out_name	68		char[8]	
+struct whod	wd_we.we_utmp.out_time	76		int32_t	
+struct whod	wd_we.we_idle	80		int	
+struct whoent		24	4		
+struct whoent	we_utmp	0		struct outmp	
+struct whoent	we_utmp.out_line	0		char[8]	
+struct whoent	we_utmp.out_name	8		char[8]	
+struct whoent	we_utmp.out_time	16		int32_t	
+struct whoent	we_idle	20		int	
+struct outmp		20	4		
+struct outmp	out_line	0		char[8]	
+struct outmp	out_name	8		char[8]	
+struct outmp	out_time	16		int32_t	
+struct tsp		88	8		
+struct tsp	tsp_type	0		unsigned char	
+struct tsp	tsp_vers	1		unsigned char	
+struct tsp	tsp_seq	2		short unsigned int	
+struct tsp	tsp_u	8		union <anon>	
+struct tsp	tsp_u.tspu_time	8		struct timeval	
+struct tsp	tsp_u.tspu_time.tv_sec	8		__time_t	
+struct tsp	tsp_u.tspu_time.tv_usec	16		__suseconds_t	
+struct tsp	tsp_u.tspu_hopcnt	8		char	
+struct tsp	tsp_name	24		char[64]	
+struct rip		24	4		
+struct rip	rip_cmd	0		unsigned char	
+struct rip	rip_vers	1		unsigned char	
+struct rip	rip_res1	2		unsigned char[2]	
+struct rip	ripun	4		union <anon>	
+struct rip	ripun.ru_nets	4		struct netinfo[1]	
+struct rip	ripun.ru_nets.rip_dst	4		struct sockaddr	
+struct rip	ripun.ru_nets.rip_dst.sa_family	4		sa_family_t	
+struct rip	ripun.ru_nets.rip_dst.sa_data	6		char[14]	
+struct rip	ripun.ru_nets.rip_metric	20		int	
+struct rip	ripun.ru_tracefile	4		char[1]	
+struct netinfo		20	4		
+struct netinfo	rip_dst	0		struct sockaddr	
+struct netinfo	rip_dst.sa_family	0		sa_family_t	
+struct netinfo	rip_dst.sa_data	2		char[14]	
+struct netinfo	rip_metric	16		int	
 ax25_address		7	1		
 ax25_address	ax25_call	0		char[7]	
 rose_address		5	1		

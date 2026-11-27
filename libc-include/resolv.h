@@ -80,9 +80,19 @@ typedef struct __res_state * res_state;
 #  define __NIJI_D_blkcnt64_t 1
 typedef long blkcnt64_t;
 # endif
+# ifndef __NIJI_D___mbstate_t
+#  define __NIJI_D___mbstate_t 1
+typedef struct {
+  int __count;
+  union { unsigned int __wch; char __wchb[4]; } __value;
+} __mbstate_t;
+# endif
 # ifndef __NIJI_D_struct__G_fpos64_t
 #  define __NIJI_D_struct__G_fpos64_t 1
-struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct _G_fpos64_t {
+  long __pos;
+  __mbstate_t __state;
+};
 # endif
 # ifndef __NIJI_D_fpos64_t
 #  define __NIJI_D_fpos64_t 1

@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (370 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (384 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -4183,6 +4183,187 @@ fn abi_prpsinfo_t() {
     expect_member("prpsinfo_t", "pr_sid", offset_of!(prpsinfo_t, pr_sid));
     expect_member("prpsinfo_t", "pr_fname", offset_of!(prpsinfo_t, pr_fname));
     expect_member("prpsinfo_t", "pr_psargs", offset_of!(prpsinfo_t, pr_psargs));
+}
+
+#[test]
+fn abi_glob64_t() {
+    expect_type("glob64_t", size_of::<glob64_t>(), align_of::<glob64_t>());
+    expect_member("glob64_t", "gl_pathc", offset_of!(glob64_t, gl_pathc));
+    expect_member("glob64_t", "gl_pathv", offset_of!(glob64_t, gl_pathv));
+    expect_member("glob64_t", "gl_offs", offset_of!(glob64_t, gl_offs));
+    expect_member("glob64_t", "gl_flags", offset_of!(glob64_t, gl_flags));
+    expect_member("glob64_t", "gl_closedir", offset_of!(glob64_t, gl_closedir));
+    expect_member("glob64_t", "gl_readdir", offset_of!(glob64_t, gl_readdir));
+    expect_member("glob64_t", "gl_opendir", offset_of!(glob64_t, gl_opendir));
+    expect_member("glob64_t", "gl_lstat", offset_of!(glob64_t, gl_lstat));
+    expect_member("glob64_t", "gl_stat", offset_of!(glob64_t, gl_stat));
+}
+
+#[test]
+fn abi_struct_igmp() {
+    expect_type("struct igmp", size_of::<struct_igmp>(), align_of::<struct_igmp>());
+    expect_member("struct igmp", "igmp_type", offset_of!(struct_igmp, igmp_type));
+    expect_member("struct igmp", "igmp_code", offset_of!(struct_igmp, igmp_code));
+    expect_member("struct igmp", "igmp_cksum", offset_of!(struct_igmp, igmp_cksum));
+    expect_member("struct igmp", "igmp_group", offset_of!(struct_igmp, igmp_group));
+    expect_member("struct igmp", "igmp_group.s_addr", offset_of!(struct_igmp, igmp_group.s_addr));
+}
+
+#[test]
+fn abi_struct_aiocb64() {
+    expect_type("struct aiocb64", size_of::<struct_aiocb64>(), align_of::<struct_aiocb64>());
+    expect_member("struct aiocb64", "aio_fildes", offset_of!(struct_aiocb64, aio_fildes));
+    expect_member("struct aiocb64", "aio_lio_opcode", offset_of!(struct_aiocb64, aio_lio_opcode));
+    expect_member("struct aiocb64", "aio_reqprio", offset_of!(struct_aiocb64, aio_reqprio));
+    expect_member("struct aiocb64", "aio_buf", offset_of!(struct_aiocb64, aio_buf));
+    expect_member("struct aiocb64", "aio_nbytes", offset_of!(struct_aiocb64, aio_nbytes));
+    expect_member("struct aiocb64", "aio_sigevent", offset_of!(struct_aiocb64, aio_sigevent));
+    expect_member("struct aiocb64", "aio_sigevent.sigev_value", offset_of!(struct_aiocb64, aio_sigevent.sigev_value));
+    expect_member("struct aiocb64", "aio_sigevent.sigev_value.sival_int", offset_of!(struct_aiocb64, aio_sigevent.sigev_value.sival_int));
+    expect_member("struct aiocb64", "aio_sigevent.sigev_value.sival_ptr", offset_of!(struct_aiocb64, aio_sigevent.sigev_value.sival_ptr));
+    expect_member("struct aiocb64", "aio_sigevent.sigev_signo", offset_of!(struct_aiocb64, aio_sigevent.sigev_signo));
+    expect_member("struct aiocb64", "aio_sigevent.sigev_notify", offset_of!(struct_aiocb64, aio_sigevent.sigev_notify));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un", offset_of!(struct_aiocb64, aio_sigevent._sigev_un));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un._pad", offset_of!(struct_aiocb64, aio_sigevent._sigev_un._pad));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un._tid", offset_of!(struct_aiocb64, aio_sigevent._sigev_un._tid));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un._sigev_thread", offset_of!(struct_aiocb64, aio_sigevent._sigev_un._sigev_thread));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un._sigev_thread._function", offset_of!(struct_aiocb64, aio_sigevent._sigev_un._sigev_thread._function));
+    expect_member("struct aiocb64", "aio_sigevent._sigev_un._sigev_thread._attribute", offset_of!(struct_aiocb64, aio_sigevent._sigev_un._sigev_thread._attribute));
+    expect_member("struct aiocb64", "__next_prio", offset_of!(struct_aiocb64, __next_prio));
+    expect_member("struct aiocb64", "__abs_prio", offset_of!(struct_aiocb64, __abs_prio));
+    expect_member("struct aiocb64", "__policy", offset_of!(struct_aiocb64, __policy));
+    expect_member("struct aiocb64", "__error_code", offset_of!(struct_aiocb64, __error_code));
+    expect_member("struct aiocb64", "__return_value", offset_of!(struct_aiocb64, __return_value));
+    expect_member("struct aiocb64", "aio_offset", offset_of!(struct_aiocb64, aio_offset));
+    expect_member("struct aiocb64", "__glibc_reserved", offset_of!(struct_aiocb64, __glibc_reserved));
+}
+
+#[test]
+fn abi_fpos64_t() {
+    expect_type("fpos64_t", size_of::<fpos64_t>(), align_of::<fpos64_t>());
+    expect_member("fpos64_t", "__pos", offset_of!(fpos64_t, __pos));
+    expect_member("fpos64_t", "__state", offset_of!(fpos64_t, __state));
+    expect_member("fpos64_t", "__state.__count", offset_of!(fpos64_t, __state.__count));
+    expect_member("fpos64_t", "__state.__value", offset_of!(fpos64_t, __state.__value));
+    expect_member("fpos64_t", "__state.__value.__wch", offset_of!(fpos64_t, __state.__value.__wch));
+    expect_member("fpos64_t", "__state.__value.__wchb", offset_of!(fpos64_t, __state.__value.__wchb));
+}
+
+#[test]
+fn abi_struct_termio() {
+    expect_type("struct termio", size_of::<struct_termio>(), align_of::<struct_termio>());
+    expect_member("struct termio", "c_iflag", offset_of!(struct_termio, c_iflag));
+    expect_member("struct termio", "c_oflag", offset_of!(struct_termio, c_oflag));
+    expect_member("struct termio", "c_cflag", offset_of!(struct_termio, c_cflag));
+    expect_member("struct termio", "c_lflag", offset_of!(struct_termio, c_lflag));
+    expect_member("struct termio", "c_line", offset_of!(struct_termio, c_line));
+    expect_member("struct termio", "c_cc", offset_of!(struct_termio, c_cc));
+}
+
+#[test]
+fn abi_ctl_msg() {
+    expect_type("CTL_MSG", size_of::<CTL_MSG>(), align_of::<CTL_MSG>());
+    expect_member("CTL_MSG", "vers", offset_of!(CTL_MSG, vers));
+    expect_member("CTL_MSG", "type", offset_of!(CTL_MSG, r#type));
+    expect_member("CTL_MSG", "answer", offset_of!(CTL_MSG, answer));
+    expect_member("CTL_MSG", "pad", offset_of!(CTL_MSG, pad));
+    expect_member("CTL_MSG", "id_num", offset_of!(CTL_MSG, id_num));
+    expect_member("CTL_MSG", "addr", offset_of!(CTL_MSG, addr));
+    expect_member("CTL_MSG", "addr.sa_family", offset_of!(CTL_MSG, addr.sa_family));
+    expect_member("CTL_MSG", "addr.sa_data", offset_of!(CTL_MSG, addr.sa_data));
+    expect_member("CTL_MSG", "ctl_addr", offset_of!(CTL_MSG, ctl_addr));
+    expect_member("CTL_MSG", "ctl_addr.sa_family", offset_of!(CTL_MSG, ctl_addr.sa_family));
+    expect_member("CTL_MSG", "ctl_addr.sa_data", offset_of!(CTL_MSG, ctl_addr.sa_data));
+    expect_member("CTL_MSG", "pid", offset_of!(CTL_MSG, pid));
+    expect_member("CTL_MSG", "l_name", offset_of!(CTL_MSG, l_name));
+    expect_member("CTL_MSG", "r_name", offset_of!(CTL_MSG, r_name));
+    expect_member("CTL_MSG", "r_tty", offset_of!(CTL_MSG, r_tty));
+}
+
+#[test]
+fn abi_ctl_response() {
+    expect_type("CTL_RESPONSE", size_of::<CTL_RESPONSE>(), align_of::<CTL_RESPONSE>());
+    expect_member("CTL_RESPONSE", "vers", offset_of!(CTL_RESPONSE, vers));
+    expect_member("CTL_RESPONSE", "type", offset_of!(CTL_RESPONSE, r#type));
+    expect_member("CTL_RESPONSE", "answer", offset_of!(CTL_RESPONSE, answer));
+    expect_member("CTL_RESPONSE", "pad", offset_of!(CTL_RESPONSE, pad));
+    expect_member("CTL_RESPONSE", "id_num", offset_of!(CTL_RESPONSE, id_num));
+    expect_member("CTL_RESPONSE", "addr", offset_of!(CTL_RESPONSE, addr));
+    expect_member("CTL_RESPONSE", "addr.sa_family", offset_of!(CTL_RESPONSE, addr.sa_family));
+    expect_member("CTL_RESPONSE", "addr.sa_data", offset_of!(CTL_RESPONSE, addr.sa_data));
+}
+
+#[test]
+fn abi_struct_osockaddr() {
+    expect_type("struct osockaddr", size_of::<struct_osockaddr>(), align_of::<struct_osockaddr>());
+    expect_member("struct osockaddr", "sa_family", offset_of!(struct_osockaddr, sa_family));
+    expect_member("struct osockaddr", "sa_data", offset_of!(struct_osockaddr, sa_data));
+}
+
+#[test]
+fn abi_struct_whod() {
+    expect_type("struct whod", size_of::<struct_whod>(), align_of::<struct_whod>());
+    expect_member("struct whod", "wd_vers", offset_of!(struct_whod, wd_vers));
+    expect_member("struct whod", "wd_type", offset_of!(struct_whod, wd_type));
+    expect_member("struct whod", "wd_pad", offset_of!(struct_whod, wd_pad));
+    expect_member("struct whod", "wd_sendtime", offset_of!(struct_whod, wd_sendtime));
+    expect_member("struct whod", "wd_recvtime", offset_of!(struct_whod, wd_recvtime));
+    expect_member("struct whod", "wd_hostname", offset_of!(struct_whod, wd_hostname));
+    expect_member("struct whod", "wd_loadav", offset_of!(struct_whod, wd_loadav));
+    expect_member("struct whod", "wd_boottime", offset_of!(struct_whod, wd_boottime));
+    expect_member("struct whod", "wd_we", offset_of!(struct_whod, wd_we));
+}
+
+#[test]
+fn abi_struct_whoent() {
+    expect_type("struct whoent", size_of::<struct_whoent>(), align_of::<struct_whoent>());
+    expect_member("struct whoent", "we_utmp", offset_of!(struct_whoent, we_utmp));
+    expect_member("struct whoent", "we_utmp.out_line", offset_of!(struct_whoent, we_utmp.out_line));
+    expect_member("struct whoent", "we_utmp.out_name", offset_of!(struct_whoent, we_utmp.out_name));
+    expect_member("struct whoent", "we_utmp.out_time", offset_of!(struct_whoent, we_utmp.out_time));
+    expect_member("struct whoent", "we_idle", offset_of!(struct_whoent, we_idle));
+}
+
+#[test]
+fn abi_struct_outmp() {
+    expect_type("struct outmp", size_of::<struct_outmp>(), align_of::<struct_outmp>());
+    expect_member("struct outmp", "out_line", offset_of!(struct_outmp, out_line));
+    expect_member("struct outmp", "out_name", offset_of!(struct_outmp, out_name));
+    expect_member("struct outmp", "out_time", offset_of!(struct_outmp, out_time));
+}
+
+#[test]
+fn abi_struct_tsp() {
+    expect_type("struct tsp", size_of::<struct_tsp>(), align_of::<struct_tsp>());
+    expect_member("struct tsp", "tsp_type", offset_of!(struct_tsp, tsp_type));
+    expect_member("struct tsp", "tsp_vers", offset_of!(struct_tsp, tsp_vers));
+    expect_member("struct tsp", "tsp_seq", offset_of!(struct_tsp, tsp_seq));
+    expect_member("struct tsp", "tsp_u", offset_of!(struct_tsp, tsp_u));
+    expect_member("struct tsp", "tsp_u.tspu_time", offset_of!(struct_tsp, tsp_u.tspu_time));
+    expect_member("struct tsp", "tsp_u.tspu_time.tv_sec", offset_of!(struct_tsp, tsp_u.tspu_time.tv_sec));
+    expect_member("struct tsp", "tsp_u.tspu_time.tv_usec", offset_of!(struct_tsp, tsp_u.tspu_time.tv_usec));
+    expect_member("struct tsp", "tsp_u.tspu_hopcnt", offset_of!(struct_tsp, tsp_u.tspu_hopcnt));
+    expect_member("struct tsp", "tsp_name", offset_of!(struct_tsp, tsp_name));
+}
+
+#[test]
+fn abi_struct_rip() {
+    expect_type("struct rip", size_of::<struct_rip>(), align_of::<struct_rip>());
+    expect_member("struct rip", "rip_cmd", offset_of!(struct_rip, rip_cmd));
+    expect_member("struct rip", "rip_vers", offset_of!(struct_rip, rip_vers));
+    expect_member("struct rip", "rip_res1", offset_of!(struct_rip, rip_res1));
+    expect_member("struct rip", "ripun", offset_of!(struct_rip, ripun));
+    expect_member("struct rip", "ripun.ru_nets", offset_of!(struct_rip, ripun.ru_nets));
+    expect_member("struct rip", "ripun.ru_tracefile", offset_of!(struct_rip, ripun.ru_tracefile));
+}
+
+#[test]
+fn abi_struct_netinfo() {
+    expect_type("struct netinfo", size_of::<struct_netinfo>(), align_of::<struct_netinfo>());
+    expect_member("struct netinfo", "rip_dst", offset_of!(struct_netinfo, rip_dst));
+    expect_member("struct netinfo", "rip_dst.sa_family", offset_of!(struct_netinfo, rip_dst.sa_family));
+    expect_member("struct netinfo", "rip_dst.sa_data", offset_of!(struct_netinfo, rip_dst.sa_data));
+    expect_member("struct netinfo", "rip_metric", offset_of!(struct_netinfo, rip_metric));
 }
 
 #[test]

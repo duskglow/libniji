@@ -123,6 +123,7 @@ ALTMON_8	langinfo.h	int	131190
 ALTMON_9	langinfo.h	int	131191
 ALT_DIGITS	langinfo.h	int	131119
 AM_STR	langinfo.h	int	131110
+ANNOUNCE	protocols/talkd.h	int	3
 AO	arpa/telnet.h	int	245
 ARCDENSITY	sys/gmon.h	int	3
 AREGTYPE	tar.h	char	0
@@ -364,6 +365,9 @@ B600	pty.h	int	8
 B75	pty.h	int	2
 B921600	pty.h	int	4103
 B9600	pty.h	int	13
+BADADDR	protocols/talkd.h	int	7
+BADCTLADDR	protocols/talkd.h	int	8
+BADVERSION	protocols/talkd.h	int	6
 BC_BASE_MAX	argp.h	int	99
 BC_DIM_MAX	argp.h	int	2048
 BC_SCALE_MAX	argp.h	int	99
@@ -1615,6 +1619,7 @@ EXEC_PAGESIZE	arpa/nameser.h	int	4096
 EXFULL	argp.h	int	54
 EXIT_FAILURE	stdlib.h	int	1
 EXIT_SUCCESS	stdlib.h	int	0
+EXPIRE_TIME	protocols/routed.h	int	180
 EXPR_NEST_MAX	argp.h	int	32
 EXTA	pty.h	int	14
 EXTB	pty.h	int	15
@@ -1649,6 +1654,7 @@ E_MIPS_ARCH_32	elf.h	int	1342177280
 E_MIPS_ARCH_4	elf.h	int	805306368
 E_MIPS_ARCH_5	elf.h	int	1073741824
 E_MIPS_ARCH_64	elf.h	int	1610612736
+FAILED	protocols/talkd.h	int	2
 FALLOC_FL_ALLOCATE_RANGE	fcntl.h	int	0
 FALLOC_FL_COLLAPSE_RANGE	fcntl.h	int	8
 FALLOC_FL_INSERT_RANGE	fcntl.h	int	32
@@ -1935,6 +1941,7 @@ F_WRLCK	fcntl.h	int	1
 GA	arpa/telnet.h	int	249
 GAI_NOWAIT	netdb.h	int	1
 GAI_WAIT	netdb.h	int	0
+GARBAGE_TIME	protocols/routed.h	int	240
 GETALL	sys/sem.h	int	13
 GETNCNT	sys/sem.h	int	14
 GETPID	sys/sem.h	int	11
@@ -2009,6 +2016,7 @@ HFIXEDSZ	arpa/nameser.h	int	12
 HIBITL	values.h	long	-9223372036854775808
 HIBITS	values.h	int	-32768
 HISTFRACTION	sys/gmon.h	int	2
+HOPCNT_INFINITY	protocols/routed.h	int	16
 HOST_NAME_MAX	argp.h	int	64
 HOST_NOT_FOUND	netdb.h	int	1
 HUGE_VAL	math.h	double	inf
@@ -2645,6 +2653,7 @@ LC_TELEPHONE	locale.h	int	10
 LC_TELEPHONE_MASK	locale.h	int	1024
 LC_TIME	locale.h	int	2
 LC_TIME_MASK	locale.h	int	4
+LEAVE_INVITE	protocols/talkd.h	int	0
 LFLOW_OFF	arpa/telnet.h	int	0
 LFLOW_ON	arpa/telnet.h	int	1
 LFLOW_RESTART_ANY	arpa/telnet.h	int	2
@@ -2737,6 +2746,7 @@ LONG_LONG_MIN	argp.h	long long	-9223372036854775808
 LONG_MAX	argp.h	long	9223372036854775807
 LONG_MIN	argp.h	long	-9223372036854775808
 LONG_WIDTH	argp.h	int	64
+LOOK_UP	protocols/talkd.h	int	1
 LSMT_ROOT	sys/mount.h	unsigned long	18446744073709551615
 L_INCR	arpa/nameser.h	int	1
 L_SET	arpa/nameser.h	int	0
@@ -2744,6 +2754,7 @@ L_XTND	arpa/nameser.h	int	2
 L_ctermid	argp.h	int	9
 L_cuserid	argp.h	int	9
 L_tmpnam	argp.h	int	20
+MACHINE_UNKNOWN	protocols/talkd.h	int	3
 MADV_COLD	sys/mman.h	int	20
 MADV_COLLAPSE	sys/mman.h	int	25
 MADV_DODUMP	sys/mman.h	int	17
@@ -2808,6 +2819,7 @@ MAXLABEL	arpa/nameser.h	int	63
 MAXLONG	values.h	long	9223372036854775807
 MAXNAMLEN	dirent.h	int	255
 MAXNS	resolv.h	int	3
+MAXPACKETSIZE	protocols/routed.h	int	512
 MAXPATHLEN	arpa/nameser.h	int	4096
 MAXQUOTAS	sys/quota.h	int	3
 MAXRESOLVSORT	resolv.h	int	10
@@ -2822,6 +2834,8 @@ MAX_HANDLE_SZ	fcntl.h	int	128
 MAX_INPUT	argp.h	int	255
 MAX_IPOPTLEN	netinet/ip.h	int	40
 MAX_IQ_TIME	sys/quota.h	int	604800
+MAX_LIFE	protocols/talkd.h	int	60
+MAX_WAITTIME	protocols/routed.h	int	5
 MB_LEN_MAX	argp.h	int	16
 MCAST_BLOCK_SOURCE	arpa/inet.h	int	43
 MCAST_EXCLUDE	arpa/inet.h	int	0
@@ -2855,6 +2869,7 @@ MININT	values.h	int	-2147483648
 MINLONG	values.h	long	-9223372036854775808
 MINSHORT	values.h	int	-32768
 MINSIGSTKSZ	arpa/nameser.h	int	2048
+MIN_WAITTIME	protocols/routed.h	int	2
 MIPS_AFL_ASE_DSP	elf.h	int	1
 MIPS_AFL_ASE_DSPR2	elf.h	int	2
 MIPS_AFL_ASE_EVA	elf.h	int	4
@@ -3280,6 +3295,7 @@ M_TOP_PAD	malloc.h	int	-2
 M_TRIM_THRESHOLD	malloc.h	int	-1
 NAMESERVER_PORT	arpa/nameser.h	int	53
 NAME_MAX	argp.h	int	255
+NAME_SIZE	protocols/talkd.h	int	12
 NAN	math.h	float	nan
 NBBY	arpa/nameser.h	int	8
 NBPG	proc_service.h	unsigned long	4096
@@ -3355,6 +3371,7 @@ NOSTR	langinfo.h	int	327683
 NOTAUTH	arpa/nameser.h	int	9
 NOTIMP	arpa/nameser.h	int	4
 NOTZONE	arpa/nameser.h	int	10
+NOT_HERE	protocols/talkd.h	int	1
 NOT_READY	scsi/scsi.h	int	2
 NO_ADDRESS	netdb.h	int	4
 NO_DATA	netdb.h	int	4
@@ -3634,6 +3651,7 @@ PA_FLAG_PTR	printf.h	int	2048
 PA_FLAG_SHORT	printf.h	int	1024
 PDP_ENDIAN	aio.h	int	3412
 PENDIN	pty.h	int	16384
+PERMISSION_DENIED	protocols/talkd.h	int	4
 PER_BSD	sys/personality.h	int	6
 PER_HPUX	sys/personality.h	int	16
 PER_IRIX32	sys/personality.h	int	67108873
@@ -4457,7 +4475,14 @@ RHF_REQUICKSTART	elf.h	int	1024
 RHF_REQUICKSTARTED	elf.h	int	2048
 RHF_RLD_ORDER_SAFE	elf.h	int	16384
 RHF_SGI_ONLY	elf.h	int	16
+RING_WAIT	protocols/talkd.h	int	30
 RIP	sys/reg.h	int	16
+RIPCMD_MAX	protocols/routed.h	int	5
+RIPCMD_REQUEST	protocols/routed.h	int	1
+RIPCMD_RESPONSE	protocols/routed.h	int	2
+RIPCMD_TRACEOFF	protocols/routed.h	int	4
+RIPCMD_TRACEON	protocols/routed.h	int	3
+RIPVERSION	protocols/routed.h	int	1
 RLIM64_INFINITY	sys/resource.h	unsigned long long	18446744073709551615
 RLIMIT_AS	sys/resource.h	int	9
 RLIMIT_CORE	sys/resource.h	int	4
@@ -7310,6 +7335,7 @@ ST_WRITE	sys/statvfs.h	int	128
 SUBCMDMASK	sys/quota.h	int	255
 SUBCMDSHIFT	sys/quota.h	int	8
 SUCCESS	protocols/talkd.h	int	0
+SUPPLY_INTERVAL	protocols/routed.h	int	30
 SUSP	arpa/telnet.h	int	237
 SWAP_FLAG_DISCARD	sys/swap.h	int	65536
 SWAP_FLAG_PREFER	sys/swap.h	int	32768
@@ -7371,6 +7397,7 @@ TAB1	pty.h	int	2048
 TAB2	pty.h	int	4096
 TAB3	pty.h	int	6144
 TABDLY	pty.h	int	6144
+TALK_VERSION	protocols/talkd.h	int	1
 TCFLSH	net/if_ppp.h	int	21515
 TCGETA	net/if_ppp.h	int	21509
 TCGETS	net/if_ppp.h	int	21505
@@ -7561,6 +7588,7 @@ TH_RST	netinet/tcp.h	int	4
 TH_SYN	netinet/tcp.h	int	2
 TH_URG	netinet/tcp.h	int	32
 TIMER_ABSTIME	pthread.h	int	1
+TIMER_RATE	protocols/routed.h	int	30
 TIME_BAD	sys/timex.h	int	5
 TIME_DEL	sys/timex.h	int	2
 TIME_ERROR	sys/timex.h	int	5
@@ -7653,6 +7681,33 @@ TRAP_TRACE	arpa/nameser.h	int	2
 TRAP_UNK	arpa/nameser.h	int	5
 TRY_AGAIN	netdb.h	int	2
 TSGID	tar.h	int	1024
+TSPTYPENUMBER	protocols/timed.h	int	25
+TSPVERSION	protocols/timed.h	int	1
+TSP_ACCEPT	protocols/timed.h	int	9
+TSP_ACK	protocols/timed.h	int	2
+TSP_ADJTIME	protocols/timed.h	int	1
+TSP_ANY	protocols/timed.h	int	0
+TSP_CONFLICT	protocols/timed.h	int	11
+TSP_DATE	protocols/timed.h	int	14
+TSP_DATEACK	protocols/timed.h	int	16
+TSP_DATEREQ	protocols/timed.h	int	15
+TSP_ELECTION	protocols/timed.h	int	8
+TSP_LOOP	protocols/timed.h	int	24
+TSP_MASTERACK	protocols/timed.h	int	4
+TSP_MASTERREQ	protocols/timed.h	int	3
+TSP_MASTERUP	protocols/timed.h	int	6
+TSP_MSITE	protocols/timed.h	int	19
+TSP_MSITEREQ	protocols/timed.h	int	20
+TSP_QUIT	protocols/timed.h	int	13
+TSP_REFUSE	protocols/timed.h	int	10
+TSP_RESOLVE	protocols/timed.h	int	12
+TSP_SETDATE	protocols/timed.h	int	22
+TSP_SETDATEREQ	protocols/timed.h	int	23
+TSP_SETTIME	protocols/timed.h	int	5
+TSP_SLAVEUP	protocols/timed.h	int	7
+TSP_TEST	protocols/timed.h	int	21
+TSP_TRACEOFF	protocols/timed.h	int	18
+TSP_TRACEON	protocols/timed.h	int	17
 TSS_DTOR_ITERATIONS	threads.h	int	4
 TSUID	tar.h	int	2048
 TSVTX	tar.h	int	512
@@ -7664,6 +7719,7 @@ TTYDEF_SPEED	pty.h	int	13
 TTY_NAME_MAX	argp.h	int	32
 TTY_ON	ttyent.h	int	1
 TTY_SECURE	ttyent.h	int	2
+TTY_SIZE	protocols/talkd.h	int	16
 TUEXEC	tar.h	int	64
 TUREAD	tar.h	int	256
 TUWRITE	tar.h	int	128
@@ -7823,6 +7879,7 @@ UL_SETFSIZE	ulimit.h	int	2
 UMOUNT_NOFOLLOW	sys/mount.h	int	8
 UNAME26	sys/personality.h	int	131072
 UNIT_ATTENTION	scsi/scsi.h	int	6
+UNKNOWN_REQUEST	protocols/talkd.h	int	5
 UPAGES	proc_service.h	int	1
 UPDATE_BLOCK	scsi/scsi.h	int	61
 USER_PROCESS	lastlog.h	int	7
@@ -7882,6 +7939,8 @@ WCONTINUED	stdlib.h	int	8
 WCOREFLAG	sys/wait.h	int	128
 WEOF	wchar.h	unsigned int	4294967295
 WEXITED	stdlib.h	int	4
+WHODTYPE_STATUS	protocols/rwhod.h	int	1
+WHODVERSION	protocols/rwhod.h	int	1
 WHOLE_SECONDS	sys/personality.h	int	33554432
 WILL	arpa/telnet.h	int	251
 WINT_MAX	arpa/nameser.h	unsigned int	4294967295

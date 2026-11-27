@@ -78,14 +78,18 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
-typedef unsigned long size_t;
+#  if !defined __STDC_VERSION_STDDEF_H__
+#   define __need_size_t
+#   include <stddef.h>
+#  endif
 # endif
 #endif
 #if __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
-#  ifndef __cplusplus
-typedef __WCHAR_TYPE__ wchar_t;
+#  if !defined __cplusplus && !defined __STDC_VERSION_STDDEF_H__
+#   define __need_wchar_t
+#   include <stddef.h>
 #  endif
 # endif
 #endif
@@ -130,6 +134,10 @@ typedef unsigned int useconds_t;
 # ifndef __NIJI_D___locale_t
 #  define __NIJI_D___locale_t 1
 typedef struct __locale_struct * __locale_t;
+# endif
+# ifndef __NIJI_D_comparison_fn_t
+#  define __NIJI_D_comparison_fn_t 1
+typedef int (*comparison_fn_t)(void const *, void const *);
 # endif
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1

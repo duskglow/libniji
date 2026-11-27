@@ -7,6 +7,17 @@
 
 __NIJI_BEGIN_C
 
+/* The GLOB_ALTDIRFUNC callbacks of glob_t and glob64_t (GNU C Library manual, "More Flags for Globbing";
+   headers/fnmembers.tsv): with _GNU_SOURCE the directory entry and the file status they pass are typed (struct dirent
+   and struct stat, struct dirent64 and struct stat64 in glob64_t), declared here as incomplete tags; in every other
+   configuration they are `void *` (black-box probe of the reference, HEADERS-STAGE2-GAPS-I). */
+#ifdef __USE_GNU
+struct dirent;
+struct dirent64;
+struct stat;
+struct stat64;
+#endif
+
 @@emit
 
 __NIJI_END_C

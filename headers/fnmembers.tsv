@@ -1,8 +1,9 @@
 # Function-pointer structure members. layouts.tsv records such a member as `fn(...) *` (offset and size only);
 # this table spells its type, `@` standing for the member's name. A row's type and member are layouts.tsv's. A
 # member with no row here is declared `void (*m) (void)`: the table lists the members whose signature a standard,
-# man page or the GNU C Library manual gives.
-# Sources: the GNU C Library manual (Argp Help Filtering).
+# man page or the GNU C Library manual gives. A declarator `GNU-DECL ;; OTHER-DECL` is emitted as GNU-DECL under
+# `#ifdef __USE_GNU` and OTHER-DECL otherwise; the tags GNU-DECL names are declared incomplete by the header's template.
+# Sources: the GNU C Library manual (Argp Help Filtering, More Flags for Globbing).
 type	member	declarator	source
 struct argp	help_filter	char *(*@)(int, const char *, void *)	GNU C Library manual, Argp Help Filtering
 struct sigaction	__sigaction_handler.sa_sigaction	void (*@)(int, siginfo_t *, void *)	POSIX struct sigaction
@@ -10,3 +11,13 @@ struct sigaction	sa_restorer	void (*@)(void)	sigaction(2)
 struct sigevent	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
 sigevent_t	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
 struct _pthread_cleanup_buffer	__routine	void (*@)(void *)	pthread_cleanup_push(3)
+glob_t	gl_closedir	void (*@)(void *)	GNU C Library manual, More Flags for Globbing
+glob_t	gl_readdir	struct dirent *(*@)(void *) ;; void *(*@)(void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob_t	gl_opendir	void *(*@)(const char *)	GNU C Library manual, More Flags for Globbing
+glob_t	gl_lstat	int (*@)(const char *, struct stat *) ;; int (*@)(const char *, void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob_t	gl_stat	int (*@)(const char *, struct stat *) ;; int (*@)(const char *, void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_closedir	void (*@)(void *)	GNU C Library manual, More Flags for Globbing
+glob64_t	gl_readdir	struct dirent64 *(*@)(void *) ;; void *(*@)(void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_opendir	void *(*@)(const char *)	GNU C Library manual, More Flags for Globbing
+glob64_t	gl_lstat	int (*@)(const char *, struct stat64 *) ;; int (*@)(const char *, void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)
+glob64_t	gl_stat	int (*@)(const char *, struct stat64 *) ;; int (*@)(const char *, void *)	GNU C Library manual, More Flags for Globbing (glob.h.in)

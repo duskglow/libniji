@@ -366,9 +366,19 @@ typedef unsigned long size_t;
 # endif
 #endif
 #if __NIJI_LFS64
+# ifndef __NIJI_D___mbstate_t
+#  define __NIJI_D___mbstate_t 1
+typedef struct {
+  int __count;
+  union { unsigned int __wch; char __wchb[4]; } __value;
+} __mbstate_t;
+# endif
 # ifndef __NIJI_D_struct__G_fpos64_t
 #  define __NIJI_D_struct__G_fpos64_t 1
-struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct _G_fpos64_t {
+  long __pos;
+  __mbstate_t __state;
+};
 # endif
 # ifndef __NIJI_D_fpos64_t
 #  define __NIJI_D_fpos64_t 1
@@ -1014,13 +1024,16 @@ extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ (
 extern char *gets (char *__s);
 #endif
 
+/* va_list through the compiler's <stdarg.h> and its `__need___va_list` request (only `__gnuc_va_list` is
+   defined): a header-rewriting build step such as gcc's fixincludes then finds this header already in the form it
+   expects and leaves it alone (HEADERS-STAGE2-GAPS-I). `_VA_LIST_DEFINED` marks it declared, and a program's own
+   earlier definition of it suppresses the typedef, as in the reference (black-box probe). */
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
-# ifndef __NIJI_D_va_list
-#  define __NIJI_D_va_list 1
-#  ifndef _VA_LIST_DEFINED
-#   define _VA_LIST_DEFINED
-typedef __builtin_va_list va_list;
-#  endif
+# ifndef _VA_LIST_DEFINED
+#  define __need___va_list
+#  include <stdarg.h>
+typedef __gnuc_va_list va_list;
+#  define _VA_LIST_DEFINED
 # endif
 #endif
 

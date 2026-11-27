@@ -2301,6 +2301,7 @@ arpa/inet.h	ntohs	macro	fortify1,fortify2,fortify3
 arpa/inet.h	ntohs	function	!time64only
 arpa/inet.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	off_t	typedef	!time64only
+arpa/inet.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	pid_t	typedef	!time64only
 arpa/inet.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 arpa/inet.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -6617,6 +6618,7 @@ complex.h	clogf64	function	gnu,cxx98
 complex.h	clogf64x	function	gnu,cxx98
 complex.h	clogl	function	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	clone	function	cxx11,cxx14,cxx17,cxx20,cxx23
+complex.h	comparison_fn_t	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	complex	macro	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	conj	function	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	conjf	function	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -14464,6 +14466,7 @@ ifaddrs.h	msghdr	struct	!time64only
 ifaddrs.h	nlink_t	typedef	!time64only
 ifaddrs.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ifaddrs.h	off_t	typedef	!time64only
+ifaddrs.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ifaddrs.h	pid_t	typedef	!time64only
 ifaddrs.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 ifaddrs.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -20956,6 +20959,7 @@ math.h	ceill	function	!c89,time64only
 math.h	clearenv	function	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	clock_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	clockid_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+math.h	comparison_fn_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	copysign	function	!c89,time64only
 math.h	copysignf	function	!c89,time64only
 math.h	copysignf128	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -23648,6 +23652,7 @@ net/if.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynst
 net/if.h	nlink_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	off_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+net/if.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	pid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if.h	pthread_attr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3
@@ -24385,6 +24390,7 @@ net/if_arp.h	msghdr	struct	!time64only
 net/if_arp.h	nlink_t	typedef	!time64only
 net/if_arp.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_arp.h	off_t	typedef	!time64only
+net/if_arp.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_arp.h	pid_t	typedef	!time64only
 net/if_arp.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_arp.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -25357,6 +25363,7 @@ net/if_ppp.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,d
 net/if_ppp.h	nlink_t	typedef	!time64only
 net/if_ppp.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	off_t	typedef	!time64only
+net/if_ppp.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	pid_t	typedef	!time64only
 net/if_ppp.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -25396,6 +25403,7 @@ net/if_ppp.h	socketpair	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,ti
 net/if_ppp.h	socklen_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_ppp.h	ssize_t	typedef	!time64only
 net/if_ppp.h	suseconds_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,isoc99,isoc11,isoc2x,time64only
+net/if_ppp.h	termio	struct	!time64only
 net/if_ppp.h	time_t	typedef	!time64only
 net/if_ppp.h	timer_t	typedef	!time64only
 net/if_ppp.h	timespec	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -26304,6 +26312,7 @@ net/if_shaper.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time6
 net/if_shaper.h	nlink_t	typedef	!time64only
 net/if_shaper.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	off_t	typedef	!time64only
+net/if_shaper.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	pid_t	typedef	!time64only
 net/if_shaper.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -26343,6 +26352,7 @@ net/if_shaper.h	socketpair	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64
 net/if_shaper.h	socklen_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/if_shaper.h	ssize_t	typedef	!time64only
 net/if_shaper.h	suseconds_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,isoc99,isoc11,isoc2x,time64only
+net/if_shaper.h	termio	struct	!time64only
 net/if_shaper.h	time_t	typedef	!time64only
 net/if_shaper.h	timer_t	typedef	!time64only
 net/if_shaper.h	timespec	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -27314,6 +27324,7 @@ net/route.h	ntohs	macro	fortify1,fortify2,fortify3
 net/route.h	ntohs	function	!time64only
 net/route.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	off_t	typedef	!time64only
+net/route.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	pid_t	typedef	!time64only
 net/route.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 net/route.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -27898,6 +27909,7 @@ netatalk/at.h	msghdr	struct	!time64only
 netatalk/at.h	nlink_t	typedef	!time64only
 netatalk/at.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netatalk/at.h	off_t	typedef	!time64only
+netatalk/at.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netatalk/at.h	pid_t	typedef	!time64only
 netatalk/at.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netatalk/at.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -28890,6 +28902,7 @@ netdb.h	ntohs	macro	fortify1,fortify2,fortify3
 netdb.h	ntohs	function	!time64only
 netdb.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netdb.h	off_t	typedef	!time64only
+netdb.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netdb.h	pid_t	typedef	!time64only
 netdb.h	protoent	struct	!time64only
 netdb.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -29841,6 +29854,7 @@ netinet/ether.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time6
 netinet/ether.h	nlink_t	typedef	!time64only
 netinet/ether.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	off_t	typedef	!time64only
+netinet/ether.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	pid_t	typedef	!time64only
 netinet/ether.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -31097,6 +31111,7 @@ netinet/icmp6.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/icmp6.h	ntohs	function	!time64only
 netinet/icmp6.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	off_t	typedef	!time64only
+netinet/icmp6.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	pid_t	typedef	!time64only
 netinet/icmp6.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -32057,6 +32072,7 @@ netinet/if_ether.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,ti
 netinet/if_ether.h	nlink_t	typedef	!time64only
 netinet/if_ether.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	off_t	typedef	!time64only
+netinet/if_ether.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	pid_t	typedef	!time64only
 netinet/if_ether.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -33587,6 +33603,7 @@ netinet/igmp.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/igmp.h	ntohs	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	off64_t	typedef	gnu,lfs64,fob64,time64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	off_t	typedef	!time64only
+netinet/igmp.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	pid_t	typedef	!time64only
 netinet/igmp.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/igmp.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -34423,6 +34440,7 @@ netinet/in.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/in.h	ntohs	function	!time64only
 netinet/in.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	off_t	typedef	!time64only
+netinet/in.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	pid_t	typedef	!time64only
 netinet/in.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/in.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -35680,6 +35698,7 @@ netinet/ip.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/ip.h	ntohs	function	!time64only
 netinet/ip.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	off_t	typedef	!time64only
+netinet/ip.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	pid_t	typedef	!time64only
 netinet/ip.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -36820,6 +36839,7 @@ netinet/ip6.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/ip6.h	ntohs	function	!time64only
 netinet/ip6.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	off_t	typedef	!time64only
+netinet/ip6.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	pid_t	typedef	!time64only
 netinet/ip6.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip6.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -37976,6 +37996,7 @@ netinet/ip_icmp.h	ntohs	macro	fortify1,fortify2,fortify3
 netinet/ip_icmp.h	ntohs	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	off_t	typedef	!time64only
+netinet/ip_icmp.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	pid_t	typedef	!time64only
 netinet/ip_icmp.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -38750,6 +38771,7 @@ netinet/tcp.h	msghdr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,
 netinet/tcp.h	nlink_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	off_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netinet/tcp.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	pid_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/tcp.h	pthread_attr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3
@@ -40162,6 +40184,7 @@ netrose/rose.h	msghdr	struct	!time64only
 netrose/rose.h	nlink_t	typedef	!time64only
 netrose/rose.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netrose/rose.h	off_t	typedef	!time64only
+netrose/rose.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netrose/rose.h	pid_t	typedef	!time64only
 netrose/rose.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netrose/rose.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41238,6 +41261,7 @@ protocols/routed.h	AF_XDP	macro	!time64only
 protocols/routed.h	BIG_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	BYTE_ORDER	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	CMSG_NXTHDR	macro	!time64only
+protocols/routed.h	EXPIRE_TIME	macro	!time64only
 protocols/routed.h	FD_CLR	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	FD_ISSET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	FD_SET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41245,7 +41269,12 @@ protocols/routed.h	FD_SETSIZE	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64
 protocols/routed.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	FIOGETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	FIOSETOWN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/routed.h	GARBAGE_TIME	macro	!time64only
+protocols/routed.h	HOPCNT_INFINITY	macro	!time64only
 protocols/routed.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/routed.h	MAXPACKETSIZE	macro	!time64only
+protocols/routed.h	MAX_WAITTIME	macro	!time64only
+protocols/routed.h	MIN_WAITTIME	macro	!time64only
 protocols/routed.h	MSG_BATCH	macro	!time64only
 protocols/routed.h	MSG_BATCH	enumerator	!time64only
 protocols/routed.h	MSG_CMSG_CLOEXEC	macro	!time64only
@@ -41342,6 +41371,12 @@ protocols/routed.h	PF_VSOCK	macro	!time64only
 protocols/routed.h	PF_WANPIPE	macro	!time64only
 protocols/routed.h	PF_X25	macro	!time64only
 protocols/routed.h	PF_XDP	macro	!time64only
+protocols/routed.h	RIPCMD_MAX	macro	!time64only
+protocols/routed.h	RIPCMD_REQUEST	macro	!time64only
+protocols/routed.h	RIPCMD_RESPONSE	macro	!time64only
+protocols/routed.h	RIPCMD_TRACEOFF	macro	!time64only
+protocols/routed.h	RIPCMD_TRACEON	macro	!time64only
+protocols/routed.h	RIPVERSION	macro	!time64only
 protocols/routed.h	SCM_CREDENTIALS	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	SCM_CREDENTIALS	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	SCM_PIDFD	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41497,6 +41532,8 @@ protocols/routed.h	SO_TXTIME	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,
 protocols/routed.h	SO_TYPE	macro	!time64only
 protocols/routed.h	SO_WIFI_STATUS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	SO_ZEROCOPY	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/routed.h	SUPPLY_INTERVAL	macro	!time64only
+protocols/routed.h	TIMER_RATE	macro	!time64only
 protocols/routed.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 protocols/routed.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	_BITS_ENDIANNESS_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41669,9 +41706,11 @@ protocols/routed.h	loff_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,t
 protocols/routed.h	mmsghdr	struct	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	mode_t	typedef	!time64only
 protocols/routed.h	msghdr	struct	!time64only
+protocols/routed.h	netinfo	struct	!time64only
 protocols/routed.h	nlink_t	typedef	!time64only
 protocols/routed.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	off_t	typedef	!time64only
+protocols/routed.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	pid_t	typedef	!time64only
 protocols/routed.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41693,6 +41732,9 @@ protocols/routed.h	recvfrom	function	!time64only
 protocols/routed.h	recvmmsg	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	recvmsg	function	!time64only
 protocols/routed.h	register_t	typedef	!time64only
+protocols/routed.h	rip	struct	!time64only
+protocols/routed.h	rip_nets	macro	!time64only
+protocols/routed.h	rip_tracefile	macro	!time64only
 protocols/routed.h	sa_family_t	typedef	!time64only
 protocols/routed.h	select	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/routed.h	send	function	!time64only
@@ -41741,6 +41783,8 @@ protocols/rwhod.h	FD_ZERO	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,tim
 protocols/rwhod.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/rwhod.h	WHODTYPE_STATUS	macro	!time64only
+protocols/rwhod.h	WHODVERSION	macro	!time64only
 protocols/rwhod.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 protocols/rwhod.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	_BITS_ENDIANNESS_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41923,6 +41967,7 @@ protocols/rwhod.h	mode_t	typedef	!time64only
 protocols/rwhod.h	nlink_t	typedef	!time64only
 protocols/rwhod.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	off_t	typedef	!time64only
+protocols/rwhod.h	outmp	struct	!time64only
 protocols/rwhod.h	pid_t	typedef	!time64only
 protocols/rwhod.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -41963,6 +42008,8 @@ protocols/rwhod.h	uint	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time
 protocols/rwhod.h	ulong	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	useconds_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/rwhod.h	ushort	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/rwhod.h	whod	struct	!time64only
+protocols/rwhod.h	whoent	struct	!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	-	include-error	time64only
 protocols/talkd.h	AF_ALG	macro	!time64only
 protocols/talkd.h	AF_APPLETALK	macro	!time64only
@@ -42014,10 +42061,17 @@ protocols/talkd.h	AF_VSOCK	macro	!time64only
 protocols/talkd.h	AF_WANPIPE	macro	!time64only
 protocols/talkd.h	AF_X25	macro	!time64only
 protocols/talkd.h	AF_XDP	macro	!time64only
+protocols/talkd.h	ANNOUNCE	macro	!time64only
+protocols/talkd.h	BADADDR	macro	!time64only
+protocols/talkd.h	BADCTLADDR	macro	!time64only
+protocols/talkd.h	BADVERSION	macro	!time64only
 protocols/talkd.h	BIG_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	BYTE_ORDER	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	CMSG_NXTHDR	macro	!time64only
+protocols/talkd.h	CTL_MSG	typedef	!time64only
+protocols/talkd.h	CTL_RESPONSE	typedef	!time64only
 protocols/talkd.h	DELETE	macro	!time64only
+protocols/talkd.h	FAILED	macro	!time64only
 protocols/talkd.h	FD_CLR	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	FD_ISSET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	FD_SET	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -42072,7 +42126,11 @@ protocols/talkd.h	INT_LEAST64_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14
 protocols/talkd.h	INT_LEAST8_MAX	macro	!time64only
 protocols/talkd.h	INT_LEAST8_MIN	macro	!time64only
 protocols/talkd.h	INT_LEAST8_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	LEAVE_INVITE	macro	!time64only
 protocols/talkd.h	LITTLE_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	LOOK_UP	macro	!time64only
+protocols/talkd.h	MACHINE_UNKNOWN	macro	!time64only
+protocols/talkd.h	MAX_LIFE	macro	!time64only
 protocols/talkd.h	MSG_BATCH	macro	!time64only
 protocols/talkd.h	MSG_BATCH	enumerator	!time64only
 protocols/talkd.h	MSG_CMSG_CLOEXEC	macro	!time64only
@@ -42117,8 +42175,11 @@ protocols/talkd.h	MSG_WAITFORONE	macro	!time64only
 protocols/talkd.h	MSG_WAITFORONE	enumerator	!time64only
 protocols/talkd.h	MSG_ZEROCOPY	macro	!time64only
 protocols/talkd.h	MSG_ZEROCOPY	enumerator	!time64only
+protocols/talkd.h	NAME_SIZE	macro	!time64only
 protocols/talkd.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	NOT_HERE	macro	!time64only
 protocols/talkd.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	PERMISSION_DENIED	macro	!time64only
 protocols/talkd.h	PF_ALG	macro	!time64only
 protocols/talkd.h	PF_APPLETALK	macro	!time64only
 protocols/talkd.h	PF_ASH	macro	!time64only
@@ -42172,6 +42233,7 @@ protocols/talkd.h	PF_XDP	macro	!time64only
 protocols/talkd.h	PTRDIFF_MAX	macro	!time64only
 protocols/talkd.h	PTRDIFF_MIN	macro	!time64only
 protocols/talkd.h	PTRDIFF_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	RING_WAIT	macro	!time64only
 protocols/talkd.h	SCM_CREDENTIALS	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	SCM_CREDENTIALS	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	SCM_PIDFD	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -42333,6 +42395,8 @@ protocols/talkd.h	SO_TYPE	macro	!time64only
 protocols/talkd.h	SO_WIFI_STATUS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	SO_ZEROCOPY	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	SUCCESS	macro	!time64only
+protocols/talkd.h	TALK_VERSION	macro	!time64only
+protocols/talkd.h	TTY_SIZE	macro	!time64only
 protocols/talkd.h	UINT16_C	macro	!time64only
 protocols/talkd.h	UINT16_MAX	macro	!time64only
 protocols/talkd.h	UINT16_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -42366,6 +42430,7 @@ protocols/talkd.h	UINT_LEAST64_MAX	macro	!time64only
 protocols/talkd.h	UINT_LEAST64_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	UINT_LEAST8_MAX	macro	!time64only
 protocols/talkd.h	UINT_LEAST8_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/talkd.h	UNKNOWN_REQUEST	macro	!time64only
 protocols/talkd.h	WCHAR_MAX	macro	!time64only
 protocols/talkd.h	WCHAR_MIN	macro	!time64only
 protocols/talkd.h	WCHAR_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -42561,6 +42626,7 @@ protocols/talkd.h	msghdr	struct	!time64only
 protocols/talkd.h	nlink_t	typedef	!time64only
 protocols/talkd.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	off_t	typedef	!time64only
+protocols/talkd.h	osockaddr	struct	!time64only
 protocols/talkd.h	pid_t	typedef	!time64only
 protocols/talkd.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -42634,6 +42700,7 @@ protocols/talkd.h	ulong	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,tim
 protocols/talkd.h	useconds_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/talkd.h	ushort	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	-	include-error	time64only
+protocols/timed.h	ANYADDR	macro	!time64only
 protocols/timed.h	BIG_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	BYTE_ORDER	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	FD_CLR	macro	!time64only
@@ -42653,6 +42720,33 @@ protocols/timed.h	NFDBITS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,tim
 protocols/timed.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	TIMESPEC_TO_TIMEVAL	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	TIMEVAL_TO_TIMESPEC	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/timed.h	TSPTYPENUMBER	macro	!time64only
+protocols/timed.h	TSPVERSION	macro	!time64only
+protocols/timed.h	TSP_ACCEPT	macro	!time64only
+protocols/timed.h	TSP_ACK	macro	!time64only
+protocols/timed.h	TSP_ADJTIME	macro	!time64only
+protocols/timed.h	TSP_ANY	macro	!time64only
+protocols/timed.h	TSP_CONFLICT	macro	!time64only
+protocols/timed.h	TSP_DATE	macro	!time64only
+protocols/timed.h	TSP_DATEACK	macro	!time64only
+protocols/timed.h	TSP_DATEREQ	macro	!time64only
+protocols/timed.h	TSP_ELECTION	macro	!time64only
+protocols/timed.h	TSP_LOOP	macro	!time64only
+protocols/timed.h	TSP_MASTERACK	macro	!time64only
+protocols/timed.h	TSP_MASTERREQ	macro	!time64only
+protocols/timed.h	TSP_MASTERUP	macro	!time64only
+protocols/timed.h	TSP_MSITE	macro	!time64only
+protocols/timed.h	TSP_MSITEREQ	macro	!time64only
+protocols/timed.h	TSP_QUIT	macro	!time64only
+protocols/timed.h	TSP_REFUSE	macro	!time64only
+protocols/timed.h	TSP_RESOLVE	macro	!time64only
+protocols/timed.h	TSP_SETDATE	macro	!time64only
+protocols/timed.h	TSP_SETDATEREQ	macro	!time64only
+protocols/timed.h	TSP_SETTIME	macro	!time64only
+protocols/timed.h	TSP_SLAVEUP	macro	!time64only
+protocols/timed.h	TSP_TEST	macro	!time64only
+protocols/timed.h	TSP_TRACEOFF	macro	!time64only
+protocols/timed.h	TSP_TRACEON	macro	!time64only
 protocols/timed.h	_ATFILE_SOURCE	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 protocols/timed.h	_BITS_BYTESWAP_H	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	_BITS_ENDIANNESS_H	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -42844,6 +42938,9 @@ protocols/timed.h	timersub	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,ti
 protocols/timed.h	timespec	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 protocols/timed.h	timeval	struct	!time64only
 protocols/timed.h	timezone	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+protocols/timed.h	tsp	struct	!time64only
+protocols/timed.h	tsp_hopcnt	macro	!time64only
+protocols/timed.h	tsp_time	macro	!time64only
 protocols/timed.h	u_char	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	u_int	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 protocols/timed.h	u_int16_t	typedef	!time64only
@@ -43808,6 +43905,7 @@ pty.h	tcgetattr	function	!time64only
 pty.h	tcgetsid	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 pty.h	tcsendbreak	function	!time64only
 pty.h	tcsetattr	function	!time64only
+pty.h	termio	struct	!time64only
 pty.h	termios	struct	!time64only
 pty.h	winsize	struct	!time64only
 pwd.h	-	include-error	time64only
@@ -47188,6 +47286,7 @@ resolv.h	optarg	object	xopen,xopen500,xopenext,gnu,dynstack,cxx98,cxx11,cxx14,cx
 resolv.h	opterr	object	xopen,xopen500,xopenext,gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	optind	object	xopen,xopen500,xopenext,gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	optopt	object	xopen,xopen500,xopenext,gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+resolv.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	pathconf	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	pause	function	gnu,dynstack,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 resolv.h	pclose	function	!c89,c99,c11,c17,c2x,posix1,isoc99,isoc11,isoc2x,time64only
@@ -47943,6 +48042,7 @@ search.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 search.h	__action_fn_t	typedef	!time64only
 search.h	__compar_fn_t	typedef	!time64only
 search.h	__free_fn_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+search.h	comparison_fn_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 search.h	endorder	enumerator	!time64only
 search.h	hcreate	function	!time64only
 search.h	hcreate_r	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -48444,6 +48544,7 @@ sgtty.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 sgtty.h	gtty	function	!time64only
 sgtty.h	ioctl	function	!time64only
 sgtty.h	stty	function	!time64only
+sgtty.h	termio	struct	!time64only
 sgtty.h	winsize	struct	!time64only
 shadow.h	-	include-error	time64only
 shadow.h	FILE	typedef	!time64only
@@ -51377,6 +51478,7 @@ stdlib.h	canonicalize_file_name	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	clearenv	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	clock_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	clockid_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
+stdlib.h	comparison_fn_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	daddr_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	dev_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	div	function	!time64only
@@ -58427,6 +58529,7 @@ sys/ioctl.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/ioctl.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/ioctl.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 sys/ioctl.h	ioctl	function	!time64only
+sys/ioctl.h	termio	struct	!time64only
 sys/ioctl.h	winsize	struct	!time64only
 sys/ipc.h	-	include-error	time64only
 sys/ipc.h	IPC_CREAT	macro	!time64only
@@ -59513,6 +59616,7 @@ sys/mount.h	stat	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix1995
 sys/mount.h	stat64	struct	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	sync_file_range	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/mount.h	tee	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/mount.h	termio	struct	!time64only
 sys/mount.h	time_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/mount.h	timespec	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/mount.h	uint16_t	typedef	!time64only
@@ -60154,6 +60258,7 @@ sys/mtio.h	sigset_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,
 sys/mtio.h	size_t	typedef	!time64only
 sys/mtio.h	ssize_t	typedef	!time64only
 sys/mtio.h	suseconds_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,isoc99,isoc11,isoc2x,time64only
+sys/mtio.h	termio	struct	!time64only
 sys/mtio.h	time_t	typedef	!time64only
 sys/mtio.h	timer_t	typedef	!time64only
 sys/mtio.h	timespec	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -64032,6 +64137,7 @@ sys/raw.h	int_least8_t	typedef	!time64only
 sys/raw.h	intmax_t	typedef	!time64only
 sys/raw.h	intptr_t	typedef	!time64only
 sys/raw.h	ioctl	function	!time64only
+sys/raw.h	termio	struct	!time64only
 sys/raw.h	uint16_t	typedef	!time64only
 sys/raw.h	uint32_t	typedef	!time64only
 sys/raw.h	uint64_t	typedef	!time64only
@@ -67202,6 +67308,7 @@ sys/socket.h	msghdr	struct	!time64only
 sys/socket.h	nlink_t	typedef	!time64only
 sys/socket.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socket.h	off_t	typedef	!time64only
+sys/socket.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socket.h	pid_t	typedef	!time64only
 sys/socket.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socket.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -67747,6 +67854,7 @@ sys/socketvar.h	msghdr	struct	!time64only
 sys/socketvar.h	nlink_t	typedef	!time64only
 sys/socketvar.h	off64_t	typedef	gnu,lfs64,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socketvar.h	off_t	typedef	!time64only
+sys/socketvar.h	osockaddr	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socketvar.h	pid_t	typedef	!time64only
 sys/socketvar.h	pselect	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/socketvar.h	pthread_attr_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,xopen,xopenext,isoc99,isoc11,isoc2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -73557,6 +73665,7 @@ termio.h	tcgetattr	function	!time64only
 termio.h	tcgetsid	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only
 termio.h	tcsendbreak	function	!time64only
 termio.h	tcsetattr	function	!time64only
+termio.h	termio	struct	!time64only
 termio.h	termios	struct	!time64only
 termio.h	winsize	struct	!time64only
 termios.h	-	include-error	time64only
@@ -75556,6 +75665,7 @@ tgmath.h	clogf64	function	gnu,cxx98
 tgmath.h	clogf64x	function	gnu,cxx98
 tgmath.h	clogl	function	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	clone	function	cxx11,cxx14,cxx17,cxx20,cxx23
+tgmath.h	comparison_fn_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	complex	macro	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	conj	macro	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	conj	function	!time64only,cxx11,cxx14,cxx17,cxx20,cxx23

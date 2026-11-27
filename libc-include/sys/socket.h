@@ -96,6 +96,15 @@ struct ucred {
 };
 # endif
 #endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_osockaddr
+#  define __NIJI_D_struct_osockaddr 1
+struct osockaddr {
+  unsigned short sa_family;
+  unsigned char sa_data[14];
+};
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_enum___socket_type
 #  define __NIJI_D_enum___socket_type 1

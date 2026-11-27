@@ -12,6 +12,20 @@ __NIJI_BEGIN_C
 
 @@emit
 
+/* timed(8): tsp_time and tsp_hopcnt name the members of struct tsp's union; ANYADDR, any address, is a null
+   pointer constant spelled as the compiler's NULL, which this header does not define (black-box probe of the
+   reference: `void *` in C, `__null` in C++). */
+@@owns tsp_hopcnt ANYADDR
+@@if tsp_time
+# define tsp_time tsp_u.tspu_time
+# define tsp_hopcnt tsp_u.tspu_hopcnt
+# ifdef __cplusplus
+#  define ANYADDR __null
+# else
+#  define ANYADDR ((void *) 0)
+# endif
+#endif
+
 __NIJI_END_C
 
 #endif

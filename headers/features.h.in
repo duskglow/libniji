@@ -233,6 +233,12 @@
 #if __NIJI_FOB64
 # define __USE_FILE_OFFSET64 1
 #endif
+/* time_t is 64 bits in every configuration on x86-64, and software tests this name for it (util-linux's libuuid
+   exports uuid_time64 only where it is defined): defined to 1 in every configuration, a program's own definition
+   replaced, as the reference's 2.41 headers do (black-box probe of the 67 configurations, HEADERS-STAGE2-GAPS-I;
+   owner ruling #8776). The 2.39 headers do not define it: docs/differences-from-glibc.md. */
+#undef __USE_TIME_BITS64
+#define __USE_TIME_BITS64 1
 #if __NIJI_MISC
 # define __USE_MISC 1
 #endif

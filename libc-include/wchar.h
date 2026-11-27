@@ -1531,15 +1531,13 @@ extern int __wprintf_chk (int, const wchar_t *, ...);
 #endif
 
 #if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_va_list
-#  define __NIJI_D_va_list 1
-#  ifndef _VA_LIST_DEFINED
-#   define _VA_LIST_DEFINED
-typedef __builtin_va_list va_list;
-#  endif
+# ifndef _VA_LIST_DEFINED
+#  define __need___va_list
+#  include <stdarg.h>
+typedef __gnuc_va_list va_list;
+#  define _VA_LIST_DEFINED
 # endif
 #endif
-
 #if 1
 # ifdef __cplusplus
 /* Tells the C++ library's <cwchar> that these overloads are declared here, so it declares none of its own in std

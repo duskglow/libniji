@@ -14,6 +14,14 @@ __NIJI_BEGIN_C
 
 @@fragments
 
+/* _ISbit (BIT): the mask of class bit BIT (0..15) in the table's little-endian 16-bit entries, the value the class
+   constants below have: bits 0-7 are the entry's high byte, 8-15 its low byte. Defined in every configuration, as in
+   the reference (black-box probe of its values; libstdc++'s GNU locale model, ctype_members.cc, names it;
+   HEADERS-STAGE2-GAPS-I). */
+#ifndef _ISbit
+# define _ISbit(bit) ((bit) < 8 ? ((1 << (bit)) << 8) : ((1 << (bit)) >> 8))
+#endif
+
 /* The class masks the macros below name: an enumeration of twelve constants. The visibility probes see macros only, so the
    generated part above holds the two the reference also defines as macros; the other ten are listed here (values: the
    little-endian bit order of the table, Appendix C.9; each settled by compiling a program against the reference). */

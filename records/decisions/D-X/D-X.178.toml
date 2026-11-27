@@ -1,0 +1,8 @@
+id = "D-X.178"
+section = "x"
+status = "active"
+story = "HEADERS-STAGE2-GAPS-I"
+date = "2026-11-27"
+body = '''
+**`<features.h>` defines `__USE_TIME_BITS64` to 1 in every configuration on x86-64, as the reference's 2.41 headers do** (HEADERS-STAGE2-GAPS-I; owner ruling #8776 of 2026-11-26, adopt). `time_t` is 64 bits in every configuration here, and software tests the name for 64-bit time: util-linux's libuuid exports `uuid_time64@UUID_2.40` only where it is defined with `__GLIBC__`, and trixie's libuuid1 symbols file lists it. Black-box probe of the 67 configurations of spec/abi/use-macros.tsv against a 2.41 header root: 1 in 65, a program's earlier definition replaced; `time32` and `time64only` are include errors there and here. Stock 2.39 defines it in none: a differences row, no compatibility option (`#undef` after the first libc header restores the 2.39 state). use-macros.tsv's rows for the name carry libniji's value.
+'''
