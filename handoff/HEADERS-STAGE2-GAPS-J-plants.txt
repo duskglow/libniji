@@ -1,0 +1,13 @@
+# HEADERS-STAGE2-GAPS-J plants (cargo xtask plants): each breaks one thing this story gives and must fail the
+# header_check unit named in its msg. Each regenerates libc-include, then runs only the units that cover the change.
+j-header-value | xtask/src/headers/values.rs | lit:self.t.header_values.get(&(self.header.clone(), name.to_string())).or_else(|| self.t.macros.get(name)) ==> self.t.macros.get(name) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J value DELETE|GAPS-J talkd switch"' | msg:FAIL.*GAPS-J (value DELETE|talkd switch)
+j-nested-tag | xtask/src/headers/aggregates.rs | lit:let nested_here = self.t.nested_tags.get(core).is_some_and(|o| o == key); ==> let nested_here = false; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J whod::whoent"' | msg:FAIL.*GAPS-J whod::whoent
+j-anyaddr | headers/protocols/timed.h.in | lit:# define ANYADDR NULL ==> # define ANYADDR ((void *) 0) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J ANYADDR is NULL"' | msg:FAIL.*GAPS-J ANYADDR is NULL
+j-tsptype-table | headers/protocols/timed.h.in | lit:(char *) "SETDATEREQ", (char *) "LOOP" ==> (char *) "SETDATEREQ" | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J table tsptype"' | msg:FAIL.*GAPS-J table tsptype
+j-nested-covered | xtask/src/headers/aggregates.rs | lit:if !self.nested_tag_covered(tag, "struct") { ==> if true { | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
+j-nested-covered-row | xtask/src/headers/cond.rs | lit:            return self.is_covered(name, kind); ==>             return false; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
+j-ppp-kernel | headers/net/ppp_defs.h.in | lit:#include <linux/ppp_defs.h> ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
+j-ppp-ioctl | spec/abi/macros.tsv | lit:2147775576 ==> 2147775577 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
+j-ax25-ioctl | headers/netax25/ax25.h.in | lit:# define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+5) ==> # define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+6) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-J sanitizer"' | msg:FAIL.*GAPS-J sanitizer
+# spec/tools/dup_values.py (the per-header value audit for snapshots to rerun) is a job tool no test runs: not
+# planted; its result on the final head (diff=0 over 56 headers, 6583 values) is in the report.
