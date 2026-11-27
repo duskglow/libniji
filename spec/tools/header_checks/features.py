@@ -134,7 +134,8 @@ def _compile(ctx, lang, flags, body, sysw):
             # <linux/sched/types.h>): the same units compile alone and inside the harness.
             from header_check import kernel_flags
             own = subprocess.run([cc, "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-            cmd += ["-nostdinc", "-isystem", ctx.inc, "-isystem", own, *kernel_flags(d)]
+            from header_check import deprecation_flags
+            cmd += ["-nostdinc", "-isystem", ctx.inc, "-isystem", own, *kernel_flags(d), *deprecation_flags(list(flags))]
         else:
             cmd.append("-Wno-cpp")  # the reference's own `#warning` for _BSD_SOURCE / _SVID_SOURCE (deprecated)
         src = os.path.join(d, "u.c" if lang == "c" else "u.cc")
