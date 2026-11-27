@@ -6,8 +6,8 @@
 # of an unnamed union inside OUTER (`icmp_hun.ih_idseq`, `ip6_ctlun.ip6_un1`): g++ -nostdinc++ on the reference shows
 # none of ih_idseq, ih_pmtu, ih_rtradv, ip6_hdrctl at namespace scope in C++98..23 (HEADERS-STAGE2-GAPS-L sweep).
 outer	tag
-struct whod	struct whoent
 struct icmp	struct ih_idseq
 struct icmp	struct ih_pmtu
 struct icmp	struct ih_rtradv
 struct ip6_hdr	struct ip6_hdrctl
+struct whod	struct whoent
