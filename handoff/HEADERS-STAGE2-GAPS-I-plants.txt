@@ -1,0 +1,12 @@
+# HEADERS-STAGE2-GAPS-I plants (cargo xtask plants): each breaks one thing this story gives and must fail the check named
+# in its msg. Header plants regenerate libc-include, then run only the header_check units that cover the change; the
+# table plant runs header_check alone (the tables are read at check time).
+s2i-va-define | headers/stdio.h.in | lit:#  define _VA_LIST_DEFINED ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use form va_list stdio.h"' | msg:FAIL.*GAPS-I use form va_list stdio\.h
+s2i-va-guard | headers/stdio.h.in | lit:# ifndef _VA_LIST_DEFINED ==> # ifndef __NIJI_D_va_list | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use predefined va_list stdio.h"' | msg:FAIL.*GAPS-I use predefined va_list stdio\.h
+s2i-wchar-define | headers/wchar.h.d/020-va-list.frag | lit:#  define _VA_LIST_DEFINED ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use form va_list wchar.h"' | msg:FAIL.*GAPS-I use form va_list wchar\.h
+s2i-printf-stdarg | headers/printf.h.in | lit:#include <stdarg.h> ==> #define __need___va_list | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use stdarg va_list printf.h"' | msg:FAIL.*GAPS-I use stdarg va_list printf\.h
+s2i-size-stddef | xtask/src/headers/typedefs.rs | lit:&["stdlib.h", "unistd.h", ==> &["unistd.h", | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use form size_t stdlib.h"' | msg:FAIL.*GAPS-I use form size_t stdlib\.h
+s2i-glob64-type | headers/fnmembers.tsv | lit:struct dirent64 *(*@)(void *) ;; ==> void *(*@)(void *) ;; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I callbacks glob64_t"' | msg:FAIL.*GAPS-I callbacks glob64_t
+s2i-glob-cond | xtask/src/headers/aggregates.rs | lit:lv.lines.push("# ifdef __USE_GNU".into()); ==> lv.lines.push("# if 1".into()); | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I callbacks glob_t"' | msg:FAIL.*GAPS-I callbacks glob_t
+s2i-tsp-time | headers/protocols/timed.h.in | lit:# define tsp_time tsp_u.tspu_time ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-I use tsp_time protocols/timed.h"' | msg:FAIL.*GAPS-I use tsp_time protocols/timed\.h
+s2i-time32-row | spec/abi/use-macros.tsv | perl:s/^(time32\t__USE_TIME_BITS64\t)1$/${1}-/m | python3 spec/tools/header_check.py --only "FEATURES use time32" | msg:FAIL.*FEATURES use time32
