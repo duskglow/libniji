@@ -9,6 +9,6 @@ sys/ucontext.h	1	-
 pthread.h	1	-
 semaphore.h	1	-
 threads.h	1	-
-sched.h	1	-
+sched.h	1	linux/sched/types.h,linux/sched.h
 sys/single_threaded.h	1	-
 sys/rseq.h	1	-

@@ -4594,7 +4594,11 @@ fields are always 0 on Linux. ⚑ KERN.
 * **`sched_getcpu()`** returns the current CPU. **`getcpu(&cpu, &node)`** (2.29) also returns
   the NUMA node.
 * **`sched_setattr(pid, attr, flags)`** and **`sched_getattr(pid, attr, size, flags)`** (2.41,
-  taken early by owner ruling R3; declared in `<sched.h>`) set and read a thread's policy and
+  taken early by owner ruling R3; declared in `<sched.h>` with GNU extensions only, as in 2.41: that
+  header then includes the kernel's `<linux/sched/types.h>` for `struct sched_attr`, so a program's
+  own definition beside it is a redefinition, and defines `SCHED_NORMAL`, `SCHED_EXT` and the
+  `SCHED_FLAG_*` names of the kernel's `<linux/sched.h>` other than `SCHED_FLAG_ALL`, spelled as
+  that header spells them; in C++ both are `noexcept`, and `attr` is declared nonnull) set and read a thread's policy and
   its parameters (nice value, priority, the `SCHED_DEADLINE` runtime, deadline and period) as
   one `struct sched_attr` of the kernel UAPI (`<linux/sched/types.h>`). They are thin
   wrappers: the structure and the arguments reach the kernel unchanged, and they return 0, or

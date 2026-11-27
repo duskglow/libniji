@@ -15,7 +15,9 @@ from base; `--columns nonnull` writes that column and keeps the others' values. 
 `spec/abi/diagattrs.tsv`: for each function that libniji's headers (DIR, default libc-include/) declare,
 the attributes the reference's declaration has. `check` compiles the same corpus twice, against the
 reference and against libniji's headers (`-nostdinc -isystem DIR -isystem <the compiler's include>`), and
-prints each probe line on which the two differ (rc 1 when there is one). Run it on the reference system.
+prints each probe line on which the two differ (rc 1 when there is one); a line of a prototype beyond the reference
+(`spec/abi/prototypes-additions.tsv`) that only the reference cannot build is printed as a known difference naming
+the row's decision, not counted. Run it on the reference system.
 
 Clean room (plan/headers.md section 2.2, ruling R-H0). The probe compiles translation units of its own in
 which every test is one line, and reads back only:
@@ -86,6 +88,12 @@ OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security
 NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64", "mq_open"}
 # The tests that read back a marker function (mk_<kind>_<line>) from the object.
 MARKED = ("nr", "nz", "nv", "ma", "as", "ct", "e", "rn")
+
+
+def additions():
+    """The prototypes beyond the reference (spec/abi/prototypes-additions.tsv: name -> the decision that adds it)."""
+    with open(os.path.join(ABI, "prototypes-additions.tsv")) as f:
+        return {r["name"]: r["decision"] for r in csv.DictReader(f, delimiter="\t")}
 
 
 def protos():
@@ -499,6 +507,8 @@ ERRNO_INLINE = ("the reference's caller folds the errno check with no pure or co
 SENTINEL_FORMAT = ("the sentinel test (-fno-builtin) agrees; libniji's declaration carries the format attribute, the "
                    "reference's leaves format checking to the compiler's own knowledge of the function, so only "
                    "libniji's reports -Wformat-extra-args without builtins (with builtins the f, g and h tests agree)")
+# Known difference of a prototype beyond the reference (spec/abi/prototypes-additions.tsv), per decision.
+ADDED = "an addition beyond the reference (%s): the reference does not declare it, so its test lines are not compared"
 CTYPE_OPEN = re.compile(r"^is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)$")
 
 
@@ -714,6 +724,7 @@ def main():
     opened = {}
     known = {}
     vetoed = errno_kept(ref)
+    added = additions()
     table = derive(ref, pr, names)
     kinds = args.kinds.split(",") if args.kinds else []
     focus = set().union(*(MEASURES[k] for k in kinds)) if kinds and all(k in MEASURES for k in kinds) else None
@@ -722,6 +733,12 @@ def main():
             continue
         if ref[ln][0][1] == "bp":
             continue  # a table-only test (is the compiler's own knowledge of the function const?), not a compared line
+        # A prototype beyond the reference (a prototypes-additions.tsv row) has nothing to compare with where the
+        # reference does not declare it: its line fails there and builds here. Printed with its decision, not counted;
+        # once the reference declares it, its lines are compared like every other.
+        if ref[ln][0][0] in added and ref[ln][2] and not got[ln][2]:
+            known[ref[ln][0][0]] = ADDED % added[ref[ln][0][0]]
+            continue
         for f in ref[ln][1] ^ got[ln][1]:
             if f not in DECIDED and f != "note":
                 opened[f] = opened.get(f, 0) + 1

@@ -1,0 +1,26 @@
+# HEADERS-STAGE2-GAPS-H plants (cargo xtask plants): each breaks one thing the FTP_NAMES fragment gives and must fail
+# the check named in its msg. Header plants regenerate libc-include, then run only the header_check units that cover
+# the change; the string plants run the conformance program (header_check is syntax-only and cannot read strings).
+s2h-no-switch | headers/arpa/ftp.h.d/010-name-tables.frag | lit:#ifdef FTP_NAMES ==> #if 1 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "FTP_NAMES absent arpa/ftp.h"' | msg:FAIL FTP_NAMES absent arpa/ftp\.h
+s2h-if-switch | headers/arpa/ftp.h.d/010-name-tables.frag | lit:#ifdef FTP_NAMES ==> #if FTP_NAMES + 0 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "FTP_NAMES 0 arpa/ftp.h"' | msg:FAIL FTP_NAMES 0 arpa/ftp\.h
+s2h-const-elem | headers/arpa/ftp.h.d/010-name-tables.frag | lit:char *strunames[] ==> char *const strunames[] | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "FTP_NAMES empty arpa/ftp.h"' | msg:FAIL FTP_NAMES empty arpa/ftp\.h
+s2h-null-end | headers/arpa/ftp.h.d/010-name-tables.frag | lit:(char *) "Local" }; ==> (char *) "Local", 0 }; | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "FTP_NAMES empty arpa/ftp.h"' | msg:FAIL FTP_NAMES empty arpa/ftp\.h
+s2h-swap | headers/arpa/ftp.h.d/010-name-tables.frag | lit:(char *) "Image", (char *) "Local" ==> (char *) "Local", (char *) "Image" | sh -c 'cargo xtask headers-gen && cargo xtask affected --only conformance:s13_arpa_ftp_names --with-exports --run' | msg:typenames\[3\]
+s2h-spelling | headers/arpa/ftp.h.d/010-name-tables.frag | lit:"Carriage-control" ==> "Carriage control" | sh -c 'cargo xtask headers-gen && cargo xtask affected --only conformance:s13_arpa_ftp_names --with-exports --run' | msg:formnames\[3\]
+s2h-sched-strict | headers/sched.h.d/010-sched-attr.frag | lit:#if __NIJI_GNU ==> #if __NIJI_MISC | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr absent sched.h"' | msg:FAIL.*sched_attr absent sched\.h
+s2h-sched-const | headers/sched.h.d/010-sched-attr.frag | lit:extern int sched_setattr (__pid_t, struct ==> extern int sched_setattr (__pid_t, const struct | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr declared sched.h"' | msg:FAIL.*sched_attr declared sched\.h
+s2h-sched-value | headers/sched.h.d/010-sched-attr.frag | lit:0x40 ==> 0x80 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr declared sched.h"' | msg:FAIL.*sched_attr declared sched\.h
+s2h-sched-form | headers/sched.h.d/010-sched-attr.frag | lit:(SCHED_FLAG_KEEP_POLICY ==> (0 + SCHED_FLAG_KEEP_POLICY | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "sched_attr declared sched.h"' | msg:FAIL.*sched_attr declared sched\.h
+s2h-attr-additions | spec/tools/attr_probe.py | lit:added = additions() ==> added = {} | cargo test -q -p xtask diagnostic_attributes_match_the_reference | msg:diagnostic_attributes_match_the_reference.*FAILED|attr_probe check failed
+# cargo xtask plants results (11 plants: 11 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s2h-no-switch: CAUGHT, caught by no test the log names
+# s2h-if-switch: CAUGHT, caught by no test the log names
+# s2h-const-elem: CAUGHT, caught by no test the log names
+# s2h-null-end: CAUGHT, caught by no test the log names
+# s2h-swap: CAUGHT, caught by no test the log names
+# s2h-spelling: CAUGHT, caught by no test the log names
+# s2h-sched-strict: CAUGHT, caught by no test the log names
+# s2h-sched-const: CAUGHT, caught by no test the log names
+# s2h-sched-value: CAUGHT, caught by no test the log names
+# s2h-sched-form: CAUGHT, caught by no test the log names
+# s2h-attr-additions: CAUGHT, caught by headers::slices::s19::tests::diagnostic_attributes_match_the_reference (the test binary is not named in the log)
