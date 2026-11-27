@@ -9,11 +9,9 @@
 #endif
 
 #include <features.h>
-#ifdef __cplusplus
-/* The C++ library's <math.h> wrapper takes <cmath>, which takes <cstdlib>: the names stdlib.h supplies are
-   visible after <math.h> in C++ (visibility.tsv shows them in math.h in the C++ configurations). */
-# include <stdlib.h>
-#endif
+/* visibility.tsv's C++ columns of math.h are the header alone (-nostdinc++, HEADERS-STAGE2-GAPS-L): the C++
+   library's own <math.h> and <cmath> add <stdlib.h> and undefine the classification macros themselves, and its
+   configure tests read this header without them. */
 
 __NIJI_BEGIN_C
 
@@ -984,6 +982,10 @@ extern long double truncl (long double) __NIJI_NOTHROW __attribute__ ((__const__
 # endif
 #endif
 #if __NIJI_ISOC >= 2023
+# ifndef __NIJI_D___iscanonicall
+#  define __NIJI_D___iscanonicall 1
+extern int __iscanonicall (long double) __NIJI_NOTHROW __attribute__ ((__const__));
+# endif
 # ifndef __NIJI_D_canonicalize
 #  define __NIJI_D_canonicalize 1
 extern int canonicalize (double *, const double *) __NIJI_NOTHROW;
@@ -5824,25 +5826,25 @@ enum { FP_INT_UPWARD = 0 };
 # define M_SQRT2 (1.4142135623730951e+0)
 #endif
 
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define fpclassify(x) __builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isfinite(x) __builtin_isfinite (x)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isnormal(x) __builtin_isnormal (x)
 #endif
 /* isnan and isinf are also the functions of their own name (BSD), declared by @@emit above where
    visibility.tsv has them, before the macros: `&isinf` and `(isinf) (x)` reach the function. */
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isnan(x) __builtin_isnan (x)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 /* C 7.12.3.3 asks for non-zero; the sign (-1 for -inf, +1 for +inf) is the documented extension of the builtin. */
 # define isinf(x) __builtin_isinf_sign (x)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define signbit(x) __builtin_signbit (x)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 1
@@ -5868,23 +5870,74 @@ enum { FP_INT_UPWARD = 0 };
 /* C2X 7.12.17.7: the relational operators raise "invalid" for a quiet NaN too, as the signaling comparison needs. */
 # define iseqsig(x, y) (((x) <= (y)) && ((x) >= (y)))
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isgreater(x, y) __builtin_isgreater (x, y)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isgreaterequal(x, y) __builtin_isgreaterequal (x, y)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isless(x, y) __builtin_isless (x, y)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define islessequal(x, y) __builtin_islessequal (x, y)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define islessgreater(x, y) __builtin_islessgreater (x, y)
 #endif
-#if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
+#if __NIJI_ISOC >= 1999
 # define isunordered(x, y) __builtin_isunordered (x, y)
+#endif
+/* C++: issignaling, iszero, iscanonical and iseqsig are functions, not macros (ISO/IEC TS 18661-1 macros; the C++
+   library declares none of them). Their form is the reference's (black-box probe, HEADERS-STAGE2-GAPS-L, C++98 to
+   C++23): issignaling and iscanonical one overload per floating type (int; _Float128 where the compiler has it as a
+   C++ type), iszero one template (bool), iseqsig one template over both argument types (int, noexcept), whose
+   integer arguments compare as double (C 7.12.17). */
+#if __NIJI_CXX >= 1 && __NIJI_ISOC >= 2023
+} /* extern "C" */
+# if defined __GNUC__ && !defined __clang__ && __GNUC__ >= 13
+#  define __NIJI_CXX_F128 1
+# endif
+inline int issignaling (float __x) { return __builtin_issignaling (__x); }
+inline int issignaling (double __x) { return __builtin_issignaling (__x); }
+inline int issignaling (long double __x) { return __builtin_issignaling (__x); }
+inline int iscanonical (float __x) { return ((void) __x, 1); }
+inline int iscanonical (double __x) { return ((void) __x, 1); }
+/* The x87 type has encodings that are not canonical (pseudo-denormals, unnormals, ...): the library tests those bits. */
+inline int iscanonical (long double __x) { return __iscanonicall (__x); }
+# ifdef __NIJI_CXX_F128
+inline int issignaling (_Float128 __x) { return __builtin_issignaling (__x); }
+inline int iscanonical (_Float128 __x) { return ((void) __x, 1); }
+# endif
+template <class __T> inline bool iszero (__T __x) { return __x == 0; }
+/* The type both arguments convert to: their usual arithmetic conversion, an integer type taken as double. Other
+   types (__float128 where it is not _Float128) have none. */
+template <class __T> struct __niji_eqsig_type;
+template <> struct __niji_eqsig_type<float> { typedef float __type; };
+template <> struct __niji_eqsig_type<double> { typedef double __type; };
+template <> struct __niji_eqsig_type<long double> { typedef long double __type; };
+template <> struct __niji_eqsig_type<int> { typedef double __type; };
+template <> struct __niji_eqsig_type<unsigned int> { typedef double __type; };
+template <> struct __niji_eqsig_type<long int> { typedef double __type; };
+template <> struct __niji_eqsig_type<unsigned long int> { typedef double __type; };
+template <> struct __niji_eqsig_type<long long int> { typedef double __type; };
+template <> struct __niji_eqsig_type<unsigned long long int> { typedef double __type; };
+# ifdef __NIJI_CXX_F128
+template <> struct __niji_eqsig_type<_Float128> { typedef _Float128 __type; };
+template <> struct __niji_eqsig_type<_Float32> { typedef float __type; };
+template <> struct __niji_eqsig_type<_Float64> { typedef double __type; };
+template <> struct __niji_eqsig_type<_Float32x> { typedef double __type; };
+template <> struct __niji_eqsig_type<_Float64x> { typedef long double __type; };
+# endif
+/* C2X 7.12.17.7: the relational operators raise "invalid" for a quiet NaN too, as the signaling comparison needs. */
+template <class __L, class __R>
+inline int iseqsig (__L __l, __R __r) __NIJI_NOTHROW
+{
+  typedef typename __niji_eqsig_type<__typeof__ (__l + __r)>::__type __t;
+  return ((__t) __l <= (__t) __r) && ((__t) __l >= (__t) __r);
+}
+# undef __NIJI_CXX_F128
+extern "C" {
 #endif
 
 __NIJI_END_C

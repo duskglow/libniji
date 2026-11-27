@@ -1,0 +1,24 @@
+# HEADERS-STAGE2-GAPS-L plants (cargo xtask plants; docs/plants.md)
+l-math-cxx-vis | spec/abi/visibility.tsv | perl:s/^(math\.h\tfpclassify\tmacro\t!c89,time64only)\n(.*\ntgmath\.h\tfpclassify\tmacro\t!c89,time64only)\n/$1,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23\n$2,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23\n/ms | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L C\+\+ math"' | msg:FAIL.*GAPS-L C\+\+ math\.h (configure tests|macros)
+l-ts-form | headers/math.h.d/190-cxx-c2x-functions.frag | lit:inline int issignaling (double __x) { return __builtin_issignaling (__x); } ==> inline bool issignaling (double __x) { return __builtin_issignaling (__x); } | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L C\+\+ math.h TS"' | msg:FAIL.*GAPS-L C\+\+ math\.h TS 18661-1 forms
+l-pa-value | spec/abi/enumerators.tsv | perl:s/^anon PA_INT\tPA_FLOAT\t6$/anon PA_INT\tPA_FLOAT\t9/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L printf"' | msg:FAIL.*GAPS-L printf\.h PA types
+l-environ-omit | headers/reserved.tsv | perl:s/^__environ\temit\t/__environ\tomit\t/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L unistd"' | msg:FAIL.*GAPS-L unistd\.h __environ
+l-reserved-check | xtask/src/headers.rs | perl:s/\.find\(\|\(_, p\)\| !matches!/.find(|(_, p)| p.is_empty() && !matches!/ | cargo test -p xtask reserved_policy | msg:reserved_policy_text_is_checked
+l-union-tag | xtask/src/headers/cond.rs | perl:s/\n\s*&& !cxx_typedef// | cargo xtask headers-gen --check | msg:stale under.*link\.h
+l-nested-row | headers/nested-tags.tsv | perl:s/^struct icmp\tstruct ih_pmtu\n//m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L C\+\+ nested"' | msg:FAIL.*GAPS-L C\+\+ nested tags netinet/ip_icmp\.h
+l-nested-spelling | spec/tools/header_check.py | lit:and "<anon>" not in r["member"] and ==> and "." not in r["member"] and | python3 spec/tools/header_check.py --only "P1 netinet/ip_icmp.h" | equivalent:visibility.tsv shows the nested tags (ih_idseq, ih_pmtu, ih_rtradv, ip6_hdrctl) in C configurations only, as the reference does, and in C the member's __typeof__ spelling and `struct TAG` name the same type; P1 compiles either way (first plants run: SURVIVED)
+l-features-kernel | spec/tools/header_checks/features.py | lit:"-isystem", own, *kernel_flags(d)] ==> "-isystem", own] | python3 spec/tools/header_checks/features.py --only "FEATURES pkg npth rwlock" | msg:FAIL FEATURES pkg npth rwlock
+l-ttydef-spelling | spec/abi/macro-spellings.tsv | perl:s/^TTYDEF_OFLAG\t\(OPOST \| ONLCR \| XTABS\)/TTYDEF_OFLAG\t(OPOST \x7c ONLCR)/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L TTYDEF"' | msg:GAPS-L TTYDEF|TTYDEF_OFLAG
+l-tgmath-owns | headers/tgmath.h.in | lit:@@owns-macro CMPLX CMPLXF CMPLXL CMPLXF32 CMPLXF64 CMPLXF128 CMPLXF32X CMPLXF64X _Complex_I ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:CMPLX|_Complex_I
+# cargo xtask plants results (11 plants: 10 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# l-math-cxx-vis: CAUGHT, caught by no test the log names
+# l-ts-form: CAUGHT, caught by no test the log names
+# l-pa-value: CAUGHT, caught by no test the log names
+# l-environ-omit: CAUGHT, caught by no test the log names
+# l-reserved-check: CAUGHT, caught by xtask headers::tests::reserved_policy_text_is_checked
+# l-union-tag: CAUGHT, caught by no test the log names
+# l-nested-row: CAUGHT, caught by no test the log names
+# l-nested-spelling: EQUIVALENT
+# l-features-kernel: CAUGHT, caught by no test the log names
+# l-ttydef-spelling: CAUGHT, caught by no test the log names
+# l-tgmath-owns: CAUGHT, caught by no test the log names

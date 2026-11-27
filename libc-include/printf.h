@@ -120,6 +120,41 @@ extern int register_printf_specifier (int, printf_function (*), printf_arginfo_s
 #  define __NIJI_D_register_printf_type 1
 extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
+# ifndef __NIJI_D_anon_PA_INT
+#  define __NIJI_D_anon_PA_INT 1
+#  if !defined PA_INT || !defined PA_CHAR || !defined PA_WCHAR || !defined PA_STRING || !defined PA_WSTRING || !defined PA_POINTER \
+    || !defined PA_FLOAT || !defined PA_DOUBLE || !defined PA_LAST
+enum {
+#  ifndef PA_INT
+  PA_INT = 0,
+#  endif
+#  ifndef PA_CHAR
+  PA_CHAR = 1,
+#  endif
+#  ifndef PA_WCHAR
+  PA_WCHAR = 2,
+#  endif
+#  ifndef PA_STRING
+  PA_STRING = 3,
+#  endif
+#  ifndef PA_WSTRING
+  PA_WSTRING = 4,
+#  endif
+#  ifndef PA_POINTER
+  PA_POINTER = 5,
+#  endif
+#  ifndef PA_FLOAT
+  PA_FLOAT = 6,
+#  endif
+#  ifndef PA_DOUBLE
+  PA_DOUBLE = 7,
+#  endif
+#  ifndef PA_LAST
+  PA_LAST = 8,
+#  endif
+};
+#  endif
+# endif
 # define PA_FLAG_LONG 512
 # define PA_FLAG_LONG_DOUBLE PA_FLAG_LONG_LONG
 # define PA_FLAG_LONG_LONG 256

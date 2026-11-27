@@ -1,0 +1,14 @@
+---
+order: 220
+---
+HEADERS-STAGE2-GAPS-L: visibility.tsv's C++ columns of math.h and tgmath.h re-spliced from a header_probe.py
+`--raw-cxx` run (C++ compiles with -nostdinc++, so the header alone and not the C++ library's <math.h> and <cmath>
+wrappers) on the reference system (glibc 2.39, GCC 13.3), configurations cxx98..cxx23: 510 rows changed, 1464
+removed (the <stdlib.h> names the wrappers add), 130 added (the C99 and C2X classification and comparison macros,
+complex.h's CMPLX family and _Complex_I through tgmath.h). printf.h PA_* rows from a `--names` run on the same system
+(every header, every configuration). enumerators.tsv `anon PA_INT` rows 0..8: a black-box probe (G++ 13.3, C++17,
+_GNU_SOURCE) shows an unnamed enumeration of type int, PA_INT 0 .. PA_LAST 8, and PA_INT | PA_FLAG_LONG == 512.
+macro-spellings.tsv TTYDEF_CFLAG, _IFLAG, _LFLAG, _OFLAG: spelled with the <termios.h> flag names, chosen so the
+values equal the reference's printed values; whether each is an integer constant per header and configuration is
+the exit status of a probe matrix (pty.h, sgtty.h, sys/ioctl.h, sys/ttydefaults.h, termio.h, termios.h; C89, C17
+strict, POSIX, XOPEN, gnu17, _GNU_SOURCE, C++17). No header text read.

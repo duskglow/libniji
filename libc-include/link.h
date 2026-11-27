@@ -89,12 +89,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
-union La_x86_64_vector {
+typedef union {
   La_x86_64_ymm ymm[2];
   La_x86_64_zmm zmm[1];
   La_x86_64_xmm xmm[4];
-};
-typedef union La_x86_64_vector La_x86_64_vector;
+} La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_regs
 #  define __NIJI_D_La_x86_64_regs 1
@@ -134,12 +133,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
-union La_x86_64_vector {
+typedef union {
   La_x86_64_ymm ymm[2];
   La_x86_64_zmm zmm[1];
   La_x86_64_xmm xmm[4];
-};
-typedef union La_x86_64_vector La_x86_64_vector;
+} La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
@@ -155,12 +153,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
-union La_x86_64_vector {
+typedef union {
   La_x86_64_ymm ymm[2];
   La_x86_64_zmm zmm[1];
   La_x86_64_xmm xmm[4];
-};
-typedef union La_x86_64_vector La_x86_64_vector;
+} La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_retval
 #  define __NIJI_D_La_x86_64_retval 1
@@ -191,12 +188,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
-union La_x86_64_vector {
+typedef union {
   La_x86_64_ymm ymm[2];
   La_x86_64_zmm zmm[1];
   La_x86_64_xmm xmm[4];
-};
-typedef union La_x86_64_vector La_x86_64_vector;
+} La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1

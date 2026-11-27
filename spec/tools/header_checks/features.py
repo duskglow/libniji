@@ -128,12 +128,15 @@ def units(ctx):
 def _compile(ctx, lang, flags, body, sysw):
     cc = hp.COMPILER[lang]
     cmd = [cc, *flags, "-fsyntax-only", "-Wall", "-Wextra", "-Werror", *(["-Wsystem-headers"] if sysw else [])]
-    if ctx.inc:
-        own = subprocess.run([cc, "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-        cmd += ["-nostdinc", "-isystem", ctx.inc, "-isystem", own]
-    else:
-        cmd.append("-Wno-cpp")  # the reference's own `#warning` for _BSD_SOURCE / _SVID_SOURCE (deprecated)
     with tempfile.TemporaryDirectory(prefix="niji-features-") as d:
+        if ctx.inc:
+            # The kernel UAPI directory header_check's units get (<sched.h> with _GNU_SOURCE includes
+            # <linux/sched/types.h>): the same units compile alone and inside the harness.
+            from header_check import kernel_flags
+            own = subprocess.run([cc, "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+            cmd += ["-nostdinc", "-isystem", ctx.inc, "-isystem", own, *kernel_flags(d)]
+        else:
+            cmd.append("-Wno-cpp")  # the reference's own `#warning` for _BSD_SOURCE / _SVID_SOURCE (deprecated)
         src = os.path.join(d, "u.c" if lang == "c" else "u.cc")
         with open(src, "w") as f:
             f.write(body)

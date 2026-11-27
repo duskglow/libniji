@@ -72,8 +72,17 @@ impl Tu {
 
     /// A check line that names a tag headers/nested-tags.tsv defines inside another aggregate (`struct whoent` in
     /// `struct whod`) names it as `whod::whoent` in C++, where the tag is the outer class's member; C keeps the line.
-    fn cxx_nested(&mut self, nested: &BTreeMap<String, String>) {
-        let names: Vec<(String, String)> = nested.iter().filter_map(|(tag, outer)| Some((tag.clone(), format!("{}::{}", outer.split_once(' ')?.1, tag.split_once(' ')?.1)))).collect();
+    /// A tag that is the type of a member of an unnamed union inside the outer one (`icmp_hun.ih_idseq` in `struct
+    /// icmp`) is no member of the outer class: it is named as that member's type, which C++98 accepts too.
+    fn cxx_nested(&mut self, nested: &BTreeMap<String, String>, layouts: &BTreeMap<String, Rows>) {
+        let spell = |tag: &str, outer: &str| -> Option<String> {
+            let via_union = layouts.get(outer).into_iter().flatten().find(|r| r["member"].contains('.') && !r["member"].contains("<anon>") && r["member_type"].split('[').next() == Some(tag));
+            Some(match via_union {
+                Some(r) => format!("__typeof__ ((({outer} *) 0)->{}{})", r["member"], if r["member_type"].ends_with(']') { "[0]" } else { "" }),
+                None => format!("{}::{}", outer.split_once(' ')?.1, tag.split_once(' ')?.1),
+            })
+        };
+        let names: Vec<(String, String)> = nested.iter().filter_map(|(tag, outer)| Some((tag.clone(), spell(tag, outer)?))).collect();
         let (lines, owner) = (std::mem::take(&mut self.lines), std::mem::take(&mut self.owner));
         for (l, o) in lines.into_iter().zip(owner) {
             let named = |n: &str| l.match_indices(n).any(|(at, _)| !l[at + n.len()..].starts_with(|c: char| c.is_alphanumeric() || c == '_'));
@@ -723,7 +732,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     asserts.add(&redecl);
     asserts.put(None, ["__NIJI_END_C".to_string()]);
     asserts.put(None, ASSERT_HELPERS.lines().map(String::from));
-    a.cxx_nested(&t.nested_tags);
+    a.cxx_nested(&t.nested_tags, &t.layouts);
     asserts.add(&a);
     let mut r = Tu::default();
     r.add(&decls);

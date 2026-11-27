@@ -510,10 +510,22 @@ extern int stty (int, const struct sgttyb *);
 # ifndef TIOCVHANGUP
 #  define TIOCVHANGUP 21559
 # endif
-# define TTYDEF_CFLAG 1440
-# define TTYDEF_IFLAG 11554
-# define TTYDEF_LFLAG 35355
-# define TTYDEF_OFLAG 6149
+# ifndef __NIJI_D_m_TTYDEF_CFLAG
+#  define __NIJI_D_m_TTYDEF_CFLAG 1
+# define TTYDEF_CFLAG (CREAD | CS7 | PARENB | HUPCL)
+# endif
+# ifndef __NIJI_D_m_TTYDEF_IFLAG
+#  define __NIJI_D_m_TTYDEF_IFLAG 1
+# define TTYDEF_IFLAG (BRKINT | ISTRIP | ICRNL | IMAXBEL | IXON | IXANY)
+# endif
+# ifndef __NIJI_D_m_TTYDEF_LFLAG
+#  define __NIJI_D_m_TTYDEF_LFLAG 1
+# define TTYDEF_LFLAG (ECHO | ICANON | ISIG | IEXTEN | ECHOE | ECHOKE | ECHOCTL)
+# endif
+# ifndef __NIJI_D_m_TTYDEF_OFLAG
+#  define __NIJI_D_m_TTYDEF_OFLAG 1
+# define TTYDEF_OFLAG (OPOST | ONLCR | XTABS)
+# endif
 # ifndef __NIJI_D_m_TTYDEF_SPEED
 #  define __NIJI_D_m_TTYDEF_SPEED 1
 # define TTYDEF_SPEED B9600

@@ -95,6 +95,10 @@ CONFIGS = [
 COMPILER = {"c": "gcc", "c++": "g++"}
 BASE = ["-fsyntax-only", "-w", "-fno-builtin", "-fmax-errors=0", "-fno-diagnostics-show-caret", "-fdiagnostics-plain-output",
         "-fno-diagnostics-show-option", "-fdiagnostics-color=never"]
+# Per-language flags after BASE. `--raw-cxx` puts `-nostdinc++` here for C++: the C library's headers alone, as the
+# C++ library's own `#include_next` reaches them and its configure tests see them, without the C++ library's
+# `<math.h>`/`<stdlib.h>`/... wrappers in front (which add and undefine names of their own).
+LANG_FLAGS = {"c": [], "c++": []}
 IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 KINDS = ("macro", "typedef", "function", "object", "enumerator", "struct", "union", "enum", "include-error")
 
@@ -213,7 +217,7 @@ def _compile(lang, flags, path):
     """(exit status, line numbers of errors located in `path`, count of errors located elsewhere, command)."""
     # Without macro-expansion tracking an error inside a macro's expansion is located at the line that uses the macro
     # where the compiler can do so; errors outside macros are located as before.
-    cmd = [COMPILER[lang]] + flags.split() + BASE + ["-ftrack-macro-expansion=0", "-x", "c" if lang == "c" else "c++", path]
+    cmd = [COMPILER[lang]] + flags.split() + BASE + LANG_FLAGS[lang] + ["-ftrack-macro-expansion=0", "-x", "c" if lang == "c" else "c++", path]
     p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     # Only the location prefix of error lines is matched; the message after it is never looked at.
     pat = re.compile(r"^(.+?):(\d+):\d+: (?:fatal )?error:")
@@ -312,7 +316,7 @@ def probe(header, cfg, names, tags, work, macro_only=()):
     tag = (header or "-").replace("/", "_")
     path = os.path.join(work, f"{tag}.{cid}.{'c' if lang == 'c' else 'cc'}")
     if header:
-        rc = subprocess.run([COMPILER[lang]] + flags.split() + BASE + ["-x", "c" if lang == "c" else "c++", "-"],
+        rc = subprocess.run([COMPILER[lang]] + flags.split() + BASE + LANG_FLAGS[lang] + ["-x", "c" if lang == "c" else "c++", "-"],
                             input=f"#include <{header}>\n".encode(), stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL).returncode
         if rc != 0:
@@ -408,7 +412,18 @@ def main():
     ap.add_argument("--out", default=ABI)
     ap.add_argument("--names", default="", help="FILE: probe only the candidates it lists (whitespace-separated)")
     ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
+    ap.add_argument("--raw-cxx", action="store_true", help="C++ compiles get -nostdinc++ (the C headers without the C++ library's wrappers)")
+    ap.add_argument("--configs", default="", help="IDS: probe only these configurations (comma-separated; a partial table, for sweeps)")
     args = ap.parse_args()
+    global CONFIGS
+    if args.raw_cxx:
+        LANG_FLAGS["c++"].append("-nostdinc++")
+    if args.configs:
+        want = args.configs.split(",")
+        unknown = [c for c in want if c not in {c[0] for c in CONFIGS}]
+        if unknown:
+            ap.error(f"unknown configurations {unknown}")
+        CONFIGS = [c for c in CONFIGS if c[0] in want]
     if args.include:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
         BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, *uapi_flags()])

@@ -7,6 +7,7 @@ __ctype_toupper_loc									const
 __errno_location									const	
 __getdelim	4	1								
 __h_errno_location									const	
+__iscanonicall									const	
 __pthread_unwind_next			1							
 __res_state									const	
 __sched_cpualloc		1								
