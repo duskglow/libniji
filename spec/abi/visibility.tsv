@@ -25320,6 +25320,7 @@ net/if_ppp.h	__int_least8_t	typedef	!time64only
 net/if_ppp.h	__intmax_t	typedef	!time64only
 net/if_ppp.h	__intptr_t	typedef	!time64only
 net/if_ppp.h	__kernel_long_t	typedef	!time64only
+net/if_ppp.h	__kernel_old_time_t	typedef	!time64only
 net/if_ppp.h	__kernel_ulong_t	typedef	!time64only
 net/if_ppp.h	__key_t	typedef	!time64only
 net/if_ppp.h	__loff_t	typedef	!time64only
@@ -26619,6 +26620,7 @@ net/ppp_defs.h	__int_least8_t	typedef	!time64only
 net/ppp_defs.h	__intmax_t	typedef	!time64only
 net/ppp_defs.h	__intptr_t	typedef	!time64only
 net/ppp_defs.h	__kernel_long_t	typedef	!time64only
+net/ppp_defs.h	__kernel_old_time_t	typedef	!time64only
 net/ppp_defs.h	__kernel_ulong_t	typedef	!time64only
 net/ppp_defs.h	__key_t	typedef	!time64only
 net/ppp_defs.h	__loff_t	typedef	!time64only
