@@ -9,12 +9,11 @@ p1_skip = {(h, "TTYDEF_SPEED") for h in ("net/if_ppp.h", "net/if_shaper.h", "sgt
                                          "sys/mtio.h", "sys/raw.h", "sys/ttydefaults.h")}
 
 # Header pairs a program includes together, either order: no macro of one is redefined by the other (the unit runs
-# with -Wsystem-headers -Werror). The kernel's <linux/ppp-ioctl.h> spells SC_MASK otherwise than the reference's
-# <net/if_ppp.h> (a redefinition there too): the unit drops it between the two.
+# with -Wsystem-headers -Werror). <net/if_ppp.h> with the kernel's <linux/ppp-ioctl.h> is no pair: both define
+# struct npioctl, with the reference's headers too; its PPP names are checked by their kernel spelling below.
 PAIRS = [("termios.h", "sys/ioctl.h"), ("termio.h", "sys/ioctl.h"), ("pty.h", "sys/ioctl.h"), ("sgtty.h", "termios.h"),
          ("sys/ttydefaults.h", "termios.h"), ("sys/ttydefaults.h", "sys/ioctl.h"), ("termios.h", "asm/ioctls.h"),
-         ("net/if_ppp.h", "linux/ppp-ioctl.h"), ("netipx/ipx.h", "sys/ioctl.h")]
-UNDEF = {("net/if_ppp.h", "linux/ppp-ioctl.h"): "#undef SC_MASK\n"}
+         ("netipx/ipx.h", "sys/ioctl.h")]
 
 # After the header, a program's definition of the name in the kernel header's text: no redefinition diagnostic, so
 # the header's own text is the same token sequence.
@@ -53,7 +52,7 @@ def units(ctx):
     for a, b in PAIRS:
         lib = a if a in headers else b
         for x, y in ((a, b), (b, a)):
-            body = f"#include <{x}>\n{UNDEF.get((a, b), '')}#include <{y}>\nint niji_gk_pair;\n"
+            body = f"#include <{x}>\n#include <{y}>\nint niji_gk_pair;\n"
             out += [(cid, f"GAPS-K pair {x} {y}", body) for cid in pick if any(cid in s for (h, _), s in shown.items() if h == lib)]
     spell = [r for r in ctx.rows("spec/abi/macro-spellings.tsv") if r["source"] != "-"]
     by_header = {}
