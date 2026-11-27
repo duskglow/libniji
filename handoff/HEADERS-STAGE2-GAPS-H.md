@@ -47,6 +47,7 @@ KEEP_ALL 24, UTIL_CLAMP 96, SCHED_FLAG_ALL undefined; prototypes non-const, -Wno
 The FTP table probes; the arpa/protocols sweep; the telnet regression; the 2.41 probes; the excalibur root.
 
 ## Next step
-Land (coordinator). Follow-ups: one story for the four `<protocols/*.h>` headers (talkd.h first: inetutils' next
+PENDING JOBS on 672dcc767: keke headers-stage2-gaps-h-test4, headers-stage2-gaps-h-plants3 (`~/bin/jobwait` them;
+plants3 results go to handoff/HEADERS-STAGE2-GAPS-H-plants.txt). Then land (coordinator). Follow-ups: one story for the four `<protocols/*.h>` headers (talkd.h first: inetutils' next
 stop); a ruling on `__USE_TIME_BITS64` for util-linux's libuuid.
 Report: handoff/HEADERS-STAGE2-GAPS-H-report.md, handoff/reports/HEADERS-STAGE2-GAPS-H.json.

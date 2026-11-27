@@ -1,18 +1,67 @@
-{"task": "HEADERS-STAGE2-GAPS-H", "model": "opus", "tokens": null,
+{
+ "task": "HEADERS-STAGE2-GAPS-H",
+ "model": "opus",
+ "tokens": null,
  "result": "<arpa/ftp.h> FTP_NAMES tables and the 2.41 sched_attr family of <sched.h> declared; inetutils gets past ftpd.c and stops next on <protocols/talkd.h>",
- "branch": "task/headers-stage2-gaps-h", "head": null,
- "gate": {"affected": "header_check 0 failed of 26137; attr_probe 0 differ of 17157; xtask s19 2 passed; conformance s13_arpa_ftp_names 1 passed", "peak": null},
+ "branch": "task/headers-stage2-gaps-h",
+ "head": "672dcc767",
+ "gate": {
+  "affected": "FULL: the train's (generated-table inputs: headers/arpa/ftp.h.d, headers/sched.h.d); precheck + xtask headers tests + conformance s13 (test4, pending); header_check 0 failed of 26137 and attr_probe 0 differ on the same headers",
+  "peak": null
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "util-linux on trixie: libuuid1 loses uuid_time64@UUID_2.40 because libniji (2.39 level) does not define __USE_TIME_BITS64, which 2.41 headers define on x86-64 in every configuration", "recommendation": "a follow-up header story taking this one 2.41 header behaviour early under ruling R3's terms (as D-24.12 did), with a differences row if the owner counts it a difference from 2.39"}],
- "informational": ["inetutils' next stop: <protocols/talkd.h> (CTL_MSG, CTL_RESPONSE, ANNOUNCE, LEAVE_INVITE, RING_WAIT; talk/invite.c, get_names.c, ctl.c, ctl_transact.c, get_addrs.c)",
-                   "<protocols/routed.h>, <protocols/timed.h>, <protocols/rwhod.h>, <protocols/talkd.h> lack their protocol names: one follow-up story for the four",
-                   "attr_probe check prints (does not count) lines of prototypes-additions.tsv functions the reference cannot build"],
+ "rulings": [
+  {
+   "item": "util-linux on trixie: libuuid1 loses uuid_time64@UUID_2.40 because libniji (2.39 level) does not define __USE_TIME_BITS64, which 2.41 headers define on x86-64 in every configuration",
+   "recommendation": "a follow-up header story taking this one 2.41 header behaviour early under ruling R3's terms (as D-24.12 did), with a differences row if the owner counts it a difference from 2.39"
+  }
+ ],
+ "informational": [
+  "inetutils' next stop: <protocols/talkd.h> (CTL_MSG, CTL_RESPONSE, ANNOUNCE, LEAVE_INVITE, RING_WAIT; talk/invite.c, get_names.c, ctl.c, ctl_transact.c, get_addrs.c)",
+  "<protocols/routed.h>, <protocols/timed.h>, <protocols/rwhod.h>, <protocols/talkd.h> lack their protocol names: one follow-up story for the four",
+  "attr_probe check prints (does not count) lines of prototypes-additions.tsv functions the reference cannot build",
+  "pkg3 (keke:headers-stage2-gaps-h-pkg3, rc 1 by design): the package proof that found both further stops; not a passing job"
+ ],
  "refused": [],
- "impact": [{"kind": "correctness", "what": "inetutils ftpd.c (FTP_NAMES tables of <arpa/ftp.h>) builds against libniji's headers", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "correctness", "what": "util-linux chrt and uclampset compile against libniji's <sched.h> (struct sched_attr, sched_setattr, sched_getattr)", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "coverage", "what": "plants added (all CAUGHT)", "before": 0, "after": 11, "unit": "plants", "measured": true},
-            {"kind": "unblock", "what": "Yohane stage-2 inetutils build: next stop <protocols/talkd.h>; util-linux: next stop __USE_TIME_BITS64 ruling", "before": null, "after": null, "unit": null, "measured": true}],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "inetutils ftpd.c (FTP_NAMES tables of <arpa/ftp.h>) builds against libniji's headers",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "util-linux chrt and uclampset compile against libniji's <sched.h> (struct sched_attr, sched_setattr, sched_getattr)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added (all CAUGHT)",
+   "before": 0,
+   "after": 11,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage-2 inetutils build: next stop <protocols/talkd.h>; util-linux: next stop __USE_TIME_BITS64 ruling",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
  "improvement": "a header story's generated libc-include/ must be committed before any package proof; a precheck that headers-gen --check matches the committed tree would have saved pkg2",
  "next_step": "land; follow-ups: <protocols/*.h> story (talkd.h first) and a ruling on __USE_TIME_BITS64",
  "report_file": "handoff/HEADERS-STAGE2-GAPS-H-report.md",
- "jobs": ["keke:headers-stage2-gaps-h-test3", "keke:headers-stage2-gaps-h-plants2", "keke:headers-stage2-gaps-h-pkg3"]}
+ "jobs": [
+  "keke:headers-stage2-gaps-h-test4",
+  "keke:headers-stage2-gaps-h-plants3"
+ ]
+}

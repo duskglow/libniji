@@ -29,7 +29,13 @@
   Black-box compile probe (`#ifndef __USE_TIME_BITS64 / #error`, after <time.h>): 2.41 headers (excalibur root)
   define it with no flags, with `_FILE_OFFSET_BITS=64` and with `_TIME_BITS=64`; stock 2.39 and libniji define it in
   none of these. So this is the ABI level (trixie's util-linux symbols file is 2.41's), not a 2.39 header gap.
-* SUPERSEDED: headers-stage2-gaps-h-plants1 (two survivors: the conformance program read the host's <arpa/ftp.h>;
+* Precheck (head 4b8a5d517) RED on stubs (spec/clauses.tsv stale after the 24.3 text): fixed by 672dcc767; plants2
+  then differed from the head by that file only, so plants3 reruns them; test3 had no tested-content record.
+* PENDING on 672dcc767 (FULL: the train's, generated-table inputs): headers-stage2-gaps-h-test4 (`cargo test -p
+  xtask headers` + conformance s13_arpa_ftp_names, under ~/bin/gate) and headers-stage2-gaps-h-plants3 (11 plants,
+  /dev/shm/claude/headers-stage2-gaps-h/plants-3).
+* SUPERSEDED: headers-stage2-gaps-h-plants2 (11 of 11 CAUGHT, one generated file older), headers-stage2-gaps-h-test3
+  (no tested-content record), headers-stage2-gaps-h-plants1 (two survivors: the conformance program read the host's <arpa/ftp.h>;
   fixed by NIJI-HEADERS), headers-stage2-gaps-h-pkg2 (libc-include not committed; fixed by 986fb4c2f),
   headers-stage2-gaps-h-test2 (s19 red, fixed by d5454f918).
 
