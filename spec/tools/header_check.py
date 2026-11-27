@@ -233,8 +233,9 @@ def p1_units(ctx):
         # value is the one name's value everywhere): an owner with `p1` 0, or one no slice ships, would otherwise leave
         # the value checked nowhere (HEADERS-GEN-SHARED). Reserved names only in their owner (RESERVED).
         borrowed_ok = n in macros and (macros[n]["header"] == h or not RESERVED.match(n))
-        if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and borrowed_ok:
-            m = macros[n]
+        # A header whose name has another value in the reference (spec/abi/macro-values.tsv) is asserted with that one.
+        m = ctx.header_values.get((h, n), macros.get(n))
+        if r["kind"] == "macro" and m and m["type"] in INT_SUFFIX and borrowed_ok:
             v = int(m["value"])
             sfx = INT_SUFFIX[m["type"]]
             # The most negative 64-bit value has no literal: its magnitude does not fit the type (C 6.4.4.1).
@@ -246,8 +247,11 @@ def p1_units(ctx):
             tests.append(f"__alignof__({n}) == {t['align']}")
         elif r["kind"] == "struct" and ("struct " + n) in layouts:
             t = layouts["struct " + n]
-            tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")
-            tests.append(f"__alignof__(struct {n}) == {t['align']}")
+            # A tag defined inside another structure (headers/nested-tags.tsv) is spelled through that structure's
+            # member, the same type in C and C++ (C++ scopes the tag to the outer class).
+            spell = nested_spelling(ctx, "struct " + n) or f"struct {n}"
+            tests.append(f"sizeof({spell}) == {t['offset_or_size']}")
+            tests.append(f"__alignof__({spell}) == {t['align']}")
         for cid in expand(r["configs"], ctx.ids):
             out.setdefault((h, cid), []).extend(tests)
     units = {}
@@ -256,6 +260,19 @@ def p1_units(ctx):
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             units.setdefault(cid, []).append((f"P1 {h}", body))
     return units
+
+
+def nested_spelling(ctx, tag):
+    """`__typeof__` of the member of the outer structure that has the nested tag `tag` as its (element) type, or None
+    when headers/nested-tags.tsv does not nest it."""
+    outer = ctx.nested_tags.get(tag)
+    if outer is None:
+        return None
+    for r in ctx.rows("spec/abi/layouts.tsv"):
+        if r["type"] == outer and r["member"] and "." not in r["member"] and r["member_type"].split("[")[0] == tag:
+            idx = "[0]" if r["member_type"].endswith("]") else ""
+            return f"__typeof__ ((({outer} *) 0)->{r['member']}{idx})"
+    return None
 
 
 def guard_units(ctx):
@@ -437,6 +454,8 @@ def main():
     ctx = types.SimpleNamespace(
         root=ROOT, hp=hp, rows=rows, cfgs=cfgs, ids=[c["id"] for c in cfgs], slice_rows=srows,
         vis=rows("spec/abi/visibility.tsv"), macros={r["name"]: r for r in rows("spec/abi/macros.tsv")},
+        header_values={(r["header"], r["name"]): r for r in rows("spec/abi/macro-values.tsv")},
+        nested_tags={r["tag"]: r["outer"] for r in rows("headers/nested-tags.tsv")},
         typedefs={r["name"]: r for r in rows("spec/abi/typedefs.tsv") if r["kind"] == "typedef"}, layouts=layouts)
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # The tree and work directory of this run, for a module that compiles units of its own (header_checks/form.py).

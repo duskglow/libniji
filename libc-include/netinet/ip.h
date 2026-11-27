@@ -30,18 +30,6 @@ struct iphdr {
 # endif
 #endif
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
 # ifndef __NIJI_D_struct_ip
 #  define __NIJI_D_struct_ip 1
 struct ip {

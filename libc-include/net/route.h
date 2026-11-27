@@ -12,24 +12,6 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_in6_rtmsg
 #  define __NIJI_D_struct_in6_rtmsg 1
 struct in6_rtmsg {
@@ -43,27 +25,6 @@ struct in6_rtmsg {
   unsigned long rtmsg_info;
   unsigned int rtmsg_flags;
   int rtmsg_ifindex;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
 };
 # endif
 # ifndef __NIJI_D_struct_rtentry

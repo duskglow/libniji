@@ -10,9 +10,45 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+/* The PPP statistics structures and protocol numbers (the reference's include closure). */
+#include <net/ppp_defs.h>
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef __NIJI_D_struct_npioctl
+#  define __NIJI_D_struct_npioctl 1
+struct npioctl {
+  int protocol;
+  unsigned int mode;
+};
+# endif
+# ifndef __NIJI_D_struct_ppp_option_data
+#  define __NIJI_D_struct_ppp_option_data 1
+struct ppp_option_data {
+  unsigned char * ptr;
+  unsigned int length;
+  int transmit;
+};
+# endif
+#endif
+#if defined __USE_MISC
+# ifndef __NIJI_D_struct_ifpppcstatsreq
+#  define __NIJI_D_struct_ifpppcstatsreq 1
+struct ifpppcstatsreq {
+  struct ifreq b;
+  struct ppp_comp_stats stats;
+};
+# endif
+# ifndef __NIJI_D_struct_ifpppstatsreq
+#  define __NIJI_D_struct_ifpppstatsreq 1
+struct ifpppstatsreq {
+  struct ifreq b;
+  struct ppp_stats stats;
+  int : 32;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -23,6 +59,150 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+#if 1
+# ifndef PPPIOCGASYNCMAP
+#  define PPPIOCGASYNCMAP 2147775576UL
+# endif
+# ifndef PPPIOCGDEBUG
+#  define PPPIOCGDEBUG 2147775553UL
+# endif
+# ifndef PPPIOCGFLAGS
+#  define PPPIOCGFLAGS 2147775578UL
+# endif
+# ifndef PPPIOCGIDLE
+#  define PPPIOCGIDLE 2148561983UL
+# endif
+# ifndef PPPIOCGMRU
+#  define PPPIOCGMRU 2147775571UL
+# endif
+# ifndef PPPIOCGNPMODE
+#  define PPPIOCGNPMODE 3221779532UL
+# endif
+# ifndef PPPIOCGRASYNCMAP
+#  define PPPIOCGRASYNCMAP 2147775573UL
+# endif
+# ifndef PPPIOCGUNIT
+#  define PPPIOCGUNIT 2147775574UL
+# endif
+# ifndef PPPIOCGXASYNCMAP
+#  define PPPIOCGXASYNCMAP 2149610576UL
+# endif
+# ifndef PPPIOCSASYNCMAP
+#  define PPPIOCSASYNCMAP 1074033751UL
+# endif
+# ifndef PPPIOCSCOMPRESS
+#  define PPPIOCSCOMPRESS 1074820173UL
+# endif
+# ifndef PPPIOCSDEBUG
+#  define PPPIOCSDEBUG 1074033728UL
+# endif
+# ifndef PPPIOCSFLAGS
+#  define PPPIOCSFLAGS 1074033753UL
+# endif
+# ifndef PPPIOCSMAXCID
+#  define PPPIOCSMAXCID 1074033745UL
+# endif
+# ifndef PPPIOCSMRU
+#  define PPPIOCSMRU 1074033746UL
+# endif
+# ifndef PPPIOCSNPMODE
+#  define PPPIOCSNPMODE 1074295883UL
+# endif
+# ifndef PPPIOCSRASYNCMAP
+#  define PPPIOCSRASYNCMAP 1074033748UL
+# endif
+# ifndef PPPIOCSXASYNCMAP
+#  define PPPIOCSXASYNCMAP 1075868751UL
+# endif
+# ifndef PPPIOCXFERUNIT
+#  define PPPIOCXFERUNIT 29774U
+# endif
+# define PPP_MAGIC 20482
+# define PPP_MAXMRU 65000
+# define PPP_MTU 1500
+# define PPP_VERSION "2.2.0"
+# ifndef SC_CCP_OPEN
+#  define SC_CCP_OPEN 64
+# endif
+# ifndef SC_CCP_UP
+#  define SC_CCP_UP 128
+# endif
+# ifndef SC_COMP_AC
+#  define SC_COMP_AC 2
+# endif
+# ifndef SC_COMP_PROT
+#  define SC_COMP_PROT 1
+# endif
+# ifndef SC_COMP_RUN
+#  define SC_COMP_RUN 4096
+# endif
+# ifndef SC_COMP_TCP
+#  define SC_COMP_TCP 4
+# endif
+# ifndef SC_DC_ERROR
+#  define SC_DC_ERROR 4194304
+# endif
+# ifndef SC_DC_FERROR
+#  define SC_DC_FERROR 8388608
+# endif
+# ifndef SC_DEBUG
+#  define SC_DEBUG 65536
+# endif
+# ifndef SC_DECOMP_RUN
+#  define SC_DECOMP_RUN 8192
+# endif
+# ifndef SC_ENABLE_IP
+#  define SC_ENABLE_IP 256
+# endif
+# ifndef SC_LOG_FLUSH
+#  define SC_LOG_FLUSH 1048576
+# endif
+# ifndef SC_LOG_INPKT
+#  define SC_LOG_INPKT 131072
+# endif
+# ifndef SC_LOG_OUTPKT
+#  define SC_LOG_OUTPKT 262144
+# endif
+# ifndef SC_LOG_RAWIN
+#  define SC_LOG_RAWIN 524288
+# endif
+# ifndef SC_MASK
+#  define SC_MASK 266403839
+# endif
+# ifndef SC_NO_TCP_CCID
+#  define SC_NO_TCP_CCID 8
+# endif
+# ifndef SC_RCV_B7_0
+#  define SC_RCV_B7_0 16777216
+# endif
+# ifndef SC_RCV_B7_1
+#  define SC_RCV_B7_1 33554432
+# endif
+# ifndef SC_RCV_EVNP
+#  define SC_RCV_EVNP 67108864
+# endif
+# ifndef SC_RCV_ODDP
+#  define SC_RCV_ODDP 134217728
+# endif
+# ifndef SC_REJ_COMP_AC
+#  define SC_REJ_COMP_AC 16
+# endif
+# ifndef SC_REJ_COMP_TCP
+#  define SC_REJ_COMP_TCP 32
+# endif
+# ifndef SC_XMIT_BUSY
+#  define SC_XMIT_BUSY 268435456
+# endif
+# ifndef SIOCGPPPCSTATS
+#  define SIOCGPPPCSTATS 35314
+# endif
+# ifndef SIOCGPPPSTATS
+#  define SIOCGPPPSTATS 35312
+# endif
+# ifndef SIOCGPPPVER
+#  define SIOCGPPPVER 35313
+# endif
+#endif
 
 /* The PPP header names ifr_mtu itself where <net/if.h> does not show struct ifreq's member names, as the metric
    member (black-box form probe, HEADERS-BUSYBOX-GAPS); elsewhere the name is <net/if.h>'s. */
@@ -30,6 +210,15 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef ifr_mtu
 #  define ifr_mtu ifr_ifru.ifru_metric
 # endif
+#endif
+
+/* The interface name and the statistics pointer of the statistics requests are members of their struct ifreq
+   (black-box probe: offsetof 0 and 16 in struct ifpppstatsreq and struct ifpppcstatsreq). */
+#if defined __USE_MISC
+# define ifr__name b.ifr_ifrn.ifrn_name
+#endif
+#if defined __USE_MISC
+# define stats_ptr b.ifr_ifru.ifru_data
 #endif
 
 __NIJI_END_C

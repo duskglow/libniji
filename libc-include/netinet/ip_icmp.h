@@ -34,12 +34,6 @@ struct icmphdr {
 # endif
 #endif
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
 # ifndef __NIJI_D_struct_ih_idseq
 #  define __NIJI_D_struct_ih_idseq 1
 struct ih_idseq {
@@ -60,34 +54,6 @@ struct ih_rtradv {
   unsigned char irt_num_addrs;
   unsigned char irt_wpa;
   unsigned short irt_lifetime;
-};
-# endif
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
-# ifndef __NIJI_D_struct_ip
-#  define __NIJI_D_struct_ip 1
-struct ip {
-  unsigned int ip_hl : 4;
-  unsigned int ip_v : 4;
-  unsigned char ip_tos;
-  unsigned short ip_len;
-  unsigned short ip_id;
-  unsigned short ip_off;
-  unsigned char ip_ttl;
-  unsigned char ip_p;
-  unsigned short ip_sum;
-  struct in_addr ip_src;
-  struct in_addr ip_dst;
 };
 # endif
 # ifndef __NIJI_D_struct_icmp_ra_addr

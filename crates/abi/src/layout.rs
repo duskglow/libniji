@@ -146,6 +146,9 @@
 //! * `prstatus_t.pr_reg (elf_gregset_t)`
 //! * `prpsinfo_t.pr_uid (__pr_uid_t)`
 //! * `prpsinfo_t.pr_gid (__pr_gid_t)`
+//! * `struct_ppp_idle.xmit_idle (__kernel_old_time_t)`
+//! * `struct_ppp_idle.recv_idle (__kernel_old_time_t)`
+//! * `struct_npioctl.mode (enum NPmode)`
 
 #![allow(non_camel_case_types, non_snake_case, missing_docs, clippy::all)]
 
@@ -4832,5 +4835,149 @@ pub struct struct_sockaddr_ash {
     pub sash_channel: u8,
     pub sash_plen: u32,
     pub sash_prefix: [u8; 16],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_parms_struct {
+    pub port_addr: ax25_address,
+    pub values: [u16; 20],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ax25_bpqaddr_struct {
+    pub dev: [i8; 16],
+    pub addr: ax25_address,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_nr_parms_struct {
+    pub quality: u32,
+    pub obs_count: u32,
+    pub ttl: u32,
+    pub timeout: u32,
+    pub ack_delay: u32,
+    pub busy_delay: u32,
+    pub tries: u32,
+    pub window: u32,
+    pub paclen: u32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_nr_ctl_struct {
+    pub index: u8,
+    pub id: u8,
+    pub cmd: u32,
+    pub arg: u64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_stats {
+    pub p: struct_pppstat,
+    pub vj: struct_vjstat,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_pppstat {
+    pub ppp_discards: u32,
+    pub ppp_ibytes: u32,
+    pub ppp_ioctects: u32,
+    pub ppp_ipackets: u32,
+    pub ppp_ierrors: u32,
+    pub ppp_ilqrs: u32,
+    pub ppp_obytes: u32,
+    pub ppp_ooctects: u32,
+    pub ppp_opackets: u32,
+    pub ppp_oerrors: u32,
+    pub ppp_olqrs: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_vjstat {
+    pub vjs_packets: u32,
+    pub vjs_compressed: u32,
+    pub vjs_searches: u32,
+    pub vjs_misses: u32,
+    pub vjs_uncompressedin: u32,
+    pub vjs_compressedin: u32,
+    pub vjs_errorin: u32,
+    pub vjs_tossed: u32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_compstat {
+    pub unc_bytes: u32,
+    pub unc_packets: u32,
+    pub comp_bytes: u32,
+    pub comp_packets: u32,
+    pub inc_bytes: u32,
+    pub inc_packets: u32,
+    pub in_count: u32,
+    pub bytes_out: u32,
+    pub ratio: f64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_comp_stats {
+    pub c: struct_compstat,
+    pub d: struct_compstat,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_idle {
+    pub xmit_idle: [u64; 1],
+    pub recv_idle: [u64; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_idle32 {
+    pub xmit_idle: i32,
+    pub recv_idle: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_idle64 {
+    pub xmit_idle: i64,
+    pub recv_idle: i64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_npioctl {
+    pub protocol: i32,
+    pub mode: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ppp_option_data {
+    pub ptr: usize,
+    pub length: u32,
+    pub transmit: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ifpppstatsreq {
+    pub b: struct_ifreq,
+    pub stats: struct_ppp_stats,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_ifpppcstatsreq {
+    pub b: struct_ifreq,
+    pub stats: struct_ppp_comp_stats,
 }
 

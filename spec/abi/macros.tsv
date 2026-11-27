@@ -318,11 +318,14 @@ AUTH_WHO_CLIENT	arpa/telnet.h	int	0
 AUTH_WHO_MASK	arpa/telnet.h	int	1
 AUTH_WHO_SERVER	arpa/telnet.h	int	1
 AX25_BACKOFF	netax25/ax25.h	int	6
+AX25_DIGI_INBAND	netax25/ax25.h	int	1
+AX25_DIGI_XBAND	netax25/ax25.h	int	2
 AX25_EXTSEQ	netax25/ax25.h	int	7
 AX25_IAMDIGI	netax25/ax25.h	int	12
 AX25_IDLE	netax25/ax25.h	int	9
 AX25_KILL	netax25/ax25.h	int	99
 AX25_MAX_DIGIS	netax25/ax25.h	int	8
+AX25_MAX_VALUES	netax25/ax25.h	int	20
 AX25_N2	netax25/ax25.h	int	3
 AX25_NOUID_BLOCK	netax25/ax25.h	int	1
 AX25_NOUID_DEFAULT	netax25/ax25.h	int	0
@@ -332,6 +335,22 @@ AX25_SET_RT_IPMODE	netax25/ax25.h	int	2
 AX25_T1	netax25/ax25.h	int	2
 AX25_T2	netax25/ax25.h	int	5
 AX25_T3	netax25/ax25.h	int	4
+AX25_VALUES_AXDEFMODE	netax25/ax25.h	int	1
+AX25_VALUES_BACKOFF	netax25/ax25.h	int	4
+AX25_VALUES_CONMODE	netax25/ax25.h	int	5
+AX25_VALUES_DIGI	netax25/ax25.h	int	12
+AX25_VALUES_EWINDOW	netax25/ax25.h	int	7
+AX25_VALUES_IDLE	netax25/ax25.h	int	13
+AX25_VALUES_IPDEFMODE	netax25/ax25.h	int	0
+AX25_VALUES_IPMAXQUEUE	netax25/ax25.h	int	15
+AX25_VALUES_N2	netax25/ax25.h	int	11
+AX25_VALUES_NETROM	netax25/ax25.h	int	2
+AX25_VALUES_PACLEN	netax25/ax25.h	int	14
+AX25_VALUES_T1	netax25/ax25.h	int	8
+AX25_VALUES_T2	netax25/ax25.h	int	9
+AX25_VALUES_T3	netax25/ax25.h	int	10
+AX25_VALUES_TEXT	netax25/ax25.h	int	3
+AX25_VALUES_WINDOW	netax25/ax25.h	int	6
 AX25_WINDOW	netax25/ax25.h	int	1
 AYT	arpa/telnet.h	int	246
 B0	pty.h	int	0
@@ -3326,6 +3345,7 @@ NEGATIVE_SIGN	langinfo.h	int	262150
 NETDB_INTERNAL	netdb.h	int	-1
 NETDB_SUCCESS	netdb.h	int	0
 NETROM_IDLE	netrom/netrom.h	int	7
+NETROM_KILL	netrom/netrom.h	int	99
 NETROM_N2	netrom/netrom.h	int	3
 NETROM_NEIGH	netrom/netrom.h	int	0
 NETROM_NODE	netrom/netrom.h	int	1
@@ -3377,6 +3397,10 @@ NO_ADDRESS	netdb.h	int	4
 NO_DATA	netdb.h	int	4
 NO_RECOVERY	netdb.h	int	3
 NO_SENSE	scsi/scsi.h	int	0
+NPMODE_DROP	net/if_ppp.h	int	1
+NPMODE_ERROR	net/if_ppp.h	int	2
+NPMODE_PASS	net/if_ppp.h	int	0
+NPMODE_QUEUE	net/if_ppp.h	int	3
 NR_DQHASH	sys/quota.h	int	43
 NR_DQUOTS	sys/quota.h	int	256
 NR_ICMP_TYPES	netinet/ip_icmp.h	int	18
@@ -3793,6 +3817,62 @@ PPC64_OPT_LOCALENTRY	elf.h	int	4
 PPC64_OPT_MULTI_TOC	elf.h	int	2
 PPC64_OPT_TLS	elf.h	int	1
 PPC_OPT_TLS	elf.h	int	1
+PPPIOCGASYNCMAP	net/if_ppp.h	unsigned long	2147775576
+PPPIOCGDEBUG	net/if_ppp.h	unsigned long	2147775553
+PPPIOCGFLAGS	net/if_ppp.h	unsigned long	2147775578
+PPPIOCGIDLE	net/if_ppp.h	unsigned long	2148561983
+PPPIOCGMRU	net/if_ppp.h	unsigned long	2147775571
+PPPIOCGNPMODE	net/if_ppp.h	unsigned long	3221779532
+PPPIOCGRASYNCMAP	net/if_ppp.h	unsigned long	2147775573
+PPPIOCGUNIT	net/if_ppp.h	unsigned long	2147775574
+PPPIOCGXASYNCMAP	net/if_ppp.h	unsigned long	2149610576
+PPPIOCSASYNCMAP	net/if_ppp.h	unsigned long	1074033751
+PPPIOCSCOMPRESS	net/if_ppp.h	unsigned long	1074820173
+PPPIOCSDEBUG	net/if_ppp.h	unsigned long	1074033728
+PPPIOCSFLAGS	net/if_ppp.h	unsigned long	1074033753
+PPPIOCSMAXCID	net/if_ppp.h	unsigned long	1074033745
+PPPIOCSMRU	net/if_ppp.h	unsigned long	1074033746
+PPPIOCSNPMODE	net/if_ppp.h	unsigned long	1074295883
+PPPIOCSRASYNCMAP	net/if_ppp.h	unsigned long	1074033748
+PPPIOCSXASYNCMAP	net/if_ppp.h	unsigned long	1075868751
+PPPIOCXFERUNIT	net/if_ppp.h	unsigned int	29774
+PPP_ALLSTATIONS	net/if_ppp.h	int	255
+PPP_AT	net/if_ppp.h	int	41
+PPP_ATCP	net/if_ppp.h	int	32809
+PPP_CBCP	net/if_ppp.h	int	49193
+PPP_CCP	net/if_ppp.h	int	33021
+PPP_CCPFRAG	net/if_ppp.h	int	33019
+PPP_CHAP	net/if_ppp.h	int	49699
+PPP_COMP	net/if_ppp.h	int	253
+PPP_COMPFRAG	net/if_ppp.h	int	251
+PPP_ESCAPE	net/if_ppp.h	int	125
+PPP_FCSLEN	net/if_ppp.h	int	2
+PPP_FLAG	net/if_ppp.h	int	126
+PPP_GOODFCS	net/if_ppp.h	int	61624
+PPP_HDRLEN	net/if_ppp.h	int	4
+PPP_INITFCS	net/if_ppp.h	int	65535
+PPP_IP	net/if_ppp.h	int	33
+PPP_IPCP	net/if_ppp.h	int	32801
+PPP_IPV6	net/if_ppp.h	int	87
+PPP_IPV6CP	net/if_ppp.h	int	32855
+PPP_IPX	net/if_ppp.h	int	43
+PPP_IPXCP	net/if_ppp.h	int	32811
+PPP_LCP	net/if_ppp.h	int	49185
+PPP_LQR	net/if_ppp.h	int	49189
+PPP_MAGIC	net/if_ppp.h	int	20482
+PPP_MAXMRU	net/if_ppp.h	int	65000
+PPP_MP	net/if_ppp.h	int	61
+PPP_MPLSCP	net/if_ppp.h	int	33021
+PPP_MPLS_MC	net/if_ppp.h	int	643
+PPP_MPLS_UC	net/if_ppp.h	int	641
+PPP_MRU	net/if_ppp.h	int	1500
+PPP_MTU	net/if_ppp.h	int	1500
+PPP_PAP	net/if_ppp.h	int	49187
+PPP_TRANS	net/if_ppp.h	int	32
+PPP_UI	net/if_ppp.h	int	3
+PPP_VERSION	net/if_ppp.h	char[6]	"2.2.0"
+PPP_VJC_COMP	net/if_ppp.h	int	45
+PPP_VJC_UNCOMP	net/if_ppp.h	int	47
 PRELIM	arpa/ftp.h	int	1
 PRE_FETCH	scsi/scsi.h	int	52
 PRIB16	inttypes.h	char[2]	"B"
@@ -6650,6 +6730,30 @@ SCSI_IOCTL_SYNC	scsi/scsi_ioctl.h	int	4
 SCSI_IOCTL_TAGGED_DISABLE	scsi/scsi.h	int	21380
 SCSI_IOCTL_TAGGED_ENABLE	scsi/scsi.h	int	21379
 SCSI_IOCTL_TEST_UNIT_READY	scsi/scsi_ioctl.h	int	2
+SC_CCP_OPEN	net/if_ppp.h	int	64
+SC_CCP_UP	net/if_ppp.h	int	128
+SC_COMP_AC	net/if_ppp.h	int	2
+SC_COMP_PROT	net/if_ppp.h	int	1
+SC_COMP_RUN	net/if_ppp.h	int	4096
+SC_COMP_TCP	net/if_ppp.h	int	4
+SC_DC_ERROR	net/if_ppp.h	int	4194304
+SC_DC_FERROR	net/if_ppp.h	int	8388608
+SC_DEBUG	net/if_ppp.h	int	65536
+SC_DECOMP_RUN	net/if_ppp.h	int	8192
+SC_ENABLE_IP	net/if_ppp.h	int	256
+SC_LOG_FLUSH	net/if_ppp.h	int	1048576
+SC_LOG_INPKT	net/if_ppp.h	int	131072
+SC_LOG_OUTPKT	net/if_ppp.h	int	262144
+SC_LOG_RAWIN	net/if_ppp.h	int	524288
+SC_MASK	net/if_ppp.h	int	266403839
+SC_NO_TCP_CCID	net/if_ppp.h	int	8
+SC_RCV_B7_0	net/if_ppp.h	int	16777216
+SC_RCV_B7_1	net/if_ppp.h	int	33554432
+SC_RCV_EVNP	net/if_ppp.h	int	67108864
+SC_RCV_ODDP	net/if_ppp.h	int	134217728
+SC_REJ_COMP_AC	net/if_ppp.h	int	16
+SC_REJ_COMP_TCP	net/if_ppp.h	int	32
+SC_XMIT_BUSY	net/if_ppp.h	int	268435456
 SE	arpa/telnet.h	int	240
 SEARCH_EQUAL	scsi/scsi.h	int	49
 SEARCH_EQUAL_12	scsi/scsi.h	int	177
@@ -6992,6 +7096,9 @@ SIOCGIFPFLAGS	net/if_ppp.h	int	35125
 SIOCGIFSLAVE	net/if_ppp.h	int	35113
 SIOCGIFTXQLEN	net/if_ppp.h	int	35138
 SIOCGPGRP	arpa/inet.h	int	35076
+SIOCGPPPCSTATS	net/if_ppp.h	int	35314
+SIOCGPPPSTATS	net/if_ppp.h	int	35312
+SIOCGPPPVER	net/if_ppp.h	int	35313
 SIOCGRARP	net/if_ppp.h	int	35169
 SIOCGSTAMPNS_OLD	arpa/inet.h	int	35079
 SIOCGSTAMP_OLD	arpa/inet.h	int	35078

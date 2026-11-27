@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <net/if.h>
 @@needs sys/ioctl.h
+/* The PPP statistics structures and protocol numbers (the reference's include closure). */
+#include <net/ppp_defs.h>
 
 __NIJI_BEGIN_C
 
@@ -21,6 +23,15 @@ __NIJI_BEGIN_C
 # ifndef ifr_mtu
 #  define ifr_mtu ifr_ifru.ifru_metric
 # endif
+#endif
+
+/* The interface name and the statistics pointer of the statistics requests are members of their struct ifreq
+   (black-box probe: offsetof 0 and 16 in struct ifpppstatsreq and struct ifpppcstatsreq). */
+@@if ifr__name
+# define ifr__name b.ifr_ifrn.ifrn_name
+#endif
+@@if stats_ptr
+# define stats_ptr b.ifr_ifru.ifru_data
 #endif
 
 __NIJI_END_C

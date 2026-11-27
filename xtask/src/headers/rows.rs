@@ -70,6 +70,23 @@ impl Tu {
         }
     }
 
+    /// A check line that names a tag headers/nested-tags.tsv defines inside another aggregate (`struct whoent` in
+    /// `struct whod`) names it as `whod::whoent` in C++, where the tag is the outer class's member; C keeps the line.
+    fn cxx_nested(&mut self, nested: &BTreeMap<String, String>) {
+        let names: Vec<(String, String)> = nested.iter().filter_map(|(tag, outer)| Some((tag.clone(), format!("{}::{}", outer.split_once(' ')?.1, tag.split_once(' ')?.1)))).collect();
+        let (lines, owner) = (std::mem::take(&mut self.lines), std::mem::take(&mut self.owner));
+        for (l, o) in lines.into_iter().zip(owner) {
+            let named = |n: &str| l.match_indices(n).any(|(at, _)| !l[at + n.len()..].starts_with(|c: char| c.is_alphanumeric() || c == '_'));
+            let found: Vec<&(String, String)> = names.iter().filter(|(n, _)| named(n)).collect();
+            if found.is_empty() {
+                self.put(o, [l]);
+                continue;
+            }
+            let cxx = found.iter().fold(l.clone(), |s, (n, x)| s.replace(n.as_str(), x));
+            self.put(o, ["#ifdef __cplusplus".to_string(), cxx, "#else".into(), l, "#endif".into()]);
+        }
+    }
+
     fn add(&mut self, other: &Tu) {
         self.lines.extend(other.lines.iter().cloned());
         self.owner.extend(other.owner.iter().copied());
@@ -554,6 +571,21 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         let i = c.row("constants", n);
         c.fail(i, "no macros.tsv row: the generator has no value to emit".into());
     }
+    // macro-values.tsv: the value the generator gives the name in that header (HEADERS-STAGE2-GAPS-J).
+    let here = std::mem::take(&mut g.header);
+    for ((h, n), (ty, v)) in t.header_values.iter().filter(|((_, n), _)| named(n)) {
+        let i = c.row("macro-values", &format!("{h} {n}"));
+        g.header = h.clone();
+        let lit = g.value(n);
+        for e in std::mem::take(&mut g.errors) {
+            c.fail(i, format!("generator: {e}"));
+        }
+        match int128(v).filter(|_| INTS.contains(&ty.as_str())) {
+            Some(e) => c.put(&mut a, i, vec![format!("#undef {n}"), format!("#define {n} {lit}"), format!("NIJI_A ((__int128) ({n}) == {e}, \"macro-values {h} {n} = {v}\");"), format!("#undef {n}")]),
+            None => c.fail(i, format!("{ty} {v:?}: the rows test checks integer values only")),
+        }
+    }
+    g.header = here;
 
     // The run-time program: bit-fields and initializers.
     let mut run = Tu::default();
@@ -691,6 +723,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     asserts.add(&redecl);
     asserts.put(None, ["__NIJI_END_C".to_string()]);
     asserts.put(None, ASSERT_HELPERS.lines().map(String::from));
+    a.cxx_nested(&t.nested_tags);
     asserts.add(&a);
     let mut r = Tu::default();
     r.add(&decls);

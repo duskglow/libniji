@@ -40,34 +40,6 @@ struct elf_siginfo {
   int si_errno;
 };
 # endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
 # ifndef __NIJI_D_elf_gregset_t
 #  define __NIJI_D_elf_gregset_t 1
 typedef unsigned long long elf_gregset_t[27];
@@ -184,34 +156,6 @@ struct elf_siginfo {
   int si_signo;
   int si_code;
   int si_errno;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
 };
 # endif
 # ifndef __NIJI_D_elf_gregset_t

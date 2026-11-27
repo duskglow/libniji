@@ -1,0 +1,7 @@
+# Structure tags the reference defines inside another aggregate's definition, at the member of that type
+# (xtask/src/headers.rs, NESTED_TAGS; HEADERS-STAGE2-GAPS-J). C++ then names the tag `OUTER::TAG` and a program's
+# `struct TAG` at namespace scope is another, incomplete type; in C the tag's scope is the file's either way.
+# Black-box probes of the reference (g++: `sizeof (whod::whoent)` compiles, `sizeof (::whoent)` does not;
+# `struct outmp` stays at namespace scope). outer and tag are layouts.tsv keys.
+outer	tag
+struct whod	struct whoent

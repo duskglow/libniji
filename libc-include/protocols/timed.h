@@ -12,13 +12,6 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
 # ifndef __NIJI_D_struct_tsp
 #  define __NIJI_D_struct_tsp 1
 struct tsp {
@@ -71,17 +64,27 @@ typedef union pthread_attr_t pthread_attr_t;
 # define TSP_TRACEON 17
 #endif
 
-/* timed(8): tsp_time and tsp_hopcnt name the members of struct tsp's union; ANYADDR, any address, is a null
-   pointer constant spelled as the compiler's NULL, which this header does not define (black-box probe of the
-   reference: `void *` in C, `__null` in C++). */
+/* timed(8): tsp_time and tsp_hopcnt name the members of struct tsp's union; ANYADDR, any address, is NULL, which
+   this header does not define: a use needs <stddef.h> (or another header that defines NULL) in scope (black-box
+   probe of the reference: `ANYADDR` alone does not compile; with NULL redefined after the header it is that
+   definition; HEADERS-STAGE2-GAPS-J, ruling #8789). */
 #if 1
 # define tsp_time tsp_u.tspu_time
 # define tsp_hopcnt tsp_u.tspu_hopcnt
-# ifdef __cplusplus
-#  define ANYADDR __null
-# else
-#  define ANYADDR ((void *) 0)
-# endif
+# define ANYADDR NULL
+#endif
+/* The printable names of the TSP message types, indexed by type (TSP_ANY .. TSP_LOOP, TSPTYPENUMBER entries), for
+   timed(8) and timedc(8): a program defines the array in exactly one translation unit by defining TSPTYPES (with
+   any value or none) before the header: an array of `char *` with external linkage. Without TSPTYPES it is not
+   declared; the library defines none (black-box probe, C and C++: count, strings, type, `nm`). */
+#ifdef TSPTYPES
+char *tsptype[TSPTYPENUMBER] = {
+  (char *) "ANY", (char *) "ADJTIME", (char *) "ACK", (char *) "MASTERREQ", (char *) "MASTERACK", (char *) "SETTIME",
+  (char *) "MASTERUP", (char *) "SLAVEUP", (char *) "ELECTION", (char *) "ACCEPT", (char *) "REFUSE",
+  (char *) "CONFLICT", (char *) "RESOLVE", (char *) "QUIT", (char *) "DATE", (char *) "DATEREQ", (char *) "DATEACK",
+  (char *) "TRACEON", (char *) "TRACEOFF", (char *) "MSITE", (char *) "MSITEREQ", (char *) "TEST", (char *) "SETDATE",
+  (char *) "SETDATEREQ", (char *) "LOOP"
+};
 #endif
 
 __NIJI_END_C

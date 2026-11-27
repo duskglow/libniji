@@ -21,6 +21,7 @@ headers/fnmembers.tsv	type,member	-	row
 headers/fortify.tsv	name	key	row
 headers/iso10646.tsv	unicode	-	row
 headers/levels.tsv	id	-	row
+headers/nested-tags.tsv	tag	key	row
 headers/providers.tsv	name	-	row
 headers/redirects.tsv	symbol	key	row
 headers/reserved.tsv	name	-	row
@@ -61,6 +62,7 @@ spec/abi/layouts.tsv	type	-	block
 spec/abi/libm-ulps.tsv	function,type	-	row
 spec/abi/macro-aliases.tsv	header,name	key	row
 spec/abi/macro-forms.tsv	header,name	key	row
+spec/abi/macro-values.tsv	header,name	key	row
 spec/abi/macros.tsv	name	key	row
 spec/abi/native.tsv	kind,name	-	row
 spec/abi/noexcept.tsv	name	key	row

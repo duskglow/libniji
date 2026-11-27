@@ -14,13 +14,6 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
-# endif
 # ifndef __NIJI_D_struct_ntptimeval
 #  define __NIJI_D_struct_ntptimeval 1
 struct ntptimeval {
@@ -32,13 +25,6 @@ struct ntptimeval {
   long __glibc_reserved2;
   long __glibc_reserved3;
   long __glibc_reserved4;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
 };
 # endif
 # ifndef __NIJI_D_struct_timex

@@ -1,0 +1,9 @@
+# A macro's value in one header where the reference's header gives the name another value than its macros.tsv row
+# (one name, unrelated meanings in unrelated headers). The generator emits this value in that header and the
+# macros.tsv row's everywhere else; header_check.py P1 asserts it there; spec/tools/dup_values.py audits every name
+# headers/dup-listed.tsv lists against the reference (HEADERS-STAGE2-GAPS-J; black-box probes of the reference:
+# `_Static_assert` on the value, C and C++, with the header alone; each defined outright, type int).
+header	name	type	value
+protocols/talkd.h	DELETE	int	2
+scsi/scsi.h	ABORT	int	6
+scsi/scsi.h	NOP	int	8

@@ -15,12 +15,6 @@
 __NIJI_BEGIN_C
 
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
 # ifndef __NIJI_D_struct_igmp
 #  define __NIJI_D_struct_igmp 1
 struct igmp {
@@ -64,24 +58,50 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if defined __USE_MISC
-# define IGMP_AWAKENING_MEMBER 5
-# define IGMP_DELAYING_MEMBER 1
-# define IGMP_DVMRP 19
-# define IGMP_HOST_LEAVE_MESSAGE 23
-# define IGMP_HOST_MEMBERSHIP_QUERY 17
-# define IGMP_HOST_MEMBERSHIP_REPORT 18
+# ifndef IGMP_AWAKENING_MEMBER
+#  define IGMP_AWAKENING_MEMBER 5
+# endif
+# ifndef IGMP_DELAYING_MEMBER
+#  define IGMP_DELAYING_MEMBER 1
+# endif
+# ifndef IGMP_DVMRP
+#  define IGMP_DVMRP 19
+# endif
+# ifndef IGMP_HOST_LEAVE_MESSAGE
+#  define IGMP_HOST_LEAVE_MESSAGE 23
+# endif
+# ifndef IGMP_HOST_MEMBERSHIP_QUERY
+#  define IGMP_HOST_MEMBERSHIP_QUERY 17
+# endif
+# ifndef IGMP_HOST_MEMBERSHIP_REPORT
+#  define IGMP_HOST_MEMBERSHIP_REPORT 18
+# endif
 # define IGMP_HOST_NEW_MEMBERSHIP_REPORT 22
-# define IGMP_IDLE_MEMBER 2
-# define IGMP_LAZY_MEMBER 3
+# ifndef IGMP_IDLE_MEMBER
+#  define IGMP_IDLE_MEMBER 2
+# endif
+# ifndef IGMP_LAZY_MEMBER
+#  define IGMP_LAZY_MEMBER 3
+# endif
 # define IGMP_MAX_HOST_REPORT_DELAY 10
 # define IGMP_MEMBERSHIP_QUERY 17
 # define IGMP_MINLEN 8
-# define IGMP_MTRACE 31
-# define IGMP_MTRACE_RESP 30
-# define IGMP_PIM 20
-# define IGMP_SLEEPING_MEMBER 4
+# ifndef IGMP_MTRACE
+#  define IGMP_MTRACE 31
+# endif
+# ifndef IGMP_MTRACE_RESP
+#  define IGMP_MTRACE_RESP 30
+# endif
+# ifndef IGMP_PIM
+#  define IGMP_PIM 20
+# endif
+# ifndef IGMP_SLEEPING_MEMBER
+#  define IGMP_SLEEPING_MEMBER 4
+# endif
 # define IGMP_TIMER_SCALE 10
-# define IGMP_TRACE 21
+# ifndef IGMP_TRACE
+#  define IGMP_TRACE 21
+# endif
 # define IGMP_V1_MEMBERSHIP_REPORT 18
 # define IGMP_V2_LEAVE_GROUP 23
 # define IGMP_V2_MEMBERSHIP_REPORT 22

@@ -7,7 +7,32 @@
 
 __NIJI_BEGIN_C
 
+@@owns SIOCAX25ADDUID SIOCAX25DELUID SIOCAX25NOUID SIOCAX25BPQADDR SIOCAX25GETPARMS SIOCAX25SETPARMS
+@@owns SIOCAX25OPTRT SIOCAX25CTLCON SIOCAX25GETINFO SIOCAX25ADDFWD SIOCAX25DELFWD
 @@emit
+
+/* The AX.25 ioctl requests count from SIOCPROTOPRIVATE, which this header does not define: a program takes it from
+   <sys/ioctl.h> (black-box probe, HEADERS-STAGE2-GAPS-J: each request is SIOCPROTOPRIVATE plus its number, the
+   expansion parenthesised; the numbers are those the kernel's <linux/ax25.h> gives the requests both name). */
+@@if SIOCAX25GETUID
+# define SIOCAX25GETUID (SIOCPROTOPRIVATE+0)
+# define SIOCAX25ADDUID (SIOCPROTOPRIVATE+1)
+# define SIOCAX25DELUID (SIOCPROTOPRIVATE+2)
+# define SIOCAX25NOUID (SIOCPROTOPRIVATE+3)
+# define SIOCAX25BPQADDR (SIOCPROTOPRIVATE+4)
+# define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+5)
+# define SIOCAX25SETPARMS (SIOCPROTOPRIVATE+6)
+# define SIOCAX25OPTRT (SIOCPROTOPRIVATE+7)
+# define SIOCAX25CTLCON (SIOCPROTOPRIVATE+8)
+# define SIOCAX25GETINFO (SIOCPROTOPRIVATE+9)
+# define SIOCAX25ADDFWD (SIOCPROTOPRIVATE+10)
+# define SIOCAX25DELFWD (SIOCPROTOPRIVATE+11)
+#endif
+
+/* The user id of an AX.25 socket address is the member at sax25_ndigis's offset (black-box probe: offsetof). */
+@@if sax25_uid
+# define sax25_uid sax25_ndigis
+#endif
 
 __NIJI_END_C
 

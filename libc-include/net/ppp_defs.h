@@ -6,9 +6,108 @@
 
 #include <features.h>
 #include <sys/types.h>
+/* The statistics structures (struct ppp_stats, struct pppstat, struct vjstat, ...), ext_accm, enum NPmode and the
+   PPP header macros are the kernel's (the reference's include closure: <asm/types.h>, <linux/ppp_defs.h>). */
+#include <asm/types.h>
+#include <linux/ppp_defs.h>
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef PPP_ALLSTATIONS
+#  define PPP_ALLSTATIONS 255
+# endif
+# ifndef PPP_AT
+#  define PPP_AT 41
+# endif
+# ifndef PPP_ATCP
+#  define PPP_ATCP 32809
+# endif
+# ifndef PPP_CBCP
+#  define PPP_CBCP 49193
+# endif
+# ifndef PPP_CCP
+#  define PPP_CCP 33021
+# endif
+# ifndef PPP_CCPFRAG
+#  define PPP_CCPFRAG 33019
+# endif
+# ifndef PPP_CHAP
+#  define PPP_CHAP 49699
+# endif
+# ifndef PPP_COMP
+#  define PPP_COMP 253
+# endif
+# ifndef PPP_COMPFRAG
+#  define PPP_COMPFRAG 251
+# endif
+# ifndef PPP_ESCAPE
+#  define PPP_ESCAPE 125
+# endif
+# define PPP_FCSLEN 2
+# ifndef PPP_FLAG
+#  define PPP_FLAG 126
+# endif
+# ifndef PPP_GOODFCS
+#  define PPP_GOODFCS 61624
+# endif
+# define PPP_HDRLEN 4
+# ifndef PPP_INITFCS
+#  define PPP_INITFCS 65535
+# endif
+# ifndef PPP_IP
+#  define PPP_IP 33
+# endif
+# ifndef PPP_IPCP
+#  define PPP_IPCP 32801
+# endif
+# ifndef PPP_IPV6
+#  define PPP_IPV6 87
+# endif
+# ifndef PPP_IPV6CP
+#  define PPP_IPV6CP 32855
+# endif
+# ifndef PPP_IPX
+#  define PPP_IPX 43
+# endif
+# ifndef PPP_IPXCP
+#  define PPP_IPXCP 32811
+# endif
+# ifndef PPP_LCP
+#  define PPP_LCP 49185
+# endif
+# ifndef PPP_LQR
+#  define PPP_LQR 49189
+# endif
+# ifndef PPP_MP
+#  define PPP_MP 61
+# endif
+# ifndef PPP_MPLSCP
+#  define PPP_MPLSCP 33021
+# endif
+# ifndef PPP_MPLS_MC
+#  define PPP_MPLS_MC 643
+# endif
+# ifndef PPP_MPLS_UC
+#  define PPP_MPLS_UC 641
+# endif
+# define PPP_MRU 1500
+# ifndef PPP_PAP
+#  define PPP_PAP 49187
+# endif
+# ifndef PPP_TRANS
+#  define PPP_TRANS 32
+# endif
+# ifndef PPP_UI
+#  define PPP_UI 3
+# endif
+# ifndef PPP_VJC_COMP
+#  define PPP_VJC_COMP 45
+# endif
+# ifndef PPP_VJC_UNCOMP
+#  define PPP_VJC_UNCOMP 47
+# endif
+#endif
 
 __NIJI_END_C
 

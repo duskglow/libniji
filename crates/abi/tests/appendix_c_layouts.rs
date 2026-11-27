@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (384 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (400 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -4619,6 +4619,292 @@ fn abi_struct_sockaddr_ash() {
     expect_member("struct sockaddr_ash", "sash_channel", offset_of!(struct_sockaddr_ash, sash_channel));
     expect_member("struct sockaddr_ash", "sash_plen", offset_of!(struct_sockaddr_ash, sash_plen));
     expect_member("struct sockaddr_ash", "sash_prefix", offset_of!(struct_sockaddr_ash, sash_prefix));
+}
+
+#[test]
+fn abi_struct_ax25_parms_struct() {
+    expect_type("struct ax25_parms_struct", size_of::<struct_ax25_parms_struct>(), align_of::<struct_ax25_parms_struct>());
+    expect_member("struct ax25_parms_struct", "port_addr", offset_of!(struct_ax25_parms_struct, port_addr));
+    expect_member("struct ax25_parms_struct", "port_addr.ax25_call", offset_of!(struct_ax25_parms_struct, port_addr.ax25_call));
+    expect_member("struct ax25_parms_struct", "values", offset_of!(struct_ax25_parms_struct, values));
+}
+
+#[test]
+fn abi_struct_ax25_bpqaddr_struct() {
+    expect_type("struct ax25_bpqaddr_struct", size_of::<struct_ax25_bpqaddr_struct>(), align_of::<struct_ax25_bpqaddr_struct>());
+    expect_member("struct ax25_bpqaddr_struct", "dev", offset_of!(struct_ax25_bpqaddr_struct, dev));
+    expect_member("struct ax25_bpqaddr_struct", "addr", offset_of!(struct_ax25_bpqaddr_struct, addr));
+    expect_member("struct ax25_bpqaddr_struct", "addr.ax25_call", offset_of!(struct_ax25_bpqaddr_struct, addr.ax25_call));
+}
+
+#[test]
+fn abi_struct_nr_parms_struct() {
+    expect_type("struct nr_parms_struct", size_of::<struct_nr_parms_struct>(), align_of::<struct_nr_parms_struct>());
+    expect_member("struct nr_parms_struct", "quality", offset_of!(struct_nr_parms_struct, quality));
+    expect_member("struct nr_parms_struct", "obs_count", offset_of!(struct_nr_parms_struct, obs_count));
+    expect_member("struct nr_parms_struct", "ttl", offset_of!(struct_nr_parms_struct, ttl));
+    expect_member("struct nr_parms_struct", "timeout", offset_of!(struct_nr_parms_struct, timeout));
+    expect_member("struct nr_parms_struct", "ack_delay", offset_of!(struct_nr_parms_struct, ack_delay));
+    expect_member("struct nr_parms_struct", "busy_delay", offset_of!(struct_nr_parms_struct, busy_delay));
+    expect_member("struct nr_parms_struct", "tries", offset_of!(struct_nr_parms_struct, tries));
+    expect_member("struct nr_parms_struct", "window", offset_of!(struct_nr_parms_struct, window));
+    expect_member("struct nr_parms_struct", "paclen", offset_of!(struct_nr_parms_struct, paclen));
+}
+
+#[test]
+fn abi_struct_nr_ctl_struct() {
+    expect_type("struct nr_ctl_struct", size_of::<struct_nr_ctl_struct>(), align_of::<struct_nr_ctl_struct>());
+    expect_member("struct nr_ctl_struct", "index", offset_of!(struct_nr_ctl_struct, index));
+    expect_member("struct nr_ctl_struct", "id", offset_of!(struct_nr_ctl_struct, id));
+    expect_member("struct nr_ctl_struct", "cmd", offset_of!(struct_nr_ctl_struct, cmd));
+    expect_member("struct nr_ctl_struct", "arg", offset_of!(struct_nr_ctl_struct, arg));
+}
+
+#[test]
+fn abi_struct_ppp_stats() {
+    expect_type("struct ppp_stats", size_of::<struct_ppp_stats>(), align_of::<struct_ppp_stats>());
+    expect_member("struct ppp_stats", "p", offset_of!(struct_ppp_stats, p));
+    expect_member("struct ppp_stats", "p.ppp_discards", offset_of!(struct_ppp_stats, p.ppp_discards));
+    expect_member("struct ppp_stats", "p.ppp_ibytes", offset_of!(struct_ppp_stats, p.ppp_ibytes));
+    expect_member("struct ppp_stats", "p.ppp_ioctects", offset_of!(struct_ppp_stats, p.ppp_ioctects));
+    expect_member("struct ppp_stats", "p.ppp_ipackets", offset_of!(struct_ppp_stats, p.ppp_ipackets));
+    expect_member("struct ppp_stats", "p.ppp_ierrors", offset_of!(struct_ppp_stats, p.ppp_ierrors));
+    expect_member("struct ppp_stats", "p.ppp_ilqrs", offset_of!(struct_ppp_stats, p.ppp_ilqrs));
+    expect_member("struct ppp_stats", "p.ppp_obytes", offset_of!(struct_ppp_stats, p.ppp_obytes));
+    expect_member("struct ppp_stats", "p.ppp_ooctects", offset_of!(struct_ppp_stats, p.ppp_ooctects));
+    expect_member("struct ppp_stats", "p.ppp_opackets", offset_of!(struct_ppp_stats, p.ppp_opackets));
+    expect_member("struct ppp_stats", "p.ppp_oerrors", offset_of!(struct_ppp_stats, p.ppp_oerrors));
+    expect_member("struct ppp_stats", "p.ppp_olqrs", offset_of!(struct_ppp_stats, p.ppp_olqrs));
+    expect_member("struct ppp_stats", "vj", offset_of!(struct_ppp_stats, vj));
+    expect_member("struct ppp_stats", "vj.vjs_packets", offset_of!(struct_ppp_stats, vj.vjs_packets));
+    expect_member("struct ppp_stats", "vj.vjs_compressed", offset_of!(struct_ppp_stats, vj.vjs_compressed));
+    expect_member("struct ppp_stats", "vj.vjs_searches", offset_of!(struct_ppp_stats, vj.vjs_searches));
+    expect_member("struct ppp_stats", "vj.vjs_misses", offset_of!(struct_ppp_stats, vj.vjs_misses));
+    expect_member("struct ppp_stats", "vj.vjs_uncompressedin", offset_of!(struct_ppp_stats, vj.vjs_uncompressedin));
+    expect_member("struct ppp_stats", "vj.vjs_compressedin", offset_of!(struct_ppp_stats, vj.vjs_compressedin));
+    expect_member("struct ppp_stats", "vj.vjs_errorin", offset_of!(struct_ppp_stats, vj.vjs_errorin));
+    expect_member("struct ppp_stats", "vj.vjs_tossed", offset_of!(struct_ppp_stats, vj.vjs_tossed));
+}
+
+#[test]
+fn abi_struct_pppstat() {
+    expect_type("struct pppstat", size_of::<struct_pppstat>(), align_of::<struct_pppstat>());
+    expect_member("struct pppstat", "ppp_discards", offset_of!(struct_pppstat, ppp_discards));
+    expect_member("struct pppstat", "ppp_ibytes", offset_of!(struct_pppstat, ppp_ibytes));
+    expect_member("struct pppstat", "ppp_ioctects", offset_of!(struct_pppstat, ppp_ioctects));
+    expect_member("struct pppstat", "ppp_ipackets", offset_of!(struct_pppstat, ppp_ipackets));
+    expect_member("struct pppstat", "ppp_ierrors", offset_of!(struct_pppstat, ppp_ierrors));
+    expect_member("struct pppstat", "ppp_ilqrs", offset_of!(struct_pppstat, ppp_ilqrs));
+    expect_member("struct pppstat", "ppp_obytes", offset_of!(struct_pppstat, ppp_obytes));
+    expect_member("struct pppstat", "ppp_ooctects", offset_of!(struct_pppstat, ppp_ooctects));
+    expect_member("struct pppstat", "ppp_opackets", offset_of!(struct_pppstat, ppp_opackets));
+    expect_member("struct pppstat", "ppp_oerrors", offset_of!(struct_pppstat, ppp_oerrors));
+    expect_member("struct pppstat", "ppp_olqrs", offset_of!(struct_pppstat, ppp_olqrs));
+}
+
+#[test]
+fn abi_struct_vjstat() {
+    expect_type("struct vjstat", size_of::<struct_vjstat>(), align_of::<struct_vjstat>());
+    expect_member("struct vjstat", "vjs_packets", offset_of!(struct_vjstat, vjs_packets));
+    expect_member("struct vjstat", "vjs_compressed", offset_of!(struct_vjstat, vjs_compressed));
+    expect_member("struct vjstat", "vjs_searches", offset_of!(struct_vjstat, vjs_searches));
+    expect_member("struct vjstat", "vjs_misses", offset_of!(struct_vjstat, vjs_misses));
+    expect_member("struct vjstat", "vjs_uncompressedin", offset_of!(struct_vjstat, vjs_uncompressedin));
+    expect_member("struct vjstat", "vjs_compressedin", offset_of!(struct_vjstat, vjs_compressedin));
+    expect_member("struct vjstat", "vjs_errorin", offset_of!(struct_vjstat, vjs_errorin));
+    expect_member("struct vjstat", "vjs_tossed", offset_of!(struct_vjstat, vjs_tossed));
+}
+
+#[test]
+fn abi_struct_compstat() {
+    expect_type("struct compstat", size_of::<struct_compstat>(), align_of::<struct_compstat>());
+    expect_member("struct compstat", "unc_bytes", offset_of!(struct_compstat, unc_bytes));
+    expect_member("struct compstat", "unc_packets", offset_of!(struct_compstat, unc_packets));
+    expect_member("struct compstat", "comp_bytes", offset_of!(struct_compstat, comp_bytes));
+    expect_member("struct compstat", "comp_packets", offset_of!(struct_compstat, comp_packets));
+    expect_member("struct compstat", "inc_bytes", offset_of!(struct_compstat, inc_bytes));
+    expect_member("struct compstat", "inc_packets", offset_of!(struct_compstat, inc_packets));
+    expect_member("struct compstat", "in_count", offset_of!(struct_compstat, in_count));
+    expect_member("struct compstat", "bytes_out", offset_of!(struct_compstat, bytes_out));
+    expect_member("struct compstat", "ratio", offset_of!(struct_compstat, ratio));
+}
+
+#[test]
+fn abi_struct_ppp_comp_stats() {
+    expect_type("struct ppp_comp_stats", size_of::<struct_ppp_comp_stats>(), align_of::<struct_ppp_comp_stats>());
+    expect_member("struct ppp_comp_stats", "c", offset_of!(struct_ppp_comp_stats, c));
+    expect_member("struct ppp_comp_stats", "c.unc_bytes", offset_of!(struct_ppp_comp_stats, c.unc_bytes));
+    expect_member("struct ppp_comp_stats", "c.unc_packets", offset_of!(struct_ppp_comp_stats, c.unc_packets));
+    expect_member("struct ppp_comp_stats", "c.comp_bytes", offset_of!(struct_ppp_comp_stats, c.comp_bytes));
+    expect_member("struct ppp_comp_stats", "c.comp_packets", offset_of!(struct_ppp_comp_stats, c.comp_packets));
+    expect_member("struct ppp_comp_stats", "c.inc_bytes", offset_of!(struct_ppp_comp_stats, c.inc_bytes));
+    expect_member("struct ppp_comp_stats", "c.inc_packets", offset_of!(struct_ppp_comp_stats, c.inc_packets));
+    expect_member("struct ppp_comp_stats", "c.in_count", offset_of!(struct_ppp_comp_stats, c.in_count));
+    expect_member("struct ppp_comp_stats", "c.bytes_out", offset_of!(struct_ppp_comp_stats, c.bytes_out));
+    expect_member("struct ppp_comp_stats", "c.ratio", offset_of!(struct_ppp_comp_stats, c.ratio));
+    expect_member("struct ppp_comp_stats", "d", offset_of!(struct_ppp_comp_stats, d));
+    expect_member("struct ppp_comp_stats", "d.unc_bytes", offset_of!(struct_ppp_comp_stats, d.unc_bytes));
+    expect_member("struct ppp_comp_stats", "d.unc_packets", offset_of!(struct_ppp_comp_stats, d.unc_packets));
+    expect_member("struct ppp_comp_stats", "d.comp_bytes", offset_of!(struct_ppp_comp_stats, d.comp_bytes));
+    expect_member("struct ppp_comp_stats", "d.comp_packets", offset_of!(struct_ppp_comp_stats, d.comp_packets));
+    expect_member("struct ppp_comp_stats", "d.inc_bytes", offset_of!(struct_ppp_comp_stats, d.inc_bytes));
+    expect_member("struct ppp_comp_stats", "d.inc_packets", offset_of!(struct_ppp_comp_stats, d.inc_packets));
+    expect_member("struct ppp_comp_stats", "d.in_count", offset_of!(struct_ppp_comp_stats, d.in_count));
+    expect_member("struct ppp_comp_stats", "d.bytes_out", offset_of!(struct_ppp_comp_stats, d.bytes_out));
+    expect_member("struct ppp_comp_stats", "d.ratio", offset_of!(struct_ppp_comp_stats, d.ratio));
+}
+
+#[test]
+fn abi_struct_ppp_idle() {
+    expect_type("struct ppp_idle", size_of::<struct_ppp_idle>(), align_of::<struct_ppp_idle>());
+    expect_member("struct ppp_idle", "xmit_idle", offset_of!(struct_ppp_idle, xmit_idle));
+    expect_member("struct ppp_idle", "recv_idle", offset_of!(struct_ppp_idle, recv_idle));
+}
+
+#[test]
+fn abi_struct_ppp_idle32() {
+    expect_type("struct ppp_idle32", size_of::<struct_ppp_idle32>(), align_of::<struct_ppp_idle32>());
+    expect_member("struct ppp_idle32", "xmit_idle", offset_of!(struct_ppp_idle32, xmit_idle));
+    expect_member("struct ppp_idle32", "recv_idle", offset_of!(struct_ppp_idle32, recv_idle));
+}
+
+#[test]
+fn abi_struct_ppp_idle64() {
+    expect_type("struct ppp_idle64", size_of::<struct_ppp_idle64>(), align_of::<struct_ppp_idle64>());
+    expect_member("struct ppp_idle64", "xmit_idle", offset_of!(struct_ppp_idle64, xmit_idle));
+    expect_member("struct ppp_idle64", "recv_idle", offset_of!(struct_ppp_idle64, recv_idle));
+}
+
+#[test]
+fn abi_struct_npioctl() {
+    expect_type("struct npioctl", size_of::<struct_npioctl>(), align_of::<struct_npioctl>());
+    expect_member("struct npioctl", "protocol", offset_of!(struct_npioctl, protocol));
+    expect_member("struct npioctl", "mode", offset_of!(struct_npioctl, mode));
+}
+
+#[test]
+fn abi_struct_ppp_option_data() {
+    expect_type("struct ppp_option_data", size_of::<struct_ppp_option_data>(), align_of::<struct_ppp_option_data>());
+    expect_member("struct ppp_option_data", "ptr", offset_of!(struct_ppp_option_data, ptr));
+    expect_member("struct ppp_option_data", "length", offset_of!(struct_ppp_option_data, length));
+    expect_member("struct ppp_option_data", "transmit", offset_of!(struct_ppp_option_data, transmit));
+}
+
+#[test]
+fn abi_struct_ifpppstatsreq() {
+    expect_type("struct ifpppstatsreq", size_of::<struct_ifpppstatsreq>(), align_of::<struct_ifpppstatsreq>());
+    expect_member("struct ifpppstatsreq", "b", offset_of!(struct_ifpppstatsreq, b));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifrn", offset_of!(struct_ifpppstatsreq, b.ifr_ifrn));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifrn.ifrn_name", offset_of!(struct_ifpppstatsreq, b.ifr_ifrn.ifrn_name));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru", offset_of!(struct_ifpppstatsreq, b.ifr_ifru));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_addr", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_addr));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_addr.sa_family", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_addr.sa_family));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_addr.sa_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_addr.sa_data));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_dstaddr", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_dstaddr));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_dstaddr.sa_family", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_dstaddr.sa_family));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_dstaddr.sa_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_dstaddr.sa_data));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_broadaddr", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_broadaddr));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_broadaddr.sa_family", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_broadaddr.sa_family));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_broadaddr.sa_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_broadaddr.sa_data));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_netmask", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_netmask));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_netmask.sa_family", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_netmask.sa_family));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_netmask.sa_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_netmask.sa_data));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_hwaddr", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_hwaddr));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_hwaddr.sa_family", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_hwaddr.sa_family));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_hwaddr.sa_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_hwaddr.sa_data));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_flags", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_flags));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_ivalue", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_ivalue));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_mtu", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_mtu));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.mem_start", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.mem_start));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.mem_end", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.mem_end));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.base_addr", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.base_addr));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.irq", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.irq));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.dma", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.dma));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_map.port", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_map.port));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_slave", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_slave));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_newname", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_newname));
+    expect_member("struct ifpppstatsreq", "b.ifr_ifru.ifru_data", offset_of!(struct_ifpppstatsreq, b.ifr_ifru.ifru_data));
+    expect_member("struct ifpppstatsreq", "stats", offset_of!(struct_ifpppstatsreq, stats));
+    expect_member("struct ifpppstatsreq", "stats.p", offset_of!(struct_ifpppstatsreq, stats.p));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_discards", offset_of!(struct_ifpppstatsreq, stats.p.ppp_discards));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ibytes", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ibytes));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ioctects", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ioctects));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ipackets", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ipackets));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ierrors", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ierrors));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ilqrs", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ilqrs));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_obytes", offset_of!(struct_ifpppstatsreq, stats.p.ppp_obytes));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_ooctects", offset_of!(struct_ifpppstatsreq, stats.p.ppp_ooctects));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_opackets", offset_of!(struct_ifpppstatsreq, stats.p.ppp_opackets));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_oerrors", offset_of!(struct_ifpppstatsreq, stats.p.ppp_oerrors));
+    expect_member("struct ifpppstatsreq", "stats.p.ppp_olqrs", offset_of!(struct_ifpppstatsreq, stats.p.ppp_olqrs));
+    expect_member("struct ifpppstatsreq", "stats.vj", offset_of!(struct_ifpppstatsreq, stats.vj));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_packets", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_packets));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_compressed", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_compressed));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_searches", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_searches));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_misses", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_misses));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_uncompressedin", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_uncompressedin));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_compressedin", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_compressedin));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_errorin", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_errorin));
+    expect_member("struct ifpppstatsreq", "stats.vj.vjs_tossed", offset_of!(struct_ifpppstatsreq, stats.vj.vjs_tossed));
+}
+
+#[test]
+fn abi_struct_ifpppcstatsreq() {
+    expect_type("struct ifpppcstatsreq", size_of::<struct_ifpppcstatsreq>(), align_of::<struct_ifpppcstatsreq>());
+    expect_member("struct ifpppcstatsreq", "b", offset_of!(struct_ifpppcstatsreq, b));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifrn", offset_of!(struct_ifpppcstatsreq, b.ifr_ifrn));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifrn.ifrn_name", offset_of!(struct_ifpppcstatsreq, b.ifr_ifrn.ifrn_name));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_addr", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_addr));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_addr.sa_family", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_addr.sa_family));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_addr.sa_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_addr.sa_data));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_dstaddr", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_dstaddr));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_dstaddr.sa_family", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_dstaddr.sa_family));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_dstaddr.sa_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_dstaddr.sa_data));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_broadaddr", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_broadaddr));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_broadaddr.sa_family", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_broadaddr.sa_family));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_broadaddr.sa_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_broadaddr.sa_data));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_netmask", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_netmask));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_netmask.sa_family", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_netmask.sa_family));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_netmask.sa_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_netmask.sa_data));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_hwaddr", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_hwaddr));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_hwaddr.sa_family", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_hwaddr.sa_family));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_hwaddr.sa_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_hwaddr.sa_data));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_flags", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_flags));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_ivalue", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_ivalue));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_mtu", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_mtu));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.mem_start", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.mem_start));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.mem_end", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.mem_end));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.base_addr", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.base_addr));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.irq", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.irq));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.dma", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.dma));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_map.port", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_map.port));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_slave", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_slave));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_newname", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_newname));
+    expect_member("struct ifpppcstatsreq", "b.ifr_ifru.ifru_data", offset_of!(struct_ifpppcstatsreq, b.ifr_ifru.ifru_data));
+    expect_member("struct ifpppcstatsreq", "stats", offset_of!(struct_ifpppcstatsreq, stats));
+    expect_member("struct ifpppcstatsreq", "stats.c", offset_of!(struct_ifpppcstatsreq, stats.c));
+    expect_member("struct ifpppcstatsreq", "stats.c.unc_bytes", offset_of!(struct_ifpppcstatsreq, stats.c.unc_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.c.unc_packets", offset_of!(struct_ifpppcstatsreq, stats.c.unc_packets));
+    expect_member("struct ifpppcstatsreq", "stats.c.comp_bytes", offset_of!(struct_ifpppcstatsreq, stats.c.comp_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.c.comp_packets", offset_of!(struct_ifpppcstatsreq, stats.c.comp_packets));
+    expect_member("struct ifpppcstatsreq", "stats.c.inc_bytes", offset_of!(struct_ifpppcstatsreq, stats.c.inc_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.c.inc_packets", offset_of!(struct_ifpppcstatsreq, stats.c.inc_packets));
+    expect_member("struct ifpppcstatsreq", "stats.c.in_count", offset_of!(struct_ifpppcstatsreq, stats.c.in_count));
+    expect_member("struct ifpppcstatsreq", "stats.c.bytes_out", offset_of!(struct_ifpppcstatsreq, stats.c.bytes_out));
+    expect_member("struct ifpppcstatsreq", "stats.c.ratio", offset_of!(struct_ifpppcstatsreq, stats.c.ratio));
+    expect_member("struct ifpppcstatsreq", "stats.d", offset_of!(struct_ifpppcstatsreq, stats.d));
+    expect_member("struct ifpppcstatsreq", "stats.d.unc_bytes", offset_of!(struct_ifpppcstatsreq, stats.d.unc_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.d.unc_packets", offset_of!(struct_ifpppcstatsreq, stats.d.unc_packets));
+    expect_member("struct ifpppcstatsreq", "stats.d.comp_bytes", offset_of!(struct_ifpppcstatsreq, stats.d.comp_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.d.comp_packets", offset_of!(struct_ifpppcstatsreq, stats.d.comp_packets));
+    expect_member("struct ifpppcstatsreq", "stats.d.inc_bytes", offset_of!(struct_ifpppcstatsreq, stats.d.inc_bytes));
+    expect_member("struct ifpppcstatsreq", "stats.d.inc_packets", offset_of!(struct_ifpppcstatsreq, stats.d.inc_packets));
+    expect_member("struct ifpppcstatsreq", "stats.d.in_count", offset_of!(struct_ifpppcstatsreq, stats.d.in_count));
+    expect_member("struct ifpppcstatsreq", "stats.d.bytes_out", offset_of!(struct_ifpppcstatsreq, stats.d.bytes_out));
+    expect_member("struct ifpppcstatsreq", "stats.d.ratio", offset_of!(struct_ifpppcstatsreq, stats.d.ratio));
 }
 
 #[test]

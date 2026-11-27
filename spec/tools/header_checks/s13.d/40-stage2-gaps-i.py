@@ -1,6 +1,6 @@
 """Slice 13 checks: stage2-gaps-i (header_checks/s13.d/, loaded after s13.py by spec/tools/header_check.py;
 header_checks/README.md)."""
-from header_check import expand
+from header_check import expand, nested_spelling
 
 # (layouts.tsv type, header, visibility.tsv name, kind): the structures HEADERS-STAGE2-GAPS-I gives members (opaque
 # before, or new), checked in the header a consumer includes. struct termio also through <sys/ioctl.h> (llvm-19's
@@ -146,7 +146,9 @@ def units(ctx):
     vis = {(r["header"], r["name"], r["kind"]): r["configs"] for r in ctx.vis}
     out = []
     for key, h, name, kind in TYPES:
-        tests = [f"__builtin_offsetof ({key}, {m}) == {o}" for m, o in offsets(ctx, key)]
+        # A nested tag (headers/nested-tags.tsv, HEADERS-STAGE2-GAPS-J) through its outer structure's member.
+        spell = nested_spelling(ctx, key) or key
+        tests = [f"__builtin_offsetof ({spell}, {m}) == {o}" for m, o in offsets(ctx, key)]
         if not tests:
             continue
         body = f"#include <{h}>\n" + "".join(f"typedef char niji_gi_off_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))

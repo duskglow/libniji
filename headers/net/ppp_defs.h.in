@@ -5,9 +5,15 @@
 
 #include <features.h>
 #include <sys/types.h>
+/* The statistics structures (struct ppp_stats, struct pppstat, struct vjstat, ...), ext_accm, enum NPmode and the
+   PPP header macros are the kernel's (the reference's include closure: <asm/types.h>, <linux/ppp_defs.h>). */
+#include <asm/types.h>
+#include <linux/ppp_defs.h>
 
 __NIJI_BEGIN_C
 
+@@owns ppp_stats pppstat vjstat compstat ppp_comp_stats ppp_idle ppp_idle32 ppp_idle64 ext_accm NPmode
+@@owns NPMODE_PASS NPMODE_DROP NPMODE_ERROR NPMODE_QUEUE PPP_ADDRESS PPP_CONTROL PPP_PROTOCOL
 @@emit
 
 __NIJI_END_C
