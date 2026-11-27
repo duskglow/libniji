@@ -96,6 +96,21 @@ typedef union pthread_attr_t pthread_attr_t;
 # define _SS_SIZE 128
 #endif
 
+/* The IPX ioctl requests count from SIOCPROTOPRIVATE, which this header does not define: a program takes it from
+   <sys/ioctl.h> (black-box probe, HEADERS-STAGE2-GAPS-K: each request is SIOCPROTOPRIVATE plus its number, the
+   expansion parenthesised, defined outright; the numbers are those the kernel's <linux/ipx.h> gave the requests). */
+#if 1
+# define SIOCAIPXITFCRT (SIOCPROTOPRIVATE+0)
+# define SIOCAIPXPRISLT (SIOCPROTOPRIVATE+1)
+# define SIOCIPXCFGDATA (SIOCPROTOPRIVATE+2)
+# define SIOCIPXNCPCONN (SIOCPROTOPRIVATE+3)
+#endif
+
+/* The member name sipx_special is the port member (black-box probe: offsetof 2, size 2 in struct sockaddr_ipx). */
+#if 1
+# define sipx_special sipx_port
+#endif
+
 __NIJI_END_C
 
 #endif

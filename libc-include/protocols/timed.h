@@ -6,7 +6,6 @@
 
 #include <features.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 
 __NIJI_BEGIN_C

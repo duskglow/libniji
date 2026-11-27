@@ -34,7 +34,10 @@ __NIJI_BEGIN_C
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
-# define TTYDEF_SPEED 13
+# ifndef __NIJI_D_m_TTYDEF_SPEED
+#  define __NIJI_D_m_TTYDEF_SPEED 1
+# define TTYDEF_SPEED B9600
+# endif
 #endif
 
 #if 1

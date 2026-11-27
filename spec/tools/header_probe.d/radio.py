@@ -12,8 +12,9 @@ def radio_names():
     ax = ["AX25_" + n for n in ("MTU", "MAX_DIGIS", "WINDOW", "T1", "N2", "T3", "T2", "BACKOFF", "EXTSEQ", "PIDINCL",
                                 "IDLE", "PACLEN", "IAMDIGI", "KILL", "SET_RT_IPMODE", "NOUID_DEFAULT", "NOUID_BLOCK")]
     # Not candidates: the protocol-private ioctls (SIOCAX25*, SIOCNRDECOBS, SIOCRS*, SIOCAIPX*, SIOCIPX*) and the
-    # member alias sax25_uid, which the reference shows but which are no integer constant in a unit including their
-    # header alone (type_probe.py finds no value; the generator needs one for every macro row): a later story.
+    # member aliases sax25_uid and sipx_special, which the reference shows but which are no integer constant in a
+    # unit including their header alone (type_probe.py finds no value; the generator needs one for every macro row):
+    # stage2-gaps-j.py and stage2-gaps-k.py name the AX.25 and IPX ones, their templates define them.
     ax += ["SOL_AX25", "SOL_NETROM", "SOL_ROSE", "SOL_IPX", "SOL_ECONET", "SOL_ASH"]
     nr = ["NETROM_" + n for n in ("MTU", "T1", "T2", "N2", "T4", "IDLE", "NEIGH", "NODE")]
     ro = ["ROSE_" + n for n in ("MTU", "MAX_DIGIS", "DEFER", "T1", "T2", "T3", "IDLE", "QBITINCL", "HOLDBACK",

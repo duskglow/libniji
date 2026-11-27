@@ -477,8 +477,9 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # ifndef TIOCSERSWILD
 #  define TIOCSERSWILD 21589
 # endif
-# ifndef TIOCSER_TEMT
-#  define TIOCSER_TEMT 1
+# ifndef __NIJI_D_m_TIOCSER_TEMT
+#  define __NIJI_D_m_TIOCSER_TEMT 1
+# define TIOCSER_TEMT 0x01
 # endif
 # ifndef TIOCSETD
 #  define TIOCSETD 21539
@@ -517,7 +518,10 @@ extern int openpty (int *, int *, char *, const struct termios *, const struct w
 # define TTYDEF_IFLAG 11554
 # define TTYDEF_LFLAG 35355
 # define TTYDEF_OFLAG 6149
+# ifndef __NIJI_D_m_TTYDEF_SPEED
+#  define __NIJI_D_m_TTYDEF_SPEED 1
 # define TTYDEF_SPEED B9600
+# endif
 # ifndef _IOC_DIRBITS
 #  define _IOC_DIRBITS 2
 # endif

@@ -149,8 +149,11 @@ def _forms(ctx, only):
     # what the header declares, so include guards (`_STDIO_H`: the reference skips the header) and KNOWN (the
     # feature-test macros among them) stay out.
     per = {}
-    # kernel-spelled.tsv: guarded on purpose (a kernel header's definition, when present, is the one in force).
-    kspell = {r["name"] for r in _tsv(ctx, "spec/abi/kernel-spelled.tsv")}
+    # kernel-spelled.tsv: guarded on purpose (a kernel header's definition, when present, is the one in force), except
+    # a macro-spellings.tsv name: the kernel's own text, outright as the reference's (HEADERS-STAGE2-GAPS-K).
+    kspell = ({r["name"] for r in _tsv(ctx, "spec/abi/kernel-spelled.tsv")}
+              - {line.split("\t", 1)[0] for line in open(os.path.join(ctx.root, "spec/abi/macro-spellings.tsv"))
+                 if line.strip() and not line.startswith("#")})
     for h, n in fp.gnu_pairs():
         want = expect.get((h, n), "replaced")
         if n not in KNOWN and n not in kspell and not GUARD.match(n) and not (h in KNOWN_KEPT and want == "kept"):

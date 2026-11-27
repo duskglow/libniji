@@ -218,26 +218,31 @@ enum {
 };
 #  endif
 # endif
-# ifndef BLKBSZGET
-#  define BLKBSZGET 2148012656UL
+# ifndef __NIJI_D_m_BLKBSZGET
+#  define __NIJI_D_m_BLKBSZGET 1
+# define BLKBSZGET _IOR(0x12,112,size_t)
 # endif
-# ifndef BLKBSZSET
-#  define BLKBSZSET 1074270833UL
+# ifndef __NIJI_D_m_BLKBSZSET
+#  define __NIJI_D_m_BLKBSZSET 1
+# define BLKBSZSET _IOW(0x12,113,size_t)
 # endif
 # ifndef BLKFLSBUF
 #  define BLKFLSBUF 4705U
 # endif
-# ifndef BLKFRAGET
-#  define BLKFRAGET 4709U
+# ifndef __NIJI_D_m_BLKFRAGET
+#  define __NIJI_D_m_BLKFRAGET 1
+# define BLKFRAGET _IO(0x12,101)
 # endif
-# ifndef BLKFRASET
-#  define BLKFRASET 4708U
+# ifndef __NIJI_D_m_BLKFRASET
+#  define __NIJI_D_m_BLKFRASET 1
+# define BLKFRASET _IO(0x12,100)
 # endif
 # ifndef BLKGETSIZE
 #  define BLKGETSIZE 4704U
 # endif
-# ifndef BLKGETSIZE64
-#  define BLKGETSIZE64 2148012658UL
+# ifndef __NIJI_D_m_BLKGETSIZE64
+#  define __NIJI_D_m_BLKGETSIZE64 1
+# define BLKGETSIZE64 _IOR(0x12,114,size_t)
 # endif
 # ifndef BLKRAGET
 #  define BLKRAGET 4707U
@@ -254,17 +259,21 @@ enum {
 # ifndef BLKRRPART
 #  define BLKRRPART 4703U
 # endif
-# ifndef BLKSECTGET
-#  define BLKSECTGET 4711U
+# ifndef __NIJI_D_m_BLKSECTGET
+#  define __NIJI_D_m_BLKSECTGET 1
+# define BLKSECTGET _IO(0x12,103)
 # endif
-# ifndef BLKSECTSET
-#  define BLKSECTSET 4710U
+# ifndef __NIJI_D_m_BLKSECTSET
+#  define __NIJI_D_m_BLKSECTSET 1
+# define BLKSECTSET _IO(0x12,102)
 # endif
-# ifndef BLKSSZGET
-#  define BLKSSZGET 4712U
+# ifndef __NIJI_D_m_BLKSSZGET
+#  define __NIJI_D_m_BLKSSZGET 1
+# define BLKSSZGET _IO(0x12,104)
 # endif
-# ifndef BLOCK_SIZE
-#  define BLOCK_SIZE 1024
+# ifndef __NIJI_D_m_BLOCK_SIZE
+#  define __NIJI_D_m_BLOCK_SIZE 1
+# define BLOCK_SIZE (1<<BLOCK_SIZE_BITS)
 # endif
 # define BLOCK_SIZE_BITS 10
 # ifndef FSMOUNT_CLOEXEC
