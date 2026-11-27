@@ -9,6 +9,11 @@ __NIJI_BEGIN_C
 
 @@emit
 
+/* d_fileno: the GNU C Library manual's other name of d_ino ("Directory Entries"), a macro in every configuration, so
+   struct dirent and struct dirent64 both have it (black-box probe of the reference, HEADERS-STAGE2-GAPS-M: `#ifdef
+   d_fileno` true, the member's offset and size those of d_ino; bash, readline and apr test it). */
+#define d_fileno d_ino
+
 /* d_type <-> st_mode file type (HEADERS-STAGE2-GAPS-C, probed): the DT_* value is the S_IFMT field shifted down by 12
    bits. The argument is parenthesised and the result has the type of the promoted argument (unsigned int for a mode_t,
    int for an int or unsigned char), so both are usable in `#if`. */

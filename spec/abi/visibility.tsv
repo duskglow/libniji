@@ -43036,9 +43036,12 @@ pthread.h	PTHREAD_INHERIT_SCHED	enumerator	!time64only
 pthread.h	PTHREAD_MUTEX_ADAPTIVE_NP	enumerator	!time64only
 pthread.h	PTHREAD_MUTEX_DEFAULT	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopenext,isoc99,isoc11,isoc2x,time64only
 pthread.h	PTHREAD_MUTEX_ERRORCHECK	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopenext,isoc99,isoc11,isoc2x,time64only
+pthread.h	PTHREAD_MUTEX_ERRORCHECK_NP	enumerator	!time64only
+pthread.h	PTHREAD_MUTEX_FAST_NP	enumerator	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 pthread.h	PTHREAD_MUTEX_INITIALIZER	macro	!time64only
 pthread.h	PTHREAD_MUTEX_NORMAL	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopenext,isoc99,isoc11,isoc2x,time64only
 pthread.h	PTHREAD_MUTEX_RECURSIVE	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopenext,isoc99,isoc11,isoc2x,time64only
+pthread.h	PTHREAD_MUTEX_RECURSIVE_NP	enumerator	!time64only
 pthread.h	PTHREAD_MUTEX_ROBUST	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 pthread.h	PTHREAD_MUTEX_ROBUST_NP	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only
 pthread.h	PTHREAD_MUTEX_STALLED	enumerator	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,xopen,xopen500,xopenext,isoc99,isoc11,isoc2x,time64only

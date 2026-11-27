@@ -19,6 +19,13 @@ __NIJI_BEGIN_C
 # endif
 #endif
 
+/* The job-control stop signal from <bits/niji-sigtstp.h>, so neither this file nor <sys/signal.h> spells its name:
+   perl's Configure decides d_bsd by searching these two files for that text, and the reference's do not contain it
+   (coordinator ruling #8815; the name stays visible exactly where visibility.tsv shows it). */
+@@if SIGTSTP
+# include <bits/niji-sigtstp.h>
+#endif
+
 /* C 7.14.1: the dispositions; their addresses are macros.tsv's. */
 #define SIG_DFL ((__sighandler_t) @@value(SIG_DFL))
 #define SIG_IGN ((__sighandler_t) @@value(SIG_IGN))

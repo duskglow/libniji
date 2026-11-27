@@ -1,0 +1,9 @@
+@@generated
+/* bits/niji-sigtstp.h: libniji's own header, included by <signal.h> where it shows the job-control stop signal
+   (headers/signal.h.in says why the name is defined here); not for programs to include. */
+#ifndef __NIJI_H_bits_niji_sigtstp_h
+#define __NIJI_H_bits_niji_sigtstp_h 1
+
+#define SIGTSTP @@value(SIGTSTP)
+
+#endif

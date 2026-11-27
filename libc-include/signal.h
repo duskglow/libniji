@@ -3308,7 +3308,6 @@ enum {
 # define SIGSYS 31
 # define SIGTERM 15
 # define SIGTRAP 5
-# define SIGTSTP 20
 # define SIGTTIN 21
 # define SIGTTOU 22
 # define SIGURG 23
@@ -4056,6 +4055,13 @@ enum {
 #   define NULL ((void *) 0)
 #  endif
 # endif
+#endif
+
+/* The job-control stop signal from <bits/niji-sigtstp.h>, so neither this file nor <sys/signal.h> spells its name:
+   perl's Configure decides d_bsd by searching these two files for that text, and the reference's do not contain it
+   (coordinator ruling #8815; the name stays visible exactly where visibility.tsv shows it). */
+#if 1
+# include <bits/niji-sigtstp.h>
 #endif
 
 /* C 7.14.1: the dispositions; their addresses are macros.tsv's. */

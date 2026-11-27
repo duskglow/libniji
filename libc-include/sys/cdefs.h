@@ -22,6 +22,20 @@
 # define __NTH(fct) __attribute__ ((__nothrow__)) fct
 #endif
 
+/* Compiler version tests (gnulib's "glibc-compatible sys/cdefs.h" check uses __GNUC_PREREQ in a constant expression):
+   1 when the compiler is GCC-compatible at least version maj.min, else 0; __glibc_clang_prereq the same for clang's
+   own version, 0 under any other compiler (black-box probe of the reference, HEADERS-STAGE2-GAPS-M). */
+#if defined __GNUC__ && defined __GNUC_MINOR__
+# define __GNUC_PREREQ(maj, min) ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+#else
+# define __GNUC_PREREQ(maj, min) 0
+#endif
+#if defined __clang_major__ && defined __clang_minor__
+# define __glibc_clang_prereq(maj, min) ((__clang_major__ << 16) + __clang_minor__ >= ((maj) << 16) + (min))
+#else
+# define __glibc_clang_prereq(maj, min) 0
+#endif
+
 /* Old-style prototype wrapper: every supported compiler has prototypes. */
 #define __P(args) args
 
