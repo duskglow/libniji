@@ -39461,6 +39461,10 @@ netipx/ipx.h	PTRDIFF_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cx
 netipx/ipx.h	SIG_ATOMIC_MAX	macro	!time64only
 netipx/ipx.h	SIG_ATOMIC_MIN	macro	!time64only
 netipx/ipx.h	SIG_ATOMIC_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netipx/ipx.h	SIOCAIPXITFCRT	macro	!time64only
+netipx/ipx.h	SIOCAIPXPRISLT	macro	!time64only
+netipx/ipx.h	SIOCIPXCFGDATA	macro	!time64only
+netipx/ipx.h	SIOCIPXNCPCONN	macro	!time64only
 netipx/ipx.h	SIZE_MAX	macro	!time64only
 netipx/ipx.h	SIZE_WIDTH	macro	c2x,gnu2x,isoc2x,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netipx/ipx.h	SOL_IPX	macro	!time64only
@@ -39691,6 +39695,7 @@ netipx/ipx.h	register_t	typedef	!time64only
 netipx/ipx.h	sa_family_t	typedef	!time64only
 netipx/ipx.h	select	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netipx/ipx.h	sigset_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+netipx/ipx.h	sipx_special	macro	!time64only
 netipx/ipx.h	size_t	typedef	!time64only
 netipx/ipx.h	sockaddr_ipx	struct	!time64only
 netipx/ipx.h	ssize_t	typedef	!time64only

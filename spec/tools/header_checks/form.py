@@ -531,6 +531,14 @@ ENFORCED = {("PTHREAD_STACK_MIN", "pthread.h"): None, ("PTHREAD_STACK_MIN", "dir
             ("res_ninit", "resolv.h"): None, ("res_nclose", "resolv.h"): None,
             ("b64_ntop", "resolv.h"): None, ("b64_pton", "resolv.h"): None,("INFINITY", "sys/vlimit.h"): None,
             ("MS_NOUSER", "sys/mount.h"): C_CONFIGS}
+# The ioctl requests the reference spells as `_IOR`/`_IOW`/`_IOWR` expressions (no `#if` value; the kernel UAPI
+# header's text, spec/abi/macro-spellings.tsv; HEADERS-STAGE2-GAPS-K).
+ENFORCED.update({(n, "net/if_ppp.h"): None for n in (
+    "PPPIOCGFLAGS", "PPPIOCSFLAGS", "PPPIOCGASYNCMAP", "PPPIOCSASYNCMAP", "PPPIOCGUNIT", "PPPIOCGRASYNCMAP",
+    "PPPIOCSRASYNCMAP", "PPPIOCGMRU", "PPPIOCSMRU", "PPPIOCSMAXCID", "PPPIOCGXASYNCMAP", "PPPIOCSXASYNCMAP",
+    "PPPIOCSCOMPRESS", "PPPIOCGNPMODE", "PPPIOCSNPMODE", "PPPIOCGDEBUG", "PPPIOCSDEBUG", "PPPIOCGIDLE")})
+ENFORCED.update({(n, "sys/mount.h"): None for n in ("BLKBSZGET", "BLKBSZSET", "BLKGETSIZE64")})
+ENFORCED.update({(n, "sys/mtio.h"): None for n in ("MTIOCGET", "MTIOCGETCONFIG", "MTIOCPOS", "MTIOCSETCONFIG", "MTIOCTOP")})
 
 
 def is_enforced(n, h, cid):
