@@ -1,54 +1,43 @@
-# HEADERS-STAGE2-GAPS-L: handoff (run 1, leg 2 -> leg 3)
+# HEADERS-STAGE2-GAPS-L: handoff (run 1, leg 3: report)
 
-Branch task/headers-stage2-gaps-l, cut from origin/next 6295b2301, no merge. Role keke:~/w/n1 (synced at leg 2's
-code head). Job scripts on keke ~/work/headers-stage2-gaps-l/ (gen.sh, verify.sh, units.sh, units2.sh, fetch.sh,
-p1.sh, p2.sh, p3.py, sweep.sh, pa.sh); local copies, cls.py, cmp.py, splice.py, uniontag.py in the story scratch
-dir. Unit sources on keke ~/work/headers-stage2-gaps-l/src (gcc-14, systemd 257.13, elogind 255.17 orig tarballs).
+Branch task/headers-stage2-gaps-l, cut from origin/next 6295b2301, no merge. Role keke:~/w/n1. Job scripts on keke
+~/work/headers-stage2-gaps-l/ (verify.sh, units*.sh, nt.sh, stockunits.py, p1.sh, p2.sh, p3.py); local copies and
+cls.py (sweep classifier) in the story scratch dir. Plants: handoff/HEADERS-STAGE2-GAPS-L-plants.txt.
 
-## Done
-* Leg 1 (commits 3756bc4c1, b87194d7e): math.h C++ visibility (raw -nostdinc++ splice), C2X C++ forms
-  (math.h.d/190), PA_* enumerators and visibility, __environ, TTYDEF spellings, features.py kernel dir, header_probe
-  `--raw-cxx`/`--configs`, s13.d/70-stage2-gaps-l.py checks.
-* Leg 2 (6c04a9d26, c9d508ccf):
-  - tgmath.h: `@@owns-macro` for the CMPLX family (complex.h defines them; `@@owns` left @@emit-c asking macros.tsv:
-    headers-gen had 9 problems and wrote nothing).
-  - headers/nested-tags.tsv: struct icmp / ih_idseq, ih_pmtu, ih_rtradv; struct ip6_hdr / ip6_hdrctl (stock C++
-    does not see them at namespace scope). header_check nested_spelling follows dotted member paths (no `<anon>`).
-  - xtask/src/headers/cond.rs union_tag(): no tag when visibility.tsv shows the typedef in a C++ config
-    (La_x86_64_vector; pthread_attr_t keeps its tag). Checked on keke: C++ `union La_x86_64_vector *` rejected,
-    typedef usable, C fine.
-  - reserved.tsv __environ row lacked a tab (policy read as "emitlibc.so.6 ..." = omitted). xtask check_reserved()
-    now refuses any policy but emit/emit-once/omit; unit test reserved_policy_text_is_checked (passes).
-  - libc-include regenerated on keke and committed (headers-gen clean, 242 headers).
-  - spec/abi/provenance.d/HEADERS-STAGE2-GAPS-L.txt (order 220) - committed in the leg-2 handoff commit.
-* Unit 1 PASSED (job headers-stage2-gaps-l-units1): libstdc++ C99 math configure body (fpclassify..isunordered,
-  volatile d1,d2,i) with `g++ -nostdinc++ -fno-exceptions` -std=c++98/c++11/gnu++98/gnu++17 against libniji, and
-  installed libstdc++ <cmath> std::fpclassify/isnan/isunordered/signbit c++98..20. PA_* values static_assert ok.
-  units1's units 2-4 failed for harness reasons only (gcc inner tarball not extracted; meson/autotools config.h
-  missing; no autoreconf on keke) -> units2.sh.
+## What the branch does
+1. `<math.h>` in C++: visibility.tsv's C++ columns of math.h/tgmath.h come from the header alone (`header_probe.py
+   --raw-cxx`, -nostdinc++), as libstdc++'s configure and `#include_next` see it: fpclassify .. isunordered and the
+   C2X macros are now macros in C++ (C++98..23); math.h no longer pulls <stdlib.h> in C++ (the header alone of the
+   reference does not; the C++ library's wrappers add it). issignaling/iszero/iscanonical/iseqsig are C++ functions
+   in the reference's form (math.h.d/190). tgmath.h `@@owns-macro` for complex.h's CMPLX family.
+2. Sweep of the class (raw C++ C++98/11/17/23 and gnu, every public header, libniji vs stock): C++-specific
+   differences left: link.h La_x86_64_regs / La_x86_64_retval only (the accepted D-X.130 difference). The other 3700
+   raw rows differ in C (gnu) as well (feature-macro names, typedefs; not C++-specific) and are the C comparison's
+   (header_check passes it with its reviewed lists). Rows added to header_check: GAPS-L units (76 rows).
+3. `<printf.h>` PA_INT .. PA_LAST: unnamed int enumeration, values 0..8, combinations with PA_FLAG_* as stock.
+4. `<unistd.h>` `__environ` declared in every configuration (reserved.tsv row fixed: a missing tab read as an unknown
+   policy, now refused by xtask check_reserved()).
+5. Carried: (a) #8809 features.py standalone gets header_check's kernel UAPI dir (kernel_flags); (b) #8810
+   TTYDEF_{C,I,L,O}FLAG spelled with the termios flag names (integer constants only where stock's are).
+6. C++ nested tags: struct icmp's ih_idseq/ih_pmtu/ih_rtradv and struct ip6_hdr's ip6_hdrctl (nested-tags.tsv);
+   La_x86_64_vector union unnamed in C++ (cond.rs union_tag).
 
-## Running at leg end (read, do not restart)
-* keke `headers-stage2-gaps-l-verify1` (~/logs/...-verify1.log): full header_check, features.py standalone,
-  p1/p2/p3 libniji vs stock diffs (stock logs ~/logs/headers-stage2-gaps-l-{p1,p2ref,p3ref2}.log; expect only
-  path/workdir noise), raw C++ sweep libniji side into /dev/shm/claude/headers-stage2-gaps-l/{sweep2,sweepgnu2}.
-* keke `headers-stage2-gaps-l-units2` (~/logs/...-units2.log): wrapc.c as C++ with -include cmath, systemd/elogind
-  stdio-util.h VA_FORMAT_ADVANCE TU with a stub config.h (SIZEOF_TIME_T etc., no header names), fakechroot setenv.c
-  with empty config.h. A failure that is a header gap: report (header, name, unit), don't chase.
+## Proof (leg 3, keke)
+* header_check whole: 0 failed of 26915 (job headers-stage2-gaps-l-nt); --only GAPS-L 0 of 76 on the final tree.
+* Stock 2.39 accepts the new C++ units (nested tags, TS forms): 24 compiles, 0 failed (stockunits.py).
+* p1 (PA_* values/types) and p3 (C2X C++ forms and values) libniji vs stock: 0 DIFF (the verify1 diffs were harness:
+  -nostdinc without the C++ library dirs; the values program not run on the libniji side).
+* Units: libstdc++ C99 math configure bodies c++98..20 (units1); systemd 257 / elogind 255 stdio-util.h users;
+  fakechroot setenv.c with and without _GNU_SOURCE (units2); gcc-14 gm2-libs-ch/wrapc.c as C++ with <cmath> first,
+  C++98..20, libniji and stock alike (units3c; config/system/gm2-libs-host stubs: HAVE_SIGNBITL/F unset, as no
+  C library has those functions).
+* features.py --only "FEATURES pkg npth rwlock": 0 failed standalone.
 
-## Exact next steps (leg 3)
-1. `~/bin/jobwait headers-stage2-gaps-l-verify1 headers-stage2-gaps-l-units2`; read the logs (tail/grep only).
-2. Sweep: copy sweep2/visibility.tsv and sweepgnu2/visibility.tsv back (stock: sweep1/ref, sweepgnu/ref on keke,
-   local copies sweep1/ref.tsv, sweepgnu/ref.tsv), run cls.py; CXX class must be only link.h La_x86_64_regs/retval
-   (D-X.130 accepted difference). Anything else: fix or INFORMATIONAL.
-3. Add to s13.d/70-stage2-gaps-l.py a C++ unit proving the nested tags are not at namespace scope: after
-   `#include <netinet/ip_icmp.h>` and `<netinet/ip6.h>`, define `struct ih_idseq { char niji[3]; };` (and ip6_hdrctl,
-   ih_pmtu, ih_rtradv) and assert sizeof == 3 (compiles only when the header nests them); in cxx11+ also
-   `sizeof (decltype (icmp::icmp_hun)::ih_idseq) == 4`. Run header_check --only "GAPS-L" on keke.
-4. Plants file handoff/HEADERS-STAGE2-GAPS-L-plants.txt (docs/plants.md format): cond.rs union_tag (drop
-   `&& !cxx_typedef`) caught by `cargo xtask headers-gen --check`; check_reserved always Ok -> cargo test -p xtask
-   reserved_policy; nested-tags.tsv row removal -> headers-gen --check / header_check --only GAPS-L; math.h.in
-   classification guard -> header_check --only "GAPS-L C\+\+ math"; PA enum value -> --only "GAPS-L printf";
-   features.py kernel dir; TTYDEF spelling. Run via `cargo xtask plants` (/dev/shm/claude/headers-stage2-gaps-l/
-   plants-1, Zen 1 host).
-5. `cargo xtask affected` (base origin/next) -> gate (or FULL: precheck + test jobs), clippy (foreground), static,
-   precheck --jobs, report json handoff/reports/HEADERS-STAGE2-GAPS-L.json, handback-check.
+## Jobs (final head)
+gate headers-stage2-gaps-l-gate, plants headers-stage2-gaps-l-plants; results in the report.
+
+## Not to redo
+The sweep (local sweep2/, sweepgnu2/, cls2.tsv), the units, the p1/p3 comparisons.
+
+## Next step
+Land (train). Nothing open in this story.

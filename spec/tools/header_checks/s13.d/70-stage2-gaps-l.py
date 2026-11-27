@@ -69,10 +69,11 @@ PA_CXX = """#include <printf.h>
 typedef char niji_gl_enum[__is_enum (__typeof__ (PA_INT)) && __is_same (__typeof__ (PA_INT), __typeof__ (PA_LAST)) ? 1 : -1];
 """
 
-# <unistd.h> declares __environ (libc.so.6 exports it) in every configuration; a program's own declaration agrees.
+# <unistd.h> declares __environ (libc.so.6 exports it) in every configuration: used before the program's own
+# declaration (which must agree with the header's), so the header alone has to declare it.
 ENVIRON = """#include <unistd.h>
-extern char **__environ;
 char **niji_gl_env (void) { return __environ; }
+extern char **__environ;
 """
 
 # headers/nested-tags.tsv: in C++ the tags of struct icmp's and struct ip6_hdr's union members are nested (the
