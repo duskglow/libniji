@@ -1,0 +1,4 @@
+gettext	ac:gettext-tools:gl_cv_func_pthread_rwlock_good_waitqueue	yes	no
+gettext	h:gettext-tools/config.h:PTHREAD_RWLOCK_BAD_WAITQUEUE	UNDEF	1
+libunistring	ac:.:gl_cv_func_pthread_rwlock_good_waitqueue	yes	no
+libunistring	h:config.h:PTHREAD_RWLOCK_BAD_WAITQUEUE	UNDEF	1
