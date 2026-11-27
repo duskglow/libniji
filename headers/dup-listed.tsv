@@ -3300,7 +3300,6 @@ macro	TTYDEF_CFLAG	pty.h,sgtty.h,sys/ioctl.h,sys/ttydefaults.h,termio.h,termios.
 macro	TTYDEF_IFLAG	pty.h,sgtty.h,sys/ioctl.h,sys/ttydefaults.h,termio.h,termios.h
 macro	TTYDEF_LFLAG	pty.h,sgtty.h,sys/ioctl.h,sys/ttydefaults.h,termio.h,termios.h
 macro	TTYDEF_OFLAG	pty.h,sgtty.h,sys/ioctl.h,sys/ttydefaults.h,termio.h,termios.h
-macro	TTYDEF_SPEED	pty.h,sgtty.h,sys/ioctl.h,sys/ttydefaults.h,termio.h,termios.h
 macro	TTY_NAME_MAX	dirent.h,limits.h
 macro	USER_PROCESS	utmp.h,utmpx.h
 macro	UTIME_NOW	fcntl.h,sys/file.h,sys/pidfd.h,sys/stat.h
