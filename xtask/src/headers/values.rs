@@ -246,10 +246,15 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
 }
 
 impl Gen<'_> {
+    /// The (type, value) of macro `name` in this header: its macro-values.tsv row here, else its macros.tsv row.
+    pub(super) fn macro_row(&self, name: &str) -> Option<&(String, String)> {
+        self.t.header_values.get(&(self.header.clone(), name.to_string())).or_else(|| self.t.macros.get(name))
+    }
+
     pub(super) fn value(&mut self, name: &str) -> String {
         // A pointer constant (macros.tsv type `void (*)(int)`, `fenv_t const*`: type_probe's C++ spelling): its address
         // cast to the type, spelled for C (`__locale_struct*` is `struct __locale_struct *`).
-        if let Some((ty, v)) = self.t.macros.get(name).filter(|(ty, _)| pointer_type(ty)) {
+        if let Some((ty, v)) = self.macro_row(name).filter(|(ty, _)| pointer_type(ty)) {
             return match literal("pointer", v) {
                 Ok(l) => format!("(({}) {l})", self.c_words(ty)),
                 Err(e) => {
@@ -258,7 +263,7 @@ impl Gen<'_> {
                 }
             };
         }
-        match self.t.macros.get(name).map(|(ty, v)| literal(ty, v)) {
+        match self.macro_row(name).map(|(ty, v)| literal(ty, v)) {
             Some(Ok(s)) => s,
             Some(Err(e)) => {
                 self.errors.push(format!("{}: {name}: {e}", self.header));

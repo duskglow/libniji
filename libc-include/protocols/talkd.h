@@ -83,7 +83,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # define BADADDR 7
 # define BADCTLADDR 8
 # define BADVERSION 6
-# define DELETE 0
+# define DELETE 2
 # define FAILED 2
 # define LEAVE_INVITE 0
 # define LOOK_UP 1

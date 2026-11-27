@@ -81,6 +81,13 @@ typedef union pthread_attr_t pthread_attr_t;
 # define rip_nets ripun.ru_nets
 # define rip_tracefile ripun.ru_tracefile
 #endif
+/* The printable names of the RIP commands, indexed by command (0 .. RIPCMD_MAX - 1; entry 0 is "#0"), for routed(8)
+   and its trace output: a program defines the array in exactly one translation unit by defining RIPCMDS (with any
+   value or none) before the header: an array of `char *` with external linkage. Without RIPCMDS it is not declared;
+   the library defines none (black-box probe, C and C++: count, strings, type, `nm`). */
+#ifdef RIPCMDS
+char *ripcmds[RIPCMD_MAX] = { (char *) "#0", (char *) "REQUEST", (char *) "RESPONSE", (char *) "TRACEON", (char *) "TRACEOFF" };
+#endif
 
 __NIJI_END_C
 

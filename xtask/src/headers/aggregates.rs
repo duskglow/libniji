@@ -219,7 +219,9 @@ impl Gen<'_> {
         // A named structure or union of the aggregate's own (`ut_tv`, `_sigev_un`): its members are the rows below it,
         // on one line when each is one plain declaration. A tag only these rows describe (no row of its own in any
         // table, so no size to define it by apart) is defined here, keeping its tag.
-        let own_tag = core.split_once(' ').is_some_and(|(k, t)| matches!(k, "struct" | "union") && t != "<anon>" && !self.tag_known(k, t)) && !kids.is_empty();
+        // A tag headers/nested-tags.tsv puts inside this aggregate is defined here too, though it has rows of its own.
+        let nested_here = self.t.nested_tags.get(core).is_some_and(|o| o == key);
+        let own_tag = core.split_once(' ').is_some_and(|(k, t)| matches!(k, "struct" | "union") && t != "<anon>" && (nested_here || !self.tag_known(k, t))) && !kids.is_empty();
         if let Some(kw) = core.strip_suffix(" <anon>").or(own_tag.then_some(core)).filter(|k| stars.is_empty() && (own_tag || matches!(*k, "struct" | "union"))) {
             let inner = self.level(key, kids, &format!("{}.", r["member"]), off, nested)?;
             // The rows give a nested aggregate no size of its own. Rounded up to its members' alignment it may run
@@ -335,6 +337,12 @@ impl Gen<'_> {
 
     pub(super) fn tag(&mut self, name: &str, kind: &str) {
         let key = format!("{kind} {name}");
+        // A tag defined inside another aggregate (headers/nested-tags.tsv) comes with that aggregate's definition.
+        if let Some((okind, oname)) = self.t.nested_tags.get(&key).and_then(|o| o.split_once(' ')) {
+            let (okind, oname) = (okind.to_string(), oname.to_string());
+            self.tag(&oname, &okind);
+            return;
+        }
         if kind == "enum" {
             // An enumeration: its enumerators.tsv rows (none: it cannot be declared complete).
             match self.enum_body(name) {

@@ -554,6 +554,21 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         let i = c.row("constants", n);
         c.fail(i, "no macros.tsv row: the generator has no value to emit".into());
     }
+    // macro-values.tsv: the value the generator gives the name in that header (HEADERS-STAGE2-GAPS-J).
+    let here = std::mem::take(&mut g.header);
+    for ((h, n), (ty, v)) in t.header_values.iter().filter(|((_, n), _)| named(n)) {
+        let i = c.row("macro-values", &format!("{h} {n}"));
+        g.header = h.clone();
+        let lit = g.value(n);
+        for e in std::mem::take(&mut g.errors) {
+            c.fail(i, format!("generator: {e}"));
+        }
+        match int128(v).filter(|_| INTS.contains(&ty.as_str())) {
+            Some(e) => c.put(&mut a, i, vec![format!("#undef {n}"), format!("#define {n} {lit}"), format!("NIJI_A ((__int128) ({n}) == {e}, \"macro-values {h} {n} = {v}\");"), format!("#undef {n}")]),
+            None => c.fail(i, format!("{ty} {v:?}: the rows test checks integer values only")),
+        }
+    }
+    g.header = here;
 
     // The run-time program: bit-fields and initializers.
     let mut run = Tu::default();

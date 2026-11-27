@@ -26,11 +26,28 @@ struct outmp {
   int out_time;
 };
 # endif
-# ifndef __NIJI_D_struct_whoent
-#  define __NIJI_D_struct_whoent 1
-struct whoent {
-  struct outmp we_utmp;
-  int we_idle;
+# ifndef __NIJI_D_struct_whod
+#  define __NIJI_D_struct_whod 1
+struct whod {
+  char wd_vers;
+  char wd_type;
+  char wd_pad[2];
+  int wd_sendtime;
+  int wd_recvtime;
+  char wd_hostname[32];
+  int wd_loadav[3];
+  int wd_boottime;
+  struct whoent { struct outmp we_utmp; int we_idle; } wd_we[42];
+};
+# endif
+#endif
+#if __NIJI_CXX < 1
+# ifndef __NIJI_D_struct_outmp
+#  define __NIJI_D_struct_outmp 1
+struct outmp {
+  char out_line[8];
+  char out_name[8];
+  int out_time;
 };
 # endif
 # ifndef __NIJI_D_struct_whod
@@ -44,24 +61,7 @@ struct whod {
   char wd_hostname[32];
   int wd_loadav[3];
   int wd_boottime;
-  struct whoent wd_we[42];
-};
-# endif
-#endif
-#if __NIJI_CXX < 1
-# ifndef __NIJI_D_struct_outmp
-#  define __NIJI_D_struct_outmp 1
-struct outmp {
-  char out_line[8];
-  char out_name[8];
-  int out_time;
-};
-# endif
-# ifndef __NIJI_D_struct_whoent
-#  define __NIJI_D_struct_whoent 1
-struct whoent {
-  struct outmp we_utmp;
-  int we_idle;
+  struct whoent { struct outmp we_utmp; int we_idle; } wd_we[42];
 };
 # endif
 #endif

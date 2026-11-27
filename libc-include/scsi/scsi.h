@@ -26,7 +26,7 @@ struct ccs_modesel_head {
   unsigned char block_length_lo;
 };
 # endif
-# define ABORT 238
+# define ABORT 6
 # define ABORTED_COMMAND 11
 # define ALLOW_MEDIUM_REMOVAL 30
 # define BLANK_CHECK 8
@@ -74,7 +74,7 @@ struct ccs_modesel_head {
 # define MODE_SENSE_10 90
 # define MOVE_MEDIUM 165
 # define MSG_PARITY_ERROR 9
-# define NOP 241
+# define NOP 8
 # define NOT_READY 2
 # define NO_SENSE 0
 # define ORDERED_QUEUE_TAG 34
