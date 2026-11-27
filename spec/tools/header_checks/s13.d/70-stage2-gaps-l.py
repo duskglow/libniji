@@ -35,6 +35,23 @@ void niji_gl_f (void)
   niji_gl_i = isunordered (niji_gl_d1, niji_gl_d2);
 }
 """
+# math.h.d/190: in C++ the TS 18661-1 names are no macros but functions of the reference's form (black-box probe):
+# issignaling and iscanonical one int overload per floating type, iszero a template returning bool (an integer
+# argument too), iseqsig a template over both argument types returning int, noexcept.
+CXX_TS = """#include <math.h>
+#if defined issignaling || defined iszero || defined iscanonical || defined iseqsig
+#error "a TS 18661-1 name is a macro in C++"
+#endif
+int (*niji_gl_ts1) (double) = issignaling;
+int (*niji_gl_ts2) (long double) = iscanonical;
+bool (*niji_gl_ts3) (double) = iszero;
+int (*niji_gl_ts4) (double, double) = iseqsig;
+int niji_gl_ts5 = iszero<double> (1.0) + iszero (1) + iseqsig<double> (1.0, 1.0) + iseqsig (1, 1.0f);
+"""
+CXX_TS11 = """static_assert (noexcept (iseqsig (1.0, 1.0)), "iseqsig noexcept");
+static_assert (__is_same (decltype (issignaling (1.0f)), int) && __is_same (decltype (iscanonical (1.0)), int), "int");
+static_assert (__is_same (decltype (iszero (1.0L)), bool) && __is_same (decltype (iseqsig (1.0, 1.0L)), int), "form");
+"""
 # The macros the C++ library's <cmath> undefines and replaces must be macros (it tests each with #ifdef).
 CXX_MACROS = ("fpclassify", "isfinite", "isinf", "isnan", "isnormal", "signbit", "isgreater", "isgreaterequal",
               "isless", "islessequal", "islessgreater", "isunordered")
@@ -82,10 +99,11 @@ def units(ctx):
     (2) the PA_* argument types of <printf.h>: values, combinations with PA_FLAG_*, no macros, one unnamed enumeration;
     (3) __environ after <unistd.h>; (4) TTYDEF_{C,I,L,O}FLAG: the value where the header shows the flag names, and
     otherwise the flag names' spelling (a program's own definitions of the names, after the header, give the value);
-    (5) C++: the union members' tags of struct icmp and struct ip6_hdr are nested, not at namespace scope.
+    (5) C++: issignaling, iszero, iscanonical, iseqsig are functions of the reference's form, not macros;
+    (6) C++: the union members' tags of struct icmp and struct ip6_hdr are nested, not at namespace scope.
     Defects: the math macros hidden from C++ (configure then disables C99 math in libstdc++), a PA_* value off or a
     macro, __environ undeclared or declared with another type, TTYDEF_* evaluable where the reference's is not (a
-    number) or spelled with other names, a nested tag at namespace scope (a program's own struct of that tag is a
+    number) or spelled with other names, a TS 18661-1 name a macro in C++ or of another type, a nested tag at namespace scope (a program's own struct of that tag is a
     redefinition)."""
     shown = {}
     for r in ctx.vis:
@@ -95,6 +113,8 @@ def units(ctx):
     macros = "#include <math.h>\n" + "".join(f"#ifndef {n}\n#error \"{n} is no macro\"\n#endif\n" for n in CXX_MACROS)
     out += [(cid, "GAPS-L C++ math.h configure tests", CXX_MATH) for cid in cxx]
     out += [(cid, "GAPS-L C++ math.h macros", macros) for cid in cxx]
+    out += [(cid, "GAPS-L C++ math.h TS 18661-1 forms", CXX_TS + ("" if cid == "cxx98" else CXX_TS11)) for cid in cxx
+            if cid in shown.get(("math.h", "iseqsig"), ())]
     pick = ("c89", "c17", "gnu17", "cxx98", "cxx17")
     out += [(cid, "GAPS-L printf.h PA types", PA_UNIT) for cid in pick if cid in shown.get(("printf.h", "PA_INT"), ())]
     out += [(cid, "GAPS-L printf.h PA enum", PA_CXX) for cid in ("cxx98", "cxx17") if cid in shown.get(("printf.h", "PA_INT"), ())]
