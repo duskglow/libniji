@@ -3281,3 +3281,225 @@ struct sockaddr_ash	sash_ifindex	4		int
 struct sockaddr_ash	sash_channel	8		unsigned char	
 struct sockaddr_ash	sash_plen	12		unsigned int	
 struct sockaddr_ash	sash_prefix	16		unsigned char[16]	
+struct ax25_parms_struct		48	2		
+struct ax25_parms_struct	port_addr	0		ax25_address	
+struct ax25_parms_struct	port_addr.ax25_call	0		char[7]	
+struct ax25_parms_struct	values	8		short unsigned int[20]	
+struct ax25_bpqaddr_struct		23	1		
+struct ax25_bpqaddr_struct	dev	0		char[16]	
+struct ax25_bpqaddr_struct	addr	16		ax25_address	
+struct ax25_bpqaddr_struct	addr.ax25_call	16		char[7]	
+struct nr_parms_struct		36	4		
+struct nr_parms_struct	quality	0		unsigned int	
+struct nr_parms_struct	obs_count	4		unsigned int	
+struct nr_parms_struct	ttl	8		unsigned int	
+struct nr_parms_struct	timeout	12		unsigned int	
+struct nr_parms_struct	ack_delay	16		unsigned int	
+struct nr_parms_struct	busy_delay	20		unsigned int	
+struct nr_parms_struct	tries	24		unsigned int	
+struct nr_parms_struct	window	28		unsigned int	
+struct nr_parms_struct	paclen	32		unsigned int	
+struct nr_ctl_struct		16	8		
+struct nr_ctl_struct	index	0		unsigned char	
+struct nr_ctl_struct	id	1		unsigned char	
+struct nr_ctl_struct	cmd	4		unsigned int	
+struct nr_ctl_struct	arg	8		long unsigned int	
+struct ppp_stats		76	4		
+struct ppp_stats	p	0		struct pppstat	
+struct ppp_stats	p.ppp_discards	0		__u32	
+struct ppp_stats	p.ppp_ibytes	4		__u32	
+struct ppp_stats	p.ppp_ioctects	8		__u32	
+struct ppp_stats	p.ppp_ipackets	12		__u32	
+struct ppp_stats	p.ppp_ierrors	16		__u32	
+struct ppp_stats	p.ppp_ilqrs	20		__u32	
+struct ppp_stats	p.ppp_obytes	24		__u32	
+struct ppp_stats	p.ppp_ooctects	28		__u32	
+struct ppp_stats	p.ppp_opackets	32		__u32	
+struct ppp_stats	p.ppp_oerrors	36		__u32	
+struct ppp_stats	p.ppp_olqrs	40		__u32	
+struct ppp_stats	vj	44		struct vjstat	
+struct ppp_stats	vj.vjs_packets	44		__u32	
+struct ppp_stats	vj.vjs_compressed	48		__u32	
+struct ppp_stats	vj.vjs_searches	52		__u32	
+struct ppp_stats	vj.vjs_misses	56		__u32	
+struct ppp_stats	vj.vjs_uncompressedin	60		__u32	
+struct ppp_stats	vj.vjs_compressedin	64		__u32	
+struct ppp_stats	vj.vjs_errorin	68		__u32	
+struct ppp_stats	vj.vjs_tossed	72		__u32	
+struct pppstat		44	4		
+struct pppstat	ppp_discards	0		__u32	
+struct pppstat	ppp_ibytes	4		__u32	
+struct pppstat	ppp_ioctects	8		__u32	
+struct pppstat	ppp_ipackets	12		__u32	
+struct pppstat	ppp_ierrors	16		__u32	
+struct pppstat	ppp_ilqrs	20		__u32	
+struct pppstat	ppp_obytes	24		__u32	
+struct pppstat	ppp_ooctects	28		__u32	
+struct pppstat	ppp_opackets	32		__u32	
+struct pppstat	ppp_oerrors	36		__u32	
+struct pppstat	ppp_olqrs	40		__u32	
+struct vjstat		32	4		
+struct vjstat	vjs_packets	0		__u32	
+struct vjstat	vjs_compressed	4		__u32	
+struct vjstat	vjs_searches	8		__u32	
+struct vjstat	vjs_misses	12		__u32	
+struct vjstat	vjs_uncompressedin	16		__u32	
+struct vjstat	vjs_compressedin	20		__u32	
+struct vjstat	vjs_errorin	24		__u32	
+struct vjstat	vjs_tossed	28		__u32	
+struct compstat		40	8		
+struct compstat	unc_bytes	0		__u32	
+struct compstat	unc_packets	4		__u32	
+struct compstat	comp_bytes	8		__u32	
+struct compstat	comp_packets	12		__u32	
+struct compstat	inc_bytes	16		__u32	
+struct compstat	inc_packets	20		__u32	
+struct compstat	in_count	24		__u32	
+struct compstat	bytes_out	28		__u32	
+struct compstat	ratio	32		double	
+struct ppp_comp_stats		80	8		
+struct ppp_comp_stats	c	0		struct compstat	
+struct ppp_comp_stats	c.unc_bytes	0		__u32	
+struct ppp_comp_stats	c.unc_packets	4		__u32	
+struct ppp_comp_stats	c.comp_bytes	8		__u32	
+struct ppp_comp_stats	c.comp_packets	12		__u32	
+struct ppp_comp_stats	c.inc_bytes	16		__u32	
+struct ppp_comp_stats	c.inc_packets	20		__u32	
+struct ppp_comp_stats	c.in_count	24		__u32	
+struct ppp_comp_stats	c.bytes_out	28		__u32	
+struct ppp_comp_stats	c.ratio	32		double	
+struct ppp_comp_stats	d	40		struct compstat	
+struct ppp_comp_stats	d.unc_bytes	40		__u32	
+struct ppp_comp_stats	d.unc_packets	44		__u32	
+struct ppp_comp_stats	d.comp_bytes	48		__u32	
+struct ppp_comp_stats	d.comp_packets	52		__u32	
+struct ppp_comp_stats	d.inc_bytes	56		__u32	
+struct ppp_comp_stats	d.inc_packets	60		__u32	
+struct ppp_comp_stats	d.in_count	64		__u32	
+struct ppp_comp_stats	d.bytes_out	68		__u32	
+struct ppp_comp_stats	d.ratio	72		double	
+struct ppp_idle		16	8		
+struct ppp_idle	xmit_idle	0		__kernel_old_time_t	
+struct ppp_idle	recv_idle	8		__kernel_old_time_t	
+struct ppp_idle32		8	4		
+struct ppp_idle32	xmit_idle	0		__s32	
+struct ppp_idle32	recv_idle	4		__s32	
+struct ppp_idle64		16	8		
+struct ppp_idle64	xmit_idle	0		__s64	
+struct ppp_idle64	recv_idle	8		__s64	
+struct npioctl		8	4		
+struct npioctl	protocol	0		int	
+struct npioctl	mode	4		enum NPmode	
+struct ppp_option_data		16	8		
+struct ppp_option_data	ptr	0		uint8_t *	
+struct ppp_option_data	length	8		uint32_t	
+struct ppp_option_data	transmit	12		int	
+struct ifpppstatsreq		120	8		
+struct ifpppstatsreq	b	0		struct ifreq	
+struct ifpppstatsreq	b.ifr_ifrn	0		union <anon>	
+struct ifpppstatsreq	b.ifr_ifrn.ifrn_name	0		char[16]	
+struct ifpppstatsreq	b.ifr_ifru	16		union <anon>	
+struct ifpppstatsreq	b.ifr_ifru.ifru_addr	16		struct sockaddr	
+struct ifpppstatsreq	b.ifr_ifru.ifru_addr.sa_family	16		sa_family_t	
+struct ifpppstatsreq	b.ifr_ifru.ifru_addr.sa_data	18		char[14]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_dstaddr	16		struct sockaddr	
+struct ifpppstatsreq	b.ifr_ifru.ifru_dstaddr.sa_family	16		sa_family_t	
+struct ifpppstatsreq	b.ifr_ifru.ifru_dstaddr.sa_data	18		char[14]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_broadaddr	16		struct sockaddr	
+struct ifpppstatsreq	b.ifr_ifru.ifru_broadaddr.sa_family	16		sa_family_t	
+struct ifpppstatsreq	b.ifr_ifru.ifru_broadaddr.sa_data	18		char[14]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_netmask	16		struct sockaddr	
+struct ifpppstatsreq	b.ifr_ifru.ifru_netmask.sa_family	16		sa_family_t	
+struct ifpppstatsreq	b.ifr_ifru.ifru_netmask.sa_data	18		char[14]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_hwaddr	16		struct sockaddr	
+struct ifpppstatsreq	b.ifr_ifru.ifru_hwaddr.sa_family	16		sa_family_t	
+struct ifpppstatsreq	b.ifr_ifru.ifru_hwaddr.sa_data	18		char[14]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_flags	16		short int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_ivalue	16		int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_mtu	16		int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map	16		struct ifmap	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.mem_start	16		long unsigned int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.mem_end	24		long unsigned int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.base_addr	32		short unsigned int	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.irq	34		unsigned char	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.dma	35		unsigned char	
+struct ifpppstatsreq	b.ifr_ifru.ifru_map.port	36		unsigned char	
+struct ifpppstatsreq	b.ifr_ifru.ifru_slave	16		char[16]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_newname	16		char[16]	
+struct ifpppstatsreq	b.ifr_ifru.ifru_data	16		__caddr_t	
+struct ifpppstatsreq	stats	40		struct ppp_stats	
+struct ifpppstatsreq	stats.p	40		struct pppstat	
+struct ifpppstatsreq	stats.p.ppp_discards	40		__u32	
+struct ifpppstatsreq	stats.p.ppp_ibytes	44		__u32	
+struct ifpppstatsreq	stats.p.ppp_ioctects	48		__u32	
+struct ifpppstatsreq	stats.p.ppp_ipackets	52		__u32	
+struct ifpppstatsreq	stats.p.ppp_ierrors	56		__u32	
+struct ifpppstatsreq	stats.p.ppp_ilqrs	60		__u32	
+struct ifpppstatsreq	stats.p.ppp_obytes	64		__u32	
+struct ifpppstatsreq	stats.p.ppp_ooctects	68		__u32	
+struct ifpppstatsreq	stats.p.ppp_opackets	72		__u32	
+struct ifpppstatsreq	stats.p.ppp_oerrors	76		__u32	
+struct ifpppstatsreq	stats.p.ppp_olqrs	80		__u32	
+struct ifpppstatsreq	stats.vj	84		struct vjstat	
+struct ifpppstatsreq	stats.vj.vjs_packets	84		__u32	
+struct ifpppstatsreq	stats.vj.vjs_compressed	88		__u32	
+struct ifpppstatsreq	stats.vj.vjs_searches	92		__u32	
+struct ifpppstatsreq	stats.vj.vjs_misses	96		__u32	
+struct ifpppstatsreq	stats.vj.vjs_uncompressedin	100		__u32	
+struct ifpppstatsreq	stats.vj.vjs_compressedin	104		__u32	
+struct ifpppstatsreq	stats.vj.vjs_errorin	108		__u32	
+struct ifpppstatsreq	stats.vj.vjs_tossed	112		__u32	
+struct ifpppcstatsreq		120	8		
+struct ifpppcstatsreq	b	0		struct ifreq	
+struct ifpppcstatsreq	b.ifr_ifrn	0		union <anon>	
+struct ifpppcstatsreq	b.ifr_ifrn.ifrn_name	0		char[16]	
+struct ifpppcstatsreq	b.ifr_ifru	16		union <anon>	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_addr	16		struct sockaddr	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_addr.sa_family	16		sa_family_t	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_addr.sa_data	18		char[14]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_dstaddr	16		struct sockaddr	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_dstaddr.sa_family	16		sa_family_t	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_dstaddr.sa_data	18		char[14]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_broadaddr	16		struct sockaddr	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_broadaddr.sa_family	16		sa_family_t	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_broadaddr.sa_data	18		char[14]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_netmask	16		struct sockaddr	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_netmask.sa_family	16		sa_family_t	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_netmask.sa_data	18		char[14]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_hwaddr	16		struct sockaddr	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_hwaddr.sa_family	16		sa_family_t	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_hwaddr.sa_data	18		char[14]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_flags	16		short int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_ivalue	16		int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_mtu	16		int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map	16		struct ifmap	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.mem_start	16		long unsigned int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.mem_end	24		long unsigned int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.base_addr	32		short unsigned int	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.irq	34		unsigned char	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.dma	35		unsigned char	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_map.port	36		unsigned char	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_slave	16		char[16]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_newname	16		char[16]	
+struct ifpppcstatsreq	b.ifr_ifru.ifru_data	16		__caddr_t	
+struct ifpppcstatsreq	stats	40		struct ppp_comp_stats	
+struct ifpppcstatsreq	stats.c	40		struct compstat	
+struct ifpppcstatsreq	stats.c.unc_bytes	40		__u32	
+struct ifpppcstatsreq	stats.c.unc_packets	44		__u32	
+struct ifpppcstatsreq	stats.c.comp_bytes	48		__u32	
+struct ifpppcstatsreq	stats.c.comp_packets	52		__u32	
+struct ifpppcstatsreq	stats.c.inc_bytes	56		__u32	
+struct ifpppcstatsreq	stats.c.inc_packets	60		__u32	
+struct ifpppcstatsreq	stats.c.in_count	64		__u32	
+struct ifpppcstatsreq	stats.c.bytes_out	68		__u32	
+struct ifpppcstatsreq	stats.c.ratio	72		double	
+struct ifpppcstatsreq	stats.d	80		struct compstat	
+struct ifpppcstatsreq	stats.d.unc_bytes	80		__u32	
+struct ifpppcstatsreq	stats.d.unc_packets	84		__u32	
+struct ifpppcstatsreq	stats.d.comp_bytes	88		__u32	
+struct ifpppcstatsreq	stats.d.comp_packets	92		__u32	
+struct ifpppcstatsreq	stats.d.inc_bytes	96		__u32	
+struct ifpppcstatsreq	stats.d.inc_packets	100		__u32	
+struct ifpppcstatsreq	stats.d.in_count	104		__u32	
+struct ifpppcstatsreq	stats.d.bytes_out	108		__u32	
+struct ifpppcstatsreq	stats.d.ratio	112		double	

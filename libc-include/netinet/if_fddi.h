@@ -25,14 +25,20 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # define FDDI_K_8022_DLEN 4475
 # define FDDI_K_8022_HLEN 16
-# define FDDI_K_8022_ZLEN 16
+# ifndef FDDI_K_8022_ZLEN
+#  define FDDI_K_8022_ZLEN 16
+# endif
 # define FDDI_K_ALEN 6
 # define FDDI_K_LLC_LEN 4491
 # define FDDI_K_LLC_ZLEN 13
-# define FDDI_K_OUI_LEN 3
+# ifndef FDDI_K_OUI_LEN
+#  define FDDI_K_OUI_LEN 3
+# endif
 # define FDDI_K_SNAP_DLEN 4470
 # define FDDI_K_SNAP_HLEN 21
-# define FDDI_K_SNAP_ZLEN 21
+# ifndef FDDI_K_SNAP_ZLEN
+#  define FDDI_K_SNAP_ZLEN 21
+# endif
 #endif
 
 __NIJI_END_C

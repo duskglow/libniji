@@ -4,10 +4,23 @@
 #define __NIJI_H_netrom_netrom_h 1
 
 #include <features.h>
+/* The AX.25 addresses, structures and requests NET/ROM uses (the reference's include closure). */
+#include <netax25/ax25.h>
 
 __NIJI_BEGIN_C
 
+@@owns SIOCNRSETPARMS SIOCNRDECOBS SIOCNRRTCTL SIOCNRCTLCON
 @@emit
+
+/* The NET/ROM ioctl requests count from SIOCPROTOPRIVATE, which a program takes from <sys/ioctl.h> (black-box
+   probe, HEADERS-STAGE2-GAPS-J: SIOCPROTOPRIVATE plus the request's number, the expansion parenthesised). */
+@@if SIOCNRGETPARMS
+# define SIOCNRGETPARMS (SIOCPROTOPRIVATE+0)
+# define SIOCNRSETPARMS (SIOCPROTOPRIVATE+1)
+# define SIOCNRDECOBS (SIOCPROTOPRIVATE+2)
+# define SIOCNRRTCTL (SIOCPROTOPRIVATE+3)
+# define SIOCNRCTLCON (SIOCPROTOPRIVATE+4)
+#endif
 
 __NIJI_END_C
 

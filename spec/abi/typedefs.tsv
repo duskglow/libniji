@@ -4154,3 +4154,21 @@ function	ynf32x	complex.h			_Float32x (int, _Float32x)
 function	ynf64	complex.h			_Float64 (int, _Float64)
 function	ynf64x	complex.h			_Float64x (int, _Float64x)
 function	ynl	complex.h			long double (int, long double)
+enum	NPmode	net/if_ppp.h	4	4	NPmode
+struct	ax25_bpqaddr_struct	netax25/ax25.h	23	1	ax25_bpqaddr_struct
+struct	ax25_parms_struct	netax25/ax25.h	48	2	ax25_parms_struct
+struct	compstat	net/if_ppp.h	40	8	compstat
+typedef	ext_accm	net/if_ppp.h	32	4	unsigned int [8]
+struct	ifpppcstatsreq	net/if_ppp.h	120	8	ifpppcstatsreq
+struct	ifpppstatsreq	net/if_ppp.h	120	8	ifpppstatsreq
+struct	npioctl	net/if_ppp.h	8	4	npioctl
+struct	nr_ctl_struct	netrom/netrom.h	16	8	nr_ctl_struct
+struct	nr_parms_struct	netrom/netrom.h	36	4	nr_parms_struct
+struct	ppp_comp_stats	net/if_ppp.h	80	8	ppp_comp_stats
+struct	ppp_idle	net/if_ppp.h	16	8	ppp_idle
+struct	ppp_idle32	net/if_ppp.h	8	4	ppp_idle32
+struct	ppp_idle64	net/if_ppp.h	16	8	ppp_idle64
+struct	ppp_option_data	net/if_ppp.h	16	8	ppp_option_data
+struct	ppp_stats	net/if_ppp.h	76	4	ppp_stats
+struct	pppstat	net/if_ppp.h	44	4	pppstat
+struct	vjstat	net/if_ppp.h	32	4	vjstat

@@ -15,6 +15,19 @@ typedef struct {
   char ax25_call[7];
 } ax25_address;
 # endif
+# ifndef __NIJI_D_struct_ax25_bpqaddr_struct
+#  define __NIJI_D_struct_ax25_bpqaddr_struct 1
+struct ax25_bpqaddr_struct {
+  char dev[16];
+  ax25_address addr;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
 # ifndef __NIJI_D_ax25_address
 #  define __NIJI_D_ax25_address 1
 typedef struct {
@@ -80,6 +93,19 @@ struct ax25_info_struct {
   unsigned int state;
   unsigned int rcv_q;
   unsigned int snd_q;
+};
+# endif
+# ifndef __NIJI_D_ax25_address
+#  define __NIJI_D_ax25_address 1
+typedef struct {
+  char ax25_call[7];
+} ax25_address;
+# endif
+# ifndef __NIJI_D_struct_ax25_parms_struct
+#  define __NIJI_D_struct_ax25_parms_struct 1
+struct ax25_parms_struct {
+  ax25_address port_addr;
+  unsigned short values[20];
 };
 # endif
 # ifndef __NIJI_D_ax25_address
@@ -182,11 +208,14 @@ typedef struct {
 typedef unsigned short sa_family_t;
 # endif
 # define AX25_BACKOFF 6
+# define AX25_DIGI_INBAND 1
+# define AX25_DIGI_XBAND 2
 # define AX25_EXTSEQ 7
 # define AX25_IAMDIGI 12
 # define AX25_IDLE 9
 # define AX25_KILL 99
 # define AX25_MAX_DIGIS 8
+# define AX25_MAX_VALUES 20
 # define AX25_N2 3
 # define AX25_NOUID_BLOCK 1
 # define AX25_NOUID_DEFAULT 0
@@ -196,9 +225,48 @@ typedef unsigned short sa_family_t;
 # define AX25_T1 2
 # define AX25_T2 5
 # define AX25_T3 4
+# define AX25_VALUES_AXDEFMODE 1
+# define AX25_VALUES_BACKOFF 4
+# define AX25_VALUES_CONMODE 5
+# define AX25_VALUES_DIGI 12
+# define AX25_VALUES_EWINDOW 7
+# define AX25_VALUES_IDLE 13
+# define AX25_VALUES_IPDEFMODE 0
+# define AX25_VALUES_IPMAXQUEUE 15
+# define AX25_VALUES_N2 11
+# define AX25_VALUES_NETROM 2
+# define AX25_VALUES_PACLEN 14
+# define AX25_VALUES_T1 8
+# define AX25_VALUES_T2 9
+# define AX25_VALUES_T3 10
+# define AX25_VALUES_TEXT 3
+# define AX25_VALUES_WINDOW 6
 # define AX25_WINDOW 1
 # define SOL_AX25 257
 # define _SS_SIZE 128
+#endif
+
+/* The AX.25 ioctl requests count from SIOCPROTOPRIVATE, which this header does not define: a program takes it from
+   <sys/ioctl.h> (black-box probe, HEADERS-STAGE2-GAPS-J: each request is SIOCPROTOPRIVATE plus its number, the
+   expansion parenthesised; the numbers are those the kernel's <linux/ax25.h> gives the requests both name). */
+#if 1
+# define SIOCAX25GETUID (SIOCPROTOPRIVATE+0)
+# define SIOCAX25ADDUID (SIOCPROTOPRIVATE+1)
+# define SIOCAX25DELUID (SIOCPROTOPRIVATE+2)
+# define SIOCAX25NOUID (SIOCPROTOPRIVATE+3)
+# define SIOCAX25BPQADDR (SIOCPROTOPRIVATE+4)
+# define SIOCAX25GETPARMS (SIOCPROTOPRIVATE+5)
+# define SIOCAX25SETPARMS (SIOCPROTOPRIVATE+6)
+# define SIOCAX25OPTRT (SIOCPROTOPRIVATE+7)
+# define SIOCAX25CTLCON (SIOCPROTOPRIVATE+8)
+# define SIOCAX25GETINFO (SIOCPROTOPRIVATE+9)
+# define SIOCAX25ADDFWD (SIOCPROTOPRIVATE+10)
+# define SIOCAX25DELFWD (SIOCPROTOPRIVATE+11)
+#endif
+
+/* The user id of an AX.25 socket address is the member at sax25_ndigis's offset (black-box probe: offsetof). */
+#if 1
+# define sax25_uid sax25_ndigis
 #endif
 
 __NIJI_END_C
