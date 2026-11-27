@@ -1,0 +1,86 @@
+{
+ "task": "HEADERS-STAGE2-GAPS-L",
+ "model": "opus",
+ "tokens": null,
+ "result": "math.h C99/C2X classification and comparison macros visible in C++ (header alone, as stock), TS 18661-1 C++ forms; printf.h PA_INT..PA_LAST; unistd.h __environ; TTYDEF visibility; features.py kernel dir; C++ nested ICMP/IPv6 tags; raw C++ sweep 0 C++-specific differences beyond D-X.130",
+ "branch": "task/headers-stage2-gaps-l",
+ "head": null,
+ "gate": {
+  "affected": "727 passed / 0 failed (7 suites; clippy, static, products, xtask tests)",
+  "peak": "3.7G"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "Raw C++ sweep (header_probe --raw-cxx, C++98/11/17/23 and gnu, every public header, libniji vs stock 2.39): C++-specific differences: link.h La_x86_64_regs/La_x86_64_retval only (accepted D-X.130). 3700 further raw rows differ in C (gnu) as well (feature-macro names, typedefs); they are not C++-specific and the C comparison (header_check with its reviewed lists) passes.",
+  "math.h in C++ no longer includes <stdlib.h> itself: the reference's header alone does not; the C++ library's <math.h>/<cmath> wrappers add it (visibility.tsv C++ columns re-spliced from the -nostdinc++ probe).",
+  "header_check nested_spelling's dotted-member change has no observable effect today: visibility.tsv shows the nested tags in C only, where both spellings name one type (plant l-nested-spelling recorded equivalent).",
+  "gcc-14 gm2-libs-ch/wrapc.c unit: compiled with stub config.h/system.h/gm2-libs-host.h (a configured gcc tree is not available); HAVE_SIGNBITL/F left unset since no C library has those functions; libniji and stock behave alike for every -std."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "C++ compile of <math.h> sees fpclassify..isunordered and the C2X macros (libstdc++ configure 'ISO C99 support in <math.h> for C++98' and 'generic macro support for C++11' bodies compile -nostdinc++, c++98..20)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "<printf.h> PA_INT..PA_LAST unnamed int enumeration 0..8 (systemd 257 / elogind 255 stdio-util.h users compile)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "<unistd.h> declares __environ in every configuration (fakechroot setenv.c compiles with and without _GNU_SOURCE)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "C++: struct icmp / ip6_hdr union-member tags nested; La_x86_64_vector union unnamed; TTYDEF_* integer constants only where stock's are; __iscanonicall attribute const",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "header_check GAPS-L units (C++ math configure tests and macros, TS 18661-1 forms, PA types/enum, __environ, TTYDEF, nested tags)",
+   "before": 0,
+   "after": 76,
+   "unit": "units",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants (10 CAUGHT, 1 EQUIVALENT)",
+   "before": 0,
+   "after": 11,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "header_probe.py --raw-cxx/--configs for C++ sweeps; xtask refuses an unknown reserved.tsv policy; features.py standalone has the kernel UAPI dir (#8809)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "run cargo test -p xtask headers:: (the generator table tests, a few minutes) before the first gate of a header story: three 25-minute gates went red on failures it shows; and the Edit tool strips trailing tabs, so TSV rows with an empty last column need their own tool",
+ "next_step": "land via the train",
+ "report_file": "handoff/HEADERS-STAGE2-GAPS-L.md",
+ "jobs": [
+  "keke:headers-stage2-gaps-l-gate4",
+  "keke:headers-stage2-gaps-l-plants4"
+ ]
+}

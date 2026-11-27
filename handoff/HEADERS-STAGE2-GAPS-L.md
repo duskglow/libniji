@@ -45,8 +45,10 @@ cls.py (sweep classifier) in the story scratch dir. Plants: handoff/HEADERS-STAG
    tgmath.h so the GAPS-L unit catches it).
 
 ## Jobs (final head)
-gate headers-stage2-gaps-l-gate2, plants headers-stage2-gaps-l-plants2. Superseded: -gate (3 xtask tests + static
-red, fixed), -plants (2 survivors, fixed above).
+gate headers-stage2-gaps-l-gate4, plants headers-stage2-gaps-l-plants4 (keke). Superseded: -gate (3 xtask tests +
+static red, fixed), -plants (2 survivors, fixed above), -gate2 (headers-gen-check: math.h not regenerated after the
+diagattrs row), -plants2 (refused: a lost space in a plant's field separator), -gate3 (nonnull_columns_are_the_probes:
+the Edit tool dropped two rows' trailing tab; rewritten by attr_probe.py table), -plants3 (stopped: stale head).
 
 ## Not to redo
 The sweep (local sweep2/, sweepgnu2/, cls2.tsv), the units, the p1/p3 comparisons.

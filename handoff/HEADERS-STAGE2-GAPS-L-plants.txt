@@ -10,3 +10,15 @@ l-nested-spelling | spec/tools/header_check.py | lit:and "<anon>" not in r["memb
 l-features-kernel | spec/tools/header_checks/features.py | lit:"-isystem", own, *kernel_flags(d)] ==> "-isystem", own] | python3 spec/tools/header_checks/features.py --only "FEATURES pkg npth rwlock" | msg:FAIL FEATURES pkg npth rwlock
 l-ttydef-spelling | spec/abi/macro-spellings.tsv | perl:s/^TTYDEF_OFLAG\t\(OPOST \| ONLCR \| XTABS\)/TTYDEF_OFLAG\t(OPOST \x7c ONLCR)/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-L TTYDEF"' | msg:GAPS-L TTYDEF|TTYDEF_OFLAG
 l-tgmath-owns | headers/tgmath.h.in | lit:@@owns-macro CMPLX CMPLXF CMPLXL CMPLXF32 CMPLXF64 CMPLXF128 CMPLXF32X CMPLXF64X _Complex_I ==> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:CMPLX|_Complex_I
+# cargo xtask plants results (11 plants: 10 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# l-math-cxx-vis: CAUGHT, caught by no test the log names
+# l-ts-form: CAUGHT, caught by no test the log names
+# l-pa-value: CAUGHT, caught by no test the log names
+# l-environ-omit: CAUGHT, caught by no test the log names
+# l-reserved-check: CAUGHT, caught by xtask headers::tests::reserved_policy_text_is_checked
+# l-union-tag: CAUGHT, caught by no test the log names
+# l-nested-row: CAUGHT, caught by no test the log names
+# l-nested-spelling: EQUIVALENT
+# l-features-kernel: CAUGHT, caught by no test the log names
+# l-ttydef-spelling: CAUGHT, caught by no test the log names
+# l-tgmath-owns: CAUGHT, caught by no test the log names
