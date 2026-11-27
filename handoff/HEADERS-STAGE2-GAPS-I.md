@@ -1,50 +1,63 @@
-# HEADERS-STAGE2-GAPS-I: handoff (run 1, end of leg 1)
+# HEADERS-STAGE2-GAPS-I: handoff (run 1, end of leg 2)
 
-Branch task/headers-stage2-gaps-i (stacks on HEADERS-STAGE2-GAPS-H 012838ad7; 6 commits behind origin/next, no
-merge done). Role shiki:~/w/sh1 (stock Ubuntu 2.39 host, gcc 13, no clang, no gcc-14). Scratch: local
-`~/w/.scratch/HEADERS-STAGE2-GAPS-I/` (gfp/ = GCC-FIXINCLUDES-PROBE scripts; src-dl/ = consumer sources: fakechroot
-glob64.c, systemd sort-util.h, llvm-19 sanitizer_platform_limits_posix.cpp, inetutils-2.5); shiki
-`~/work/headers-stage2-gaps-i/`; keke `~/work/headers-stage2-gaps-i/` (tb64.py, the 2.41 root is GAPS-H's
-`~/work/headers-stage2-gaps-h/excal/usr/include`). Decision id reserved: D-X.178 (used).
+Branch task/headers-stage2-gaps-i (stacks on HEADERS-STAGE2-GAPS-H 012838ad7; no merge done). Role shiki:~/w/sh1
+(stock Ubuntu 2.39, gcc 13, no clang). Scratch: local `~/w/.scratch/HEADERS-STAGE2-GAPS-I/` (merge_*.py, gen.sh,
+hc.sh, units.sh, p/ probes; src-dl/ consumer sources); shiki `~/work/headers-stage2-gaps-i/` (gen.sh = headers-gen +
+pack libc-include and include into libc-include.tgz; hc.sh = header_check + `cargo test -p xtask headers`); mei
+`~/work/headers-stage2-gaps-i/` (units.sh, fixincl_check.sh, li.tgz, sort-util.h). Decision id: D-X.178 (used).
 
-## Done in leg 1 (one WIP commit; NOTHING VERIFIED by header_check, gate or plants yet)
-* Item 1 (fixincludes): va_list in stdio.h.in, wchar.h.d/020-va-list.frag, printf.h.in through
-  `__need___va_list` + `<stdarg.h>` + `typedef __gnuc_va_list va_list;` (no `_VA_LIST_DEFINED`); size_t,
-  ptrdiff_t, wchar_t through `__need_*` + `<stddef.h>` in the gnu_types files (typedefs.rs
-  `COMPILER_STDDEF_HEADERS`). libc-include regenerated for these (headers-gen --check ok on shiki, job gen1).
-* Langinfo item: fresh stock enum probe (shiki job enum1, `enum_probe.py --out`, 43118 rows); `--derive` gives
-  the stock enumerator names (__CURRENCY_SYMBOL ... __INT_N_SIGN_POSN, __THOUSANDS_SEP, __ALTMON_n, __ERA_YEAR,
-  __YESEXPR/__NOEXPR/__YESSTR/__NOSTR; CRNCYSTR -> _NL_MONETARY_CRNCYSTR). Only the `anon ABDAY_1` block of
-  enumerators.tsv was taken (scratch take_langinfo.py); enum-macros.tsv as derived (only langinfo rows changed).
-  INFORMATIONAL: the derive also regroups `anon ADDR_COMPAT_LAYOUT`/`PER_BSD` (sys/personality.h) and
-  `TCP_CLOSE`/`TCP_NO_QUEUE` (netinet/tcp.h): table drift, NOT taken here.
-* Item 6: features.h.in defines `__USE_TIME_BITS64 1` (undef first) in every configuration; probe (keke tb64.py):
-  2.41 = 1 in 65 of 67 configs, a program's own definition replaced; time32/time64only are include errors in 2.39
-  and 2.41; stock 2.39 never defines it. use-macros.tsv: 65 rows set to 1. Differences row (Behaviour, top) and
-  D-X.178. libc-include/features.h NOT yet regenerated.
-* Item 2/3/5 prep: `spec/tools/header_probe.d/stage2-gaps-i.py` (candidates: comparison_fn_t, talkd/rwhod/timed/
-  routed names, tags termio osockaddr whod whoent outmp tsp rip netinfo); abi_extract.py TYPES (+glob64_t, struct
-  igmp, struct aiocb64, fpos64_t, struct termio, CTL_MSG, CTL_RESPONSE, the protocols structs) and HEADERS
-  (+termio.h netinet/igmp.h protocols/*.h). Opaque sweep result: the only `__niji_opaque` types in libc-include are
-  glob64_t (glob.h), struct igmp (netinet/igmp.h), struct aiocb64 (aio.h), struct _G_fpos64_t (stdio.h, resolv.h).
-* Job running at refresh: shiki `headers-stage2-gaps-i-tables1` (tables1.sh: abi_extract --layouts-only in a copy
-  `~/work/headers-stage2-gaps-i/spec-copy`, then a full header_probe to `~/work/headers-stage2-gaps-i/hp`).
+## Done (leg 1 + leg 2)
+* Leg 1 (commit b59d22531): item 1 va_list/size_t/wchar_t via `__need_*`; langinfo enumerators; __USE_TIME_BITS64.
+* Leg 2 commit 1f5ca6c5f: reference rows merged for the new names only (layouts 134 rows/14 types, visibility 110,
+  typedefs 9, macros 59); glob_t/glob64_t callbacks typed (fnmembers.tsv + macros in glob.h.in: BROKEN, see below);
+  timed.h.in (tsp_time, tsp_hopcnt, ANYADDR) and routed.h.in (rip_nets, rip_tracefile) member-name macros;
+  libc-include regenerated; header_check fragment `spec/tools/header_checks/s13.d/40-stage2-gaps-i.py`.
+* Leg 2 WIP commit (this one): typedefs.rs wraps the `__need_*` + `<stddef.h>` in `#if !defined
+  __STDC_VERSION_STDDEF_H__` (fixes P9's 64 FAILs "after gnu2x": gcc 13's stddef.h re-entered for one type in C2X
+  redefines that macro; stock fails the same units identically, probe4); use-macros.tsv time32 row = 1 (fixes FAIL
+  FEATURES use time32; matches the differences row "every configuration"); the termio use unit includes only
+  <sys/ioctl.h>; validation/fixincl_check.sh (new). libc-include NOT regenerated for the typedefs.rs change yet.
+* Probe-settled (stock 2.39, black box): glob callbacks are typed (struct dirent/stat, dirent64/stat64) with
+  _GNU_SOURCE only, `void *` in default/c99/posix/lfs64; ANYADDR is NULL (C `void *`, C++ `long` = __null) and timed.h
+  shows no NULL; whoent is C-only (C++ nests it); termio visible via sys/ioctl.h, termio.h, pty.h, sgtty.h, ...
+* mei job units1 (tree of 1f5ca6c5f): **fixincl_check: 243 headers, 0 rewritten**; va_stdarg, va_stdio_only,
+  va_wchar, size_t, stdarg_first, gomp_gcn, c99_stdio (C++98/11), termio, igmp, glob64 all ok with gcc (gcc-14
+  ginclude) and clang-19. Stub faults (mine): sort-util.h needs `typedef int (*comparison_userdata_fn_t)(const void *,
+  const void *, void *);` in the stub forward.h; c99_stdio's `int main ()` -> `int main (void)` (clang -pedantic-errors).
+  libstdc++ locale extraction failed (orig tarball layout): NOT VERIFIED, list `tar -tzf` first or report.
 
-## Exact next step
-1. `~/bin/jobwait headers-stage2-gaps-i-tables1` on shiki (one call, timeout 600000); read
-   `~/work/headers-stage2-gaps-i/ae.log` (skips) and hp.log.
-2. Merge: from spec-copy/abi/layouts.tsv take only the rows of the new TYPES; from hp/visibility.tsv only rows whose
-   name is a stage2-gaps-i candidate (any header). Do NOT take spec-copy's enumerators.tsv wholesale (it drops the
-   anon rows); keep the committed one. Then type_probe for typedefs.tsv/macros.tsv of those names
-   (`type_probe.py --headers ... --out` scratch, merge the new names' rows; or `--retry-missing`).
-3. Sync, headers-gen on shiki (gen.sh), fetch libc-include back (tar via ssh), check glob64_t/igmp/aiocb64/fpos64
-   members, termio, comparison_fn_t, protocols names in the output.
-4. header_check (`python3 spec/tools/header_check.py --work <dir>`) + `cargo test -p xtask headers`; add
-   header_check fragment rows (s-slices' `.d/` files) for the new names; fixincl check on mei (built fixincl in
-   `~/work/gcc-fixincludes-probe/build/fixincludes`, run_trees.sh form; goal: no "Fixed:" for libniji headers);
-   unit compiles (libgomp va_list case, acinclude C99 stdio test, sort-util.h, sanitizer cpp, glob64.c, igmp,
-   libstdc++ config/locale/gnu/*.cc, inetutils talk, libuuid uuid_time.c with nm uuid_time64).
-5. Plants (docs/plants.md form, `cargo xtask plants`), clippy, static, gate, precheck, report json, handback-check.
+## Exact next steps
+1. Fix the glob callbacks (xtask test every_table_row_is_emitted_and_matches_the_tables compiles struct bodies
+   standalone, so template macros are undefined there): drop the `__NIJI_GLOB_*` macros from glob.h.in (keep the
+   `#ifdef __USE_GNU` incomplete-tag forward declarations `struct dirent; struct dirent64; struct stat; struct
+   stat64;`), and give fnmembers.tsv an alternative form, e.g. declarator `GNU-DECL ;; OTHER-DECL`, that
+   aggregates.rs `member()` (line ~172) emits as `# ifdef __USE_GNU` / GNU-DECL; / `# else` / OTHER-DECL; / `# endif`,
+   skipping the dependency scan for that form (it must not pull in complete struct dirent/stat). Document the form in
+   the fnmembers.tsv header comment.
+2. `cargo xtask stubs` (xtask test headers_gen_regenerates_the_abi_layouts: "spec clause/symbol `abi_glob64_t` has
+   neither a stub nor a test", also abi_struct_igmp and the other new layout types); commit the regenerated files.
+3. Sync (check rc: 4 = BUSY), shiki job: gen.sh then hc.sh (`sh -c "sh gen.sh && sh hc.sh"`); fetch libc-include
+   (tar of libc-include.tgz, extract `libc-include` only); header_check must be 0 FAIL and xtask headers tests green.
+4. mei: new li.tgz, fix the two stub faults in units.sh, rerun (label units2); expect fixincl 0 rewritten.
+5. Plants (docs/plants.md form, file handoff/HEADERS-STAGE2-GAPS-I-plants.txt, `cargo xtask plants`): e.g. restore
+   `_VA_LIST_DEFINED` guard in stdio.h.in (fixincl/P9 or unit), drop a layouts row of glob64_t (offset check), wrong
+   fnmembers glob type (callbacks check), remove the `@@if tsp_time` block (use unit), the time32 row back to `-`.
+6. clippy, static, affected gate, precheck, report json, handback-check; JOBS: shiki gate/plants, mei:units2.
+
+## Further gaps found (report, do not chase)
+* `<termios.h>` + `<sys/ioctl.h>` in one unit: TTYDEF_SPEED redefined (sys/ioctl.h `13`, termios.h `B9600`) and
+  TIOCSER_TEMT redefined (libniji `1`, kernel asm-generic/ioctls.h `0x01`); stock compiles both orders cleanly
+  (probe4). Pre-existing; llvm-19's sanitizer includes both (unit NOT compiled for real: see refusal).
+* TSPTYPES/tsptype and RIPCMDS/ripcmds tables (program-switched, like FTP_NAMES): not probed, not added.
+* Real-source units NOT compiled: fakechroot glob64.c and llvm sanitizer .cpp (refusal), nftables igmp (no source),
+  util-linux libuuid uuid_time64 (item 6 proof: not done yet; util-linux 2.40.2 tarball reachable from mei).
+
+## Refusal (report in hand-back)
+`cd ~/w/.scratch/HEADERS-STAGE2-GAPS-I/src-dl; ls; grep -n "glob64_t\|gl_\|#include" glob64.c | head -30; grep -n
+"glob_t\|gl_closedir\|gl_readdir\|struct_glob\|sizeof (glob" sanitizer_platform_limits_posix.cpp | head` (auto-mode
+classifier). Step stopped; the glob types were settled by black-box probe instead. Rule slip: one `sed -i` on a
+comment line of headers/fnmembers.tsv (Sources line); correct content, Edit only since.
 
 ## Not to redo
-The fixincludes probe (GCC-FIXINCLUDES-PROBE), the enum probe, the 2.41 __USE_TIME_BITS64 probe, the opaque sweep.
+The fixincludes probe, enum probe, 2.41 __USE_TIME_BITS64 probe, opaque sweep, tables1 (layouts + full header_probe),
+tp2 type_probe, probe2/3/4.

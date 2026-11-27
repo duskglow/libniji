@@ -15,13 +15,11 @@ impl Gen<'_> {
         let body = if matches!(name, "size_t" | "ptrdiff_t" | "wchar_t") && COMPILER_STDDEF_HEADERS.contains(&self.header.as_str()) {
             // The compiler's <stddef.h> through its `__need_*` request (that type only): a header-rewriting build
             // step such as gcc's fixincludes, which looks for a typedef of these three in these headers, then
-            // leaves the header alone (HEADERS-STAGE2-GAPS-I). wchar_t is a keyword in C++.
-            let need = [format!("#   define __need_{name}"), "#   include <stddef.h>".to_string()];
-            if name == "wchar_t" {
-                [vec!["#  ifndef __cplusplus".to_string()], need.to_vec(), vec!["#  endif".to_string()]].concat()
-            } else {
-                need.iter().map(|l| l.replacen("#   ", "#  ", 1)).collect()
-            }
+            // leaves the header alone (HEADERS-STAGE2-GAPS-I). wchar_t is a keyword in C++. Once the whole
+            // <stddef.h> is in (C23 7.21: it defines __STDC_VERSION_STDDEF_H__) the type is declared, and gcc 13's
+            // header entered again for one type in C2X mode redefines that macro (-Wsystem-headers; P9).
+            let cond = if name == "wchar_t" { "#  if !defined __cplusplus && !defined __STDC_VERSION_STDDEF_H__" } else { "#  if !defined __STDC_VERSION_STDDEF_H__" };
+            vec![cond.into(), format!("#   define __need_{name}"), "#   include <stddef.h>".into(), "#  endif".into()]
         } else if cxx.is_empty() && matches!(name, "wchar_t" | "char16_t" | "char32_t") {
             // A keyword in C++ (typedefs.tsv leaves its spelling empty; char16_t and char32_t from C++11); in C the
             // compiler's type (C11 7.19, 7.28).

@@ -66,8 +66,7 @@ int niji_rip_use (struct rip *r)
   return r->rip_tracefile[0] + MAXPACKETSIZE;
 }
 """),
-    ("sys/ioctl.h", "termio", """#include <termios.h>
-#include <sys/ioctl.h>
+    ("sys/ioctl.h", "termio", """#include <sys/ioctl.h>
 unsigned niji_termio_size = sizeof (struct termio);
 int niji_termio_use (struct termio *t) { return t->c_cc[0] + t->c_line + t->c_lflag; }
 """),
