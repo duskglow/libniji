@@ -45,7 +45,8 @@ sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
 net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
 net/route.h netinet/if_ether.h arpa/tftp.h sys/mtio.h scsi/scsi.h scsi/sg.h
-netax25/ax25.h netrom/netrom.h netrose/rose.h netipx/ipx.h netash/ash.h neteconet/ec.h""".split()
+netax25/ax25.h netrom/netrom.h netrose/rose.h netipx/ipx.h netash/ash.h neteconet/ec.h
+termio.h netinet/igmp.h protocols/talkd.h protocols/rwhod.h protocols/timed.h protocols/routed.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -201,6 +202,13 @@ TYPES = [
  # The sys/procfs.h typedefs a debugger names (td_thr_getgregs, ps_lgetregs; core files) that no prototype spells.
  ("prgregset_t", "prgregset_t"), ("elf_fpregset_t", "elf_fpregset_t"), ("prstatus_t", "prstatus_t"),
  ("prpsinfo_t", "prpsinfo_t"),
+ # HEADERS-STAGE2-GAPS-I: the structures the headers gave without members (glob64_t: fakechroot; struct igmp:
+ # nftables; the LFS64 aiocb64 and fpos64_t), the System V struct termio (llvm-19's sanitizer) and the packet formats
+ # of <protocols/*.h> (header_probe.d/stage2-gaps-i.py names the sources).
+ ("glob64_t", "glob64_t"), ("struct igmp", "struct igmp"), ("struct aiocb64", "struct aiocb64"),
+ ("fpos64_t", "fpos64_t"), ("struct termio", "struct termio"), ("CTL_MSG", "CTL_MSG"),
+ ("CTL_RESPONSE", "CTL_RESPONSE"),
+ *[(f"struct {t}", f"struct {t}") for t in ("osockaddr", "whod", "whoent", "outmp", "tsp", "rip", "netinfo")],
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).

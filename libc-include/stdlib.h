@@ -78,14 +78,16 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
-typedef unsigned long size_t;
+#  define __need_size_t
+#  include <stddef.h>
 # endif
 #endif
 #if __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
 #  ifndef __cplusplus
-typedef __WCHAR_TYPE__ wchar_t;
+#   define __need_wchar_t
+#   include <stddef.h>
 #  endif
 # endif
 #endif

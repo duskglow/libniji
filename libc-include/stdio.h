@@ -1014,13 +1014,15 @@ extern char *tempnam (const char *, const char *) __NIJI_NOTHROW __attribute__ (
 extern char *gets (char *__s);
 #endif
 
+/* va_list through the compiler's <stdarg.h> and its `__need___va_list` request (only `__gnuc_va_list` is
+   defined): a header-rewriting build step such as gcc's fixincludes then finds this header already in the form it
+   expects and leaves it alone (HEADERS-STAGE2-GAPS-I). */
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_va_list
 #  define __NIJI_D_va_list 1
-#  ifndef _VA_LIST_DEFINED
-#   define _VA_LIST_DEFINED
-typedef __builtin_va_list va_list;
-#  endif
+#  define __need___va_list
+#  include <stdarg.h>
+typedef __gnuc_va_list va_list;
 # endif
 #endif
 

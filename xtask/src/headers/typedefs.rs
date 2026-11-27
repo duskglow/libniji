@@ -12,7 +12,17 @@ impl Gen<'_> {
         let cxx = r["cxx"].clone();
         let opaque = |kw: &str| format!("{kw} {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }}", r["size"], r["align"]);
         // A qualified scalar (pthread_spinlock_t is `int volatile`) is still a scalar typedef.
-        let body = if cxx.is_empty() && matches!(name, "wchar_t" | "char16_t" | "char32_t") {
+        let body = if matches!(name, "size_t" | "ptrdiff_t" | "wchar_t") && COMPILER_STDDEF_HEADERS.contains(&self.header.as_str()) {
+            // The compiler's <stddef.h> through its `__need_*` request (that type only): a header-rewriting build
+            // step such as gcc's fixincludes, which looks for a typedef of these three in these headers, then
+            // leaves the header alone (HEADERS-STAGE2-GAPS-I). wchar_t is a keyword in C++.
+            let need = [format!("#   define __need_{name}"), "#   include <stddef.h>".to_string()];
+            if name == "wchar_t" {
+                [vec!["#  ifndef __cplusplus".to_string()], need.to_vec(), vec!["#  endif".to_string()]].concat()
+            } else {
+                need.iter().map(|l| l.replacen("#   ", "#  ", 1)).collect()
+            }
+        } else if cxx.is_empty() && matches!(name, "wchar_t" | "char16_t" | "char32_t") {
             // A keyword in C++ (typedefs.tsv leaves its spelling empty; char16_t and char32_t from C++11); in C the
             // compiler's type (C11 7.19, 7.28).
             let ty = format!("__{}_TYPE__", name.trim_end_matches("_t").to_uppercase());
@@ -172,3 +182,8 @@ impl Gen<'_> {
         self.t.typedefs.get(&("typedef".to_string(), name.to_string())).map(|r| r["cxx"].clone())
     }
 }
+
+/// The headers whose size_t, ptrdiff_t and wchar_t come from the compiler's <stddef.h>: the files gcc's fixincludes
+/// `gnu_types` fix tests for a typedef of one of the three (fixincludes/inclhack.def, gcc 14; the libniji headers of
+/// that name). Elsewhere the typedef stays.
+const COMPILER_STDDEF_HEADERS: &[&str] = &["stdlib.h", "unistd.h", "sys/types.h", "sys/stdtypes.h", "memory.h", "stddef.h"];

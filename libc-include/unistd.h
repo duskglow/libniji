@@ -267,7 +267,8 @@ typedef unsigned int __useconds_t;
 # endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
-typedef unsigned long size_t;
+#  define __need_size_t
+#  include <stddef.h>
 # endif
 # ifndef __NIJI_D_ssize_t
 #  define __NIJI_D_ssize_t 1

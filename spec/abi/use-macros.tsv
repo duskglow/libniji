@@ -24,7 +24,7 @@ c89	__USE_ISOCXX	-
 c89	__USE_LARGEFILE	-
 c89	__USE_LARGEFILE64	-
 c89	__USE_FILE_OFFSET64	-
-c89	__USE_TIME_BITS64	-
+c89	__USE_TIME_BITS64	1
 c89	__USE_ATFILE	-
 c89	__USE_MISC	-
 c89	__USE_GNU	-
@@ -72,7 +72,7 @@ c99	__USE_ISOCXX	-
 c99	__USE_LARGEFILE	-
 c99	__USE_LARGEFILE64	-
 c99	__USE_FILE_OFFSET64	-
-c99	__USE_TIME_BITS64	-
+c99	__USE_TIME_BITS64	1
 c99	__USE_ATFILE	-
 c99	__USE_MISC	-
 c99	__USE_GNU	-
@@ -120,7 +120,7 @@ c11	__USE_ISOCXX	-
 c11	__USE_LARGEFILE	-
 c11	__USE_LARGEFILE64	-
 c11	__USE_FILE_OFFSET64	-
-c11	__USE_TIME_BITS64	-
+c11	__USE_TIME_BITS64	1
 c11	__USE_ATFILE	-
 c11	__USE_MISC	-
 c11	__USE_GNU	-
@@ -168,7 +168,7 @@ c17	__USE_ISOCXX	-
 c17	__USE_LARGEFILE	-
 c17	__USE_LARGEFILE64	-
 c17	__USE_FILE_OFFSET64	-
-c17	__USE_TIME_BITS64	-
+c17	__USE_TIME_BITS64	1
 c17	__USE_ATFILE	-
 c17	__USE_MISC	-
 c17	__USE_GNU	-
@@ -216,7 +216,7 @@ c2x	__USE_ISOCXX	-
 c2x	__USE_LARGEFILE	-
 c2x	__USE_LARGEFILE64	-
 c2x	__USE_FILE_OFFSET64	-
-c2x	__USE_TIME_BITS64	-
+c2x	__USE_TIME_BITS64	1
 c2x	__USE_ATFILE	-
 c2x	__USE_MISC	-
 c2x	__USE_GNU	-
@@ -264,7 +264,7 @@ gnu17	__USE_ISOCXX	-
 gnu17	__USE_LARGEFILE	-
 gnu17	__USE_LARGEFILE64	-
 gnu17	__USE_FILE_OFFSET64	-
-gnu17	__USE_TIME_BITS64	-
+gnu17	__USE_TIME_BITS64	1
 gnu17	__USE_ATFILE	1
 gnu17	__USE_MISC	1
 gnu17	__USE_GNU	-
@@ -312,7 +312,7 @@ gnu2x	__USE_ISOCXX	-
 gnu2x	__USE_LARGEFILE	-
 gnu2x	__USE_LARGEFILE64	-
 gnu2x	__USE_FILE_OFFSET64	-
-gnu2x	__USE_TIME_BITS64	-
+gnu2x	__USE_TIME_BITS64	1
 gnu2x	__USE_ATFILE	1
 gnu2x	__USE_MISC	1
 gnu2x	__USE_GNU	-
@@ -360,7 +360,7 @@ posix1	__USE_ISOCXX	-
 posix1	__USE_LARGEFILE	-
 posix1	__USE_LARGEFILE64	-
 posix1	__USE_FILE_OFFSET64	-
-posix1	__USE_TIME_BITS64	-
+posix1	__USE_TIME_BITS64	1
 posix1	__USE_ATFILE	-
 posix1	__USE_MISC	-
 posix1	__USE_GNU	-
@@ -408,7 +408,7 @@ posix2	__USE_ISOCXX	-
 posix2	__USE_LARGEFILE	-
 posix2	__USE_LARGEFILE64	-
 posix2	__USE_FILE_OFFSET64	-
-posix2	__USE_TIME_BITS64	-
+posix2	__USE_TIME_BITS64	1
 posix2	__USE_ATFILE	-
 posix2	__USE_MISC	-
 posix2	__USE_GNU	-
@@ -456,7 +456,7 @@ posix199309	__USE_ISOCXX	-
 posix199309	__USE_LARGEFILE	-
 posix199309	__USE_LARGEFILE64	-
 posix199309	__USE_FILE_OFFSET64	-
-posix199309	__USE_TIME_BITS64	-
+posix199309	__USE_TIME_BITS64	1
 posix199309	__USE_ATFILE	-
 posix199309	__USE_MISC	-
 posix199309	__USE_GNU	-
@@ -504,7 +504,7 @@ posix199506	__USE_ISOCXX	-
 posix199506	__USE_LARGEFILE	-
 posix199506	__USE_LARGEFILE64	-
 posix199506	__USE_FILE_OFFSET64	-
-posix199506	__USE_TIME_BITS64	-
+posix199506	__USE_TIME_BITS64	1
 posix199506	__USE_ATFILE	-
 posix199506	__USE_MISC	-
 posix199506	__USE_GNU	-
@@ -552,7 +552,7 @@ posix200112	__USE_ISOCXX	-
 posix200112	__USE_LARGEFILE	-
 posix200112	__USE_LARGEFILE64	-
 posix200112	__USE_FILE_OFFSET64	-
-posix200112	__USE_TIME_BITS64	-
+posix200112	__USE_TIME_BITS64	1
 posix200112	__USE_ATFILE	-
 posix200112	__USE_MISC	-
 posix200112	__USE_GNU	-
@@ -600,7 +600,7 @@ posix200809	__USE_ISOCXX	-
 posix200809	__USE_LARGEFILE	-
 posix200809	__USE_LARGEFILE64	-
 posix200809	__USE_FILE_OFFSET64	-
-posix200809	__USE_TIME_BITS64	-
+posix200809	__USE_TIME_BITS64	1
 posix200809	__USE_ATFILE	1
 posix200809	__USE_MISC	-
 posix200809	__USE_GNU	-
@@ -648,7 +648,7 @@ xopen	__USE_ISOCXX	-
 xopen	__USE_LARGEFILE	-
 xopen	__USE_LARGEFILE64	-
 xopen	__USE_FILE_OFFSET64	-
-xopen	__USE_TIME_BITS64	-
+xopen	__USE_TIME_BITS64	1
 xopen	__USE_ATFILE	-
 xopen	__USE_MISC	-
 xopen	__USE_GNU	-
@@ -696,7 +696,7 @@ xopen500	__USE_ISOCXX	-
 xopen500	__USE_LARGEFILE	1
 xopen500	__USE_LARGEFILE64	-
 xopen500	__USE_FILE_OFFSET64	-
-xopen500	__USE_TIME_BITS64	-
+xopen500	__USE_TIME_BITS64	1
 xopen500	__USE_ATFILE	-
 xopen500	__USE_MISC	-
 xopen500	__USE_GNU	-
@@ -744,7 +744,7 @@ xopen600	__USE_ISOCXX	-
 xopen600	__USE_LARGEFILE	1
 xopen600	__USE_LARGEFILE64	-
 xopen600	__USE_FILE_OFFSET64	-
-xopen600	__USE_TIME_BITS64	-
+xopen600	__USE_TIME_BITS64	1
 xopen600	__USE_ATFILE	-
 xopen600	__USE_MISC	-
 xopen600	__USE_GNU	-
@@ -792,7 +792,7 @@ xopen700	__USE_ISOCXX	-
 xopen700	__USE_LARGEFILE	1
 xopen700	__USE_LARGEFILE64	-
 xopen700	__USE_FILE_OFFSET64	-
-xopen700	__USE_TIME_BITS64	-
+xopen700	__USE_TIME_BITS64	1
 xopen700	__USE_ATFILE	1
 xopen700	__USE_MISC	-
 xopen700	__USE_GNU	-
@@ -840,7 +840,7 @@ xopenext	__USE_ISOCXX	-
 xopenext	__USE_LARGEFILE	-
 xopenext	__USE_LARGEFILE64	-
 xopenext	__USE_FILE_OFFSET64	-
-xopenext	__USE_TIME_BITS64	-
+xopenext	__USE_TIME_BITS64	1
 xopenext	__USE_ATFILE	-
 xopenext	__USE_MISC	-
 xopenext	__USE_GNU	-
@@ -888,7 +888,7 @@ isoc99	__USE_ISOCXX	-
 isoc99	__USE_LARGEFILE	-
 isoc99	__USE_LARGEFILE64	-
 isoc99	__USE_FILE_OFFSET64	-
-isoc99	__USE_TIME_BITS64	-
+isoc99	__USE_TIME_BITS64	1
 isoc99	__USE_ATFILE	-
 isoc99	__USE_MISC	-
 isoc99	__USE_GNU	-
@@ -936,7 +936,7 @@ isoc11	__USE_ISOCXX	-
 isoc11	__USE_LARGEFILE	-
 isoc11	__USE_LARGEFILE64	-
 isoc11	__USE_FILE_OFFSET64	-
-isoc11	__USE_TIME_BITS64	-
+isoc11	__USE_TIME_BITS64	1
 isoc11	__USE_ATFILE	-
 isoc11	__USE_MISC	-
 isoc11	__USE_GNU	-
@@ -984,7 +984,7 @@ isoc2x	__USE_ISOCXX	-
 isoc2x	__USE_LARGEFILE	-
 isoc2x	__USE_LARGEFILE64	-
 isoc2x	__USE_FILE_OFFSET64	-
-isoc2x	__USE_TIME_BITS64	-
+isoc2x	__USE_TIME_BITS64	1
 isoc2x	__USE_ATFILE	-
 isoc2x	__USE_MISC	-
 isoc2x	__USE_GNU	-
@@ -1032,7 +1032,7 @@ default	__USE_ISOCXX	-
 default	__USE_LARGEFILE	-
 default	__USE_LARGEFILE64	-
 default	__USE_FILE_OFFSET64	-
-default	__USE_TIME_BITS64	-
+default	__USE_TIME_BITS64	1
 default	__USE_ATFILE	1
 default	__USE_MISC	1
 default	__USE_GNU	-
@@ -1080,7 +1080,7 @@ bsd	__USE_ISOCXX	-
 bsd	__USE_LARGEFILE	-
 bsd	__USE_LARGEFILE64	-
 bsd	__USE_FILE_OFFSET64	-
-bsd	__USE_TIME_BITS64	-
+bsd	__USE_TIME_BITS64	1
 bsd	__USE_ATFILE	1
 bsd	__USE_MISC	1
 bsd	__USE_GNU	-
@@ -1128,7 +1128,7 @@ svid	__USE_ISOCXX	-
 svid	__USE_LARGEFILE	-
 svid	__USE_LARGEFILE64	-
 svid	__USE_FILE_OFFSET64	-
-svid	__USE_TIME_BITS64	-
+svid	__USE_TIME_BITS64	1
 svid	__USE_ATFILE	1
 svid	__USE_MISC	1
 svid	__USE_GNU	-
@@ -1176,7 +1176,7 @@ gnu	__USE_ISOCXX	-
 gnu	__USE_LARGEFILE	1
 gnu	__USE_LARGEFILE64	1
 gnu	__USE_FILE_OFFSET64	-
-gnu	__USE_TIME_BITS64	-
+gnu	__USE_TIME_BITS64	1
 gnu	__USE_ATFILE	1
 gnu	__USE_MISC	1
 gnu	__USE_GNU	1
@@ -1224,7 +1224,7 @@ lfs64	__USE_ISOCXX	-
 lfs64	__USE_LARGEFILE	-
 lfs64	__USE_LARGEFILE64	1
 lfs64	__USE_FILE_OFFSET64	-
-lfs64	__USE_TIME_BITS64	-
+lfs64	__USE_TIME_BITS64	1
 lfs64	__USE_ATFILE	1
 lfs64	__USE_MISC	1
 lfs64	__USE_GNU	-
@@ -1272,7 +1272,7 @@ fob64	__USE_ISOCXX	-
 fob64	__USE_LARGEFILE	-
 fob64	__USE_LARGEFILE64	-
 fob64	__USE_FILE_OFFSET64	1
-fob64	__USE_TIME_BITS64	-
+fob64	__USE_TIME_BITS64	1
 fob64	__USE_ATFILE	1
 fob64	__USE_MISC	1
 fob64	__USE_GNU	-
@@ -1320,7 +1320,7 @@ time64	__USE_ISOCXX	-
 time64	__USE_LARGEFILE	-
 time64	__USE_LARGEFILE64	-
 time64	__USE_FILE_OFFSET64	1
-time64	__USE_TIME_BITS64	-
+time64	__USE_TIME_BITS64	1
 time64	__USE_ATFILE	1
 time64	__USE_MISC	1
 time64	__USE_GNU	-
@@ -1416,7 +1416,7 @@ dynstack	__USE_ISOCXX	-
 dynstack	__USE_LARGEFILE	-
 dynstack	__USE_LARGEFILE64	-
 dynstack	__USE_FILE_OFFSET64	-
-dynstack	__USE_TIME_BITS64	-
+dynstack	__USE_TIME_BITS64	1
 dynstack	__USE_ATFILE	1
 dynstack	__USE_MISC	1
 dynstack	__USE_GNU	-
@@ -1464,7 +1464,7 @@ reentrant	__USE_ISOCXX	-
 reentrant	__USE_LARGEFILE	-
 reentrant	__USE_LARGEFILE64	-
 reentrant	__USE_FILE_OFFSET64	-
-reentrant	__USE_TIME_BITS64	-
+reentrant	__USE_TIME_BITS64	1
 reentrant	__USE_ATFILE	1
 reentrant	__USE_MISC	1
 reentrant	__USE_GNU	-
@@ -1512,7 +1512,7 @@ fortify1	__USE_ISOCXX	-
 fortify1	__USE_LARGEFILE	-
 fortify1	__USE_LARGEFILE64	-
 fortify1	__USE_FILE_OFFSET64	-
-fortify1	__USE_TIME_BITS64	-
+fortify1	__USE_TIME_BITS64	1
 fortify1	__USE_ATFILE	1
 fortify1	__USE_MISC	1
 fortify1	__USE_GNU	-
@@ -1560,7 +1560,7 @@ fortify2	__USE_ISOCXX	-
 fortify2	__USE_LARGEFILE	-
 fortify2	__USE_LARGEFILE64	-
 fortify2	__USE_FILE_OFFSET64	-
-fortify2	__USE_TIME_BITS64	-
+fortify2	__USE_TIME_BITS64	1
 fortify2	__USE_ATFILE	1
 fortify2	__USE_MISC	1
 fortify2	__USE_GNU	-
@@ -1608,7 +1608,7 @@ fortify3	__USE_ISOCXX	-
 fortify3	__USE_LARGEFILE	-
 fortify3	__USE_LARGEFILE64	-
 fortify3	__USE_FILE_OFFSET64	-
-fortify3	__USE_TIME_BITS64	-
+fortify3	__USE_TIME_BITS64	1
 fortify3	__USE_ATFILE	1
 fortify3	__USE_MISC	1
 fortify3	__USE_GNU	-
@@ -1656,7 +1656,7 @@ cxx98	__USE_ISOCXX	-
 cxx98	__USE_LARGEFILE	1
 cxx98	__USE_LARGEFILE64	1
 cxx98	__USE_FILE_OFFSET64	-
-cxx98	__USE_TIME_BITS64	-
+cxx98	__USE_TIME_BITS64	1
 cxx98	__USE_ATFILE	1
 cxx98	__USE_MISC	1
 cxx98	__USE_GNU	1
@@ -1704,7 +1704,7 @@ cxx11	__USE_ISOCXX	-
 cxx11	__USE_LARGEFILE	1
 cxx11	__USE_LARGEFILE64	1
 cxx11	__USE_FILE_OFFSET64	-
-cxx11	__USE_TIME_BITS64	-
+cxx11	__USE_TIME_BITS64	1
 cxx11	__USE_ATFILE	1
 cxx11	__USE_MISC	1
 cxx11	__USE_GNU	1
@@ -1752,7 +1752,7 @@ cxx14	__USE_ISOCXX	-
 cxx14	__USE_LARGEFILE	1
 cxx14	__USE_LARGEFILE64	1
 cxx14	__USE_FILE_OFFSET64	-
-cxx14	__USE_TIME_BITS64	-
+cxx14	__USE_TIME_BITS64	1
 cxx14	__USE_ATFILE	1
 cxx14	__USE_MISC	1
 cxx14	__USE_GNU	1
@@ -1800,7 +1800,7 @@ cxx17	__USE_ISOCXX	-
 cxx17	__USE_LARGEFILE	1
 cxx17	__USE_LARGEFILE64	1
 cxx17	__USE_FILE_OFFSET64	-
-cxx17	__USE_TIME_BITS64	-
+cxx17	__USE_TIME_BITS64	1
 cxx17	__USE_ATFILE	1
 cxx17	__USE_MISC	1
 cxx17	__USE_GNU	1
@@ -1848,7 +1848,7 @@ cxx20	__USE_ISOCXX	-
 cxx20	__USE_LARGEFILE	1
 cxx20	__USE_LARGEFILE64	1
 cxx20	__USE_FILE_OFFSET64	-
-cxx20	__USE_TIME_BITS64	-
+cxx20	__USE_TIME_BITS64	1
 cxx20	__USE_ATFILE	1
 cxx20	__USE_MISC	1
 cxx20	__USE_GNU	1
@@ -1896,7 +1896,7 @@ cxx23	__USE_ISOCXX	-
 cxx23	__USE_LARGEFILE	1
 cxx23	__USE_LARGEFILE64	1
 cxx23	__USE_FILE_OFFSET64	-
-cxx23	__USE_TIME_BITS64	-
+cxx23	__USE_TIME_BITS64	1
 cxx23	__USE_ATFILE	1
 cxx23	__USE_MISC	1
 cxx23	__USE_GNU	1
@@ -1944,7 +1944,7 @@ gnu89	__USE_ISOCXX	-
 gnu89	__USE_LARGEFILE	-
 gnu89	__USE_LARGEFILE64	-
 gnu89	__USE_FILE_OFFSET64	-
-gnu89	__USE_TIME_BITS64	-
+gnu89	__USE_TIME_BITS64	1
 gnu89	__USE_ATFILE	1
 gnu89	__USE_MISC	1
 gnu89	__USE_GNU	-
@@ -1992,7 +1992,7 @@ gnu99	__USE_ISOCXX	-
 gnu99	__USE_LARGEFILE	-
 gnu99	__USE_LARGEFILE64	-
 gnu99	__USE_FILE_OFFSET64	-
-gnu99	__USE_TIME_BITS64	-
+gnu99	__USE_TIME_BITS64	1
 gnu99	__USE_ATFILE	1
 gnu99	__USE_MISC	1
 gnu99	__USE_GNU	-
@@ -2040,7 +2040,7 @@ gnu11	__USE_ISOCXX	-
 gnu11	__USE_LARGEFILE	-
 gnu11	__USE_LARGEFILE64	-
 gnu11	__USE_FILE_OFFSET64	-
-gnu11	__USE_TIME_BITS64	-
+gnu11	__USE_TIME_BITS64	1
 gnu11	__USE_ATFILE	1
 gnu11	__USE_MISC	1
 gnu11	__USE_GNU	-
@@ -2088,7 +2088,7 @@ c89gnu	__USE_ISOCXX	-
 c89gnu	__USE_LARGEFILE	1
 c89gnu	__USE_LARGEFILE64	1
 c89gnu	__USE_FILE_OFFSET64	-
-c89gnu	__USE_TIME_BITS64	-
+c89gnu	__USE_TIME_BITS64	1
 c89gnu	__USE_ATFILE	1
 c89gnu	__USE_MISC	1
 c89gnu	__USE_GNU	1
@@ -2136,7 +2136,7 @@ c2xdefault	__USE_ISOCXX	-
 c2xdefault	__USE_LARGEFILE	-
 c2xdefault	__USE_LARGEFILE64	-
 c2xdefault	__USE_FILE_OFFSET64	-
-c2xdefault	__USE_TIME_BITS64	-
+c2xdefault	__USE_TIME_BITS64	1
 c2xdefault	__USE_ATFILE	1
 c2xdefault	__USE_MISC	1
 c2xdefault	__USE_GNU	-
@@ -2184,7 +2184,7 @@ posixsource	__USE_ISOCXX	-
 posixsource	__USE_LARGEFILE	-
 posixsource	__USE_LARGEFILE64	-
 posixsource	__USE_FILE_OFFSET64	-
-posixsource	__USE_TIME_BITS64	-
+posixsource	__USE_TIME_BITS64	1
 posixsource	__USE_ATFILE	-
 posixsource	__USE_MISC	-
 posixsource	__USE_GNU	-
@@ -2232,7 +2232,7 @@ atfile	__USE_ISOCXX	-
 atfile	__USE_LARGEFILE	-
 atfile	__USE_LARGEFILE64	-
 atfile	__USE_FILE_OFFSET64	-
-atfile	__USE_TIME_BITS64	-
+atfile	__USE_TIME_BITS64	1
 atfile	__USE_ATFILE	1
 atfile	__USE_MISC	-
 atfile	__USE_GNU	-
@@ -2280,7 +2280,7 @@ lfs	__USE_ISOCXX	-
 lfs	__USE_LARGEFILE	1
 lfs	__USE_LARGEFILE64	-
 lfs	__USE_FILE_OFFSET64	-
-lfs	__USE_TIME_BITS64	-
+lfs	__USE_TIME_BITS64	1
 lfs	__USE_ATFILE	-
 lfs	__USE_MISC	-
 lfs	__USE_GNU	-
@@ -2328,7 +2328,7 @@ lfs64strict	__USE_ISOCXX	-
 lfs64strict	__USE_LARGEFILE	-
 lfs64strict	__USE_LARGEFILE64	1
 lfs64strict	__USE_FILE_OFFSET64	-
-lfs64strict	__USE_TIME_BITS64	-
+lfs64strict	__USE_TIME_BITS64	1
 lfs64strict	__USE_ATFILE	-
 lfs64strict	__USE_MISC	-
 lfs64strict	__USE_GNU	-
@@ -2376,7 +2376,7 @@ fob64strict	__USE_ISOCXX	-
 fob64strict	__USE_LARGEFILE	-
 fob64strict	__USE_LARGEFILE64	-
 fob64strict	__USE_FILE_OFFSET64	1
-fob64strict	__USE_TIME_BITS64	-
+fob64strict	__USE_TIME_BITS64	1
 fob64strict	__USE_ATFILE	-
 fob64strict	__USE_MISC	-
 fob64strict	__USE_GNU	-
@@ -2424,7 +2424,7 @@ fob32	__USE_ISOCXX	-
 fob32	__USE_LARGEFILE	-
 fob32	__USE_LARGEFILE64	-
 fob32	__USE_FILE_OFFSET64	-
-fob32	__USE_TIME_BITS64	-
+fob32	__USE_TIME_BITS64	1
 fob32	__USE_ATFILE	1
 fob32	__USE_MISC	1
 fob32	__USE_GNU	-
@@ -2520,7 +2520,7 @@ isoc95	__USE_ISOCXX	-
 isoc95	__USE_LARGEFILE	-
 isoc95	__USE_LARGEFILE64	-
 isoc95	__USE_FILE_OFFSET64	-
-isoc95	__USE_TIME_BITS64	-
+isoc95	__USE_TIME_BITS64	1
 isoc95	__USE_ATFILE	-
 isoc95	__USE_MISC	-
 isoc95	__USE_GNU	-
@@ -2568,7 +2568,7 @@ isoc23	__USE_ISOCXX	-
 isoc23	__USE_LARGEFILE	-
 isoc23	__USE_LARGEFILE64	-
 isoc23	__USE_FILE_OFFSET64	-
-isoc23	__USE_TIME_BITS64	-
+isoc23	__USE_TIME_BITS64	1
 isoc23	__USE_ATFILE	-
 isoc23	__USE_MISC	-
 isoc23	__USE_GNU	-
@@ -2616,7 +2616,7 @@ c99posix	__USE_ISOCXX	-
 c99posix	__USE_LARGEFILE	-
 c99posix	__USE_LARGEFILE64	-
 c99posix	__USE_FILE_OFFSET64	-
-c99posix	__USE_TIME_BITS64	-
+c99posix	__USE_TIME_BITS64	1
 c99posix	__USE_ATFILE	-
 c99posix	__USE_MISC	-
 c99posix	__USE_GNU	-
@@ -2664,7 +2664,7 @@ posixxopen	__USE_ISOCXX	-
 posixxopen	__USE_LARGEFILE	1
 posixxopen	__USE_LARGEFILE64	-
 posixxopen	__USE_FILE_OFFSET64	-
-posixxopen	__USE_TIME_BITS64	-
+posixxopen	__USE_TIME_BITS64	1
 posixxopen	__USE_ATFILE	1
 posixxopen	__USE_MISC	-
 posixxopen	__USE_GNU	-
@@ -2712,7 +2712,7 @@ xopen700default	__USE_ISOCXX	-
 xopen700default	__USE_LARGEFILE	1
 xopen700default	__USE_LARGEFILE64	-
 xopen700default	__USE_FILE_OFFSET64	-
-xopen700default	__USE_TIME_BITS64	-
+xopen700default	__USE_TIME_BITS64	1
 xopen700default	__USE_ATFILE	1
 xopen700default	__USE_MISC	1
 xopen700default	__USE_GNU	-
@@ -2760,7 +2760,7 @@ posixdefault	__USE_ISOCXX	-
 posixdefault	__USE_LARGEFILE	-
 posixdefault	__USE_LARGEFILE64	-
 posixdefault	__USE_FILE_OFFSET64	-
-posixdefault	__USE_TIME_BITS64	-
+posixdefault	__USE_TIME_BITS64	1
 posixdefault	__USE_ATFILE	1
 posixdefault	__USE_MISC	1
 posixdefault	__USE_GNU	-
@@ -2808,7 +2808,7 @@ xopenext500	__USE_ISOCXX	-
 xopenext500	__USE_LARGEFILE	1
 xopenext500	__USE_LARGEFILE64	-
 xopenext500	__USE_FILE_OFFSET64	-
-xopenext500	__USE_TIME_BITS64	-
+xopenext500	__USE_TIME_BITS64	1
 xopenext500	__USE_ATFILE	-
 xopenext500	__USE_MISC	-
 xopenext500	__USE_GNU	-
@@ -2856,7 +2856,7 @@ reentrantstrict	__USE_ISOCXX	-
 reentrantstrict	__USE_LARGEFILE	-
 reentrantstrict	__USE_LARGEFILE64	-
 reentrantstrict	__USE_FILE_OFFSET64	-
-reentrantstrict	__USE_TIME_BITS64	-
+reentrantstrict	__USE_TIME_BITS64	1
 reentrantstrict	__USE_ATFILE	-
 reentrantstrict	__USE_MISC	-
 reentrantstrict	__USE_GNU	-
@@ -2904,7 +2904,7 @@ threadsafe	__USE_ISOCXX	-
 threadsafe	__USE_LARGEFILE	-
 threadsafe	__USE_LARGEFILE64	-
 threadsafe	__USE_FILE_OFFSET64	-
-threadsafe	__USE_TIME_BITS64	-
+threadsafe	__USE_TIME_BITS64	1
 threadsafe	__USE_ATFILE	1
 threadsafe	__USE_MISC	1
 threadsafe	__USE_GNU	-
@@ -2952,7 +2952,7 @@ o2	__USE_ISOCXX	-
 o2	__USE_LARGEFILE	-
 o2	__USE_LARGEFILE64	-
 o2	__USE_FILE_OFFSET64	-
-o2	__USE_TIME_BITS64	-
+o2	__USE_TIME_BITS64	1
 o2	__USE_ATFILE	1
 o2	__USE_MISC	1
 o2	__USE_GNU	-
@@ -3000,7 +3000,7 @@ os	__USE_ISOCXX	-
 os	__USE_LARGEFILE	-
 os	__USE_LARGEFILE64	-
 os	__USE_FILE_OFFSET64	-
-os	__USE_TIME_BITS64	-
+os	__USE_TIME_BITS64	1
 os	__USE_ATFILE	1
 os	__USE_MISC	1
 os	__USE_GNU	-
@@ -3048,7 +3048,7 @@ o2noinline	__USE_ISOCXX	-
 o2noinline	__USE_LARGEFILE	-
 o2noinline	__USE_LARGEFILE64	-
 o2noinline	__USE_FILE_OFFSET64	-
-o2noinline	__USE_TIME_BITS64	-
+o2noinline	__USE_TIME_BITS64	1
 o2noinline	__USE_ATFILE	1
 o2noinline	__USE_MISC	1
 o2noinline	__USE_GNU	-
@@ -3096,7 +3096,7 @@ fortify2o0	__USE_ISOCXX	-
 fortify2o0	__USE_LARGEFILE	-
 fortify2o0	__USE_LARGEFILE64	-
 fortify2o0	__USE_FILE_OFFSET64	-
-fortify2o0	__USE_TIME_BITS64	-
+fortify2o0	__USE_TIME_BITS64	1
 fortify2o0	__USE_ATFILE	1
 fortify2o0	__USE_MISC	1
 fortify2o0	__USE_GNU	-
@@ -3144,7 +3144,7 @@ cxx17o2	__USE_ISOCXX	-
 cxx17o2	__USE_LARGEFILE	1
 cxx17o2	__USE_LARGEFILE64	1
 cxx17o2	__USE_FILE_OFFSET64	-
-cxx17o2	__USE_TIME_BITS64	-
+cxx17o2	__USE_TIME_BITS64	1
 cxx17o2	__USE_ATFILE	1
 cxx17o2	__USE_MISC	1
 cxx17o2	__USE_GNU	1
@@ -3192,7 +3192,7 @@ cxx11fob64	__USE_ISOCXX	-
 cxx11fob64	__USE_LARGEFILE	1
 cxx11fob64	__USE_LARGEFILE64	1
 cxx11fob64	__USE_FILE_OFFSET64	1
-cxx11fob64	__USE_TIME_BITS64	-
+cxx11fob64	__USE_TIME_BITS64	1
 cxx11fob64	__USE_ATFILE	1
 cxx11fob64	__USE_MISC	1
 cxx11fob64	__USE_GNU	1
