@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "math.h C99/C2X classification and comparison macros visible in C++ (header alone, as stock), TS 18661-1 C++ forms; printf.h PA_INT..PA_LAST; unistd.h __environ; TTYDEF visibility; features.py kernel dir; C++ nested ICMP/IPv6 tags; raw C++ sweep 0 C++-specific differences beyond D-X.130",
  "branch": "task/headers-stage2-gaps-l",
- "head": null,
+ "head": "a3efaa6a3",
  "gate": {
   "affected": "727 passed / 0 failed (7 suites; clippy, static, products, xtask tests)",
   "peak": "3.7G"
