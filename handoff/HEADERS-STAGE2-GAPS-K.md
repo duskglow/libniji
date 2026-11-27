@@ -1,43 +1,42 @@
-# HEADERS-STAGE2-GAPS-K: handoff (run 1, end of leg 2: code done, probes run; proof jobs next)
+# HEADERS-STAGE2-GAPS-K: handoff (run 1, end of leg 3: generator fixed after the gate; proof jobs running)
 
-Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Role shiki:~/w/sh1 (Skylake-SP class, no
-clang; clang-19 and the llvm-19 source on keke: ~/work/RELEASE-SNAPSHOT-1127A/u2/pkgs/compiler-rt/..., J's proof
-script keke ~/work/headers-stage2-gaps-j/pf1.sh builds the system-flavour debs and compiles the unit).
-Job scripts and outputs: shiki ~/work/headers-stage2-gaps-k/ (p1.sh/j1.sh probes + form.py; p2.sh/j2.sh pair probes;
-kt.py kernel UAPI text of names; r1.sh TAG = headers-gen + j1 + j2). Local copies: the run's scratch dir.
+Branch task/headers-stage2-gaps-k, cut from origin/next 16e03637e, no merge. Code head b1b53ab1a. Role shiki:~/w/sh1
+(Skylake-SP class, no clang: header_check's clang P5 is skipped there). clang-19 and the llvm-19 source are on keke.
+Job scripts and outputs: shiki ~/work/headers-stage2-gaps-k/ (r1.sh TAG = headers-gen + j1 (p1 + form) + j2 (p2 pairs);
+pk1.sh COMMIT EPOCH = system-flavour debs into ~/work/headers-stage2-gaps-k/debs/system). keke
+~/work/headers-stage2-gaps-k/pk2.sh (installed, checked): extracts ~/work/headers-stage2-gaps-k/debs/libc6-dev_*.deb
+and compiles llvm-19's sanitizer_platform_limits_posix.cpp with clang-19 and g++, stock and libniji (J's pf1.sh step 2).
 
-## Done (commits 60f848637, then "Own the IPX requests")
-* New table `spec/abi/macro-spellings.tsv` (name, spelling, source; 109 rows; table_keys.tsv line): the generator
-  (xtask/src/headers.rs `spellings`, `macro_def`, `redefined`) emits the spelling in every header that shows the
-  name, outright where macro-forms says so, kernel-spelled.tsv notwithstanding. Rows: 45 PPP names of
-  linux/ppp-ioctl.h (all shared but SC_MASK), 10 linux/fs.h names (BLK*, BLOCK_SIZE, SYNC_FILE_RANGE_WRITE_AND_WAIT),
-  49 linux/mtio.h names, TIOCSER_TEMT `0x01`; source `-`: MTIOCGETCONFIG/SETCONFIG `_IOR/_IOW('m', 4/5, struct
-  mtconfiginfo)`, SC_MASK `266403839` (outright, as stock: redefinition with the kernel's either order),
-  TTYDEF_SPEED `B9600` everywhere. Kernel texts from shiki /usr/include (kt.py; = what probes use).
-* `<netipx/ipx.h>`: the four (SIOCPROTOPRIVATE+n) requests, `sipx_special` -> `sipx_port` (probe: offset 2 size 2),
-  `@@owns`, 5 visibility rows (!time64only), probe candidates header_probe.d/stage2-gaps-k.py, radio.py note.
-* header_checks/s13.d/60-stage2-gaps-k.py: pairs both orders (termios/termio/pty/sgtty/ttydefaults with sys/ioctl.h
-  or termios.h, termios+asm/ioctls.h, if_ppp+linux/ppp-ioctl.h with SC_MASK undefined between, ipx+sys/ioctl.h),
-  kernel respelling per header for every source!=`-` row, IPX values/parenthesis/sipx_special, TTYDEF_SPEED==B9600;
-  `p1_skip` TTYDEF_SPEED in the 8 headers not showing B9600. form.py ENFORCED: the 26 ioctl requests.
+## Done
+* Leg 1-2 (see commits): `spec/abi/macro-spellings.tsv` (109 rows; generator `spellings`), `<netipx/ipx.h>` requests
+  and sipx_special, header_checks/s13.d/60-stage2-gaps-k.py, form.py ENFORCED PPP/BLK requests.
+* Leg 3: 3cd48a055 parenthesis check fixed (+0 could not see missing parentheses) and plants file. Gate run 1
+  (label -gate, head 1756f2310+) RED: dup.py `TIOCSER_TEMT` defined outright in 5 headers, `SYNC_FILE_RANGE_WRITE_AND_WAIT`
+  in 3; the `net/if_ppp.h`+`linux/ppp-ioctl.h` pair fails on struct npioctl (stock too). 6a74db8ca put kernel-sourced
+  spelled names under #ifndef and dropped that pair: gate2 green, but probes k3 showed p1 `earlier-def-kept` DIFF for
+  the PPP requests (stock replaces a program's earlier definition) and p2 SC_MASK. b1b53ab1a: spelled names outright
+  again (redefined() override kept) AND under the emit-once guard (`item()`: `|| self.t.spellings.contains_key(name)`),
+  so the first header included defines each; features.py forms check no longer skips spelled kernel-spelled names.
 
-## Probe results on the regenerated libc-include (job headers-stage2-gaps-k-gen2, tag k2)
-* form.py: 274 -> 245 differing pairs; 0 FORM-DIFF lines for PPPIOC*/BLK*/MTIOC*.
-* p2 (pairs, -Wsystem-headers): 0 DIFF except `asm/termbits.h + termios.h` (stock: 111/78 redefinitions; libniji
-  fails with another diagnostic in that order: both reject the unit; pre-existing, not in scope -> INFORMATIONAL).
-* p1: 28 lines left, all TTYDEF_IFLAG/OFLAG/LFLAG/CFLAG with `<sys/ioctl.h>` alone (stock: no value; libniji
-  literal): form.py audit group E1, pre-existing report mode -> INFORMATIONAL (not this brief's redefinition item).
-  IPX, PPP, termios pair items: 0 DIFF.
-* kernel-spelled.tsv NOT regenerated (needs `cargo xtask so` for target/niji/uapi; the redefined() override makes
-  it unnecessary; optional: after the gate's build run `python3 spec/tools/kernel_spelled.py` and commit if changed).
+## Jobs running at the end of leg 3 (shiki; all on b1b53ab1a)
+* `headers-stage2-gaps-k-gate3` (test): clippy, static, headers-gen, dup.py, header_check --only GAPS-K, features.py,
+  cargo test -p xtask (full header_check inside), form.py, then r1.sh k4 (probes; outputs k4-*).
+* `headers-stage2-gaps-k-plants3` (plants; 9 plants; dir /mnt/zram/claude/headers-stage2-gaps-k/plants-3).
+* `headers-stage2-gaps-k-debs2` (test): waits for gate3, then pk1.sh b1b53ab1a (system debs).
+SUPERSEDED: -gate (red, fixed), -plants (baseline red, same cause), -gate2/-probe3/-plants2 (6a74db8ca; plants2 refused:
+k-spelling-off pattern stale), -debs (6a74db8ca, killed).
 
-## Next step (leg 3)
-1. On shiki sh1 (synced): `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask
-   static` (headers-gen --check runs there), `python3 spec/tools/header_check.py` slice 13 (or the affected tests).
-2. Plants in docs/plants.md (format `id | path | pattern | cmd | msg:`): e.g. a TIOCSER_TEMT row spelled `1`, a PPP
-   row text changed (`_IOR('t', 90, int)` -> `_IOR('t',90,int)` is NOT a plant: same tokens; use another nr), the
-   IPX `+2` -> `+3`, sipx_special -> sipx_family, redefined() override removed. cmd: the header_check / affected run.
-3. Gate: `cargo xtask affected --list` (expect FULL escalation for xtask/spec changes: then precheck + changed
-   crates' tests, kind test); plants job; then llvm-19 sanitizer unit on keke (pf1.sh pattern), clang-19 and g++.
-4. precheck --jobs, report json, handback-check.
-Jobs so far (shiki): headers-stage2-gaps-k-probe1, -probe2 (base tree), -gen1 (failed: owns), -gen2 (k2 probes).
+## Next step (leg 4)
+1. `~/bin/jobwait headers-stage2-gaps-k-gate3 headers-stage2-gaps-k-plants3` on shiki. Probe check: `W=~/work/headers-stage2-gaps-k;
+   diff $W/k4-p2-stock.out $W/k4-p2-niji.out` must show only `asm/termbits.h+termios.h` (pre-existing, INFORMATIONAL);
+   `diff $W/k4-stock.out $W/k4-niji.out` only TTYDEF_IFLAG/OFLAG/LFLAG/CFLAG with <sys/ioctl.h> (pre-existing, 28 lines,
+   INFORMATIONAL). If features.py forms fails on a spelled name with a kernel header in front: look at that name only.
+2. Plants: every one CAUGHT (k-*). Copy `/mnt/zram/claude/headers-stage2-gaps-k/plants-3/results.txt` over
+   handoff/HEADERS-STAGE2-GAPS-K-plants.txt and commit (docs/plants.md).
+3. After debs2: copy `~/work/headers-stage2-gaps-k/debs/system/libc6-dev_*.deb` shiki -> local scratch -> keke
+   `~/work/headers-stage2-gaps-k/debs/`, then on keke `setsid nohup ~/bin/jobrun headers-stage2-gaps-k-llvm19 test --
+   sh ~/work/headers-stage2-gaps-k/pk2.sh` and jobwait it: RESULT lines (niji=0 for clang and gxx, or the first stop).
+4. precheck `--jobs headers-stage2-gaps-k-gate3,headers-stage2-gaps-k-plants3,keke:headers-stage2-gaps-k-llvm19`
+   on the synced final head; report json handoff/reports/HEADERS-STAGE2-GAPS-K.json (FULL: the train's: xtask and
+   generator inputs); handback-check. INFORMATIONAL: asm/termbits.h+termios.h; TTYDEF_*FLAG with <sys/ioctl.h> alone;
+   kernel-spelled.tsv not regenerated (the override makes it unnecessary).
