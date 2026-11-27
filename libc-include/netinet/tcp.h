@@ -64,14 +64,6 @@ struct tcp_info {
   unsigned int tcpi_total_retrans;
 };
 # endif
-# ifndef __NIJI_D_struct_sockaddr_storage
-#  define __NIJI_D_struct_sockaddr_storage 1
-struct sockaddr_storage {
-  unsigned short ss_family;
-  char __ss_padding[118];
-  unsigned long __ss_align;
-};
-# endif
 # ifndef __NIJI_D_struct_tcp_md5sig
 #  define __NIJI_D_struct_tcp_md5sig 1
 struct tcp_md5sig {

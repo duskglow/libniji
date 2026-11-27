@@ -51,18 +51,6 @@ struct ip6_hdrctl {
   unsigned char ip6_un1_hlim;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_ip6_hdr
 #  define __NIJI_D_struct_ip6_hdr 1
 struct ip6_hdr {
@@ -118,12 +106,6 @@ struct ip6_rthdr {
   unsigned char ip6r_len;
   unsigned char ip6r_type;
   unsigned char ip6r_segleft;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_ip6_rthdr0

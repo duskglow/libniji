@@ -23,27 +23,6 @@ struct if_nameindex {
 # endif
 #endif
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
 # ifndef __NIJI_D_struct_ifaddr
 #  define __NIJI_D_struct_ifaddr 1
 struct ifaddr {
@@ -69,41 +48,6 @@ struct ifmap {
   unsigned char irq;
   unsigned char dma;
   unsigned char port;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
 };
 # endif
 # ifndef __NIJI_D_struct_ifmap

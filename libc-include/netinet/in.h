@@ -134,22 +134,6 @@ struct ip6_mtuinfo {
 # endif
 #endif
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_sockaddr_storage
-#  define __NIJI_D_struct_sockaddr_storage 1
-struct sockaddr_storage {
-  unsigned short ss_family;
-  char __ss_padding[118];
-  unsigned long __ss_align;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr_storage
-#  define __NIJI_D_struct_sockaddr_storage 1
-struct sockaddr_storage {
-  unsigned short ss_family;
-  char __ss_padding[118];
-  unsigned long __ss_align;
-};
-# endif
 # ifndef __NIJI_D_struct_group_source_req
 #  define __NIJI_D_struct_group_source_req 1
 struct group_source_req {

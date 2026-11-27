@@ -10,21 +10,6 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_ipc_perm
-#  define __NIJI_D_struct_ipc_perm 1
-struct ipc_perm {
-  int __key;
-  unsigned int uid;
-  unsigned int gid;
-  unsigned int cuid;
-  unsigned int cgid;
-  unsigned int mode;
-  unsigned short __seq;
-  unsigned short __pad2;
-  unsigned long __glibc_reserved1;
-  unsigned long __glibc_reserved2;
-};
-# endif
 # ifndef __NIJI_D_struct_msqid_ds
 #  define __NIJI_D_struct_msqid_ds 1
 struct msqid_ds {

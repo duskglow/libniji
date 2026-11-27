@@ -12,16 +12,6 @@
 __NIJI_BEGIN_C
 
 #if defined __USE_MISC
-# ifndef __NIJI_D_struct_arphdr
-#  define __NIJI_D_struct_arphdr 1
-struct arphdr {
-  unsigned short ar_hrd;
-  unsigned short ar_pro;
-  unsigned char ar_hln;
-  unsigned char ar_pln;
-  unsigned short ar_op;
-};
-# endif
 # ifndef __NIJI_D_struct_ether_arp
 #  define __NIJI_D_struct_ether_arp 1
 struct ether_arp {

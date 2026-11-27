@@ -13,27 +13,6 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr_in
-#  define __NIJI_D_struct_sockaddr_in 1
-struct sockaddr_in {
-  unsigned short sin_family;
-  unsigned short sin_port;
-  struct in_addr sin_addr;
-  unsigned char sin_zero[8];
-};
-# endif
-# ifndef __NIJI_D_struct_in_addr
-#  define __NIJI_D_struct_in_addr 1
-struct in_addr {
-  unsigned int s_addr;
-};
-# endif
 # ifndef __NIJI_D_struct___res_state
 #  define __NIJI_D_struct___res_state 1
 struct __res_state {

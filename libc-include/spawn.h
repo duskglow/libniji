@@ -42,12 +42,6 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
-# ifndef __NIJI_D_struct_sched_param
-#  define __NIJI_D_struct_sched_param 1
-struct sched_param {
-  int sched_priority;
-};
-# endif
 # ifndef __NIJI_D_posix_spawnattr_t
 #  define __NIJI_D_posix_spawnattr_t 1
 typedef struct {

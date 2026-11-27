@@ -166,6 +166,20 @@ impl Gen<'_> {
         want & !have == 0
     }
 
+    /// Whether a structure or union tag a member needs ([`Gen::emit_nested`]) comes from the included headers in
+    /// every configuration that matters: this header's own row of the tag, as [`Gen::is_covered`], or without one,
+    /// every configuration. An included header may define it with no libniji guard (`<net/ppp_defs.h>` shows the
+    /// kernel's `struct ppp_comp_stats` that `<net/if_ppp.h>`'s `struct ifpppcstatsreq` holds), so the tag is
+    /// not defined here again.
+    pub(super) fn nested_tag_covered(&self, name: &str, kind: &str) -> bool {
+        let Some(&have) = self.covered.get(&(name.to_string(), kind.to_string())) else { return false };
+        if self.t.vis_row(&self.header, name, kind).is_some() {
+            return self.is_covered(name, kind);
+        }
+        let all = (1u64 << self.t.lv.ids.len()) - 1;
+        all & !self.dont_care(name, kind) & !have == 0
+    }
+
     /// The configurations of the C++ language (every level column `cxx` above 0, none rejected).
     fn cxx_mask(&self) -> u64 {
         let col = LEVEL_COLS.iter().position(|c| c.0 == "cxx").unwrap_or(0);

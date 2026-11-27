@@ -35,27 +35,6 @@ struct arphdr {
   unsigned short ar_op;
 };
 # endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
 # ifndef __NIJI_D_struct_arpreq
 #  define __NIJI_D_struct_arpreq 1
 struct arpreq {
@@ -64,27 +43,6 @@ struct arpreq {
   int arp_flags;
   struct sockaddr arp_netmask;
   char arp_dev[16];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
 };
 # endif
 # ifndef __NIJI_D_struct_arpreq_old

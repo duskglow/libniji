@@ -321,9 +321,13 @@ impl Gen<'_> {
                 self.tag(&tag, "struct");
                 self.out.push("# endif".into());
             } else if let Some(tag) = n.strip_prefix("struct ") {
-                self.tag(tag, "struct");
+                if !self.nested_tag_covered(tag, "struct") {
+                    self.tag(tag, "struct");
+                }
             } else if let Some(tag) = n.strip_prefix("union ") {
-                self.tag(tag, "union");
+                if !self.nested_tag_covered(tag, "union") {
+                    self.tag(tag, "union");
+                }
             } else if let Some(t) = n.strip_prefix("typedef ") {
                 self.typedef(t);
             }

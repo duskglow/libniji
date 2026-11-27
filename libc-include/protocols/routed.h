@@ -11,25 +11,11 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
-};
-# endif
 # ifndef __NIJI_D_struct_netinfo
 #  define __NIJI_D_struct_netinfo 1
 struct netinfo {
   struct sockaddr rip_dst;
   int rip_metric;
-};
-# endif
-# ifndef __NIJI_D_struct_sockaddr
-#  define __NIJI_D_struct_sockaddr 1
-struct sockaddr {
-  unsigned short sa_family;
-  char sa_data[14];
 };
 # endif
 # ifndef __NIJI_D_struct_netinfo

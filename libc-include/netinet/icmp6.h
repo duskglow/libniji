@@ -56,12 +56,6 @@ struct icmp6_hdr {
   union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_mld_hdr
 #  define __NIJI_D_struct_mld_hdr 1
 struct mld_hdr {
@@ -78,12 +72,6 @@ struct icmp6_hdr {
   union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_nd_neighbor_advert
 #  define __NIJI_D_struct_nd_neighbor_advert 1
 struct nd_neighbor_advert {
@@ -98,12 +86,6 @@ struct icmp6_hdr {
   unsigned char icmp6_code;
   unsigned short icmp6_cksum;
   union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_nd_neighbor_solicit
@@ -148,12 +130,6 @@ struct nd_opt_mtu {
   unsigned int nd_opt_mtu_mtu;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_nd_opt_prefix_info
 #  define __NIJI_D_struct_nd_opt_prefix_info 1
 struct nd_opt_prefix_info {
@@ -183,18 +159,6 @@ struct icmp6_hdr {
   unsigned char icmp6_code;
   unsigned short icmp6_cksum;
   union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_nd_redirect
@@ -237,12 +201,6 @@ struct nd_router_solicit {
   struct icmp6_hdr nd_rs_hdr;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_rr_pco_match
 #  define __NIJI_D_struct_rr_pco_match 1
 struct rr_pco_match {
@@ -256,12 +214,6 @@ struct rr_pco_match {
   struct in6_addr rpm_prefix;
 };
 # endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
-};
-# endif
 # ifndef __NIJI_D_struct_rr_pco_use
 #  define __NIJI_D_struct_rr_pco_use 1
 struct rr_pco_use {
@@ -273,12 +225,6 @@ struct rr_pco_use {
   unsigned int rpu_pltime;
   unsigned int rpu_flags;
   struct in6_addr rpu_prefix;
-};
-# endif
-# ifndef __NIJI_D_struct_in6_addr
-#  define __NIJI_D_struct_in6_addr 1
-struct in6_addr {
-  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_rr_result

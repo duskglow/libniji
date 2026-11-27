@@ -21,21 +21,6 @@ struct sembuf {
   short sem_flg;
 };
 # endif
-# ifndef __NIJI_D_struct_ipc_perm
-#  define __NIJI_D_struct_ipc_perm 1
-struct ipc_perm {
-  int __key;
-  unsigned int uid;
-  unsigned int gid;
-  unsigned int cuid;
-  unsigned int cgid;
-  unsigned int mode;
-  unsigned short __seq;
-  unsigned short __pad2;
-  unsigned long __glibc_reserved1;
-  unsigned long __glibc_reserved2;
-};
-# endif
 # ifndef __NIJI_D_struct_semid_ds
 #  define __NIJI_D_struct_semid_ds 1
 struct semid_ds {
