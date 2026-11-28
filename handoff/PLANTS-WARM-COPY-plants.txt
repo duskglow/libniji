@@ -1,0 +1,24 @@
+# PLANTS-WARM-COPY plants (xtask/src/plants.rs): the warm copy's sync, prune, lock, default and the auto copies rule.
+wc-no-checksum | xtask/src/plants.rs | lit:"-rlpDc", "--delete", "--itemize-changes" ==> "-rlpD", "--delete", "--itemize-changes" | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:only the left mutant rewritten
+wc-keep-times | xtask/src/plants.rs | lit:"-rlpDc", "--delete", "--itemize-changes" ==> "-rlptDc", "--delete", "--itemize-changes" | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:the rewritten file has a fresh mtime
+wc-no-delete | xtask/src/plants.rs | lit:"-rlpDc", "--delete", "--itemize-changes" ==> "-rlpDc", "--itemize-changes" | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:only stray.txt deleted
+wc-profile-keeps-dirs | xtask/src/plants.rs | lit:.is_dir() && CARGO_PROFILE_ENTRIES ==> .is_dir() || CARGO_PROFILE_ENTRIES | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:target/debug/niji-deps kept in the warm copy
+wc-target-keeps-dirs | xtask/src/plants.rs | lit:if is_dir && holds_cargo(&path, 2) { ==> if is_dir { | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant.*(panicked|FAILED)|kept in the warm copy|Permission denied
+wc-no-open-up | xtask/src/plants.rs | lit:open_up(path); ==> let _ = open_up; | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:Permission denied
+wc-cold-path-used | xtask/src/plants.rs | lit:let copy = warm.as_ref().map_or_else(|| cold.clone(), |w| w.path.clone()); ==> let copy = cold.clone(); | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant.*(panicked|FAILED)
+wc-verify-skipped | xtask/src/plants.rs | lit:if !left.trim().is_empty() { ==> if left.is_empty() && !left.is_empty() { | cargo test -p xtask --bin xtask -- plants::tests::a_warm_copy_is_synced | msg:a copy that still differs from the tree is refused
+wc-lock-ignored | xtask/src/plants.rs | lit:Err(fs::TryLockError::WouldBlock) => Ok(None), ==> Err(fs::TryLockError::WouldBlock) => Ok(Some(Warm { path: root.join(format!("copy-{}", k + 1)), _lock: file })), | cargo test -p xtask --bin xtask -- plants::tests::a_busy_warm_copy | msg:a cold copy, the busy warm copy untouched
+wc-warm-in-root | xtask/src/plants.rs | lit:    grand.parent()?; ==> let _ = grand.parent(); | cargo test -p xtask --bin xtask -- plants::tests::copies_option_is_parsed | msg:no warm copies in /
+wc-auto-split | xtask/src/plants.rs | lit:(cpus >= SPLIT_CPUS || plants > SPLIT_PLANTS) ==> (cpus >= SPLIT_CPUS || plants >= SPLIT_PLANTS) | cargo test -p xtask --bin xtask -- plants::tests::auto_copies_follows | msg:auto_copies_follows_the_ram_limit.*(panicked|FAILED)
+# cargo xtask plants results (11 plants: 11 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# wc-no-checksum: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-keep-times: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-no-delete: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-profile-keeps-dirs: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-target-keeps-dirs: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-no-open-up: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-cold-path-used: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-verify-skipped: CAUGHT, caught by xtask plants::tests::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant
+# wc-lock-ignored: CAUGHT, caught by xtask plants::tests::a_busy_warm_copy_gives_a_cold_copy
+# wc-warm-in-root: CAUGHT, caught by xtask plants::tests::copies_option_is_parsed_and_bounded
+# wc-auto-split: CAUGHT, caught by xtask plants::tests::auto_copies_follows_the_ram_limit

@@ -1,0 +1,69 @@
+{
+  "task": "PLANTS-WARM-COPY",
+  "result": "cargo xtask plants keeps one warm copy per role (flock, content sync with fresh mtimes, target/ pruned to cargo's cache, cold fallback); verdicts identical warm and cold on 5 stories (tmpfs and zram); per-job wall median -13%, short of the report's ~45% because the per-run build tag rebuilds the early product crates",
+  "branch": "task/plants-warm-copy",
+  "head": "f781a4036",
+  "jobs": [
+    {
+      "host": "shiki",
+      "label": "plants-warm-copy-gate2"
+    },
+    {
+      "host": "shiki",
+      "label": "plants-warm-copy-plants2"
+    }
+  ],
+  "rulings": [
+    {
+      "item": "ram-sweep and the warm copies: <ram>/claude/plants-warm/<role>/copy-<k> lives across runs; a sweep while a run holds copy-<k>.lock would break that run",
+      "recommendation": "ram-sweep skips a plants-warm copy whose lock is held (flock -n fails) and may remove an idle one as any leftover (the next run is then cold)"
+    },
+    {
+      "item": "Next step for the remaining baseline cost: NIJI_PLANTS_BUILD_TAG fixed per warm copy instead of plants-<pid> (early-cargo-ld/ldconfig/localedef rebuild every run, early-builds-wait 154 s)",
+      "recommendation": "its own story, with the same warm-against-cold verdict proof"
+    }
+  ],
+  "informational": [
+    "Rule lines to change (coordinator): developer-flow.md step 5 and developer-flow-reference.md section 4 ('<NEW RAM dir> ... new each run; never delete it (ram-sweep does)'): --dir stays new each run (logs, results, cold fallback), and the tool keeps the role's warm copy itself in <ram>/claude/plants-warm/<role> (--cold to opt out); developer-flow-reference.md line 'ram-sweep timer removes leftovers every 6 hours': add the plants-warm exception above",
+    "Measured on one host class only (shiki, Haswell E5-2697 v3, the role's host); both RAM file systems (tmpfs, zram) covered",
+    "RAM held per role: about 2.1 GB per warm copy with products (769 MB with xtask builds only), times the copies",
+    "Measurement runs overlapped the gate and plants jobs; timings carry that noise",
+    "The role tree gains __pycache__ files and rewritten libc-include/ from the gate and header checks; the warm sync rewrites the pyc files every run (time only)",
+    "Evidence jobs on earlier heads (1c0c7b690, 9d55199ac; the final code head only adds SPLIT_PLANTS 6 -> 5, docs and D-X.180): shiki plants-warm-copy-measure-a, plants-warm-copy-measure-a2, plants-warm-copy-measure-b"
+  ],
+  "refused": [],
+  "impact": [
+    {
+      "kind": "perf",
+      "what": "plants job wall, median over 5 warm runs vs their cold runs (shiki)",
+      "before": 357,
+      "after": 349,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "baseline cargo xtask so in a plants copy (XTASK-PRECHECK-SKIP-ASM-AFFECTED, shiki)",
+      "before": 416,
+      "after": 324,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "plants job on 4 CPUs, 6 plants, warm: one copy vs two (--copies auto now splits)",
+      "before": 1433,
+      "after": 1221,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "cost",
+      "what": "RAM held per role per warm copy (with products)",
+      "before": 0,
+      "after": 2.1,
+      "unit": "GB",
+      "measured": true
+    }
+  ]
+}
