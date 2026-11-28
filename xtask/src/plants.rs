@@ -1085,10 +1085,11 @@ pub const COPY_PEAK_BYTES: u64 = 14 << 30;
 /// the copies share the CPUs, so each copy's builds slow down and the split must win it back over enough plants.
 pub const SPLIT_CPUS: usize = 8;
 
-/// PLANTS-WARM-COPY: in a slot of fewer than [`SPLIT_CPUS`] CPUs, the plant count past which two copies pay. Measured
-/// cold on a 4-CPU slot (handoff/PIPELINE-TEST-TIME-1127-report.md): one copy's baseline 10.2 min, two copies' 14.5 min
-/// each, so the split paid only past about 6 plants.
-pub const SPLIT_PLANTS: usize = 6;
+/// PLANTS-WARM-COPY: in a slot of fewer than [`SPLIT_CPUS`] CPUs, the plant count past which two copies pay. Cold, on
+/// a 4-CPU slot, the split paid only past about 6 plants (one copy's baseline 10.2 min, two copies' 14.5 min each,
+/// handoff/PIPELINE-TEST-TIME-1127-report.md); warm, on 4 CPUs, a 6-plant file took 1221 s in two copies against
+/// 1433 s in one (handoff/PLANTS-WARM-COPY.md), so two copies from 6 plants on.
+pub const SPLIT_PLANTS: usize = 5;
 
 /// PLANTS-COPIES: how many copies `--copies auto` (the default) runs, given the RAM this job may use (`None`: unknown),
 /// the CPUs it may use and the plants in the file: two when that RAM holds two copies at [`COPY_PEAK_BYTES`] each, the

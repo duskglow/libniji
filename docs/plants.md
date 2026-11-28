@@ -23,7 +23,7 @@ verdicts, the summary and `results.txt` come out in the plants file's order and 
 judged as a serial run judges it; a copy that stops (refused, baseline failed) stops the run with the exit status a
 serial run gives. The default, `auto`, prints its choice: two copies when the RAM this job may use holds two copies
 at the measured per-copy peak (`COPY_PEAK_BYTES` in `plants.rs`, 14 GiB), the file has two plants or more, and the
-job may use 8 CPUs or more (`SPLIT_CPUS`) or the file has more than 6 plants (`SPLIT_PLANTS`: two copies share a
+job may use 8 CPUs or more (`SPLIT_CPUS`) or the file has more than 5 plants (`SPLIT_PLANTS`: two copies share a
 small slot's CPUs, so the split pays only over enough plants); else one. "The RAM this job may use" is
 the smallest of `NIJI_PLANTS_RAM_GB` (GiB: a role's RAM budget, set by whoever starts the job), the `memory.max` of
 the job's cgroup and every cgroup above it, and `MemAvailable`; none known means one copy. Measured wall time and peak
