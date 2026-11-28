@@ -12,7 +12,7 @@ build that runs into it ends `BASELINE FAILED: so timed out after N s (prepare t
 is reported `BUILD-TIMEOUT` (not CAUGHT: the mutant was not tested) and fails the run.
 
 ```
-cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]   # test limit 600 (project rule); build limit 3600
+cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto] [--warm <dir>|--cold]   # test limit 600 (project rule); build limit 3600
 ```
 
 **Copies (PLANTS-COPIES).** `--copies <n>` (1 to 8) runs the plants in `n` copies of the tree at the same time: plant
@@ -22,7 +22,9 @@ serial run) or `<dir>/src-<k>` and `<dir>/logs-<k>`. Lines from a copy after the
 verdicts, the summary and `results.txt` come out in the plants file's order and read as a serial run's, each plant
 judged as a serial run judges it; a copy that stops (refused, baseline failed) stops the run with the exit status a
 serial run gives. The default, `auto`, prints its choice: two copies when the RAM this job may use holds two copies
-at the measured per-copy peak (`COPY_PEAK_BYTES` in `plants.rs`, 14 GiB), else one. "The RAM this job may use" is
+at the measured per-copy peak (`COPY_PEAK_BYTES` in `plants.rs`, 14 GiB), the file has two plants or more, and the
+job may use 8 CPUs or more (`SPLIT_CPUS`) or the file has more than 6 plants (`SPLIT_PLANTS`: two copies share a
+small slot's CPUs, so the split pays only over enough plants); else one. "The RAM this job may use" is
 the smallest of `NIJI_PLANTS_RAM_GB` (GiB: a role's RAM budget, set by whoever starts the job), the `memory.max` of
 the job's cgroup and every cgroup above it, and `MemAvailable`; none known means one copy. Measured wall time and peak
 RAM, serial against two copies: `handoff/PLANTS-COPIES.md`.
@@ -31,12 +33,33 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
 `/dev/shm`). Use a directory that is NEW for every run and that is in RAM: `/dev/shm/claude/<story>/plants-<n>` on Zen 1 host,
 `/mnt/zram/claude/<story>/plants-<n>` on Skylake-SP host (the RAM-disk host). Do not delete it: ram-sweep removes it later.
 
+**Warm copies (PLANTS-WARM-COPY).** A cold copy has no `target/`, so its baseline `cargo xtask so` builds everything
+from nothing (median 7 to 15 minutes a job, about 45% of a plants job, handoff/PIPELINE-TEST-TIME-1127-report.md). So
+copy `k` of a run uses the role's **warm copy** `<warm>/copy-<k>` instead, kept from run to run with its cargo cache:
+
+- `<warm>` is `--warm <dir>`, else `plants-warm/<tree name>` beside the story directories (`--dir`
+  `/dev/shm/claude/<story>/plants-<n>` in the role `~/w/<role>` gives `/dev/shm/claude/plants-warm/<role>`).
+  `--cold` uses none (every copy cold, in `--dir`, as before).
+- One run at a time: a run holds `<warm>/copy-<k>.lock` (an exclusive `flock`, released when the run ends however it
+  ends). When another run holds it, the copy is cold, in `--dir`, and the run says so (`warm copy ... is busy`).
+- Before use the warm copy is brought to the tree **by content**: its `target/` and `fuzz/target/` are pruned to
+  cargo's build cache (the profile directories' `.fingerprint`, `build`, `deps`, `examples`, `incremental`, nested
+  target directories such as `target/product` pruned alike, `CACHEDIR.TAG`; everything else goes, among it the
+  products in `target/niji`, `target/tmp`, test caches, logs and the uplifted binaries, which cargo links again for
+  every unit a build uses); then `rsync -rlpDc --delete` compares every file by content and keeps no times, so a file
+  that differs (such as a mutant a killed run left) is written with a fresh mtime, newer than any build made from its
+  old text, and a path the tree lacks is deleted. A second `rsync --dry-run` must then find nothing to change. Any
+  failure here makes the copy cold instead. The run prints `warm copy <tree> -> <copy> (synced by content ...)`.
+- So a warm copy holds what a cold copy holds plus what cargo itself judges fresh by its mtime checks; the verdicts
+  are those of a cold run (measured: handoff/PLANTS-WARM-COPY.md).
+
 ## What it does
 
 1. It refuses the run (exit 3, nothing created) when `--dir` exists, when the plants file is malformed, or when any
    plant does not change exactly one site of its file in the current tree. It warns (`WARN-NOT-RAM`) when `--dir` is
    not on tmpfs or zram.
-2. It copies the tree to `<dir>/src` with `rsync -a --exclude /target --exclude /fuzz/target` (the source only).
+2. It copies the tree to `<dir>/src` with `rsync -a --exclude /target --exclude /fuzz/target` (the source only), or
+   syncs it into the role's warm copy (above).
 3. In the copy it runs `cargo xtask so` (the products) when one of the copy's plants reads them (below), then each
    distinct plant command once on the unmutated copy. If one of them fails, it prints the last lines of its log and
    exits 2 before any plant is applied.
@@ -97,7 +120,7 @@ rebuilds the products. The baseline builds once per layout the file uses (`so.lo
 itself, so a value in the caller's environment does not matter. A baseline command that fails on the ungrouped
 build says so: if it measures the layout, mark its plants `layout:traced`.
 
-Logs go to `<dir>/logs/` (`so.log`, `baseline-<n>.log`, `<id>.log`, `<id>.so.log`, `<id>.so-restore.log`). The tool writes nothing outside `--dir`.
+Logs go to `<dir>/logs/` (`so.log`, `baseline-<n>.log`, `<id>.log`, `<id>.so.log`, `<id>.so-restore.log`). The tool writes nothing outside `--dir` but the warm copies (above).
 `CARGO_TARGET_DIR` is removed from the commands' environment, so the copy builds into its own `target/`.
 
 ## The plants file
