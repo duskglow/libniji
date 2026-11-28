@@ -3,3 +3,6 @@
 xps-trait-cpuid | csys/src/machine/cpuid.S | perl:s/(niji_machine_cpuid:.*?)movl %ebx, 4\(%r8\)/$1movl %ecx, 4(%r8)/s | cargo test -p niji-boundary --test appendix_a_primitives k_cpu_instructions_requiring_os_support | msg:k_cpu_instructions_requiring_os_support
 # tp.S (exported __errno_location, through spec/symbols.tsv namers): tb_foreign_low_words is selected; an unowned process now gets the block's word.
 xps-export-errno | csys/src/machine/tp.S | perl:s/(niji_machine_errno_location:.*?)je niji_errno_rest/$1jne niji_errno_rest/s | cargo test -p niji-boundary --test tb_foreign_low_words | msg:panicked
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# xps-trait-cpuid: CAUGHT, caught by appendix_a_primitives k_cpu_instructions_requiring_os_support
+# xps-export-errno: CAUGHT, caught by tb_foreign_low_words spare_words_hold_no_heap_cache

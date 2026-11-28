@@ -1,0 +1,11 @@
+{"task": "XTASK-PRECHECK-SKIP-ASM-AFFECTED",
+ "result": "precheck --skip (static,clippy skip stays a hand-back precheck); affected maps .S files in the direct tier: FULL 27 -> 6 of 36; plants 2 of 6 rules caught, 4 product-level plants remain",
+ "branch": "task/xtask-precheck-skip-asm-affected",
+ "head": "b87c9b1be",
+ "jobs": [{"host": "keke", "label": "xtask-precheck-skip-asm-affected-gate"}, {"host": "keke", "label": "xtask-precheck-skip-asm-affected-plants"}],
+ "rulings": [],
+ "informational": ["ops handback-check could call precheck with --skip static,clippy instead of its --only list (liella-ops change, not this repo)",
+                   "trait-method rule generalised beyond sys.rs (also maps call.S, thread_start.S, fpu.S via mathret.rs): same soundness argument, the selection a direct edit of the method gets"],
+ "refused": [],
+ "impact": [{"kind": "tooling", "what": ".S files escalating to FULL in the direct tier (affected --list, 36 files)", "before": 27, "after": 6, "unit": "files", "measured": true},
+            {"kind": "coverage", "what": "setjmp.S direct-tier selection (test targets / conformance programs)", "before": "3 / 0", "after": "171 / 59", "unit": "targets / programs", "measured": true}]}
