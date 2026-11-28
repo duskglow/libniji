@@ -1,0 +1,9 @@
+id = "D-X.180"
+section = "x"
+status = "active"
+story = "PLANTS-WARM-COPY"
+date = "2026-11-28"
+tests = ["xtask/src/plants.rs::a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant", "xtask/src/plants.rs::a_busy_warm_copy_gives_a_cold_copy", "xtask/src/plants.rs::copies_option_is_parsed_and_bounded", "xtask/src/plants.rs::auto_copies_follows_the_ram_limit"]
+body = '''
+**`cargo xtask plants` runs each copy in the role's warm copy, synced by content, unless another run holds it; `--copies auto` also counts CPUs and plants** (PLANTS-WARM-COPY; tooling only, no ABI or behaviour change). The rules are in `docs/plants.md` ("Warm copies") and `xtask/src/plants.rs` (`sync_warm`, `prune_to_cargo_cache`, `take_warm`, `default_warm`, `auto_copies`); this record holds why. Cause: a cold copy (a new directory, no `target/`) paid a full baseline `cargo xtask so`, median 6.8 to 14.5 min a job, about 45% of a plants job (handoff/PIPELINE-TEST-TIME-1127-report.md). A warm copy is trusted only as far as cargo's own freshness check is: before use its `target/` keeps cargo's build cache alone (products, test scratch, test caches and uplifted binaries go), every file whose content differs from the tree is written again with a fresh mtime (newer than any build made from its old text, such as a mutant a killed run left) and paths the tree lacks are deleted, and a dry-run pass must find nothing left to change, else the copy is cold. One run per warm copy (an `flock`); a busy or failing warm copy gives a cold copy, never a red. Verdicts were identical warm and cold on 5 recent stories' plants files on tmpfs and zram (handoff/PLANTS-WARM-COPY.md). `--copies auto`: below 8 CPUs two copies only from 6 plants on (measured warm on 4 CPUs: 6 plants, two copies 1221 s against one 1433 s).
+'''
