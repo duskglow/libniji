@@ -2,7 +2,7 @@
 Current tables, counted from spec/abi by `cargo xtask records-gen` (no count here is written by hand):
 layouts.tsv: 3504 rows, 390 types
 initializers.tsv: 10 rows
-enumerators.tsv: 1414 rows, 104 tags
+enumerators.tsv: 1417 rows, 104 tags
 enum-macros.tsv: 924 rows
 prototypes.tsv: 3798 rows, 159 headers
 chk-prototypes.tsv: 76 rows
@@ -13,7 +13,7 @@ versions.tsv: 4818 versioned symbol rows, 14 libraries, 40 version nodes
 empty-versions.tsv: 3 version definitions no exported symbol carries
 libm-ulps.tsv: 284 rows, 73 functions
 ftm-configs.tsv: 40 configurations
-visibility.tsv: 81306 rows, 240 headers, 14571 names
+visibility.tsv: 81373 rows, 241 headers, 14574 names
 callsites.tsv: 7923 call-site rows, 3799 functions
 noexcept.tsv: 3798 rows
 diagattrs.tsv: 1024 functions
@@ -103,3 +103,11 @@ macro-spellings.tsv TTYDEF_CFLAG, _IFLAG, _LFLAG, _OFLAG: spelled with the <term
 values equal the reference's printed values; whether each is an integer constant per header and configuration is
 the exit status of a probe matrix (pty.h, sgtty.h, sys/ioctl.h, sys/ttydefaults.h, termio.h, termios.h; C89, C17
 strict, POSIX, XOPEN, gnu17, _GNU_SOURCE, C++17). No header text read.
+HEADERS-STAGE2-GAPS-M: visibility.tsv rows for <bits/types.h> (63 `__*_t` typedefs, visible in every configuration
+the header compiles in, and the include-error row for the time64-only configuration) and for pthread.h's
+PTHREAD_MUTEX_FAST_NP, PTHREAD_MUTEX_RECURSIVE_NP and PTHREAD_MUTEX_ERRORCHECK_NP enumerators, from header_probe.py
+and visprobe.py runs on the reference system (glibc 2.39, GCC 13.3, every configuration of ftm-configs.tsv, C and
+C++). enumerators.tsv `anon PTHREAD_MUTEX_ADAPTIVE_NP` rows FAST_NP 0, RECURSIVE_NP 1, ERRORCHECK_NP 2: printed values
+of a black-box probe on the same system (_GNU_SOURCE). diagattrs.tsv `wur` column: attr_probe.py `table` with its `r`
+tests rerun in configuration gnu without fortification (warn_unused_result reported only under _FORTIFY_SOURCE > 0:
+value `fortify`, 147 rows) and with it (always reported: value `1`, 7 rows). No header text read.
