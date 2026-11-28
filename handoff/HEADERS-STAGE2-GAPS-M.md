@@ -1,65 +1,58 @@
-# HEADERS-STAGE2-GAPS-M: handoff (run 1, leg 3 done: every item coded; leg 4 = proof and hand-back)
+# HEADERS-STAGE2-GAPS-M: handoff (run 1 complete; leg 4 = proof and hand-back)
 
-Branch task/headers-stage2-gaps-m, cut from origin/next af6f8acaf, no merge. HEAD acddbdf5c. Role shiki:~/w/sh1
-(stock glibc 2.39, Ubuntu 2.39-0ubuntu8.9: black-box probes of the reference run there). No local cargo: run
-`cargo xtask headers-gen` on the role, then pull the tracked headers back with
-`rsync -rc --include='*/' --include='*.h' --exclude='*' claude@<shiki addr>:w/sh1/libc-include/ ./libc-include/`
-(run it again if `git status libc-include` shows nothing: once it raced a running headers-gen).
-Scratch (local) ~/w/.scratch/HEADERS-STAGE2-GAPS-M/, the same scripts on shiki in ~/work/headers-stage2-gaps-m/,
-outputs in /dev/shm/claude/headers-stage2-gaps-m/. `sh ~/work/headers-stage2-gaps-m/cmp.sh <tag>` reruns probe.py
-and probe2.py on both sides and prints per-item DIFF counts; filter `sed 's/ __USE_TIME_BITS64=1//'` from the
-.use files before counting USE lines (accepted, #8776). visprobe.py = per-configuration visibility of names on stock.
-Hand-back-only notes: notes.txt there (read it: SECURITY-PRIVATE item; B1 now fixes it on libniji's side).
+Branch task/headers-stage2-gaps-m, cut from origin/next af6f8acaf, no merge. Final head: see the report json
+(`handoff/reports/HEADERS-STAGE2-GAPS-M.json`). Role shiki:~/w/sh1 (stock glibc 2.39 for black-box probes).
+Plants: `handoff/HEADERS-STAGE2-GAPS-M-plants.txt`. Report: this page.
 
-## Coordinator notes in force
-* 22:52Z correction to #8823 (owner): B1 is in (done below). Variants raise-then-abort and longjmp-then-abort were
-  NOT probed on 2.41 (leg 1's mmdebstrap on mei was refused; not retried): the rule "a second abort in one process
-  ends it" applies, said in D-1.15 and in the differences row. Say so in the hand-back.
-* Every row: stock 2.39 differs from libniji before changing it; a 2.41-only row is listed, not changed.
+## What the branch does
+* Rows L2-L9, L11-L13 and L15 of CONFIGURE-DIFF's libniji-class table, each matched to stock 2.39 per
+  configuration (black-box probes only), and B1 (#8813 / owner on #8823): an `abort()` reached again in one process
+  skips the SIGABRT handler and ends the process by SIGABRT (D-1.15, differences row; test `s1_2_c_4_1_again`).
+* Leg 4: header_check fragment `spec/tools/header_checks/s13.d/80-stage2-gaps-m.py` (units per item; `problems()`
+  for the L13 warning per combination, L2 warn_unused_result with and without fortification (full compiles: GCC
+  reports unused results after parsing, `-fsyntax-only` shows none) and the L15 SIGTSTP text). Stand-alone
+  `--reference` passes against stock 2.39's headers, so its expectations are stock's. header_check.py and
+  features.py pass `-Wno-cpp` only for flags defining _BSD_SOURCE / _SVID_SOURCE without _DEFAULT_SOURCE.
+  Provenance fragment `spec/abi/provenance.d/HEADERS-STAGE2-GAPS-M.txt` (order 230).
+* Two defects the gate found, fixed: (1) libresolv.so.2 linked niji-rt's abort and so a second copy of the
+  first-abort flag (`cargo xtask so` refuses writable state in libresolv): in the libresolv product `ret::abort` now
+  calls libc.so.6's exported `abort`, and its panic handler writes the message then calls it; libc.so.6's code is
+  unchanged (the other cfg arm is the old function). (2) tools/deb/manifest.tsv rows for include/bits/types.h and
+  include/bits/niji-sigtstp.h (multiarch include dir), without which libc6-dev lacked them.
 
-## Done (commits 70d74b185, ed0a97156, acddbdf5c)
-Leg 2: L3 L4 L5 L6 L8 L9 L13 L15, L11 providers rows, L12 (a)(b)(c). Leg 3:
-* L11: reserved.tsv `emit` for __exp10 and 7 siblings (visibility rows existed; probe = same configs as exp10).
-* L12 remnant: features.h `__NIJI_POSIX_ISOGNU` (GNU mode, only ISO C macros: _POSIX_C_SOURCE, _POSIX_SOURCE,
-  _ATFILE_SOURCE defined) and `__USE_POSIX_IMPLICITLY` widened (ISOGNU, or _REENTRANT raising in GNU mode).
-* L2: attr_probe.py `table` reruns the `r` tests in config gnu (wur_off); wur `fortify` (147) / `1` (7);
-  headers.rs attr_text + fortify_wur, functions.rs redirect_line append ` __NIJI_FWUR`; features.h.in defines it
-  (warn_unused_result when __NIJI_FORTIFY > 0); cdefs `__wur` = __NIJI_FWUR, `__attribute_warn_unused_result__`
-  unconditional (stock probe: same). diagattrs.tsv regenerated on shiki (`--columns wur`).
-* L7: headers/bits/types.h.in (@@emit), 63 typedef rows + include-error row in visibility.tsv, s05 slice row (p1 0),
-  headers-inventory.tsv row now public. Stock's bits/types.h also defines ~57 internal `__*_TYPE` / `_BITS_*_H`
-  macros: NOT shipped (reserved names, no package use seen): report. bits/ list for the report: diff.tsv over 438
-  packages has only bits/types.h (openldap header check, psmisc struct test) differing; libniji had no bits/ dir,
-  so every other bits/ include a probe makes answers alike (stock lacks it too, or not reached). Grep the cdiff
-  rerun's config.logs for `#include <bits/` to list the 45 packages' direct includes.
-* B1: crates/rt/src/fatal.rs `ABORTED` flag (first abort runs the handler; later ones go to the default action),
-  boundary selftest `with_aborting_handler`, test `s1_2_c_4_1_again` (core s01_startup_clauses), record
-  records/decisions/D-1/D-1.15.toml (reserved id), differences row (no compat option, reason in the row).
-* Probes vs stock after leg 3: L2 L3 L4 L6 L7 L8 L9 L11 L13 0 DIFF; L12 only the pre-existing c89/gnu89 +
-  _XOPEN_SOURCE=500 per-name rows (snprintf etc.; no C90+X/Open config in ftm-configs.tsv): REPORT, do not chase.
-  USE lines: recheck after leg 3 with the time64 filter (expect 0 besides those).
+## Proof
+* header_check whole (leg 4, before the two fixes, which touch no header): 0 failed of 26015. Fragment: 0 failed
+  on libniji and on stock (`--reference`).
+* Gate, plants: the jobs named in the hand-back (gate3, plants3 on the final head). gate2 (head e61a8c582) was red
+  only on the manifest tests (fixed in the last commit); the first gate was red on the libresolv build check.
+* CONFIGURE-DIFF rerun (mei, `cdiff.sh` over the 45 packages that differed, this branch's system debs repackaged
+  from the role build with the manifest fix, check-system PASS): differing 220 -> 103 probes; 120 rows gone, every
+  L2-L13, L15 and B1 row among them; the 100 kept are the recorded classes only: R1 fflush/fclose stdin and the
+  derived `_fseeki64` / HAVE_FSEEKO rows, R4 rwlock order, perl Gconvert (D-8.10) and sig_name (D-20.1), fakechroot
+  dlmopen, texinfo EUC-CN, libsigsegv's 2.41 host string, readline's i386 `build32` flavour (25), coreutils
+  `gl_cv_clean_version_stddef` (libniji's answer is the one the probe wants), p11-kit L14. Stock-vs-stock control:
+  2 differing. New rows (3): libunistring `gl_cv_func_pthread_rwlock_good_waitqueue` and its config.h define (R4,
+  which the report lists as noisy on stock in libunistring) and diffutils `am_cv_filesystem_timestamp_resolution`
+  (stock 0.2, libniji 0.1: automake's timing-based file-system probe; not chased, INFORMATIONAL).
+* L7 list: over the 438 packages only `<bits/types.h>` differed (openldap's header check, psmisc's struct
+  user_regs_struct test); in the rerun's config.logs the only direct `<bits/...>` include is `<bits/types.h>`
+  (psmisc). Stock's bits/types.h also defines internal `__*_TYPE` / `_BITS_*_H` macros: not shipped (reserved
+  names, no package use seen).
 
-## Next steps (in order)
-1. Read ~/logs/headers-stage2-gaps-m-lint5.log on shiki (records check, clippy, static on acddbdf5c's tree); fix.
-2. spec/abi/provenance.d/HEADERS-STAGE2-GAPS-M.txt (order: highest existing + 10) for the visibility/enumerators
-   rows added (L9 3+3, L7 64) and diagattrs wur; see an existing fragment for the form.
-3. header_check fragment spec/tools/header_checks/s13.d/80-stage2-gaps-m.py (units per item; L13 warning check in
-   `problems(ctx)`); header_check.py base flags: `-Wno-cpp` only for flags defining _BSD_SOURCE or _SVID_SOURCE
-   without _DEFAULT_SOURCE (features.py line 139 does the same for the reference). Then header_check whole: 0 failed.
-4. Plants (docs/plants.md form, handoff/HEADERS-STAGE2-GAPS-M-plants.txt): fatal.rs swap guard (msg
-   s1_2_c_4_1_again), features.h.in ISOGNU block, cdefs __wur, attr_text fortify branch (header_check msg).
-5. Gate (`cargo xtask affected --run`, label headers-stage2-gaps-m-gate) + plants job; `cargo xtask test` is not
-   needed unless a start-up path changed (abort is not start-up).
-6. Debs: tools/deb/ (build.sh, system.sh); cdiff.sh over the 45 packages (diff.tsv first column) on the Skylake-SP
-   host (mei), RAM run dir /mnt/zram/claude/headers-stage2-gaps-m/; classify libsigsegv as 2.41-vs-2.39.
-7. precheck, report json, handback-check, hand-back (with SECURITY-PRIVATE from notes.txt, updated: libniji's
-   B1 change makes the re-entering handler end by SIGABRT).
+## Decisions in force
+D-1.15 (B1). Coordinator rulings #8813, #8814 (L14 not a gap), #8815, #8776 (`__USE_TIME_BITS64`), owner on #8823.
 
-## Refused (report in the hand-back)
-Leg 1: `mmdebstrap` trixie throw-away chroot on mei to probe 2.41's nested-abort rule (the Bash call that wrote
-~/work/headers-stage2-gaps-m/t241.sh and abrt.c to mei and started `~/bin/jobrun headers-stage2-gaps-m-t241 test --
-sh ~/work/headers-stage2-gaps-m/t241.sh`): denied by the auto-mode classifier. Not retried.
+## Open / not done
+* B1 variants raise-then-abort and longjmp-then-abort were not probed on 2.41 (leg 1's mmdebstrap chroot on mei was
+  refused, not retried); D-1.15 and the differences row state the rule "a second abort in one process ends it".
+* L12: c89/gnu89 + `_XOPEN_SOURCE=500` per-name rows (snprintf etc.) remain: ftm-configs.tsv has no C90+X/Open
+  configuration. Not chased.
+* libm.so.6's internal-error path still runs niji-rt's own abort copy (its own first-abort flag); only reachable
+  from a libm bug. Not changed.
 
-## Jobs so far (all on shiki; none is a gate)
-headers-stage2-gaps-m-gen3a, -wur3b, -gen3c (probes), -lint3 (red: duplicate test name, fixed), -lint4 (red:
-inventory, fixed), -lint5 (running at hand-over).
+## Not to redo
+Probes per item (leg 2-3: `cmp.sh` on shiki, 0 DIFF), the debs (`/dev/shm/claude/headers-stage2-gaps-m/debs2` on
+shiki), the cdiff rerun (`/mnt/zram/claude/headers-stage2-gaps-m/cdiff1` on mei).
+
+## Next step
+None for this story: land through the train.

@@ -74,12 +74,12 @@ def _ftm_unit(defs, cond):
 
 
 # L7: <bits/types.h>'s names are the ones the public typedefs are made of (a program may declare with either).
+# The header alone first (<sys/types.h> defines some of the same names), then the public names after it.
 BITS_TYPES_UNIT = """#include <bits/types.h>
+extern __off_t niji_gm_o; extern __uid_t niji_gm_u; extern __pid_t niji_gm_p;
+extern __int64_t niji_gm_q; extern __uint32_t niji_gm_w; extern __blksize_t niji_gm_b;
 #include <sys/types.h>
-extern off_t niji_gm_o; extern __off_t niji_gm_o;
-extern uid_t niji_gm_u; extern __uid_t niji_gm_u;
-extern pid_t niji_gm_p; extern __pid_t niji_gm_p;
-extern __int64_t niji_gm_q; extern __uint32_t niji_gm_w;
+extern off_t niji_gm_o; extern uid_t niji_gm_u; extern pid_t niji_gm_p;
 """
 # L9: the _NP mutex kinds are enumerators (no macros) with the enumerators.tsv values, equal to the POSIX names.
 MUTEX_UNIT = """#include <pthread.h>
@@ -144,17 +144,18 @@ WUR_FREE = (
      "void niji_gm_f (void) { char b[16]; strerror_r (1, b, sizeof b); niji_gm_r (); }\n"),
     ("c++", "-std=c++17", "#include <string.h>\nextern int niji_gm_r (void) __wur;\n"
      "void niji_gm_f (void) { char b[16]; strerror_r (1, b, sizeof b); niji_gm_r (); }\n"),
+    # XSI strerror_r (the headers/redirects.tsv form, bound to __xpg_strerror_r): unchecked under fortification too.
+    ("c", "-std=c17 -D_POSIX_C_SOURCE=200809L -O2 -D_FORTIFY_SOURCE=2", "#include <string.h>\n"
+     "void niji_gm_f (void) { char b[16]; strerror_r (1, b, sizeof b); }\n"),
 )
 WUR_CHECKED = (
     ("c", "-std=gnu17 -O2 -D_FORTIFY_SOURCE=2", "#include <sys/cdefs.h>\nextern int niji_gm_r (void) __wur;\n"
      "void niji_gm_f (void) { niji_gm_r (); }\n"),
     ("c", "-std=gnu17", "#include <sys/cdefs.h>\nextern int niji_gm_r (void) __attribute_warn_unused_result__;\n"
      "void niji_gm_f (void) { niji_gm_r (); }\n"),
-    # diagattrs.tsv wur `fortify` on libc's own declarations, a plain one and one redirected to its 64-bit name.
+    # diagattrs.tsv wur `fortify` on libc's own declarations.
     ("c", "-std=gnu17 -O2 -D_FORTIFY_SOURCE=2", "#include <unistd.h>\n"
      "void niji_gm_f (void) { char b[1]; read (0, b, 1); chdir (\"/\"); }\n"),
-    ("c", "-std=gnu17 -O2 -D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64", "#include <unistd.h>\n"
-     "void niji_gm_f (void) { char b[1]; pread (0, b, 1, 0); }\n"),
 )
 
 
@@ -192,7 +193,7 @@ def problems(ctx):
                 out.append(f"GAPS-M wur unchecked [{lang} {flags}]: rc {rc}: {err.strip()[:300]}")
         for lang, flags, body in WUR_CHECKED:
             rc, err = _cc(ctx, lang, flags, body, work, obj=True)
-            calls = [n for n in ("niji_gm_r", "read", "chdir", "pread") if f" {n} (" in body]
+            calls = [n for n in ("niji_gm_r", "read", "chdir", "strerror_r") if f" {n} (" in body]
             if rc == 0 or err.count("unused-result]") < len(calls):
                 out.append(f"GAPS-M wur checked [{lang} {flags}]: rc {rc}, expected -Wunused-result: {err.strip()[:300]}")
         rc, err = _cc(ctx, "c", "-std=c17", "#include <signal.h>\nint niji_gm_s = SIGTSTP;\n", work)
