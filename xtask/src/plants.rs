@@ -1769,6 +1769,11 @@ mod tests {
         let out = run(&warm_cfg(&base.join("run-2")));
         assert_eq!((out.verdicts, out.code), (vec![("p1".to_string(), Verdict::Caught)], EXIT_OK));
         assert_eq!(fs::read_to_string(&left).unwrap(), "answer=42\nother=7\nother=7\n");
+        // A copy the sync cannot bring to the tree is not used: the tree loses fuzz/, which the copy keeps around its
+        // protected fuzz/target.
+        fs::remove_dir_all(src.join("fuzz")).unwrap();
+        let e = sync_warm(&src, &copy).err().expect("a copy that still differs from the tree is refused");
+        assert!(e.contains("still differs") || e.contains("rsync failed"), "{e}");
         let _ = fs::remove_dir_all(&base);
     }
 
