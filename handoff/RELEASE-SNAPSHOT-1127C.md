@@ -87,6 +87,8 @@ sanitizer_platform_limits_posix.cpp compiles (clang and g++). Step 8 as 27.2. No
   `keke.mgmt.internal` empty; mei resolves) from about 00:05Z to at least 01:06Z on 11-28 (flag #8824, no answer
   yet). It holds the role, the staged debs and the keke job logs: g14b-2's error and the precheck were not read or
   run in leg 3. The staged snapshot was checked in leg 2 (9 OK).
+* Evidence jobs with rc != 0 by design (not in JOBS, as 1127B): keke g14b-2 and g14bstock-1 (the bootstrap stops),
+  hdrdiff-1 (removals present), heapnode-1 (#21 only); mei yb9-1 (sched_attr), yb10-1 (ftp-tables order).
 * SUPERSEDED: hc-1 (multiarch include dir not merged: harness), g14b-1 (driver flags: `-Werror=format-security`,
   identical on stock).
 
