@@ -23,8 +23,10 @@ Plants: `handoff/HEADERS-STAGE2-GAPS-M-plants.txt`. Report: this page.
 ## Proof
 * header_check whole (leg 4, before the two fixes, which touch no header): 0 failed of 26015. Fragment: 0 failed
   on libniji and on stock (`--reference`).
-* Gate, plants: the jobs named in the hand-back (gate3, plants3 on the final head). gate2 (head e61a8c582) was red
-  only on the manifest tests (fixed in the last commit); the first gate was red on the libresolv build check.
+* Gate, plants on the final head: shiki `headers-stage2-gaps-m-gate4`, `-plants4` (19 plants, one equivalent with
+  its reason). Earlier: gate3 (head e7366dc5d) green; plants3 there 17 CAUGHT, 2 SURVIVED (the <bits/types.h> unit
+  and the fortified-redirect case were weak: fixed in the last commit, m-redirect-wur now equivalent); gate2 (head
+  e61a8c582) red only on the deb manifest tests; the first gate red on the libresolv build check.
 * CONFIGURE-DIFF rerun (mei, `cdiff.sh` over the 45 packages that differed, this branch's system debs repackaged
   from the role build with the manifest fix, check-system PASS): differing 220 -> 103 probes; 120 rows gone, every
   L2-L13, L15 and B1 row among them; the 100 kept are the recorded classes only: R1 fflush/fclose stdin and the
