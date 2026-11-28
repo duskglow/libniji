@@ -54,7 +54,7 @@ pub(crate) enum Entry {
 }
 
 impl Entry {
-    fn path(&self) -> &str {
+    pub(crate) fn path(&self) -> &str {
         match self {
             Entry::File { path, .. } | Entry::Link { path, .. } => path,
         }
@@ -189,7 +189,7 @@ pub(crate) fn toolchain(root: &Path) -> Vec<String> {
 
 /// The products below `dir` (not `bench/`, not the manifest, not this module's temporary copies), sorted by path,
 /// files without their hash (filled by [`hash_entries`]).
-fn listing(dir: &Path) -> Result<Vec<Entry>, String> {
+pub(crate) fn listing(dir: &Path) -> Result<Vec<Entry>, String> {
     let mut out = Vec::new();
     let mut stack = vec![PathBuf::new()];
     while let Some(rel) = stack.pop() {
@@ -219,7 +219,7 @@ fn listing(dir: &Path) -> Result<Vec<Entry>, String> {
 }
 
 /// `entries` with each file's sha256, read from `dir` (`rename` maps a path to the file holding its bytes).
-fn hash_entries(dir: &Path, entries: Vec<Entry>, rename: impl Fn(&str) -> String) -> Result<Vec<Entry>, String> {
+pub(crate) fn hash_entries(dir: &Path, entries: Vec<Entry>, rename: impl Fn(&str) -> String) -> Result<Vec<Entry>, String> {
     let files: Vec<String> = entries.iter().filter_map(|e| if let Entry::File { path, .. } = e { Some(rename(path)) } else { None }).collect();
     let mut hashes = sha256_files(dir, &files)?.into_iter();
     Ok(entries
