@@ -45,4 +45,19 @@ debs and expects 0 libniji-class rows in `diff.tsv` beyond the recorded differen
 * Devuan-versioned Aqours packages (`...devuan1`) are not on the Debian mirror: trixie's version runs instead
   (`status.txt` `version=trixie`).
 * The stock side is trixie's libc (2.41); differences that come from 2.41 versus libniji's 2.39 base are classed
-  as such in the report.
+  as such in the report. With `-s` the tool classes them itself (below).
+
+## Two stock sides (`-s`, RELEASE-SNAPSHOT-1127C)
+
+    sh cdiff.sh ... -s <dir with stock 2.39's libc6, libc-bin, libc6-dev, libc-dev-bin .debs> ... <pkglist>
+
+The Ubuntu noble 2.39 debs (`apt-get download libc6=<v> libc-bin=<v> libc6-dev=<v> libc-dev-bin=<v>` on a noble
+host; the version goes in the report) are installed over libniji's after the niji run, in the same chroot, and the
+configure step runs a fourth time as `s239`. The niji side is unchanged by `-s` (it still runs right after stock
+2.41), so a two-side run's niji answers compare with a one-side run's. The s239 side runs only when that swap
+succeeded with all four packages at a `2.39-0ubuntu` version (`status.txt`: `swap239`, else `s239 SKIPPED`).
+`diff.tsv` then has two more columns, `stock239` and `vs`: `libniji-vs-both` (libniji differs from 2.41 and from
+2.39: libniji's own difference), `2.41-only` (libniji answers as 2.39: a 2.41 change), `no-s239` (not classed).
+`as241.tsv` lists the probes where libniji answers as 2.41 and 2.39 differs (2.41 behaviour libniji already has,
+e.g. the recorded `sched_attr` family). `summary.txt`'s last line counts each class. There is no stock-vs-stock
+control for the 2.39 side itself; the stockA/stockB control still filters non-deterministic probes.

@@ -71,4 +71,16 @@ dpkg-query -W libc6 libc6-dev gcc g++ debhelper > "$O/stock-versions.txt" 2>&1
 dpkg -i --force-downgrade --force-depends /tmp/y/debs/*.deb > "$O/swap.log" 2>&1
 st "swap rc=$? $(dpkg-query -W -f '${Package}=${Version} ' libc6 libc-bin libc6-dev libc-dev-bin 2>&1)"
 side niji
+# Second stock side (cdiff.sh -s): stock 2.39 (Ubuntu noble's libc6, libc-bin, libc6-dev, libc-dev-bin from
+# /tmp/y/debs239) installed over libniji's, configure again as "s239". It runs last so the niji side is measured
+# exactly as without -s. It runs only when the swap succeeded and left all four packages at 2.39-0ubuntu
+# versions; otherwise status.txt says why and there is no s239 side (diff.py then classes nothing as 2.41-only).
+if ls /tmp/y/debs239/*.deb > /dev/null 2>&1; then
+    dpkg -i --force-downgrade --force-depends --force-breaks /tmp/y/debs239/*.deb > "$O/swap239.log" 2>&1
+    r=$?
+    v=$(dpkg-query -W -f '${Package}=${Version} ' libc6 libc-bin libc6-dev libc-dev-bin 2>&1)
+    st "swap239 rc=$r $v"
+    if [ $r -eq 0 ] && [ "$(echo "$v" | grep -o '=2\.39-0ubuntu' | wc -l)" -eq 4 ]; then side s239
+    else st "s239 SKIPPED (swap rc=$r or versions not stock 2.39)"; fi
+fi
 st "done secs=$(( $(date +%s) - T0 ))"

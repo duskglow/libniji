@@ -1,0 +1,201 @@
+{
+ "task": "RELEASE-SNAPSHOT-1127C",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at af6f8acaf2fb8666c108a71f01a76f4a804aa356 (serial 2026-11-27.3, staged on keke); steps 4-6 pass (GAPS-K/-L 218 header units ok on packaged headers, yb11 900/900 SAME, dupval 0, fixincl 0, libstdc++ configure C99 math C++98/C++11 yes); configure-diff partial (266 of 438) L1 and L10 gone, no new row; g14b-2 first error not read (this session cannot resolve keke)",
+ "branch": "task/release-snapshot-1127c",
+ "head": "fa594477b",
+ "jobs": [
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-smoke-n1-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-debs-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-gate-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-plants-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-hc-2"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-g14m-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-units-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-units2-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-addstock-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-kcmp-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-stage-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-install-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-pkgdiff-1"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-gaimass-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-yb11-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cxxp-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-dupval-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-dupval-2"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-gi-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-g14-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-ybuild-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cmp13a-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cmp13b-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-tails-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cdiffg14-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cdpart-1"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cdpart-2"
+  },
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cdiff-1"
+  }
+ ],
+ "evidence_jobs_rc_nonzero_by_design": [
+  "keke:release-snapshot-1127c-g14b-2",
+  "keke:release-snapshot-1127c-g14bstock-1",
+  "keke:release-snapshot-1127c-hdrdiff-1",
+  "keke:release-snapshot-1127c-heapnode-1",
+  "mei:release-snapshot-1127c-yb9-1",
+  "mei:release-snapshot-1127c-yb10-1"
+ ],
+ "evidence_why": {
+  "g14b-2": "gcc-14 bootstrap stop being reported (non-blocking)",
+  "g14bstock-1": "stock control of the bootstrap stop",
+  "hdrdiff-1": "rc 1 = removals present (as 27.2)",
+  "heapnode-1": "only #21 fails (as 27.2)",
+  "yb9-1": "diff=20 = recorded sched_attr family vs 2.39",
+  "yb10-1": "diff=6 = ftp-tables definition order (as 27.2)"
+ },
+ "long_jobs": [
+  {
+   "host": "mei",
+   "label": "release-snapshot-1127c-cdiff-1",
+   "note": "running at hand-back; the full two-side result is the coordinator's to collect"
+  }
+ ],
+ "superseded": [
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-hc-1",
+   "why": "multiarch include dir not merged (harness)"
+  },
+  {
+   "host": "keke",
+   "label": "release-snapshot-1127c-g14b-1",
+   "why": "driver flags: -Werror=format-security, identical on stock"
+  }
+ ],
+ "gate": {
+  "affected": "gate-1 rc 0 (clippy -D warnings all-features, xtask clippy, static, records check, affected); plants-1 6 CAUGHT / 0 SURVIVED; precheck by ops handback-check on keke n1 after sync: ok",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "keke does not resolve from this session ~00:05Z to at least 01:16Z on 11-28 (flag #8824); ops tools (sync_role, handback-check) still reach it; g14b-2's first error not read in leg 3",
+  "g14b-2 (gcc-14 bootstrap, hardening=-format) stopped after 84 s, rc 2, first real error not read (non-blocking)",
+  "configure-diff partial 266/438: TWO-SIDE 2.41-only=2 (libsigsegv sv_cv_host, libsodium CATCHABLE_ABRT) libniji-vs-both=67 as241=1 (diffutils timestamp resolution); 27.2's rows minus 9 (L1 gcc-14 x8, L10 google-perftools), no new row",
+  "dupval-2 6532 -> 6517: the 5 TTYDEF_* rows defined once since GAPS-K (its handoff names only TTYDEF_SPEED)",
+  "1127B's osockaddr ruling resolved by GAPS-K (protocols/timed.h no longer declares it; addstock osockaddr 0)",
+  "leg 2: two ssh calls chaining cd before a detached start hung the local ssh (harness); remote jobs ran on"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "snapshot 2026-11-27.3 staged for Yohane's gcc-14 retry (libstdc++ C99 math in C++)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "gcc-14 libstdc++-v3 configure rows differing from stock (27.2 -> this head)",
+   "before": 10,
+   "after": 2,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "configure-diff rows on the first 266 packages (27.2 -> this head)",
+   "before": 78,
+   "after": 69,
+   "unit": "rows",
+   "measured": true
+  }
+ ],
+ "improvement": "a role host vanishing from DNS mid-run has no ops signal; hostwatch could mark it unavailable and tell the running story",
+ "next_step": "coordinator: cut 2026-11-27.3 from keke ~/release-staging/snapshot-20261127.3/ once keke is back, tell Yohane to retry gcc-14; collect cdiff-1 on mei",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1127C.md"
+}

@@ -14,7 +14,7 @@ g = collections.OrderedDict()
 with open(run + "/diff.tsv") as f:
     next(f)
     for line in f:
-        pkg, kl, key, s, n = line.rstrip("\n").split("\t")
+        pkg, kl, key, s, n = line.rstrip("\n").split("\t")[:5]
         kind, rest = key.split(":", 1)
         if not allk and kind in ("h", "acout"):
             continue
