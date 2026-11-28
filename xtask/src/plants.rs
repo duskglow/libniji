@@ -729,9 +729,21 @@ fn run_build_tag() -> String {
     format!("plants-{}", std::process::id())
 }
 
+/// PLANTS-WARM-COPY-2: the build tag of warm copy `k` (from 0), the same in every run that uses that copy. The tag is a
+/// cargo input of the crates that carry it (`niji-boundary`, `niji-ld`) and of the loader-side builds (`ld.so`,
+/// `ldconfig`, `localedef`), so a tag new in every run ([`run_build_tag`]) rebuilt them, and everything built on them,
+/// in every warm copy's baseline whatever the tree held. With one tag per copy cargo's own freshness check decides, as
+/// it does for every other crate of a warm copy and for every mutant of one run (which share one tag): a file the sync
+/// or a restore wrote has a fresh mtime, so what was built from its old text rebuilds. Both products of one build
+/// still carry one tag (the ld.so start-up check). A cold copy keeps the run's tag.
+fn warm_build_tag(k: usize) -> String {
+    format!("plants-warm-{}", k + 1)
+}
+
 /// Run `argv` (or `sh -c <cmd>`) in `cwd` under `timeout`, its output into `log`, with `NIJI_LAYOUT_TRACE` set
-/// for `layout` (a product build, and a command that builds the products itself, get the plant's layout); the exit code.
-fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout) -> Result<i32, String> {
+/// for `layout` (a product build, and a command that builds the products itself, get the plant's layout) and the copy's
+/// build `tag` ([`run_build_tag`], [`warm_build_tag`]); the exit code.
+fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout, tag: &str) -> Result<i32, String> {
     let file = fs::File::create(log).map_err(|e| format!("cannot create {}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
     // The child leads its own process group (timeout(1) makes the same group), so one group signal reaches every
@@ -744,7 +756,7 @@ fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: cra
         // A target directory from the environment would build (and test) outside the copy.
         .env_remove("CARGO_TARGET_DIR")
         .env(crate::hotlists::TRACE_ENV, layout_env(layout))
-        .env(crate::so::PLANTS_TAG_ENV, run_build_tag())
+        .env(crate::so::PLANTS_TAG_ENV, tag)
         .stdin(Stdio::null())
         .stdout(file)
         .stderr(err)
@@ -1285,6 +1297,8 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         }
     }
     let copy = warm.as_ref().map_or_else(|| cold.clone(), |w| w.path.clone());
+    let tag = if warm.is_some() { warm_build_tag(k) } else { run_build_tag() };
+    println!("{pre} build tag {tag} ({})", if warm.is_some() { "this warm copy's, the same every run" } else { "this run's" });
     if warm.is_none() {
         // The source only: `target/` holds deliberately unreadable test files and stale builds.
         let mut rsync = Command::new("rsync");
@@ -1349,7 +1363,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         let build = name.starts_with("so");
         let limit = if build { cfg.prepare_timeout } else { cfg.timeout };
         let start = Instant::now();
-        match run_logged(&copy, argv, &log, limit, *layout) {
+        match run_logged(&copy, argv, &log, limit, *layout, &tag) {
             Ok(0) if build => {
                 held = *layout;
                 println!("{pre} {name} ok ({}; layout {}, NIJI_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
@@ -1393,7 +1407,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         if restore {
             let log = logs.join(format!("{}.so-restore.log", p.id));
             let start = Instant::now();
-            match run_logged(&copy, &cfg.prepare, &log, cfg.prepare_timeout, restore_layout) {
+            match run_logged(&copy, &cfg.prepare, &log, cfg.prepare_timeout, restore_layout, &tag) {
                 Ok(0) => {
                     products_hold_mutant = false;
                     held = restore_layout;
@@ -1436,7 +1450,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
             products_hold_mutant = true;
             let so_log = logs.join(format!("{}.so.log", p.id));
             let start = Instant::now();
-            built = run_logged(&copy, &cfg.prepare, &so_log, cfg.prepare_timeout, layout);
+            built = run_logged(&copy, &cfg.prepare, &so_log, cfg.prepare_timeout, layout, &tag);
             held = layout;
             build = format!("the products, rebuilt with the mutant, layout {}, in {:.0}s (log {})", layout_name(layout), start.elapsed().as_secs_f64(), so_log.display());
             if !matches!(built, Ok(0)) {
@@ -1446,7 +1460,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
             }
         }
         let build_timed_out = products && matches!(built, Ok(TIMED_OUT));
-        let rc = if matches!(built, Ok(0)) { run_logged(&copy, &sh(&p.cmd), &log, cfg.timeout, layout) } else { built };
+        let rc = if matches!(built, Ok(0)) { run_logged(&copy, &sh(&p.cmd), &log, cfg.timeout, layout, &tag) } else { built };
         // Restore by writing (a fresh mtime) before anything else can go wrong.
         if let Err(e) = write_fresh(&file, &original) {
             println!("{pre} {}: ERROR: restore: {e}; stopping (the copy holds the mutant)", p.id);
@@ -1610,6 +1624,31 @@ mod tests {
         assert!(run_build_tag().starts_with("plants-") && run_build_tag().len() > "plants-".len());
         let cmds = fs::read_to_string(dir.join("src/cmds.txt")).unwrap();
         assert!(cmds.lines().all(|l| l == format!("cmd={}", tags.iter().next().unwrap())), "{cmds:?}");
+        // PLANTS-WARM-COPY-2: in a warm copy every build and command of every run gets that copy's one tag, and
+        // another copy gets another; never the run's tag (new each run: the tagged crates would rebuild every run).
+        // The record is kept outside the copies: the sync deletes what the tree lacks.
+        let base = src.parent().unwrap().to_path_buf();
+        let record = base.join("warm-tags.txt");
+        let warm_cfg = |dir: &Path| {
+            let mut c = Config { warm: Some(base.join("warm")), copies: 2, ..config(&src, dir, &plants) };
+            c.prepare = sh(&format!("cp src/value.txt product.txt && echo build $(basename \"$PWD\") ${} >> {}", crate::so::PLANTS_TAG_ENV, record.display()));
+            c.uses_products = |_, ps| vec![true; ps.len()];
+            c
+        };
+        for (n, dir) in [base.join("w1"), base.join("w2")].iter().enumerate() {
+            let out = run(&warm_cfg(dir));
+            assert_eq!(out.verdicts, vec![("pr".into(), Verdict::Caught), ("p2".into(), Verdict::Caught)], "warm run {n}");
+        }
+        let lines = fs::read_to_string(&record).unwrap();
+        for k in [0, 1] {
+            let copy = format!("build copy-{} ", k + 1);
+            let tags: Vec<&str> = lines.lines().filter_map(|l| l.strip_prefix(copy.as_str())).collect();
+            assert!(tags.len() >= 4, "the baseline and the mutant of two runs built in copy {k}: {lines:?}");
+            assert!(tags.iter().all(|t| *t == warm_build_tag(k)), "copy {k}: {lines:?}");
+        }
+        assert_eq!(lines.lines().count(), lines.lines().filter(|l| l.starts_with("build copy-")).count(), "every build in a warm copy: {lines:?}");
+        assert_ne!(warm_build_tag(0), warm_build_tag(1));
+        assert!(!warm_build_tag(0).contains(&std::process::id().to_string()));
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 
@@ -2075,7 +2114,7 @@ mod tests {
         let pidfile = dir.join("grandchild.pid");
         let log = dir.join("step.log");
         let cmd = format!("(trap '' TERM; exec sleep 300) & echo $! > {}; wait", pidfile.display());
-        let rc = run_logged(&dir, &sh(&cmd), &log, 1, crate::hotlists::Layout::Ungrouped).unwrap();
+        let rc = run_logged(&dir, &sh(&cmd), &log, 1, crate::hotlists::Layout::Ungrouped, &run_build_tag()).unwrap();
         assert_eq!(rc, TIMED_OUT);
         let pid = fs::read_to_string(&pidfile).unwrap().trim().to_string();
         let alive = |pid: &str| fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|st| !st.rsplit(')').next().unwrap_or("").trim_start().starts_with('Z'));

@@ -51,7 +51,8 @@ copy `k` of a run uses the role's **warm copy** `<warm>/copy-<k>` instead, kept 
   old text, and a path the tree lacks is deleted. A second `rsync --dry-run` must then find nothing to change. Any
   failure here makes the copy cold instead. The run prints `warm copy <tree> -> <copy> (synced by content ...)`.
 - So a warm copy holds what a cold copy holds plus what cargo itself judges fresh by its mtime checks; the verdicts
-  are those of a cold run (measured: handoff/PLANTS-WARM-COPY.md).
+  are those of a cold run (measured: handoff/PLANTS-WARM-COPY.md, handoff/PLANTS-WARM-COPY-2.md). Its build tag is
+  fixed per copy (step 4), so the products' tagged crates are part of what cargo judges fresh.
 
 ## What it does
 
@@ -66,7 +67,10 @@ copy `k` of a run uses the role's **warm copy** `<warm>/copy-<k>` instead, kept 
 4. For each plant: it writes the mutated file (a fresh mtime, so cargo rebuilds), runs the command with `sh -c` in the
    copy (under `timeout`, default 600 s, the project's per-plant limit), then restores the file by writing it again (again a fresh mtime).
    Every command it runs in the copy (the product build, the baseline commands, each plant's command) has
-   `NIJI_PLANTS_BUILD_TAG=plants-<pid>` in its environment, one value for the whole run. `cargo xtask so` uses it as the
+   `NIJI_PLANTS_BUILD_TAG` in its environment, one value for the copy: `plants-<pid>` in a cold copy (one value for
+   the whole run), `plants-warm-<k>` in warm copy `k` (the same in every run, so the crates that carry the tag and
+   the loader-side builds stay in its cargo cache from run to run and rebuild only when cargo's freshness check says
+   so; PLANTS-WARM-COPY-2). The run prints `build tag <tag>`. `cargo xtask so` uses it as the
    products' build tag instead of the hash of the sources, so a mutant outside `niji-boundary` and `niji-ld` does not
    rebuild them in every product target directory (the hash changes with every mutant). Products built outside a
    plants run keep the hash tag. `cargo xtask so` also prints a `step: so/<phase> <seconds>s` line per phase.

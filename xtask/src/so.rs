@@ -494,6 +494,7 @@ const LIBC_PRIVATE: &[&str] = &[
 /// carry it (`niji-boundary`, `niji-ld`), so a changing hash rebuilt boundary (135k lines) in every product target
 /// directory for a mutant that did not touch it. Products outside a plants copy never see the variable: they keep the
 /// hash. The ld.so start-up check (D-27.22) is unchanged: both products of one plants build carry the same tag.
+/// PLANTS-WARM-COPY-2: in a warm plants copy the tag is fixed per copy across runs (`plants::warm_build_tag`).
 fn build_tag(root: &Path) -> String {
     tag_or_hash(root, std::env::var(PLANTS_TAG_ENV).ok().as_deref())
 }
