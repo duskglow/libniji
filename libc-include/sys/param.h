@@ -66,6 +66,14 @@ typedef union pthread_attr_t pthread_attr_t;
 # define XATTR_NAME_MAX 255
 # define XATTR_SIZE_MAX 65536
 #endif
+#if __NIJI_POSIX < 1
+# ifndef LINK_MAX
+#  define LINK_MAX 127
+# endif
+# ifndef NR_OPEN
+#  define NR_OPEN 1024
+# endif
+#endif
 
 #if 1
 # ifndef NULL

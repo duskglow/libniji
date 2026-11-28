@@ -209,6 +209,10 @@ TYPES = [
  ("fpos64_t", "fpos64_t"), ("struct termio", "struct termio"), ("CTL_MSG", "CTL_MSG"),
  ("CTL_RESPONSE", "CTL_RESPONSE"),
  *[(f"struct {t}", f"struct {t}") for t in ("osockaddr", "whod", "whoent", "outmp", "tsp", "rip", "netinfo")],
+ # HEADERS-STAGE2-GAPS-O: the RFC 3678 multicast source-filter requests and the IP options structure of
+ # <netinet/in.h>, and the IP timestamp option of <netinet/ip.h> (gcc-14's libgo copies their sizes).
+ *[(f"struct {t}", f"struct {t}") for t in ("group_req", "group_source_req", "group_filter", "ip_msfilter",
+                                            "ip_mreq_source", "ip_opts", "timestamp")],
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).

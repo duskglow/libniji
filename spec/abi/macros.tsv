@@ -20,6 +20,7 @@ ABMON_8	langinfo.h	int	131093
 ABMON_9	langinfo.h	int	131094
 ABORT	arpa/telnet.h	int	238
 ABORTED_COMMAND	scsi/scsi.h	int	11
+AC	netinet/if_tr.h	int	16
 ACCESSPERMS	ftw.h	int	511
 ACCOUNTING	lastlog.h	int	9
 ACK	arpa/tftp.h	int	4
@@ -237,6 +238,9 @@ ARPOP_REPLY	net/if_arp.h	int	2
 ARPOP_REQUEST	net/if_arp.h	int	1
 ARPOP_RREPLY	net/if_arp.h	int	4
 ARPOP_RREQUEST	net/if_arp.h	int	3
+ASH_CHANNEL_ANY	netash/ash.h	int	0
+ASH_CHANNEL_CONTROL	netash/ash.h	int	1
+ASH_CHANNEL_REALTIME	netash/ash.h	int	2
 ATF_COM	net/if_arp.h	int	2
 ATF_DONTPUB	net/if_arp.h	int	64
 ATF_MAGIC	net/if_arp.h	int	128
@@ -244,6 +248,9 @@ ATF_NETMASK	net/if_arp.h	int	32
 ATF_PERM	net/if_arp.h	int	4
 ATF_PUBL	net/if_arp.h	int	8
 ATF_USETRAILERS	net/if_arp.h	int	16
+ATPORT_FIRST	netatalk/at.h	int	1
+ATPORT_LAST	netatalk/at.h	int	254
+ATPORT_RESERVED	netatalk/at.h	int	128
 AT_BASE	elf.h	int	7
 AT_BASE_PLATFORM	elf.h	int	24
 AT_CLKTCK	elf.h	int	17
@@ -323,6 +330,7 @@ AX25_DIGI_XBAND	netax25/ax25.h	int	2
 AX25_EXTSEQ	netax25/ax25.h	int	7
 AX25_IAMDIGI	netax25/ax25.h	int	12
 AX25_IDLE	netax25/ax25.h	int	9
+AX25_IPMAXQUEUE	netax25/ax25.h	int	11
 AX25_KILL	netax25/ax25.h	int	99
 AX25_MAX_DIGIS	netax25/ax25.h	int	8
 AX25_MAX_VALUES	netax25/ax25.h	int	20
@@ -604,6 +612,8 @@ DAY_4	langinfo.h	int	131082
 DAY_5	langinfo.h	int	131083
 DAY_6	langinfo.h	int	131084
 DAY_7	langinfo.h	int	131085
+DDP_MAXHOPS	netatalk/at.h	int	15
+DDP_MAXSZ	netatalk/at.h	int	587
 DEAD_PROCESS	lastlog.h	int	8
 DECIMAL_POINT	langinfo.h	int	65536
 DEFFILEMODE	ftw.h	int	438
@@ -1645,6 +1655,7 @@ EXTB	pty.h	int	15
 EXTENDED_EXTENDED_IDENTIFY	scsi/scsi.h	int	2
 EXTENDED_MESSAGE	scsi/scsi.h	int	1
 EXTENDED_MODIFY_DATA_POINTER	scsi/scsi.h	int	0
+EXTENDED_SAP	netinet/if_tr.h	int	170
 EXTENDED_SDTR	scsi/scsi.h	int	1
 EXTENDED_WDTR	scsi/scsi.h	int	3
 EXTPROC	pty.h	int	65536
@@ -1859,6 +1870,12 @@ FSPICK_CLOEXEC	sys/mount.h	int	1
 FSPICK_EMPTY_PATH	sys/mount.h	int	8
 FSPICK_NO_AUTOMOUNT	sys/mount.h	int	4
 FSPICK_SYMLINK_NOFOLLOW	sys/mount.h	int	2
+FSTAB	fstab.h	char[11]	"/etc/fstab"
+FSTAB_RO	fstab.h	char[3]	"ro"
+FSTAB_RQ	fstab.h	char[3]	"rq"
+FSTAB_RW	fstab.h	char[3]	"rw"
+FSTAB_SW	fstab.h	char[3]	"sw"
+FSTAB_XX	fstab.h	char[3]	"xx"
 FS_BASE	sys/reg.h	int	21
 FTS_AGAIN	fts.h	int	1
 FTS_COMFOLLOW	fts.h	int	1
@@ -2027,6 +2044,7 @@ GROUPING	langinfo.h	int	65538
 GRPQUOTA	sys/quota.h	int	1
 GRP_COMDAT	elf.h	int	1
 GS	sys/reg.h	int	26
+GSHADOW	gshadow.h	char[13]	"/etc/gshadow"
 GS_BASE	sys/reg.h	int	22
 HARDWARE_ERROR	scsi/scsi.h	int	4
 HASHFRACTION	sys/gmon.h	int	2
@@ -2079,16 +2097,30 @@ ICMP6_RR_RESULT_FLAGS_OOB	netinet/icmp6.h	int	512
 ICMP6_TIME_EXCEEDED	netinet/icmp6.h	int	3
 ICMP6_TIME_EXCEED_REASSEMBLY	netinet/icmp6.h	int	1
 ICMP6_TIME_EXCEED_TRANSIT	netinet/icmp6.h	int	0
+ICMPV6_EXT_ECHO_REPLY	netinet/icmp6.h	int	161
+ICMPV6_EXT_ECHO_REQUEST	netinet/icmp6.h	int	160
 ICMP_ADDRESS	netinet/ip_icmp.h	int	17
 ICMP_ADDRESSREPLY	netinet/ip_icmp.h	int	18
 ICMP_ADVLENMIN	netinet/ip_icmp.h	unsigned long	36
+ICMP_AFI_IP	netinet/ip_icmp.h	int	1
+ICMP_AFI_IP6	netinet/ip_icmp.h	int	2
 ICMP_DEST_UNREACH	netinet/ip_icmp.h	int	3
 ICMP_ECHO	netinet/ip_icmp.h	int	8
 ICMP_ECHOREPLY	netinet/ip_icmp.h	int	0
 ICMP_EXC_FRAGTIME	netinet/ip_icmp.h	int	1
 ICMP_EXC_TTL	netinet/ip_icmp.h	int	0
+ICMP_EXT_CODE_MAL_QUERY	netinet/ip_icmp.h	int	1
+ICMP_EXT_CODE_MULT_IFS	netinet/ip_icmp.h	int	4
+ICMP_EXT_CODE_NO_IF	netinet/ip_icmp.h	int	2
+ICMP_EXT_CODE_NO_TABLE_ENT	netinet/ip_icmp.h	int	3
 ICMP_EXT_ECHO	netinet/ip_icmp.h	int	42
 ICMP_EXT_ECHOREPLY	netinet/ip_icmp.h	int	43
+ICMP_EXT_ECHOREPLY_ACTIVE	netinet/ip_icmp.h	int	4
+ICMP_EXT_ECHOREPLY_IPV4	netinet/ip_icmp.h	int	2
+ICMP_EXT_ECHOREPLY_IPV6	netinet/ip_icmp.h	int	1
+ICMP_EXT_ECHO_CTYPE_ADDR	netinet/ip_icmp.h	int	3
+ICMP_EXT_ECHO_CTYPE_INDEX	netinet/ip_icmp.h	int	2
+ICMP_EXT_ECHO_CTYPE_NAME	netinet/ip_icmp.h	int	1
 ICMP_FRAG_NEEDED	netinet/ip_icmp.h	int	4
 ICMP_HOST_ANO	netinet/ip_icmp.h	int	10
 ICMP_HOST_ISOLATED	netinet/ip_icmp.h	int	8
@@ -2188,6 +2220,7 @@ IGMP_LAZY_MEMBER	netinet/igmp.h	int	3
 IGMP_MAX_HOST_REPORT_DELAY	netinet/igmp.h	int	10
 IGMP_MEMBERSHIP_QUERY	netinet/igmp.h	int	17
 IGMP_MINLEN	netinet/igmp.h	int	8
+IGMP_MRDISC_ADV	netinet/igmp.h	int	48
 IGMP_MTRACE	netinet/igmp.h	int	31
 IGMP_MTRACE_RESP	netinet/igmp.h	int	30
 IGMP_PIM	netinet/igmp.h	int	20
@@ -2356,6 +2389,7 @@ IP6OPT_TUNNEL_LIMIT	netinet/ip6.h	int	4
 IP6OPT_TYPE_DISCARD	netinet/ip6.h	int	64
 IP6OPT_TYPE_FORCEICMP	netinet/ip6.h	int	128
 IP6OPT_TYPE_ICMP	netinet/ip6.h	int	192
+IP6OPT_TYPE_MUTABLE	netinet/ip6.h	int	32
 IP6OPT_TYPE_SKIP	netinet/ip6.h	int	0
 IP6_ALERT_AN	netinet/ip6.h	int	512
 IP6_ALERT_MLD	netinet/ip6.h	int	0
@@ -2467,6 +2501,7 @@ IPTOS_DSCP_AF43	netinet/ip.h	int	152
 IPTOS_DSCP_EF	netinet/ip.h	int	184
 IPTOS_DSCP_LE	netinet/ip.h	int	4
 IPTOS_DSCP_MASK	netinet/ip.h	int	252
+IPTOS_DSCP_VA	netinet/ip.h	int	176
 IPTOS_ECN_CE	netinet/ip.h	int	3
 IPTOS_ECN_ECT0	netinet/ip.h	int	2
 IPTOS_ECN_ECT1	netinet/ip.h	int	1
@@ -2680,6 +2715,7 @@ LFLOW_RESTART_XON	arpa/telnet.h	int	3
 LINE_MAX	argp.h	int	2048
 LINKED_CMD_COMPLETE	scsi/scsi.h	int	10
 LINKED_FLG_CMD_COMPLETE	scsi/scsi.h	int	11
+LINK_MAX	arpa/nameser.h	int	127
 LIO_NOP	aio.h	int	2
 LIO_NOWAIT	aio.h	int	1
 LIO_READ	aio.h	int	0
@@ -2692,6 +2728,7 @@ LITUSE_ALPHA_BYTOFF	elf.h	int	2
 LITUSE_ALPHA_JSR	elf.h	int	3
 LITUSE_ALPHA_TLS_GD	elf.h	int	4
 LITUSE_ALPHA_TLS_LDM	elf.h	int	5
+LLC_FRAME	netinet/if_tr.h	int	64
 LLONG_MAX	argp.h	long long	9223372036854775807
 LLONG_MIN	argp.h	long long	-9223372036854775808
 LLONG_WIDTH	argp.h	int	64
@@ -3333,6 +3370,7 @@ ND_OPT_PI_FLAG_ONLINK	netinet/icmp6.h	int	128
 ND_OPT_PI_FLAG_RADDR	netinet/icmp6.h	int	32
 ND_OPT_PREFIX_INFORMATION	netinet/icmp6.h	int	3
 ND_OPT_REDIRECTED_HEADER	netinet/icmp6.h	int	4
+ND_OPT_RTR_ADV_INTERVAL	netinet/icmp6.h	int	7
 ND_OPT_SOURCE_LINKADDR	netinet/icmp6.h	int	1
 ND_OPT_TARGET_LINKADDR	netinet/icmp6.h	int	2
 ND_RA_FLAG_HOME_AGENT	netinet/icmp6.h	int	32
@@ -3349,6 +3387,7 @@ NETROM_KILL	netrom/netrom.h	int	99
 NETROM_N2	netrom/netrom.h	int	3
 NETROM_NEIGH	netrom/netrom.h	int	0
 NETROM_NODE	netrom/netrom.h	int	1
+NETROM_PACLEN	netrom/netrom.h	int	5
 NETROM_T1	netrom/netrom.h	int	1
 NETROM_T2	netrom/netrom.h	int	2
 NETROM_T4	netrom/netrom.h	int	6
@@ -3389,6 +3428,7 @@ NOGROUP	arpa/nameser.h	int	-1
 NOP	arpa/telnet.h	int	241
 NOSTR	langinfo.h	int	327683
 NOTAUTH	arpa/nameser.h	int	9
+NOTE_GNU_PROPERTY_SECTION_NAME	elf.h	char[19]	".note.gnu.property"
 NOTIMP	arpa/nameser.h	int	4
 NOTZONE	arpa/nameser.h	int	10
 NOT_HERE	protocols/talkd.h	int	1
@@ -3405,6 +3445,7 @@ NR_DQHASH	sys/quota.h	int	43
 NR_DQUOTS	sys/quota.h	int	256
 NR_ICMP_TYPES	netinet/ip_icmp.h	int	18
 NR_ICMP_UNREACH	netinet/ip_icmp.h	int	15
+NR_OPEN	arpa/nameser.h	int	1024
 NSIG	arpa/nameser.h	int	65
 NSLC	arpa/telnet.h	int	18
 NSS_BUFLEN_GROUP	grp.h	int	1024
@@ -3676,6 +3717,8 @@ PA_FLAG_SHORT	printf.h	int	1024
 PDP_ENDIAN	aio.h	int	3412
 PENDIN	pty.h	int	16384
 PERMISSION_DENIED	protocols/talkd.h	int	4
+PERSISTENT_RESERVE_IN	scsi/scsi.h	int	94
+PERSISTENT_RESERVE_OUT	scsi/scsi.h	int	95
 PER_BSD	sys/personality.h	int	6
 PER_HPUX	sys/personality.h	int	16
 PER_IRIX32	sys/personality.h	int	67108873
@@ -3993,6 +4036,8 @@ PRIxLEAST8	inttypes.h	char[2]	"x"
 PRIxMAX	inttypes.h	char[3]	"lx"
 PRIxPTR	inttypes.h	char[3]	"lx"
 PRJQUOTA	sys/quota.h	int	2
+PROTO_DNA_RT	net/if_ppp.h	int	39
+PROTO_IPX	net/if_ppp.h	int	43
 PROT_EXEC	sys/mman.h	int	4
 PROT_GROWSDOWN	sys/mman.h	int	16777216
 PROT_GROWSUP	sys/mman.h	int	33554432
@@ -4444,6 +4489,7 @@ REG_RSP	arpa/nameser.h	int	15
 REG_STARTEND	re_comp.h	int	4
 REG_TRAPNO	arpa/nameser.h	int	20
 RELEASE	scsi/scsi.h	int	23
+RELEASE_10	scsi/scsi.h	int	87
 RELEASE_RECOVERY	scsi/scsi.h	int	16
 RENAME_EXCHANGE	argp.h	int	2
 RENAME_NOREPLACE	argp.h	int	1
@@ -4451,6 +4497,7 @@ RENAME_WHITEOUT	argp.h	int	4
 REQUEST_SENSE	scsi/scsi.h	int	3
 RESERVATION_CONFLICT	scsi/scsi.h	int	12
 RESERVE	scsi/scsi.h	int	22
+RESERVE_10	scsi/scsi.h	int	86
 RESTORE_POINTERS	scsi/scsi.h	int	3
 RES_AAONLY	resolv.h	int	4
 RES_BLAST	resolv.h	int	131072
@@ -4615,8 +4662,10 @@ RSI	sys/reg.h	int	13
 RSP	sys/reg.h	int	19
 RTCF_DIRECTSRC	net/route.h	int	67108864
 RTCF_DOREDIRECT	net/route.h	int	16777216
+RTCF_LOG	net/route.h	int	33554432
 RTCF_MASQ	net/route.h	int	4194304
 RTCF_NAT	net/route.h	int	8388608
+RTCF_VALVE	net/route.h	int	2097152
 RTF_ADDRCLASSMASK	net/route.h	unsigned int	4160749568
 RTF_ADDRCONF	net/route.h	int	262144
 RTF_ALLONLINK	net/route.h	int	131072
@@ -4671,11 +4720,20 @@ RTLD_NEXT	dlfcn.h	void*	-1
 RTLD_NODELETE	dlfcn.h	int	4096
 RTLD_NOLOAD	dlfcn.h	int	4
 RTLD_NOW	dlfcn.h	int	2
+RTMSG_AR_FAILED	net/route.h	int	81
+RTMSG_CONTROL	net/route.h	int	64
 RTMSG_DELDEVICE	net/route.h	int	18
 RTMSG_DELROUTE	net/route.h	int	34
+RTMSG_DELRULE	net/route.h	int	50
 RTMSG_NEWDEVICE	net/route.h	int	17
 RTMSG_NEWROUTE	net/route.h	int	33
+RTMSG_NEWRULE	net/route.h	int	49
 RTSIG_MAX	argp.h	int	32
+RT_CLASS_DEFAULT	net/route.h	int	253
+RT_CLASS_LOCAL	net/route.h	int	255
+RT_CLASS_MAIN	net/route.h	int	254
+RT_CLASS_MAX	net/route.h	int	255
+RT_CLASS_UNSPEC	net/route.h	int	0
 RUN_LVL	lastlog.h	int	1
 RUSAGE_CHILDREN	sys/resource.h	int	-1
 RUSAGE_LWP	sys/resource.h	int	1
@@ -6622,6 +6680,7 @@ SCHED_OTHER	pthread.h	int	0
 SCHED_RESET_ON_FORK	pthread.h	int	1073741824
 SCHED_RR	pthread.h	int	2
 SCM_CREDENTIALS	arpa/inet.h	int	2
+SCM_IUCV_TRGCLS	netiucv/iucv.h	int	1
 SCM_PIDFD	arpa/inet.h	int	4
 SCM_RIGHTS	arpa/inet.h	int	1
 SCM_SECURITY	arpa/inet.h	int	3
@@ -6741,6 +6800,8 @@ SC_DC_FERROR	net/if_ppp.h	int	8388608
 SC_DEBUG	net/if_ppp.h	int	65536
 SC_DECOMP_RUN	net/if_ppp.h	int	8192
 SC_ENABLE_IP	net/if_ppp.h	int	256
+SC_ESCAPED	net/if_ppp.h	unsigned int	2147483648
+SC_FLUSH	net/if_ppp.h	int	1073741824
 SC_LOG_FLUSH	net/if_ppp.h	int	1048576
 SC_LOG_INPKT	net/if_ppp.h	int	131072
 SC_LOG_OUTPKT	net/if_ppp.h	int	262144
@@ -6753,6 +6814,7 @@ SC_RCV_EVNP	net/if_ppp.h	int	67108864
 SC_RCV_ODDP	net/if_ppp.h	int	134217728
 SC_REJ_COMP_AC	net/if_ppp.h	int	16
 SC_REJ_COMP_TCP	net/if_ppp.h	int	32
+SC_VJ_RESET	net/if_ppp.h	int	536870912
 SC_XMIT_BUSY	net/if_ppp.h	int	268435456
 SE	arpa/telnet.h	int	240
 SEARCH_EQUAL	scsi/scsi.h	int	49
@@ -6795,6 +6857,7 @@ SET_LIMITS	scsi/scsi.h	int	51
 SET_WINDOW	scsi/scsi.h	int	36
 SFD_CLOEXEC	sys/signalfd.h	int	524288
 SFD_NONBLOCK	sys/signalfd.h	int	2048
+SG_BIG_BUFF	scsi/sg.h	int	32768
 SG_DEFAULT_RETRIES	scsi/sg.h	int	1
 SG_DEF_COMMAND_Q	scsi/sg.h	int	0
 SG_DEF_FORCE_LOW_DMA	scsi/sg.h	int	0
@@ -6849,6 +6912,12 @@ SG_SET_TIMEOUT	scsi/sg.h	int	8705
 SG_SET_TRANSFORM	scsi/sg.h	int	8708
 SHADOW	shadow.h	char[12]	"/etc/shadow"
 SHADOW_STACK_SET_TOKEN	sys/mman.h	int	1
+SHAPER_GET_DEV	net/if_shaper.h	int	3
+SHAPER_GET_SPEED	net/if_shaper.h	int	4
+SHAPER_MAXSLIP	net/if_shaper.h	int	2
+SHAPER_QLEN	net/if_shaper.h	int	10
+SHAPER_SET_DEV	net/if_shaper.h	int	1
+SHAPER_SET_SPEED	net/if_shaper.h	int	2
 SHF_ALLOC	elf.h	int	2
 SHF_ALPHA_GPREL	elf.h	int	268435456
 SHF_ARM_COMDEF	elf.h	unsigned int	2147483648
@@ -7181,15 +7250,21 @@ SNANF32X	math.h	_Float32x	snan
 SNANF64	math.h	_Float64	snan
 SNANF64X	math.h	_Float64x	snan
 SNANL	math.h	long double	snan
+SOCK_BUF_LOCK_MASK	netatalk/at.h	int	3
 SOCK_CLOEXEC	arpa/inet.h	int	524288
 SOCK_DCCP	arpa/inet.h	int	6
 SOCK_DGRAM	arpa/inet.h	int	2
 SOCK_NONBLOCK	arpa/inet.h	int	2048
 SOCK_PACKET	arpa/inet.h	int	10
 SOCK_RAW	arpa/inet.h	int	3
+SOCK_RCVBUF_LOCK	netatalk/at.h	int	2
 SOCK_RDM	arpa/inet.h	int	4
 SOCK_SEQPACKET	arpa/inet.h	int	5
+SOCK_SNDBUF_LOCK	netatalk/at.h	int	1
 SOCK_STREAM	arpa/inet.h	int	1
+SOCK_TXREHASH_DEFAULT	netatalk/at.h	int	255
+SOCK_TXREHASH_DISABLED	netatalk/at.h	int	0
+SOCK_TXREHASH_ENABLED	netatalk/at.h	int	1
 SOL_AAL	arpa/inet.h	int	265
 SOL_ALG	arpa/inet.h	int	279
 SOL_ATALK	netatalk/at.h	int	258
@@ -7254,12 +7329,15 @@ SO_ERROR	arpa/inet.h	int	4
 SO_GET_FILTER	arpa/inet.h	int	26
 SO_INCOMING_CPU	arpa/inet.h	int	49
 SO_INCOMING_NAPI_ID	arpa/inet.h	int	56
+SO_IPRMDATA_MSG	netiucv/iucv.h	int	128
 SO_KEEPALIVE	arpa/inet.h	int	9
 SO_LINGER	arpa/inet.h	int	13
 SO_LOCK_FILTER	arpa/inet.h	int	44
 SO_MARK	arpa/inet.h	int	36
 SO_MAX_PACING_RATE	arpa/inet.h	int	47
 SO_MEMINFO	arpa/inet.h	int	55
+SO_MSGLIMIT	netiucv/iucv.h	int	4096
+SO_MSGSIZE	netiucv/iucv.h	int	2048
 SO_NETNS_COOKIE	arpa/inet.h	int	71
 SO_NOFCS	arpa/inet.h	int	43
 SO_NO_CHECK	arpa/inet.h	int	11
@@ -7787,6 +7865,15 @@ TRAP_HWBKPT	arpa/nameser.h	int	4
 TRAP_TRACE	arpa/nameser.h	int	2
 TRAP_UNK	arpa/nameser.h	int	5
 TRY_AGAIN	netdb.h	int	2
+TR_ALEN	netinet/if_tr.h	int	6
+TR_MAXRIFLEN	netinet/if_tr.h	int	18
+TR_RCF_BROADCAST	netinet/if_tr.h	int	32768
+TR_RCF_BROADCAST_MASK	netinet/if_tr.h	int	49152
+TR_RCF_DIR_BIT	netinet/if_tr.h	int	128
+TR_RCF_FRAME2K	netinet/if_tr.h	int	32
+TR_RCF_LEN_MASK	netinet/if_tr.h	int	7936
+TR_RCF_LIMITED_BROADCAST	netinet/if_tr.h	int	49152
+TR_RII	netinet/if_tr.h	int	128
 TSGID	tar.h	int	1024
 TSPTYPENUMBER	protocols/timed.h	int	25
 TSPVERSION	protocols/timed.h	int	1
@@ -7976,6 +8063,7 @@ UINT_LEAST8_WIDTH	arpa/nameser.h	int	8
 UINT_MAX	argp.h	unsigned int	4294967295
 UINT_WIDTH	argp.h	int	32
 UIO_MAXIOV	sys/uio.h	int	1024
+UI_CMD	netinet/if_tr.h	int	3
 ULLONG_MAX	argp.h	unsigned long long	18446744073709551615
 ULLONG_WIDTH	argp.h	int	64
 ULONG_LONG_MAX	argp.h	unsigned long long	18446744073709551615

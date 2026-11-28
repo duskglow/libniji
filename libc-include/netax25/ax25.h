@@ -213,6 +213,7 @@ typedef unsigned short sa_family_t;
 # define AX25_EXTSEQ 7
 # define AX25_IAMDIGI 12
 # define AX25_IDLE 9
+# define AX25_IPMAXQUEUE 11
 # define AX25_KILL 99
 # define AX25_MAX_DIGIS 8
 # define AX25_MAX_VALUES 20

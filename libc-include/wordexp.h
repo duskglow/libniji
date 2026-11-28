@@ -58,8 +58,13 @@ enum {
 # endif
 # ifndef __NIJI_D_anon_WRDE_BADCHAR
 #  define __NIJI_D_anon_WRDE_BADCHAR 1
-#  if !defined WRDE_NOSPACE || !defined WRDE_BADCHAR || !defined WRDE_BADVAL || !defined WRDE_CMDSUB || !defined WRDE_SYNTAX
+#  if ((__NIJI_XSI >= 400) && !defined WRDE_NOSYS) || !defined WRDE_NOSPACE || !defined WRDE_BADCHAR || !defined WRDE_BADVAL || !defined WRDE_CMDSUB || !defined WRDE_SYNTAX
 enum {
+#  if __NIJI_XSI >= 400
+#  ifndef WRDE_NOSYS
+  WRDE_NOSYS = -1,
+#  endif
+#  endif
 #  ifndef WRDE_NOSPACE
   WRDE_NOSPACE = 1,
 #  endif

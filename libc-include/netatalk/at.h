@@ -20,6 +20,17 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# define ATPORT_FIRST 1
+# define ATPORT_LAST 254
+# define ATPORT_RESERVED 128
+# define DDP_MAXHOPS 15
+# define DDP_MAXSZ 587
+# define SOCK_BUF_LOCK_MASK 3
+# define SOCK_RCVBUF_LOCK 2
+# define SOCK_SNDBUF_LOCK 1
+# define SOCK_TXREHASH_DEFAULT 255
+# define SOCK_TXREHASH_DISABLED 0
+# define SOCK_TXREHASH_ENABLED 1
 # define SOL_ATALK 258
 # ifndef __NIJI_D_m___LITTLE_ENDIAN
 #  define __NIJI_D_m___LITTLE_ENDIAN 1

@@ -177,13 +177,25 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # define ICMP_ADDRESS 17
 # define ICMP_ADDRESSREPLY 18
+# define ICMP_AFI_IP 1
+# define ICMP_AFI_IP6 2
 # define ICMP_DEST_UNREACH 3
 # define ICMP_ECHO 8
 # define ICMP_ECHOREPLY 0
 # define ICMP_EXC_FRAGTIME 1
 # define ICMP_EXC_TTL 0
+# define ICMP_EXT_CODE_MAL_QUERY 1
+# define ICMP_EXT_CODE_MULT_IFS 4
+# define ICMP_EXT_CODE_NO_IF 2
+# define ICMP_EXT_CODE_NO_TABLE_ENT 3
 # define ICMP_EXT_ECHO 42
 # define ICMP_EXT_ECHOREPLY 43
+# define ICMP_EXT_ECHOREPLY_ACTIVE 4
+# define ICMP_EXT_ECHOREPLY_IPV4 2
+# define ICMP_EXT_ECHOREPLY_IPV6 1
+# define ICMP_EXT_ECHO_CTYPE_ADDR 3
+# define ICMP_EXT_ECHO_CTYPE_INDEX 2
+# define ICMP_EXT_ECHO_CTYPE_NAME 1
 # define ICMP_FRAG_NEEDED 4
 # define ICMP_HOST_ANO 10
 # define ICMP_HOST_ISOLATED 8

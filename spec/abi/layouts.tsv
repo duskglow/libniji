@@ -3503,3 +3503,40 @@ struct ifpppcstatsreq	stats.d.inc_packets	100		__u32
 struct ifpppcstatsreq	stats.d.in_count	104		__u32	
 struct ifpppcstatsreq	stats.d.bytes_out	108		__u32	
 struct ifpppcstatsreq	stats.d.ratio	112		double	
+struct group_req		136	8		
+struct group_req	gr_interface	0		uint32_t	
+struct group_req	gr_group	8		struct sockaddr_storage	
+struct group_req	gr_group.ss_family	8		sa_family_t	
+struct group_req	gr_group.__ss_padding	10		char[118]	
+struct group_req	gr_group.__ss_align	128		long unsigned int	
+struct group_filter		272	8		
+struct group_filter	gf_interface	0		uint32_t	
+struct group_filter	gf_group	8		struct sockaddr_storage	
+struct group_filter	gf_group.ss_family	8		sa_family_t	
+struct group_filter	gf_group.__ss_padding	10		char[118]	
+struct group_filter	gf_group.__ss_align	128		long unsigned int	
+struct group_filter	gf_fmode	136		uint32_t	
+struct group_filter	gf_numsrc	140		uint32_t	
+struct group_filter	gf_slist	144		struct sockaddr_storage[1]	
+struct group_filter	gf_slist.ss_family	144		sa_family_t	
+struct group_filter	gf_slist.__ss_padding	146		char[118]	
+struct group_filter	gf_slist.__ss_align	264		long unsigned int	
+struct ip_msfilter		20	4		
+struct ip_msfilter	imsf_multiaddr	0		struct in_addr	
+struct ip_msfilter	imsf_multiaddr.s_addr	0		in_addr_t	
+struct ip_msfilter	imsf_interface	4		struct in_addr	
+struct ip_msfilter	imsf_interface.s_addr	4		in_addr_t	
+struct ip_msfilter	imsf_fmode	8		uint32_t	
+struct ip_msfilter	imsf_numsrc	12		uint32_t	
+struct ip_msfilter	imsf_slist	16		struct in_addr[1]	
+struct ip_msfilter	imsf_slist.s_addr	16		in_addr_t	
+struct ip_opts		44	4		
+struct ip_opts	ip_dst	0		struct in_addr	
+struct ip_opts	ip_dst.s_addr	0		in_addr_t	
+struct ip_opts	ip_opts	4		char[40]	
+struct timestamp		40	4		
+struct timestamp	len	0		uint8_t	
+struct timestamp	ptr	1		uint8_t	
+struct timestamp	flags	0		unsigned int	bits 4@16
+struct timestamp	overflow	0		unsigned int	bits 4@20
+struct timestamp	data	4		uint32_t[9]	

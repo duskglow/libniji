@@ -78,6 +78,8 @@ struct ccs_modesel_head {
 # define NOT_READY 2
 # define NO_SENSE 0
 # define ORDERED_QUEUE_TAG 34
+# define PERSISTENT_RESERVE_IN 94
+# define PERSISTENT_RESERVE_OUT 95
 # define PRE_FETCH 52
 # define QUEUE_FULL 20
 # define READ_10 40
@@ -97,10 +99,12 @@ struct ccs_modesel_head {
 # define RECOVERED_ERROR 1
 # define RECOVER_BUFFERED_DATA 20
 # define RELEASE 23
+# define RELEASE_10 87
 # define RELEASE_RECOVERY 16
 # define REQUEST_SENSE 3
 # define RESERVATION_CONFLICT 12
 # define RESERVE 22
+# define RESERVE_10 86
 # define RESTORE_POINTERS 3
 # define REZERO_UNIT 1
 # define SAVE_POINTERS 2

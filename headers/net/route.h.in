@@ -10,8 +10,15 @@
 
 __NIJI_BEGIN_C
 
-@@owns rt_mss
+@@owns rt_mss RTMSG_OVERRUN
 @@emit
+
+/* The overrun message type is the netlink one: a program that uses it includes <linux/netlink.h> (black-box probe,
+   HEADERS-STAGE2-GAPS-O: defined in every configuration, an identical redefinition as NLMSG_OVERRUN, 4 with
+   <linux/netlink.h> in either order, no integer constant without it). */
+@@if RTMSG_OVERRUN
+# define RTMSG_OVERRUN NLMSG_OVERRUN
+#endif
 
 /* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */
 @@when rtentry

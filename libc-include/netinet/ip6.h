@@ -6,7 +6,7 @@
 
 #include <features.h>
 #include <sys/types.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 
 __NIJI_BEGIN_C
@@ -128,15 +128,6 @@ struct ip6_hdr {
 };
 # endif
 #endif
-#if 1
-# ifndef __NIJI_D_imaxdiv_t
-#  define __NIJI_D_imaxdiv_t 1
-typedef struct {
-  long quot;
-  long rem;
-} imaxdiv_t;
-# endif
-#endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -148,46 +139,6 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_imaxabs
-#  define __NIJI_D_imaxabs 1
-extern long imaxabs (long) __NIJI_NOTHROW __attribute__ ((__const__));
-# endif
-# ifndef __NIJI_D_imaxdiv
-#  define __NIJI_D_imaxdiv 1
-extern imaxdiv_t imaxdiv (long, long) __NIJI_NOTHROW __attribute__ ((__const__));
-# endif
-# ifndef __NIJI_D_strtoimax
-#  define __NIJI_D_strtoimax 1
-#  if __NIJI_ISOC >= 2023
-extern long strtoimax (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoimax");
-#  elif __NIJI_ISOC < 2023
-extern long strtoimax (const char *, char **, int) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_strtoumax
-#  define __NIJI_D_strtoumax 1
-#  if __NIJI_ISOC >= 2023
-extern unsigned long strtoumax (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoumax");
-#  elif __NIJI_ISOC < 2023
-extern unsigned long strtoumax (const char *, char **, int) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstoimax
-#  define __NIJI_D_wcstoimax 1
-#  if __NIJI_ISOC >= 2023
-extern long wcstoimax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoimax");
-#  elif __NIJI_ISOC < 2023
-extern long wcstoimax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW;
-#  endif
-# endif
-# ifndef __NIJI_D_wcstoumax
-#  define __NIJI_D_wcstoumax 1
-#  if __NIJI_ISOC >= 2023
-extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW __asm__ ("__isoc23_wcstoumax");
-#  elif __NIJI_ISOC < 2023
-extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW;
-#  endif
-# endif
 # define IP6F_MORE_FRAG 256
 # define IP6F_OFF_MASK 63743
 # define IP6F_RESERVED_MASK 1536
@@ -201,164 +152,11 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 # define IP6OPT_TYPE_DISCARD 64
 # define IP6OPT_TYPE_FORCEICMP 128
 # define IP6OPT_TYPE_ICMP 192
+# define IP6OPT_TYPE_MUTABLE 32
 # define IP6OPT_TYPE_SKIP 0
 # define IP6_ALERT_AN 512
 # define IP6_ALERT_MLD 0
 # define IP6_ALERT_RSVP 256
-# define PRIX16 "X"
-# define PRIX32 "X"
-# define PRIX64 "lX"
-# define PRIX8 "X"
-# define PRIXFAST16 "lX"
-# define PRIXFAST32 "lX"
-# define PRIXFAST64 "lX"
-# define PRIXFAST8 "X"
-# define PRIXLEAST16 "X"
-# define PRIXLEAST32 "X"
-# define PRIXLEAST64 "lX"
-# define PRIXLEAST8 "X"
-# define PRIXMAX "lX"
-# define PRIXPTR "lX"
-# define PRId16 "d"
-# define PRId32 "d"
-# define PRId64 "ld"
-# define PRId8 "d"
-# define PRIdFAST16 "ld"
-# define PRIdFAST32 "ld"
-# define PRIdFAST64 "ld"
-# define PRIdFAST8 "d"
-# define PRIdLEAST16 "d"
-# define PRIdLEAST32 "d"
-# define PRIdLEAST64 "ld"
-# define PRIdLEAST8 "d"
-# define PRIdMAX "ld"
-# define PRIdPTR "ld"
-# define PRIi16 "i"
-# define PRIi32 "i"
-# define PRIi64 "li"
-# define PRIi8 "i"
-# define PRIiFAST16 "li"
-# define PRIiFAST32 "li"
-# define PRIiFAST64 "li"
-# define PRIiFAST8 "i"
-# define PRIiLEAST16 "i"
-# define PRIiLEAST32 "i"
-# define PRIiLEAST64 "li"
-# define PRIiLEAST8 "i"
-# define PRIiMAX "li"
-# define PRIiPTR "li"
-# define PRIo16 "o"
-# define PRIo32 "o"
-# define PRIo64 "lo"
-# define PRIo8 "o"
-# define PRIoFAST16 "lo"
-# define PRIoFAST32 "lo"
-# define PRIoFAST64 "lo"
-# define PRIoFAST8 "o"
-# define PRIoLEAST16 "o"
-# define PRIoLEAST32 "o"
-# define PRIoLEAST64 "lo"
-# define PRIoLEAST8 "o"
-# define PRIoMAX "lo"
-# define PRIoPTR "lo"
-# define PRIu16 "u"
-# define PRIu32 "u"
-# define PRIu64 "lu"
-# define PRIu8 "u"
-# define PRIuFAST16 "lu"
-# define PRIuFAST32 "lu"
-# define PRIuFAST64 "lu"
-# define PRIuFAST8 "u"
-# define PRIuLEAST16 "u"
-# define PRIuLEAST32 "u"
-# define PRIuLEAST64 "lu"
-# define PRIuLEAST8 "u"
-# define PRIuMAX "lu"
-# define PRIuPTR "lu"
-# define PRIx16 "x"
-# define PRIx32 "x"
-# define PRIx64 "lx"
-# define PRIx8 "x"
-# define PRIxFAST16 "lx"
-# define PRIxFAST32 "lx"
-# define PRIxFAST64 "lx"
-# define PRIxFAST8 "x"
-# define PRIxLEAST16 "x"
-# define PRIxLEAST32 "x"
-# define PRIxLEAST64 "lx"
-# define PRIxLEAST8 "x"
-# define PRIxMAX "lx"
-# define PRIxPTR "lx"
-# define SCNd16 "hd"
-# define SCNd32 "d"
-# define SCNd64 "ld"
-# define SCNd8 "hhd"
-# define SCNdFAST16 "ld"
-# define SCNdFAST32 "ld"
-# define SCNdFAST64 "ld"
-# define SCNdFAST8 "hhd"
-# define SCNdLEAST16 "hd"
-# define SCNdLEAST32 "d"
-# define SCNdLEAST64 "ld"
-# define SCNdLEAST8 "hhd"
-# define SCNdMAX "ld"
-# define SCNdPTR "ld"
-# define SCNi16 "hi"
-# define SCNi32 "i"
-# define SCNi64 "li"
-# define SCNi8 "hhi"
-# define SCNiFAST16 "li"
-# define SCNiFAST32 "li"
-# define SCNiFAST64 "li"
-# define SCNiFAST8 "hhi"
-# define SCNiLEAST16 "hi"
-# define SCNiLEAST32 "i"
-# define SCNiLEAST64 "li"
-# define SCNiLEAST8 "hhi"
-# define SCNiMAX "li"
-# define SCNiPTR "li"
-# define SCNo16 "ho"
-# define SCNo32 "o"
-# define SCNo64 "lo"
-# define SCNo8 "hho"
-# define SCNoFAST16 "lo"
-# define SCNoFAST32 "lo"
-# define SCNoFAST64 "lo"
-# define SCNoFAST8 "hho"
-# define SCNoLEAST16 "ho"
-# define SCNoLEAST32 "o"
-# define SCNoLEAST64 "lo"
-# define SCNoLEAST8 "hho"
-# define SCNoMAX "lo"
-# define SCNoPTR "lo"
-# define SCNu16 "hu"
-# define SCNu32 "u"
-# define SCNu64 "lu"
-# define SCNu8 "hhu"
-# define SCNuFAST16 "lu"
-# define SCNuFAST32 "lu"
-# define SCNuFAST64 "lu"
-# define SCNuFAST8 "hhu"
-# define SCNuLEAST16 "hu"
-# define SCNuLEAST32 "u"
-# define SCNuLEAST64 "lu"
-# define SCNuLEAST8 "hhu"
-# define SCNuMAX "lu"
-# define SCNuPTR "lu"
-# define SCNx16 "hx"
-# define SCNx32 "x"
-# define SCNx64 "lx"
-# define SCNx8 "hhx"
-# define SCNxFAST16 "lx"
-# define SCNxFAST32 "lx"
-# define SCNxFAST64 "lx"
-# define SCNxFAST8 "hhx"
-# define SCNxLEAST16 "hx"
-# define SCNxLEAST32 "x"
-# define SCNxLEAST64 "lx"
-# define SCNxLEAST8 "hhx"
-# define SCNxMAX "lx"
-# define SCNxPTR "lx"
 #endif
 
 /* The fields of the IPv6 header (RFC 8200 section 3) by name: the first eight bytes are struct ip6_hdr's union of the

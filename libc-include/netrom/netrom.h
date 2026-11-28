@@ -71,6 +71,7 @@ struct nr_route_struct {
 # define NETROM_N2 3
 # define NETROM_NEIGH 0
 # define NETROM_NODE 1
+# define NETROM_PACLEN 5
 # define NETROM_T1 1
 # define NETROM_T2 2
 # define NETROM_T4 6

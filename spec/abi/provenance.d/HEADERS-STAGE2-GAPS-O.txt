@@ -1,0 +1,16 @@
+---
+order: 240
+---
+HEADERS-STAGE2-GAPS-O: visibility.tsv rows for the names of header_probe.d/stage2-gaps-o.py (the public names a
+Go-dump sweep of every public header found in the reference's dump only; names read, no value or body) and the
+<inttypes.h> C2X PRIb*/PRIB*/SCNb* names in every header, from one header_probe.py `--names` run on the reference
+system (glibc 2.39, GCC 13.3, every configuration of ftm-configs.tsv, C and C++): 476 macro and enumerator rows and
+42 struct rows (group_req, group_filter, ip_msfilter, ip_opts, timestamp) added, no committed row changed; the
+probe's RT_ADD, RT_CONSISTENT and RT_DELETE rows (an enumeration inside struct r_debug, C only) left out.
+macros.tsv: 88 rows from type_probe.py --retry-missing on the same system (RTMSG_OVERRUN has no value with
+<net/route.h> alone: a template definition, from a black-box probe). enumerators.tsv: the anon groups IPPORT_BIFFUDP
+(replacing IPPORT_RESERVED), LA_ACT_ADD, LA_FLG_BINDFROM, LA_SER_CONFIG, LA_SYMB_ALTVALUE, Val_GNU_MIPS_ABI_FP_64 and
+WRDE_BADCHAR (WRDE_NOSYS) from an enum_probe.py run and its --derive, only those groups taken (a fresh derive also
+regroups unrelated committed groups). layouts.tsv: the five structures' rows from abi_extract.py --layouts-only
+(types added to TYPES), only those rows taken (a fresh run differs from the committed table elsewhere); typedefs.tsv
+`struct` rows from their layouts. No header text read.

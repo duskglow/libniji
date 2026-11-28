@@ -20,6 +20,21 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+#if 1
+# define AC 16
+# define EXTENDED_SAP 170
+# define LLC_FRAME 64
+# define TR_ALEN 6
+# define TR_MAXRIFLEN 18
+# define TR_RCF_BROADCAST 32768
+# define TR_RCF_BROADCAST_MASK 49152
+# define TR_RCF_DIR_BIT 128
+# define TR_RCF_FRAME2K 32
+# define TR_RCF_LEN_MASK 7936
+# define TR_RCF_LIMITED_BROADCAST 49152
+# define TR_RII 128
+# define UI_CMD 3
+#endif
 
 __NIJI_END_C
 

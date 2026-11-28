@@ -5,7 +5,7 @@
 
 #include <features.h>
 #include <sys/types.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 
 __NIJI_BEGIN_C

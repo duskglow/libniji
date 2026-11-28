@@ -1,0 +1,7 @@
+# HEADERS-STAGE2-GAPS-O plants (docs/plants.md): id | path | pattern | cmd | msg:<regex>
+o-ipport-value | spec/abi/enumerators.tsv | perl:s/^(anon IPPORT_BIFFUDP\tIPPORT_WHOIS\t)43$/${1}44/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-O IPPORT"' | msg:FAIL.*GAPS-O IPPORT
+o-rtmsg-literal | headers/net/route.h.in | lit:# define RTMSG_OVERRUN NLMSG_OVERRUN ==> # define RTMSG_OVERRUN 4 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-O RTMSG_OVERRUN"' | msg:FAIL.*GAPS-O RTMSG_OVERRUN 0
+o-route-row-lost | spec/abi/visibility.tsv | perl:s/^net\/route\.h\tRTCF_LOG\tmacro\t[^\n]*\n//m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/s13.d/a0-stage2-gaps-o.py' | msg:FAIL GAPS-O go dump: RTCF_LOG has no visibility row
+o-timestamp-data | spec/abi/layouts.tsv | perl:s/^(struct timestamp\tdata\t)4(\t\tuint32_t\[9\])$/${1}8$2/m | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --only "GAPS-O structures"' | msg:FAIL.*GAPS-O structures
+o-icmp6-no-inttypes | headers/netinet/icmp6.h.in | lit:#include <inttypes.h> ==> #include <stdint.h> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:FAIL DUP macro PRIb8: defined in inttypes.h, netinet/icmp6.h
+o-auxv-no-elf | headers/sys/auxv.h.in | lit:#include <elf.h> ==> #include <stddef.h> | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_checks/dup.py' | msg:FAIL DUP macro [A-Z0-9_]+: defined in elf.h, sys/auxv.h

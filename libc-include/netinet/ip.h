@@ -28,6 +28,16 @@ struct iphdr {
   unsigned int daddr;
 };
 # endif
+# ifndef __NIJI_D_struct_timestamp
+#  define __NIJI_D_struct_timestamp 1
+struct timestamp {
+  unsigned char len;
+  unsigned char ptr;
+  unsigned int flags : 4;
+  unsigned int overflow : 4;
+  unsigned int data[9];
+};
+# endif
 #endif
 #if defined __USE_MISC
 # ifndef __NIJI_D_struct_ip
@@ -170,6 +180,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # define IPTOS_DSCP_EF 184
 # define IPTOS_DSCP_LE 4
 # define IPTOS_DSCP_MASK 252
+# define IPTOS_DSCP_VA 176
 # define IPTOS_ECN_CE 3
 # define IPTOS_ECN_ECT0 2
 # define IPTOS_ECN_ECT1 1

@@ -23,6 +23,14 @@ union pthread_attr_t {
 typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
+#if 1
+# define SHAPER_GET_DEV 3
+# define SHAPER_GET_SPEED 4
+# define SHAPER_MAXSLIP 2
+# define SHAPER_QLEN 10
+# define SHAPER_SET_DEV 1
+# define SHAPER_SET_SPEED 2
+#endif
 
 __NIJI_END_C
 

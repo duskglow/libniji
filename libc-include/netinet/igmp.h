@@ -86,6 +86,7 @@ typedef union pthread_attr_t pthread_attr_t;
 # define IGMP_MAX_HOST_REPORT_DELAY 10
 # define IGMP_MEMBERSHIP_QUERY 17
 # define IGMP_MINLEN 8
+# define IGMP_MRDISC_ADV 48
 # ifndef IGMP_MTRACE
 #  define IGMP_MTRACE 31
 # endif

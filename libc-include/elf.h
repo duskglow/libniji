@@ -448,6 +448,41 @@ typedef struct {
   union { unsigned long a_val; } a_un;
 } Elf64_auxv_t;
 # endif
+# ifndef __NIJI_D_anon_Val_GNU_MIPS_ABI_FP_64
+#  define __NIJI_D_anon_Val_GNU_MIPS_ABI_FP_64 1
+#  if !defined Val_GNU_MIPS_ABI_FP_ANY || !defined Val_GNU_MIPS_ABI_FP_DOUBLE || !defined Val_GNU_MIPS_ABI_FP_SINGLE || !defined Val_GNU_MIPS_ABI_FP_SOFT || !defined Val_GNU_MIPS_ABI_FP_OLD_64 || !defined Val_GNU_MIPS_ABI_FP_XX \
+    || !defined Val_GNU_MIPS_ABI_FP_64 || !defined Val_GNU_MIPS_ABI_FP_64A || !defined Val_GNU_MIPS_ABI_FP_MAX
+enum {
+#  ifndef Val_GNU_MIPS_ABI_FP_ANY
+  Val_GNU_MIPS_ABI_FP_ANY = 0,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_DOUBLE
+  Val_GNU_MIPS_ABI_FP_DOUBLE = 1,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_SINGLE
+  Val_GNU_MIPS_ABI_FP_SINGLE = 2,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_SOFT
+  Val_GNU_MIPS_ABI_FP_SOFT = 3,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_OLD_64
+  Val_GNU_MIPS_ABI_FP_OLD_64 = 4,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_XX
+  Val_GNU_MIPS_ABI_FP_XX = 5,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_64
+  Val_GNU_MIPS_ABI_FP_64 = 6,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_64A
+  Val_GNU_MIPS_ABI_FP_64A = 7,
+#  endif
+#  ifndef Val_GNU_MIPS_ABI_FP_MAX
+  Val_GNU_MIPS_ABI_FP_MAX = 7,
+#  endif
+};
+#  endif
+# endif
 # define AT_BASE 7
 # ifndef AT_BASE_PLATFORM
 #  define AT_BASE_PLATFORM 24
@@ -1230,6 +1265,7 @@ typedef struct {
 # define MIPS_AFL_REG_32 1
 # define MIPS_AFL_REG_64 2
 # define MIPS_AFL_REG_NONE 0
+# define NOTE_GNU_PROPERTY_SECTION_NAME ".note.gnu.property"
 # ifndef NT_386_IOPERM
 #  define NT_386_IOPERM 513
 # endif

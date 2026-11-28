@@ -13,7 +13,11 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
 # endif
+# define SCM_IUCV_TRGCLS 1
 # define SOL_IUCV 277
+# define SO_IPRMDATA_MSG 128
+# define SO_MSGLIMIT 4096
+# define SO_MSGSIZE 2048
 # define _SS_SIZE 128
 #endif
 

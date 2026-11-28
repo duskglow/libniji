@@ -279,6 +279,82 @@ extern unsigned long la_symbind64 (Elf64_Sym *, unsigned int, unsigned long *, u
 #  define __NIJI_D_la_version 1
 extern unsigned int la_version (unsigned int);
 # endif
+# ifndef __NIJI_D_anon_LA_ACT_ADD
+#  define __NIJI_D_anon_LA_ACT_ADD 1
+#  if !defined LA_ACT_CONSISTENT || !defined LA_ACT_ADD || !defined LA_ACT_DELETE
+enum {
+#  ifndef LA_ACT_CONSISTENT
+  LA_ACT_CONSISTENT = 0,
+#  endif
+#  ifndef LA_ACT_ADD
+  LA_ACT_ADD = 1,
+#  endif
+#  ifndef LA_ACT_DELETE
+  LA_ACT_DELETE = 2,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_LA_FLG_BINDFROM
+#  define __NIJI_D_anon_LA_FLG_BINDFROM 1
+#  if !defined LA_FLG_BINDTO || !defined LA_FLG_BINDFROM
+enum {
+#  ifndef LA_FLG_BINDTO
+  LA_FLG_BINDTO = 1,
+#  endif
+#  ifndef LA_FLG_BINDFROM
+  LA_FLG_BINDFROM = 2,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_LA_SER_CONFIG
+#  define __NIJI_D_anon_LA_SER_CONFIG 1
+#  if !defined LA_SER_ORIG || !defined LA_SER_LIBPATH || !defined LA_SER_RUNPATH || !defined LA_SER_CONFIG || !defined LA_SER_DEFAULT || !defined LA_SER_SECURE
+enum {
+#  ifndef LA_SER_ORIG
+  LA_SER_ORIG = 1,
+#  endif
+#  ifndef LA_SER_LIBPATH
+  LA_SER_LIBPATH = 2,
+#  endif
+#  ifndef LA_SER_RUNPATH
+  LA_SER_RUNPATH = 4,
+#  endif
+#  ifndef LA_SER_CONFIG
+  LA_SER_CONFIG = 8,
+#  endif
+#  ifndef LA_SER_DEFAULT
+  LA_SER_DEFAULT = 64,
+#  endif
+#  ifndef LA_SER_SECURE
+  LA_SER_SECURE = 128,
+#  endif
+};
+#  endif
+# endif
+# ifndef __NIJI_D_anon_LA_SYMB_ALTVALUE
+#  define __NIJI_D_anon_LA_SYMB_ALTVALUE 1
+#  if !defined LA_SYMB_NOPLTENTER || !defined LA_SYMB_NOPLTEXIT || !defined LA_SYMB_STRUCTCALL || !defined LA_SYMB_DLSYM || !defined LA_SYMB_ALTVALUE
+enum {
+#  ifndef LA_SYMB_NOPLTENTER
+  LA_SYMB_NOPLTENTER = 1,
+#  endif
+#  ifndef LA_SYMB_NOPLTEXIT
+  LA_SYMB_NOPLTEXIT = 2,
+#  endif
+#  ifndef LA_SYMB_STRUCTCALL
+  LA_SYMB_STRUCTCALL = 4,
+#  endif
+#  ifndef LA_SYMB_DLSYM
+  LA_SYMB_DLSYM = 8,
+#  endif
+#  ifndef LA_SYMB_ALTVALUE
+  LA_SYMB_ALTVALUE = 16,
+#  endif
+};
+#  endif
+# endif
 # define LAV_CURRENT 2
 #endif
 

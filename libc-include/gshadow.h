@@ -90,6 +90,7 @@ extern int sgetsgent_r (const char *, struct sgrp *, char *, unsigned long, stru
 # endif
 #endif
 #if 1
+# define GSHADOW "/etc/gshadow"
 # define _PATH_BSHELL "/bin/sh"
 # define _PATH_CONSOLE "/dev/console"
 # define _PATH_CSHELL "/bin/csh"

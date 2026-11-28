@@ -4,7 +4,7 @@
 #define __NIJI_H_netinet_icmp6_h 1
 
 #include <features.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <string.h>

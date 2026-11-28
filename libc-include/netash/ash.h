@@ -23,6 +23,9 @@ struct sockaddr_ash {
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
 # endif
+# define ASH_CHANNEL_ANY 0
+# define ASH_CHANNEL_CONTROL 1
+# define ASH_CHANNEL_REALTIME 2
 # define _SS_SIZE 128
 #endif
 

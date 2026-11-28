@@ -215,6 +215,7 @@ typedef struct sg_req_info sg_req_info_t;
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
+# define SG_BIG_BUFF 32768
 # define SG_DEFAULT_RETRIES 1
 # define SG_DEF_COMMAND_Q 0
 # define SG_DEF_FORCE_LOW_DMA 0

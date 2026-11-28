@@ -140,6 +140,8 @@ typedef union pthread_attr_t pthread_attr_t;
 # define PPP_MAXMRU 65000
 # define PPP_MTU 1500
 # define PPP_VERSION "2.2.0"
+# define PROTO_DNA_RT 39
+# define PROTO_IPX 43
 # ifndef __NIJI_D_m_SC_CCP_OPEN
 #  define __NIJI_D_m_SC_CCP_OPEN 1
 # define SC_CCP_OPEN 0x00000040
@@ -184,6 +186,8 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define __NIJI_D_m_SC_ENABLE_IP 1
 # define SC_ENABLE_IP 0x00000100
 # endif
+# define SC_ESCAPED 2147483648U
+# define SC_FLUSH 1073741824
 # ifndef __NIJI_D_m_SC_LOG_FLUSH
 #  define __NIJI_D_m_SC_LOG_FLUSH 1
 # define SC_LOG_FLUSH 0x00100000
@@ -232,6 +236,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define __NIJI_D_m_SC_REJ_COMP_TCP 1
 # define SC_REJ_COMP_TCP 0x00000020
 # endif
+# define SC_VJ_RESET 536870912
 # ifndef __NIJI_D_m_SC_XMIT_BUSY
 #  define __NIJI_D_m_SC_XMIT_BUSY 1
 # define SC_XMIT_BUSY 0x10000000

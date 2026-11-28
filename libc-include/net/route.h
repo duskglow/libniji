@@ -65,12 +65,14 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTCF_DOREDIRECT
 #  define RTCF_DOREDIRECT 16777216
 # endif
+# define RTCF_LOG 33554432
 # ifndef RTCF_MASQ
 #  define RTCF_MASQ 4194304
 # endif
 # ifndef RTCF_NAT
 #  define RTCF_NAT 8388608
 # endif
+# define RTCF_VALVE 2097152
 # define RTF_ADDRCLASSMASK 4160749568U
 # ifndef RTF_ADDRCONF
 #  define RTF_ADDRCONF 262144
@@ -137,18 +139,34 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define RTF_WINDOW 128
 # endif
 # define RTF_XRESOLVE 2048
+# define RTMSG_AR_FAILED 81
+# define RTMSG_CONTROL 64
 # ifndef RTMSG_DELDEVICE
 #  define RTMSG_DELDEVICE 18
 # endif
 # ifndef RTMSG_DELROUTE
 #  define RTMSG_DELROUTE 34
 # endif
+# define RTMSG_DELRULE 50
 # ifndef RTMSG_NEWDEVICE
 #  define RTMSG_NEWDEVICE 17
 # endif
 # ifndef RTMSG_NEWROUTE
 #  define RTMSG_NEWROUTE 33
 # endif
+# define RTMSG_NEWRULE 49
+# define RT_CLASS_DEFAULT 253
+# define RT_CLASS_LOCAL 255
+# define RT_CLASS_MAIN 254
+# define RT_CLASS_MAX 255
+# define RT_CLASS_UNSPEC 0
+#endif
+
+/* The overrun message type is the netlink one: a program that uses it includes <linux/netlink.h> (black-box probe,
+   HEADERS-STAGE2-GAPS-O: defined in every configuration, an identical redefinition as NLMSG_OVERRUN, 4 with
+   <linux/netlink.h> in either order, no integer constant without it). */
+#if 1
+# define RTMSG_OVERRUN NLMSG_OVERRUN
 #endif
 
 /* route(8)'s maximum segment size of a route is the MTU member of struct rtentry. */

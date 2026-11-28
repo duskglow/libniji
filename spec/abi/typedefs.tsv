@@ -2124,7 +2124,9 @@ function	grantpt	complex.h			int (int)
 typedef	greg_t	arpa/nameser.h	8	8	long long
 typedef	gregset_t	arpa/nameser.h	184	8	long long [23]
 struct	group	grp.h	32	8	group
+struct	group_filter	arpa/inet.h	272	8	group_filter
 function	group_member	arpa/nameser.h			int (unsigned int)
+struct	group_req	arpa/inet.h	136	8	group_req
 struct	group_source_req	arpa/inet.h	264	8	group_source_req
 function	gsignal	arpa/nameser.h			int (int)
 function	gtty	sgtty.h			int (int, sgttyb*)
@@ -2290,6 +2292,8 @@ struct	ip6_rthdr0	netinet/ip6.h	8	4	ip6_rthdr0
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
 struct	ip_mreq_source	arpa/inet.h	12	4	ip_mreq_source
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
+struct	ip_msfilter	arpa/inet.h	20	4	ip_msfilter
+struct	ip_opts	arpa/inet.h	44	4	ip_opts
 struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm
 struct	iphdr	netinet/ip.h	20	4	iphdr
@@ -3886,6 +3890,7 @@ function	times	sys/times.h			long (tms*)
 struct	timespec	aio.h	16	8	timespec
 function	timespec_get	complex.h			int (timespec*, int)
 function	timespec_getres	complex.h			int (timespec*, int)
+struct	timestamp	netinet/ip.h	40	4	timestamp
 struct	timeval	aio.h	16	8	timeval
 struct	timex	pthread.h	208	8	timex
 struct	timezone	lastlog.h	8	4	timezone

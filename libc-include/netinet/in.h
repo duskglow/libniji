@@ -134,6 +134,23 @@ struct ip6_mtuinfo {
 # endif
 #endif
 #if defined __USE_MISC
+# ifndef __NIJI_D_struct_group_filter
+#  define __NIJI_D_struct_group_filter 1
+struct group_filter {
+  unsigned int gf_interface;
+  struct sockaddr_storage gf_group;
+  unsigned int gf_fmode;
+  unsigned int gf_numsrc;
+  struct sockaddr_storage gf_slist[1];
+};
+# endif
+# ifndef __NIJI_D_struct_group_req
+#  define __NIJI_D_struct_group_req 1
+struct group_req {
+  unsigned int gr_interface;
+  struct sockaddr_storage gr_group;
+};
+# endif
 # ifndef __NIJI_D_struct_group_source_req
 #  define __NIJI_D_struct_group_source_req 1
 struct group_source_req {
@@ -225,6 +242,47 @@ struct ip_mreqn {
   struct in_addr imr_multiaddr;
   struct in_addr imr_address;
   int imr_ifindex;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_ip_msfilter
+#  define __NIJI_D_struct_ip_msfilter 1
+struct ip_msfilter {
+  struct in_addr imsf_multiaddr;
+  struct in_addr imsf_interface;
+  unsigned int imsf_fmode;
+  unsigned int imsf_numsrc;
+  struct in_addr imsf_slist[1];
+};
+# endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_ip_opts
+#  define __NIJI_D_struct_ip_opts 1
+struct ip_opts {
+  struct in_addr ip_dst;
+  char ip_opts[40];
 };
 # endif
 #endif
@@ -411,12 +469,91 @@ extern int bindresvport (int, struct sockaddr_in *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_anon_IPPORT_RESERVED
-#  define __NIJI_D_anon_IPPORT_RESERVED 1
-#  if !defined IPPORT_RESERVED
+# ifndef __NIJI_D_anon_IPPORT_BIFFUDP
+#  define __NIJI_D_anon_IPPORT_BIFFUDP 1
+#  if !defined IPPORT_ECHO || !defined IPPORT_DISCARD || !defined IPPORT_SYSTAT || !defined IPPORT_DAYTIME || !defined IPPORT_NETSTAT || !defined IPPORT_FTP \
+    || !defined IPPORT_TELNET || !defined IPPORT_SMTP || !defined IPPORT_TIMESERVER || !defined IPPORT_NAMESERVER || !defined IPPORT_WHOIS || !defined IPPORT_MTP \
+    || !defined IPPORT_TFTP || !defined IPPORT_RJE || !defined IPPORT_FINGER || !defined IPPORT_TTYLINK || !defined IPPORT_SUPDUP || !defined IPPORT_BIFFUDP \
+    || !defined IPPORT_EXECSERVER || !defined IPPORT_LOGINSERVER || !defined IPPORT_WHOSERVER || !defined IPPORT_CMDSERVER || !defined IPPORT_EFSSERVER || !defined IPPORT_ROUTESERVER \
+    || !defined IPPORT_RESERVED || !defined IPPORT_USERRESERVED
 enum {
+#  ifndef IPPORT_ECHO
+  IPPORT_ECHO = 7,
+#  endif
+#  ifndef IPPORT_DISCARD
+  IPPORT_DISCARD = 9,
+#  endif
+#  ifndef IPPORT_SYSTAT
+  IPPORT_SYSTAT = 11,
+#  endif
+#  ifndef IPPORT_DAYTIME
+  IPPORT_DAYTIME = 13,
+#  endif
+#  ifndef IPPORT_NETSTAT
+  IPPORT_NETSTAT = 15,
+#  endif
+#  ifndef IPPORT_FTP
+  IPPORT_FTP = 21,
+#  endif
+#  ifndef IPPORT_TELNET
+  IPPORT_TELNET = 23,
+#  endif
+#  ifndef IPPORT_SMTP
+  IPPORT_SMTP = 25,
+#  endif
+#  ifndef IPPORT_TIMESERVER
+  IPPORT_TIMESERVER = 37,
+#  endif
+#  ifndef IPPORT_NAMESERVER
+  IPPORT_NAMESERVER = 42,
+#  endif
+#  ifndef IPPORT_WHOIS
+  IPPORT_WHOIS = 43,
+#  endif
+#  ifndef IPPORT_MTP
+  IPPORT_MTP = 57,
+#  endif
+#  ifndef IPPORT_TFTP
+  IPPORT_TFTP = 69,
+#  endif
+#  ifndef IPPORT_RJE
+  IPPORT_RJE = 77,
+#  endif
+#  ifndef IPPORT_FINGER
+  IPPORT_FINGER = 79,
+#  endif
+#  ifndef IPPORT_TTYLINK
+  IPPORT_TTYLINK = 87,
+#  endif
+#  ifndef IPPORT_SUPDUP
+  IPPORT_SUPDUP = 95,
+#  endif
+#  ifndef IPPORT_BIFFUDP
+  IPPORT_BIFFUDP = 512,
+#  endif
+#  ifndef IPPORT_EXECSERVER
+  IPPORT_EXECSERVER = 512,
+#  endif
+#  ifndef IPPORT_LOGINSERVER
+  IPPORT_LOGINSERVER = 513,
+#  endif
+#  ifndef IPPORT_WHOSERVER
+  IPPORT_WHOSERVER = 513,
+#  endif
+#  ifndef IPPORT_CMDSERVER
+  IPPORT_CMDSERVER = 514,
+#  endif
+#  ifndef IPPORT_EFSSERVER
+  IPPORT_EFSSERVER = 520,
+#  endif
+#  ifndef IPPORT_ROUTESERVER
+  IPPORT_ROUTESERVER = 520,
+#  endif
 #  ifndef IPPORT_RESERVED
   IPPORT_RESERVED = 1024,
+#  endif
+#  ifndef IPPORT_USERRESERVED
+  IPPORT_USERRESERVED = 5000,
 #  endif
 };
 #  endif
