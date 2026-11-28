@@ -1,0 +1,63 @@
+{
+  "task": "XTASK-SO-PRODUCT-CACHE",
+  "result": "cargo xtask so restores a product set whose every input matches an earlier full build (no-op 332 s -> 2.4 s, products byte-identical) and reuses the trace-at-build when the library archive is unchanged (test-only mutant 335 s -> 92 s); bench step lines",
+  "branch": "task/xtask-so-product-cache",
+  "head": "HEAD_SHA",
+  "jobs": [
+    {
+      "host": "keke",
+      "label": "xtask-so-product-cache-gate2"
+    },
+    {
+      "host": "keke",
+      "label": "xtask-so-product-cache-plants3"
+    }
+  ],
+  "rulings": [
+    {
+      "item": "The CI train (NIJI_TRAIN) neither reads nor writes the product or trace cache, as for the layout verdict cache",
+      "recommendation": "keep it off under the train (the train is the trust anchor); revisit once local use has shown no stale set"
+    }
+  ],
+  "informational": [
+    "~/bin/gate resets the environment (its own PATH), so gate builds and builds outside the gate never share a set (PATH is a key input); a second gate on the same tree hits",
+    "The direct gate's tests write spec/tools/__pycache__/*.pyc into the tree; the keys now skip __pycache__ (commit ae4f4bd28)",
+    "Library mutants: per-product keys would skip almost nothing, because nearly every product takes libc.a, libc.so.6 or the niji-boundary build as input (challenge #8851, accepted). The library-mutant 'before' (cache off) run was not made, to leave time for the final gate; the 'after' run (604.8 s) does all the work an uncached build does, plus the about 1.8 s key",
+    "Measurements on head a8955e653 (the final head adds only the __pycache__ exclusion): keke jobs xtask-so-product-cache-base (origin/next), xtask-so-product-cache-measure, xtask-so-product-cache-mutants (stopped by me after its third test-only pair, so its rc is not 0); earlier gate xtask-so-product-cache-gate and plants xtask-so-product-cache-plants (12 CAUGHT) were green on a8955e653"
+  ],
+  "refused": [],
+  "impact": [
+    {
+      "kind": "perf",
+      "what": "cargo xtask so no-op, traced layout, test profile, keke (median of 3)",
+      "before": 332.0,
+      "after": 2.4,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "cargo xtask so after a test-only one-file change (median of 3, alternated)",
+      "before": 335.3,
+      "after": 91.5,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "cost",
+      "what": "cargo xtask so with no stored set (cold, set and trace key plus store); fix-forward: none planned, about 1% of a miss build",
+      "before": 336.0,
+      "after": 343.2,
+      "unit": "s",
+      "measured": true
+    },
+    {
+      "kind": "tooling",
+      "what": "cargo xtask bench prints step: bench/build, bench/counters, bench/rounds",
+      "before": null,
+      "after": null,
+      "unit": null,
+      "measured": false
+    }
+  ]
+}
