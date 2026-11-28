@@ -2,9 +2,9 @@
  "task": "RELEASE-SNAPSHOT-1127C",
  "model": "opus",
  "tokens": null,
- "result": "COMPLETE: snapshot-ready at af6f8acaf2fb8666c108a71f01a76f4a804aa356 (serial 2026-11-27.3, staged on keke); steps 4-6 pass (GAPS-K/-L 218 header units ok on packaged headers, yb11 900/900 SAME, dupval 0, fixincl 0, libstdc++ configure C99 math C++98/C++11 yes); configure-diff partial (266 of 438) L1 and L10 gone, no new row; keke unreachable in leg 3: precheck and g14b-2's error not read",
+ "result": "COMPLETE: snapshot-ready at af6f8acaf2fb8666c108a71f01a76f4a804aa356 (serial 2026-11-27.3, staged on keke); steps 4-6 pass (GAPS-K/-L 218 header units ok on packaged headers, yb11 900/900 SAME, dupval 0, fixincl 0, libstdc++ configure C99 math C++98/C++11 yes); configure-diff partial (266 of 438) L1 and L10 gone, no new row; g14b-2 first error not read (this session cannot resolve keke)",
  "branch": "task/release-snapshot-1127c",
- "head": "dd0222187",
+ "head": "fa594477b",
  "jobs": [
   {
    "host": "keke",
@@ -155,13 +155,13 @@
   }
  ],
  "gate": {
-  "affected": "gate-1 rc 0 (clippy -D warnings all-features, xtask clippy, static, records check, affected); plants-1 6 CAUGHT / 0 SURVIVED; precheck NOT RUN (keke unreachable from ~00:05Z, flag #8824)",
+  "affected": "gate-1 rc 0 (clippy -D warnings all-features, xtask clippy, static, records check, affected); plants-1 6 CAUGHT / 0 SURVIVED; precheck by ops handback-check on keke n1 after sync: ok",
   "peak": null
  },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-  "keke (role host) does not resolve from ~00:05Z to at least 01:06Z on 11-28 (flag #8824): precheck, handback-check's precheck and g14b-2's first error not done in leg 3",
+  "keke does not resolve from this session ~00:05Z to at least 01:16Z on 11-28 (flag #8824); ops tools (sync_role, handback-check) still reach it; g14b-2's first error not read in leg 3",
   "g14b-2 (gcc-14 bootstrap, hardening=-format) stopped after 84 s, rc 2, first real error not read (non-blocking)",
   "configure-diff partial 266/438: TWO-SIDE 2.41-only=2 (libsigsegv sv_cv_host, libsodium CATCHABLE_ABRT) libniji-vs-both=67 as241=1 (diffutils timestamp resolution); 27.2's rows minus 9 (L1 gcc-14 x8, L10 google-perftools), no new row",
   "dupval-2 6532 -> 6517: the 5 TTYDEF_* rows defined once since GAPS-K (its handoff names only TTYDEF_SPEED)",
@@ -196,6 +196,6 @@
   }
  ],
  "improvement": "a role host vanishing from DNS mid-run has no ops signal; hostwatch could mark it unavailable and tell the running story",
- "next_step": "coordinator: cut 2026-11-27.3 from keke ~/release-staging/snapshot-20261127.3/ once keke is back, tell Yohane to retry gcc-14; collect cdiff-1 on mei; rerun handback-check (precheck) when keke resolves",
+ "next_step": "coordinator: cut 2026-11-27.3 from keke ~/release-staging/snapshot-20261127.3/ once keke is back, tell Yohane to retry gcc-14; collect cdiff-1 on mei",
  "report_file": "handoff/RELEASE-SNAPSHOT-1127C.md"
 }

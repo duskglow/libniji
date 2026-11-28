@@ -75,18 +75,19 @@ sanitizer_platform_limits_posix.cpp compiles (clang and g++). Step 8 as 27.2. No
   system debs different 0; [heapnode-1] only #21 fails (as 27.2); [mei lint-1] = 27.2.
 * Product and role: [smoke-n1-1] SMOKE bad=0, [debs-1] DEBS bad=0, [gate-1] clippy -D warnings all-features,
   xtask clippy, static, records check, affected: all rc 0. [plants-1] 6 CAUGHT, 0 SURVIVED (WARN-DEV-SHM only).
-  Precheck on the role (keke n1) and handback-check's own precheck: NOT RUN, keke unreachable (below). The
-  branch's commits since gate-1 and plants-1 are handoff/ only (no code); gate-1 and plants-1 ran on af6f8acaf.
+  Precheck: run by `ops handback-check` on keke n1 after sync_role (both reach keke; this session's ssh does not,
+  below): first run red on head only (role not synced), after the sync handback-check ok. The branch's commits since
+  gate-1 and plants-1 are handoff/ only (no code); gate-1 and plants-1 ran on af6f8acaf.
 
 ## INFORMATIONAL
 * dupval-2 6532 -> 6517 same: the 5 TTYDEF_* rows left dup-listed.tsv with GAPS-K (defined once now); GAPS-K's
   handoff names only TTYDEF_SPEED.
 * Leg 2's two ssh calls that chained a `cd` before a detached start hung the local ssh (killed by the harness);
   the remote jobs were setsid and ran on. Harness defect, libniji untouched.
-* **keke does not resolve** ("ssh: Could not resolve hostname keke", `getent hosts keke` and
-  `keke.mgmt.internal` empty; mei resolves) from about 00:05Z to at least 01:06Z on 11-28 (flag #8824, no answer
-  yet). It holds the role, the staged debs and the keke job logs: g14b-2's error and the precheck were not read or
-  run in leg 3. The staged snapshot was checked in leg 2 (9 OK).
+* **keke does not resolve from this session** ("ssh: Could not resolve hostname keke", `getent hosts keke` and
+  `keke.mgmt.internal` empty; mei resolves) from about 00:05Z to at least 01:16Z on 11-28 (flag #8824); the ops
+  tools (sync_role, handback-check's precheck) still reached it. g14b-2's error was not read in leg 3. The staged
+  snapshot was checked in leg 2 (9 OK).
 * Evidence jobs with rc != 0 by design (not in JOBS, as 1127B): keke g14b-2 and g14bstock-1 (the bootstrap stops),
   hdrdiff-1 (removals present), heapnode-1 (#21 only); mei yb9-1 (sched_attr), yb10-1 (ftp-tables order).
 * SUPERSEDED: hc-1 (multiarch include dir not merged: harness), g14b-1 (driver flags: `-Werror=format-security`,
