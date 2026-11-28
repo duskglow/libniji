@@ -195,6 +195,8 @@ both	libc6-dev	usr/include/wait.h	file	include/wait.h	0644	none	-
 both	libc6-dev	usr/include/wchar.h	file	include/wchar.h	0644	none	-
 both	libc6-dev	usr/include/wctype.h	file	include/wctype.h	0644	none	-
 both	libc6-dev	usr/include/wordexp.h	file	include/wordexp.h	0644	none	-
+both	libc6-dev	usr/include/x86_64-linux-gnu/bits/niji-sigtstp.h	file	include/bits/niji-sigtstp.h	0644	none	-
+both	libc6-dev	usr/include/x86_64-linux-gnu/bits/types.h	file	include/bits/types.h	0644	none	-
 both	libc6-dev	usr/include/x86_64-linux-gnu/fpu_control.h	file	include/fpu_control.h	0644	none	-
 both	libc6-dev	usr/include/x86_64-linux-gnu/gnu/lib-names.h	file	include/gnu/lib-names.h	0644	none	-
 both	libc6-dev	usr/include/x86_64-linux-gnu/gnu/libc-version.h	file	include/gnu/libc-version.h	0644	none	-
