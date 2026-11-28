@@ -5,7 +5,8 @@ def stage2_gaps_o_names():
     """(names, tags) of HEADERS-STAGE2-GAPS-O (Yohane stage 2, gcc-14's libgo: mksysinfo.sh copies every constant and
     struct size of gcc's -fdump-go-spec dump of sysinfo.c): the public names the reference's headers define and no
     table held, found as the names (only) of a Go-dump sweep of every public header in six feature-macro sets. The
-    struct and typedef names are candidates both ways (ordinary name and tag). The probe settles which of these the
+    struct types shipped so far are candidates both ways (ordinary name and tag); the other types of the sweep are
+    listed in handoff/HEADERS-STAGE2-GAPS-O.md. The probe settles which of these the
     reference defines, where, of which kind and in which configurations."""
     names = [
         "AC", "ASH_CHANNEL_ANY", "ASH_CHANNEL_CONTROL", "ASH_CHANNEL_REALTIME", "ATPORT_FIRST", "ATPORT_LAST",
@@ -41,15 +42,7 @@ def stage2_gaps_o_names():
         "Val_GNU_MIPS_ABI_FP_XX", "WRDE_NOSYS"
     ]
     types = [
-        "Elf32_RegInfo", "Elf32_gptab", "Elf_MIPS_ABIFlags_v0", "Elf_Options", "Elf_Options_Hw", "_G_fpos64_t",
-        "__FILE", "__atomic_wide_counter", "__fpos64_t", "__fpos_t", "__gconv_info", "__gconv_step",
-        "__gconv_step_data", "__kernel_fd_set", "__kernel_fsid_t", "__kernel_sockaddr_storage", "__mbstate_t",
-        "__once_flag", "__prfpregset_t", "__pthread_cleanup_frame", "__pthread_cond_s", "__pthread_internal_list",
-        "__pthread_internal_slist", "__pthread_list_t", "__pthread_mutex_s", "__pthread_rwlock_arch_t",
-        "__pthread_slist_t", "__sigval", "_fpreg", "_fpx_sw_bytes", "_ns_flagdata", "_xsave_hdr", "_xstate",
-        "_ymmh_state", "atalk_addr", "atalk_netrange", "fddi_header", "gaih_addrtuple", "group_filter", "group_req",
-        "ip_msfilter", "ip_opts", "ns_tcp_tsig_state", "ns_tsig_key", "r_debug_extended", "shaperconf",
-        "sockaddr_at", "sockaddr_iucv", "sockaddr_pkt", "timestamp", "tr_statistics", "trh_hdr", "trllc", "trn_hdr"
+        "group_filter", "group_req", "ip_msfilter", "ip_opts", "timestamp",
     ]
     return names + types, types
 
