@@ -130,9 +130,11 @@ pub(crate) fn file_sha(p: &Path) -> Result<String, String> {
     sha256_files(Path::new("/"), &[c.display().to_string()])?.pop().ok_or_else(|| format!("{}: no sum", p.display()))
 }
 
-/// Whether a tree path (relative, `/`-separated) is left out of every key: the build's own output and git's data.
+/// Whether a tree path (relative, `/`-separated) is left out of every key: the build's own output, git's data, and
+/// Python's bytecode caches (`__pycache__`, which a test run leaves beside `spec/tools/*.py`): Python derives them from
+/// the `.py` files, which are key inputs, and compiles the source again when a cache does not match it.
 fn outside_tree(rel: &str) -> bool {
-    rel == "target" || rel == "fuzz/target" || rel == ".git"
+    rel == "target" || rel == "fuzz/target" || rel == ".git" || rel.rsplit('/').next() == Some("__pycache__")
 }
 
 /// The key lines of the tree under `root`: `file <path> <sha256>` for every regular file, `link <path> <target>`
@@ -777,13 +779,18 @@ mod tests {
 
     #[test]
     fn a_modification_time_alone_keeps_the_key() {
-        // no spec clause: tooling (XTASK-SO-PRODUCT-CACHE): contents only, never modification times.
+        // no spec clause: tooling (XTASK-SO-PRODUCT-CACHE): contents only, never modification times, and no
+        // build output or bytecode cache.
         let f = fx("mtime");
         let a = set_key_of(&f, &[], "fast traced");
         let file = fs::File::options().write(true).open(f.root.join("spec/abi/versions.tsv")).unwrap();
         file.set_modified(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000)).unwrap();
         put(&f.root.join("target/junk"), "other build output\n");
+        // A test run's Python bytecode beside a tool of the tree.
+        put(&f.root.join("spec/tools/__pycache__/probe.cpython-312.pyc"), "bytecode\n");
         assert_eq!(a, set_key_of(&f, &[], "fast traced"));
+        put(&f.root.join("spec/tools/probe.py"), "print(1)\n");
+        assert_ne!(a, set_key_of(&f, &[], "fast traced"), "the Python source itself is a key input");
     }
 
     #[test]

@@ -1,0 +1,1 @@
+socache-keys-pycache | xtask/src/so_cache.rs | lit:rel == "target" || rel == "fuzz/target" || rel == ".git" || rel.rsplit('/').next() == Some("__pycache__") ==> rel == "target" || rel == "fuzz/target" || rel == ".git" | cargo test -p xtask --bin xtask -- so_cache:: | msg:a_modification_time_alone_keeps_the_key.*(FAILED|panicked)|assertion .left == right. failed
