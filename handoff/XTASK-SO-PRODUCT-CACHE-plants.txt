@@ -1,4 +1,3 @@
-# XTASK-SO-PRODUCT-CACHE plants: each drops or blunts one key input or the restore check; the so_cache tests must catch it.
 socache-set-drops-tree | xtask/src/so_cache.rs | lit:("host", &host), ("tree", &tree), ("staged" ==> ("host", &host), ("staged" | cargo test -p xtask --bin xtask -- so_cache:: | msg:the change must change the key
 socache-set-drops-staged | xtask/src/so_cache.rs | lit:("tree", &tree), ("staged", &staged), ==> ("tree", &tree), | cargo test -p xtask --bin xtask -- so_cache:: | msg:the change must change the key
 socache-set-drops-probes | xtask/src/so_cache.rs | lit:("staged", &staged), ("probes", &probes)]) ==> ("staged", &staged)]) | cargo test -p xtask --bin xtask -- so_cache:: | msg:the change must change the key
@@ -11,8 +10,9 @@ socache-tree-mtime | xtask/src/so_cache.rs | lit:lines.push(format!("file {f} {h
 socache-trace-drops-archive | xtask/src/so_cache.rs | lit:("host", &host), ("cargo", &cargo), ==> ("host", &host), | cargo test -p xtask --bin xtask -- so_cache:: | msg:another archive is another trace
 socache-restore-unchecked | xtask/src/so_cache.rs | lit:let errs = crate::import::entry_errors(&sorted, &found); ==> let errs: Vec<String> = { let _ = crate::import::entry_errors(&sorted, &found); Vec::new() }; | cargo test -p xtask --bin xtask -- so_cache:: | msg:a_restored_set_is_the_stored_one_and_a_damaged_entry_is_a_miss.*(FAILED|panicked)|a set that does not verify|assertion failed: !s.restore
 socache-trace-unchecked | xtask/src/so_cache.rs | lit:for ((name, want), got) in files.iter().zip(sha256_files(lists, &names)?) { ==> for ((name, want), got) in files.iter().zip(sha256_files(lists, &names)?).filter(|_| false) { | cargo test -p xtask --bin xtask -- so_cache:: | msg:a stored list that changed is a miss
-# cargo xtask plants results (12 plants: 12 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
-# socache-set-drops-tree: CAUGHT, caught by xtask so_cache::tests::a_tree_file_change_rebuilds_the_products
+socache-keys-pycache | xtask/src/so_cache.rs | lit:rel == "target" || rel == "fuzz/target" || rel == ".git" || rel.rsplit('/').next() == Some("__pycache__") ==> rel == "target" || rel == "fuzz/target" || rel == ".git" | cargo test -p xtask --bin xtask -- so_cache:: | msg:a_modification_time_alone_keeps_the_key.*(FAILED|panicked)|assertion .left == right. failed
+# cargo xtask plants results (13 plants: 13 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# socache-set-drops-tree: CAUGHT, caught by xtask so_cache::tests::a_modification_time_alone_keeps_the_key
 # socache-set-drops-staged: CAUGHT, caught by xtask so_cache::tests::a_change_of_the_staged_headers_rebuilds_the_products
 # socache-set-drops-probes: CAUGHT, caught by xtask so_cache::tests::a_change_of_a_system_header_a_probe_includes_rebuilds_the_products
 # socache-set-drops-flags: CAUGHT, caught by xtask so_cache::tests::a_change_of_the_profile_or_layout_rebuilds_the_products
@@ -24,3 +24,4 @@ socache-trace-unchecked | xtask/src/so_cache.rs | lit:for ((name, want), got) in
 # socache-trace-drops-archive: CAUGHT, caught by xtask so_cache::tests::the_trace_key_follows_the_archive_and_not_the_rust_sources
 # socache-restore-unchecked: CAUGHT, caught by xtask so_cache::tests::a_restored_set_is_the_stored_one_and_a_damaged_entry_is_a_miss
 # socache-trace-unchecked: CAUGHT, caught by xtask so_cache::tests::the_trace_key_follows_the_archive_and_not_the_rust_sources
+# socache-keys-pycache: CAUGHT, caught by xtask so_cache::tests::a_modification_time_alone_keeps_the_key

@@ -1,6 +1,6 @@
 # XTASK-SO-PRODUCT-CACHE: `cargo xtask so` restores unchanged product sets and traces
 
-Branch `task/xtask-so-product-cache`; head: see `handoff/reports/XTASK-SO-PRODUCT-CACHE.json`. Decision D-X.181.
+Branch `task/xtask-so-product-cache`; code head e15a71d5f (the hand-back commit after it is prose only). Decision D-X.181 (`records/decisions/D-X/D-X.181.toml`). Gate `xtask-so-product-cache-gate2` green, plants `xtask-so-product-cache-plants3` 13 of 13 CAUGHT (`handoff/XTASK-SO-PRODUCT-CACHE-plants.txt`).
 
 ## What landed
 

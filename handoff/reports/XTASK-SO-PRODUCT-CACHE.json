@@ -2,7 +2,7 @@
   "task": "XTASK-SO-PRODUCT-CACHE",
   "result": "cargo xtask so restores a product set whose every input matches an earlier full build (no-op 332 s -> 2.4 s, products byte-identical) and reuses the trace-at-build when the library archive is unchanged (test-only mutant 335 s -> 92 s); bench step lines",
   "branch": "task/xtask-so-product-cache",
-  "head": "HEAD_SHA",
+  "head": "e15a71d5f",
   "jobs": [
     {
       "host": "keke",
