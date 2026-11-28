@@ -32,7 +32,7 @@ const MAGIC: &str = "niji layout verdict 1";
 /// The probe the start-up kinds link (`layout::link_startup_probe`).
 const PROBE: &str = "crates/core/tests/oracle/page_faults.c";
 /// Environment variables the checks or their tools read (the `NIJI_*` ones are added by prefix).
-const ENV: &[&str] = &["PATH", "CC", "HOME", "CARGO_HOME", "LD_LIBRARY_PATH", "LD_PRELOAD", "GCC_EXEC_PREFIX", "COMPILER_PATH", "LIBRARY_PATH", "CPATH", "C_INCLUDE_PATH", "TMPDIR"];
+pub(crate) const ENV: &[&str] = &["PATH", "CC", "HOME", "CARGO_HOME", "LD_LIBRARY_PATH", "LD_PRELOAD", "GCC_EXEC_PREFIX", "COMPILER_PATH", "LIBRARY_PATH", "CPATH", "C_INCLUDE_PATH", "TMPDIR"];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Mode {
@@ -159,7 +159,7 @@ fn read_entry(path: &Path, key: &str) -> Result<Option<Vec<String>>, String> {
 }
 
 /// `name` resolved on `path` (a `PATH` value); a name with a slash as it is.
-fn which(name: &str, path: &str) -> Result<PathBuf, String> {
+pub(crate) fn which(name: &str, path: &str) -> Result<PathBuf, String> {
     if name.contains('/') {
         return Ok(PathBuf::from(name));
     }

@@ -1781,7 +1781,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 return Err("target/niji holds products built with the fast test profile (or of unknown profile), which are never benchmarked: run `cargo xtask bench --build-only` (or `cargo xtask so` with NIJI_FULL_PROFILE=1) first".into());
             }
         } else {
+            let built = std::time::Instant::now();
             crate::so::run_so_as(root, crate::so::Profile::Release)?;
+            // XTASK-SO-PRODUCT-CACHE: the bench's own phases get step lines as the product build's do.
+            println!("{}", crate::steptime::line("bench/build", built.elapsed()));
         }
     }
     let host_benches: Vec<&str> = {
@@ -1851,7 +1854,9 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     if counters_only {
         // TOOLS-5: no timing rounds; the counted runs only (the baseline job runs this right after its timing run).
         let names = counted_benches(&benches, &host_capable);
+        let counted_at = std::time::Instant::now();
         let c = counted_table(root, &names, mode == Mode::NoBuild, &BTreeMap::new())?;
+        println!("{}", crate::steptime::line("bench/counters", counted_at.elapsed()));
         check_counted(c.rows, &filter)?;
         // The repeat test of the counts (`--counters-only --count-runs N`, BUILD-REPRODUCIBLE-PATHS): every counted
         // row with an instruction limit for this CPU must repeat within its tolerance.
@@ -1935,6 +1940,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         if adaptive { format!("{ROUNDS_FIRST} to {runs} (adaptive)") } else { runs.to_string() },
         started.elapsed().as_secs_f64()
     );
+    println!("{}", crate::steptime::line("bench/rounds", started.elapsed()));
     if adaptive {
         let settled = rows.iter().filter(|r| r.get(2) == Some(&"ratio_host") && rounds_run.get(r[0]) == Some(&ROUNDS_FIRST)).count();
         let full = rows.iter().filter(|r| r.get(2) == Some(&"ratio_host") && rounds_run.get(r[0]) == Some(&runs)).count();
@@ -2054,7 +2060,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             .iter()
             .filter_map(|(k, lv)| host_rounds.get(k).and_then(|hv| ratio_stats(lv, hv)).map(|(m, _)| (k.clone(), m)))
             .collect();
-        match counted_table(root, &names, mode == Mode::NoBuild, &ns) {
+        let counted_at = std::time::Instant::now();
+        let counted = counted_table(root, &names, mode == Mode::NoBuild, &ns);
+        println!("{}", crate::steptime::line("bench/counters", counted_at.elapsed()));
+        match counted {
             Ok(c) => {
                 if counters {
                     if let Err(e) = check_counted(c.rows, &filter) {

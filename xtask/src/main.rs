@@ -106,6 +106,7 @@ mod repro;
 mod rust_dylib;
 mod schedule;
 mod so;
+mod so_cache;
 mod startup_ro;
 mod spec;
 mod status;

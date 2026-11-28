@@ -1491,9 +1491,32 @@ fn trace_layout(root: &Path, product: &Path, profile: Profile) -> Result<(), Str
     }
     let tdir = lists.join("trace");
     let _ = fs::remove_dir_all(&tdir);
+    let saved = lists.join(crate::hottext::PRE_GROUP_ARCHIVE);
+    // XTASK-SO-PRODUCT-CACHE: the lists of an earlier trace of this archive, with the same tree (but its Rust
+    // sources), tools, xtask binary, environment and profile.
+    let env = |k: &str| std::env::var(k).ok();
+    let cache_names: Vec<String> = crate::hotlists::GENERATED.iter().map(|g| g.to_string()).chain(std::iter::once("trace.log".to_string())).collect();
+    let trace_key = match crate::so_cache::mode(&env) {
+        crate::so_cache::Mode::Use => match crate::so_cache::Ctx::of_process(root, &env, profile.name().to_string()).and_then(|ctx| crate::so_cache::trace_key(&ctx, &saved)) {
+            Ok(k) => Some(k),
+            Err(e) => {
+                println!("so: trace cache not usable ({e}): tracing");
+                None
+            }
+        },
+        _ => None,
+    };
+    if let Some(k) = &trace_key {
+        if let Some(lines) = crate::so_cache::trace_restore(root, k, &lists)? {
+            for l in lines {
+                println!("{l}");
+            }
+            return Ok(());
+        }
+    }
+    let mut printed = Vec::new();
     fs::create_dir_all(&tdir).map_err(|e| format!("{}: {e}", tdir.display()))?;
     let copy = tdir.join("niji-processed.a");
-    let saved = lists.join(crate::hottext::PRE_GROUP_ARCHIVE);
     fs::copy(&saved, &copy).map_err(|e| format!("copy {}: {e}", saved.display()))?;
     finish_archive(root, &copy, product, &tdir.join("libc.a"), Layout::Ungrouped)?;
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
@@ -1534,7 +1557,12 @@ fn trace_layout(root: &Path, product: &Path, profile: Profile) -> Result<(), Str
         return Err(format!("so: trace-at-build: tracing failed ({st}); last lines of {}:\n{}", log.display(), tail.join("\n")));
     }
     for l in fs::read_to_string(&log).unwrap_or_default().lines().filter(|l| l.starts_with("hot-text:") || l.starts_with("startup-text:") || l.starts_with("probe-text:")) {
-        println!("so: trace-at-build: {l}");
+        let line = format!("so: trace-at-build: {l}");
+        println!("{line}");
+        printed.push(line);
+    }
+    if let Some(k) = &trace_key {
+        crate::so_cache::trace_store(root, k, &lists, &cache_names, &printed);
     }
     Ok(())
 }
@@ -2171,11 +2199,34 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         println!("{}", phase_line("total", run_started.elapsed()));
         return Ok(());
     }
-    let early = EarlyBuilds::start(root, &product, profile);
-    let data = EarlyData::start(root, &release);
-    // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
+    // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first. Before the
+    // product cache's key, which takes them (they copy the host's kernel UAPI headers) by content.
     crate::headers::stage(root, &release)?;
     phases.mark("headers-gen");
+    // XTASK-SO-PRODUCT-CACHE: a set whose every input is that of an earlier full build is restored, not rebuilt.
+    let env = |k: &str| std::env::var(k).ok();
+    let sets = match crate::so_cache::Ctx::of_process(root, &env, format!("{} {}", profile.name(), layout.name())) {
+        Ok(ctx) => crate::so_cache::Sets::open(root, &ctx, &release),
+        Err(e) => {
+            println!("so: product cache not usable ({e}): every product built");
+            None
+        }
+    };
+    if let Some(s) = &sets {
+        if s.restore(&release, &product)? {
+            crate::import::write_manifest(&release, &built_from)?;
+            phases.mark("cache-restore");
+            print_dropped(&release, &cleared);
+            println!("{}", phase_line("total", run_started.elapsed()));
+            return Ok(());
+        }
+        // A partial restore leaves copies behind: the build starts from the staged headers again.
+        clear_products(&release)?;
+        crate::headers::stage(root, &release)?;
+    }
+    phases.mark("cache-key");
+    let early = EarlyBuilds::start(root, &product, profile);
+    let data = EarlyData::start(root, &release);
     if layout == Layout::Traced {
         println!("so: trace-at-build (the default; {}=ungrouped opts out): the start-up layout comes from a trace of this build", crate::hotlists::TRACE_ENV);
     }
@@ -2418,6 +2469,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // CI-PRODUCTS-ONCE: the manifest after the marker, so only a finished set has one.
     crate::import::write_manifest(&release, &built_from)?;
     phases.mark("manifest");
+    if let Some(s) = &sets {
+        s.store(&release, &product, profile.name());
+        phases.mark("cache-store");
+    }
     print_dropped(&release, &cleared);
     println!("{}", phase_line("total", run_started.elapsed()));
     Ok(())
