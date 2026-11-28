@@ -579,7 +579,7 @@ extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64"
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_fchmodat
 #  define __NIJI_D_fchmodat 1
-extern int fchmodat (int, const char *, unsigned int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
+extern int fchmodat (int, const char *, unsigned int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2))) __NIJI_FWUR;
 # endif
 struct stat;
 # ifndef __NIJI_D_fstatat

@@ -414,7 +414,7 @@ extern struct tm *localtime_r (const long *, struct tm *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D___sched_cpualloc
 #  define __NIJI_D___sched_cpualloc 1
-extern cpu_set_t *__sched_cpualloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern cpu_set_t *__sched_cpualloc (unsigned long) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D___sched_cpucount
 #  define __NIJI_D___sched_cpucount 1

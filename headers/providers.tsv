@@ -64,3 +64,11 @@ iscanonical	generic	ISO/IEC TS 18661-1 macro; probe: no std::iscanonical, the he
 iseqsig	generic	ISO/IEC TS 18661-1 macro; probe: no std::iseqsig, the header declares the C++ overloads
 issignaling	generic	ISO/IEC TS 18661-1 macro; probe: no std::issignaling, the header declares the C++ overloads
 iszero	generic	ISO/IEC TS 18661-1 macro; probe: no std::iszero, the header declares the C++ overloads
+__exp10	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10l	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f32	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f64	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f32x	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f64x	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS
+__exp10f128	none	declared by the reference (visibility.tsv, math.h), no export (versions.tsv: libm has exp10 only); probe HEADERS-STAGE2-GAPS-M: declared in C under _GNU_SOURCE and in C++ (<cmath> and <math.h>), xapian-core AC_CHECK_DECLS

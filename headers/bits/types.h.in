@@ -1,0 +1,17 @@
+@@generated
+/* bits/types.h: the reference's internal type names (`__off_t`, `__uid_t`, ...), which configure probes include
+   directly (openldap's header check, psmisc's `struct user_regs_struct` test); the same names in every
+   configuration, as the reference's (black-box probe, HEADERS-STAGE2-GAPS-M). Each is defined once per translation
+   unit, beside the headers that show some of them. */
+#ifndef __NIJI_H_bits_types_h
+#define __NIJI_H_bits_types_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

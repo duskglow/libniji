@@ -328,6 +328,14 @@ def kernel_flags(work):
     return uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kernel_dir(work)]
 
 
+def deprecation_flags(flags):
+    """`-Wno-cpp` for flags (a list) that define _BSD_SOURCE or _SVID_SOURCE without _DEFAULT_SOURCE: <features.h>
+    warns there with `#warning` that they are deprecated, as the reference's does (HEADERS-STAGE2-GAPS-M, #8815;
+    s13.d/80 checks the warning itself). Any other flags keep every `#warning` an error."""
+    names = {f[2:].split("=")[0] for f in flags if f.startswith("-D")}
+    return ["-Wno-cpp"] if names & {"_BSD_SOURCE", "_SVID_SOURCE"} and "_DEFAULT_SOURCE" not in names else []
+
+
 # P8 (plan/headers.md section 3): a libniji header and a kernel UAPI header that defines the same names (the `uapi` cell
 # of its slice row). Both include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose
 # kernel header is not installed is skipped.
@@ -507,7 +515,7 @@ def main():
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
                 "-isystem", gccinc, *(uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kern]),
-                "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror", *deprecation_flags(c["flags"].split())]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(

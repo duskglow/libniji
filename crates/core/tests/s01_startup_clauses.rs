@@ -598,6 +598,20 @@ fn s1_2_c_4_2() {
 }
 
 #[test]
+fn s1_2_c_4_1_again() {
+    // §1.2 contract clause 4.1, with D-1.15: a SIGABRT handler that calls abort again (and stays
+    // installed) runs once; that second abort ends the process by SIGABRT.
+    if probe().as_deref() == Some("again") {
+        niji_boundary::selftest::expect_crash();
+        let _ = niji_boundary::selftest::with_aborting_handler(|| x::abort());
+        CSys.exit_group(99);
+    }
+    let o = run_probe("s1_2_c_4_1_again", "again");
+    assert_eq!(o.status.signal(), Some(6), "{:?}", o.status);
+    assert_eq!(stderr_of(&o).matches("[handler]").count(), 1, "{}", stderr_of(&o));
+}
+
+#[test]
 fn s1_2_c_4_3() {
     // abort is not stopped by a blocked SIGABRT.
     if probe().as_deref() == Some("blocked") {

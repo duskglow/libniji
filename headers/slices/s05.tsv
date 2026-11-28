@@ -6,6 +6,7 @@ features-time64.h	0	-
 stdc-predef.h	0	-
 sys/cdefs.h	0	-
 sys/types.h	0	-
+bits/types.h	0	-
 sys/bitypes.h	0	-
 stdint.h	0	-
 inttypes.h	0	-

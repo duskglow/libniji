@@ -97,11 +97,11 @@ extern int mallopt (int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_memalign
 #  define __NIJI_D_memalign 1
-extern void *memalign (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (2), __warn_unused_result__));
+extern void *memalign (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (2))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_pvalloc
 #  define __NIJI_D_pvalloc 1
-extern void *pvalloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
+extern void *pvalloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_realloc
 #  define __NIJI_D_realloc 1
@@ -113,7 +113,7 @@ extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW 
 # endif
 # ifndef __NIJI_D_valloc
 #  define __NIJI_D_valloc 1
-extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1), __warn_unused_result__));
+extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1))) __NIJI_FWUR;
 # endif
 # define M_ARENA_MAX (-8)
 # define M_ARENA_TEST (-7)

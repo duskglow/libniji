@@ -1,0 +1,35 @@
+{
+  "task": "HEADERS-STAGE2-GAPS-M",
+  "model": "opus",
+  "tokens": null,
+  "result": "CONFIGURE-DIFF rows L2-L9, L11-L13, L15 matched to stock 2.39 and B1 (second abort ends the process); cdiff rerun over the 45 packages: 220 -> 103 differing probes, every L2-L13/L15/B1 row gone, only recorded-class rows kept",
+  "branch": "task/headers-stage2-gaps-m",
+  "head": "7fc7190c6",
+  "jobs": [
+    {"host": "shiki", "label": "headers-stage2-gaps-m-gate4"},
+    {"host": "shiki", "label": "headers-stage2-gaps-m-plants4"},
+    {"host": "mei", "label": "headers-stage2-gaps-m-cdiff1"}
+  ],
+  "gate": {"affected": "gate3 (head e7366dc5d) green; gate4 on the final head pending at hand-back", "peak": "16G"},
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "B1 variants raise-then-abort and longjmp-then-abort not probed on 2.41 (leg 1's mmdebstrap chroot on mei refused, not retried); D-1.15 states the rule 'a second abort in one process ends it'",
+    "L12: c89/gnu89 + _XOPEN_SOURCE=500 per-name rows (snprintf etc.) remain: ftm-configs.tsv has no C90+X/Open configuration; not chased",
+    "cdiff new rows: diffutils am_cv_filesystem_timestamp_resolution (stock 0.2, libniji 0.1; automake's timing-based file-system probe) not chased; libunistring rwlock waitqueue rows are R4 (noisy on stock per the report)",
+    "libm.so.6's internal-error path keeps niji-rt's own abort copy (its own first-abort flag); reachable only from a libm bug; not changed",
+    "Stock's <bits/types.h> also defines internal __*_TYPE / _BITS_*_H macros: not shipped (reserved names, no package use seen)"
+  ],
+  "refused": [
+    "leg 1: the Bash call that wrote ~/work/headers-stage2-gaps-m/t241.sh and abrt.c to mei and started `~/bin/jobrun headers-stage2-gaps-m-t241 test -- sh ~/work/headers-stage2-gaps-m/t241.sh` (mmdebstrap trixie chroot to probe 2.41's nested-abort rule): denied by the auto-mode classifier; not retried"
+  ],
+  "impact": [
+    {"kind": "correctness", "what": "configure probes answering as on stock: CONFIGURE-DIFF differing probes over the 45 packages that differed", "before": 220, "after": 103, "unit": "differing probes", "measured": true},
+    {"kind": "correctness", "what": "abort() reached again from a SIGABRT handler ends the process by SIGABRT (libsodium CATCHABLE_ABRT)", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "correctness", "what": "libc6-dev ships bits/types.h and bits/niji-sigtstp.h (signal.h includes the latter)", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "header_check fragment s13.d/80 (units per item, problems() for the deprecation warning, wur and SIGTSTP text) and plants", "before": 0, "after": 19, "unit": "plants", "measured": true}
+  ],
+  "improvement": "The deb manifest gap surfaced only in the gate's product tests: headers-gen could warn when a header template adds a product under include/ with no tools/deb/manifest.tsv row",
+  "next_step": "none: land through the train",
+  "report_file": "handoff/HEADERS-STAGE2-GAPS-M.md"
+}

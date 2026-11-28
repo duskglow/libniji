@@ -227,6 +227,15 @@ unsafe extern "C" {
     pub(crate) fn strlen(s: *const u8) -> usize;
     /// Obligation: `s` is readable up to a NUL or `max` bytes.
     pub(crate) fn strnlen(s: *const u8, max: usize) -> usize;
+    /// libc.so.6's `abort`: no argument, never returns; no obligation.
+    #[link_name = "abort"]
+    safe fn libc_abort_export() -> !;
+}
+
+/// Terminate through libc.so.6's `abort` (`ret::abort` in the libresolv product, D-1.15).
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn libc_abort() -> ! {
+    libc_abort_export()
 }
 
 /// The calling thread's result block of `kind` (`need` bytes): its address, 0 without memory.

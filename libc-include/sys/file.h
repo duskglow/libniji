@@ -510,7 +510,7 @@ extern int fcntl64 (int, int, ...);
 # endif
 # ifndef __NIJI_D_lockf64
 #  define __NIJI_D_lockf64 1
-extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
+extern int lockf64 (int, int, long) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_open64
 #  define __NIJI_D_open64 1
@@ -607,12 +607,12 @@ extern long vmsplice (int, const struct iovec *, unsigned long, unsigned int);
 #  define __NIJI_D_lockf 1
 #  if (defined __USE_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
+extern int lockf (int, int, long) __asm__ ("lockf64") __NIJI_FWUR;
 #   else
-extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
+extern int lockf (int, int, long) __NIJI_FWUR;
 #   endif
 #  elif __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
+extern int lockf (int, int, long) __asm__ ("lockf64") __NIJI_FWUR;
 #  endif
 # endif
 #endif

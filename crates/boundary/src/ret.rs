@@ -299,9 +299,17 @@ pub fn trap() {
     crate::ffi::niji_machine_trap();
 }
 
-/// Terminate with `SIGABRT`.
+/// Terminate with `SIGABRT`. The libresolv product calls libc.so.6's exported `abort`: the record
+/// of the process's first abort is libc.so.6's state, never a second copy in libresolv.so.2 (D-1.15).
+#[cfg(not(all(feature = "libresolv", not(feature = "runtime"))))]
 pub fn abort() -> ! {
     niji_rt::fatal::abort(&CSys, trap)
+}
+
+/// Terminate with `SIGABRT` (the libresolv product: libc.so.6's `abort`).
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub fn abort() -> ! {
+    crate::caller_alloc::libc_abort()
 }
 
 /// A structure result stored into the caller's object (`stat`, `statfs`, `statvfs`): 0, or -1

@@ -3,6 +3,7 @@
 header	p1	uapi
 signal.h	1	-
 sys/signal.h	1	-
+bits/niji-sigtstp.h	0	-
 setjmp.h	1	-
 ucontext.h	1	-
 sys/ucontext.h	1	-

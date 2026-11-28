@@ -206,11 +206,11 @@ extern int fgetpos64 (FILE *, fpos64_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fopen64
 #  define __NIJI_D_fopen64 1
-extern FILE *fopen64 (const char *, const char *) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *fopen64 (const char *, const char *) __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_freopen64
 #  define __NIJI_D_freopen64 1
-extern FILE *freopen64 (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
+extern FILE *freopen64 (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_fseeko64
 #  define __NIJI_D_fseeko64 1
@@ -222,11 +222,11 @@ extern int fsetpos64 (FILE *, const fpos64_t *) __attribute__ ((__nonnull__ (1))
 # endif
 # ifndef __NIJI_D_ftello64
 #  define __NIJI_D_ftello64 1
-extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
+extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1))) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_tmpfile64
 #  define __NIJI_D_tmpfile64 1
-extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__));
+extern FILE *tmpfile64 (void) __attribute__ ((__malloc__)) __NIJI_FWUR;
 # endif
 #endif
 #if 1

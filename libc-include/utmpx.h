@@ -145,6 +145,13 @@ extern int utmpxname (const char *);
 # define _PATH_WTMPX "/var/log/wtmp"
 #endif
 
+/* The sizes of struct utmpx's ut_host, ut_line and ut_user arrays (the UT_* values of <utmp.h>, layouts.tsv), under
+   the reference's reserved names, in every configuration (black-box probe of the reference, C and C++,
+   HEADERS-STAGE2-GAPS-M: procps's configure tests __UT_HOSTSIZE); UT_* themselves stay <utmp.h>'s. */
+#define __UT_HOSTSIZE 256
+#define __UT_LINESIZE 32
+#define __UT_NAMESIZE 32
+
 /* struct timeval <-> struct timespec: the same text as <sys/time.h>. */
 #if defined __USE_GNU
 # define TIMEVAL_TO_TIMESPEC(tv, ts) do { (ts)->tv_sec = (tv)->tv_sec; (ts)->tv_nsec = (tv)->tv_usec * 1000; } while (0)

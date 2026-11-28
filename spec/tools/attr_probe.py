@@ -71,7 +71,8 @@ list of the 1-based parameters marked nonnull; `table` runs the `n.k` tests agai
 (`_FORTIFY_SOURCE` off) and fails, naming them, when a parameter is marked in one of the two only (the table cannot
 say so; none is, HEADERS-NONNULL-MATCH), format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
 printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
-parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const; format_arg the comma list of 1-based parameters
+parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), wur `1` (the `r` test warns with
+_FORTIFY_SOURCE off too, the gnu configuration) or `fortify` (only the base build warns), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const; format_arg the comma list of 1-based parameters
 (`fa.0` quiet and `fa.j` diagnosed: one attribute format_arg per parameter).
 """
 import argparse, csv, json, os, re, subprocess, sys, tempfile
@@ -254,9 +255,11 @@ def cxx_type(p):
 
 
 def corpus(names, heads, pr, cfg="base", every=None):
-    """The probe program; every=False keeps only the nonnull tests (the default: every test in base only)."""
+    """The probe program; every=False keeps only the nonnull tests, a tuple of kinds only those (the default: every
+    test in base only)."""
     cxx = CONFIGS[cfg]["lang"] == "c++"
     every_test = cfg == "base" if every is None else every
+    only = every_test if isinstance(every_test, tuple) else (None if every_test else NN_KINDS)
     # unistd.h first: with fcntl.h included before it, the reference's lockf loses its warn_unused_result (the header
     # order changes the answer), and a program that includes unistd.h alone sees it.
     order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
@@ -270,7 +273,7 @@ def corpus(names, heads, pr, cfg="base", every=None):
 
     def add(fmt, key):
         """One test per line; `%(N)d` in fmt is the line's own number (it names the line's marker)."""
-        if not every_test and key[1] not in NN_KINDS:
+        if only is not None and key[1] not in only:
             return
         n = len(L) + 1
         mk = "%sextern void mk_%s_%d(void); " % ('extern "C" ' if cxx else "", key[1], n) if key[1] in MARKED else ""
@@ -647,6 +650,15 @@ def nn_sets(inc, pr, cfg, keep):
     return out
 
 
+def wur_off(inc, pr, keep):
+    """The functions whose ignored result (the `r` tests alone) draws -Wunused-result in the gnu configuration
+    (_FORTIFY_SOURCE off; base has it on)."""
+    names, heads = declared(inc, pr, "gnu")
+    text, meta = corpus(names, heads, pr, "gnu", ("r",))
+    return {key[0] for key, flags, err in results(text, meta, None, keep, "ref-gnu-r", "gnu").values()
+            if key[1] == "r" and not err and "-Wunused-result" in flags}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["table", "check"])
@@ -695,6 +707,16 @@ def main():
         if split:
             sys.exit("attr_probe: the reference marks these nonnull in one _FORTIFY_SOURCE build only, which the table "
                      "cannot say: %s" % "; ".join(split))
+        if not nn_only:
+            # The `r` tests again with _FORTIFY_SOURCE off: wur `1` where the result is still checked, `fortify` where
+            # only the fortified build checks it (headers-gen emits __NIJI_FWUR). Checked off only: stop and name it.
+            plain_w = wur_off(args.include, pr, args.keep)
+            odd = sorted(n for n in plain_w if n in rows and rows[n]["wur"] != "1")
+            if odd:
+                sys.exit("attr_probe: the reference checks these results with _FORTIFY_SOURCE off only: %s" % " ".join(odd))
+            for n, r in rows.items():
+                if r["wur"] == "1" and n not in plain_w:
+                    r["wur"] = "fortify"
         cols = list(TABLE_COLUMNS[1:])
         if args.columns != "all":
             # Only the named columns come from this run; every other column keeps the table's value.

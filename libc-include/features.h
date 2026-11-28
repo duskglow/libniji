@@ -62,9 +62,12 @@
 # define __NIJI_MISC 0
 #endif
 
-/* POSIX (XSH 2.2.1): _POSIX_C_SOURCE, _XOPEN_SOURCE's POSIX level, _POSIX_SOURCE; MISC implies the latest. */
+/* POSIX (XSH 2.2.1): _POSIX_C_SOURCE, _XOPEN_SOURCE's POSIX level, _POSIX_SOURCE; MISC implies the latest, and so
+   does a GNU language mode (no __STRICT_ANSI__) where no POSIX or X/Open macro is defined, _ISOC99_SOURCE or
+   _ISOC11_SOURCE alone included (black-box probe of the reference, HEADERS-STAGE2-GAPS-M). */
 #if __NIJI_GNU || __NIJI_MISC || (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 700) \
-  || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 200809L)
+  || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 200809L) \
+  || (!defined __STRICT_ANSI__ && !defined _POSIX_SOURCE && !defined _POSIX_C_SOURCE && !defined _XOPEN_SOURCE)
 # define __NIJI_POSIX 200809
 # define __NIJI_POSIX_C 200809L
 #elif (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 600) || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 200112L)
@@ -84,6 +87,36 @@
 # define __NIJI_POSIX_C 1
 #else
 # define __NIJI_POSIX 0
+#endif
+/* _REENTRANT and _THREAD_SAFE (either, or both): below POSIX 1003.1c they raise the level to it, _POSIX_C_SOURCE
+   becomes 199506L (a lower value the program gave is replaced) and _POSIX_SOURCE is defined; they never lower a
+   level or turn the default set off (black-box probe of the reference, every -std with each other feature-test
+   macro, HEADERS-STAGE2-GAPS-M). */
+#if (defined _REENTRANT || defined _THREAD_SAFE) && __NIJI_POSIX < 199506
+# undef __NIJI_POSIX
+# undef __NIJI_POSIX_C
+# define __NIJI_POSIX 199506
+# define __NIJI_POSIX_C 199506L
+# define __NIJI_POSIX_RT 1
+#else
+# define __NIJI_POSIX_RT 0
+#endif
+/* A GNU language mode whose only feature-test macros are ISO C ones (_ISOC99_SOURCE, _ISOC11_SOURCE): the POSIX 2008
+   level above also defines _POSIX_C_SOURCE, _POSIX_SOURCE and _ATFILE_SOURCE, which the configuration conditions
+   below (strict -std rows) leave out (black-box probe of the reference, -std=gnu89/gnu17, HEADERS-STAGE2-GAPS-M). */
+#if !__NIJI_MISC && !defined __STRICT_ANSI__ && !defined _POSIX_SOURCE && !defined _POSIX_C_SOURCE \
+  && !defined _XOPEN_SOURCE
+# define __NIJI_POSIX_ISOGNU 1
+#else
+# define __NIJI_POSIX_ISOGNU 0
+#endif
+
+/* The C99 names under C90 (-std=c89 or gnu89): in the default set and from POSIX 2001 on, whose base is C99 (black-box
+   probe of the reference: strtoll, snprintf, llabs, round, wcstoll after -std=gnu89, -std=c89 -D_DEFAULT_SOURCE and
+   -std=c89 -D_POSIX_C_SOURCE=200809L). */
+#if __NIJI_ISOC < 1999 && (__NIJI_MISC || __NIJI_POSIX >= 200112)
+# undef __NIJI_ISOC
+# define __NIJI_ISOC 1999
 #endif
 
 /* X/Open (XSI): 400 XPG4, 450 with _XOPEN_SOURCE_EXTENDED, then SUSv2 to SUSv4 by _XOPEN_SOURCE's value. */
@@ -140,6 +173,14 @@
 #else
 # define __NIJI_FORTIFY 0
 #endif
+/* warn_unused_result where the reference checks a result only under _FORTIFY_SOURCE (diagattrs.tsv wur `fortify`,
+   and sys/cdefs.h's __wur): black-box probe of the reference, -Werror builds with and without -O2 -D_FORTIFY_SOURCE
+   (HEADERS-STAGE2-GAPS-M). */
+#if __NIJI_FORTIFY > 0
+# define __NIJI_FWUR __attribute__ ((__warn_unused_result__))
+#else
+# define __NIJI_FWUR
+#endif
 
 /* Header-inline bodies (Appendix C.9 protocols, and calls a function is specified to be equivalent to): in effect when
    optimizing for speed, as GCC's predefined macros say (-O1 and up, -Og), not at -O0, -Os or -fno-inline (black-box
@@ -158,7 +199,7 @@
    a black-box probe of 67 configurations; header_check `use` units compare). A program's own definition before the
    first libc header is replaced, one made after it stays (the reference's behaviour; headers test __USE_MISC and
    __USE_GNU when they are included, see xtask/src/headers/cond.rs). _REENTRANT and _THREAD_SAFE turn on the POSIX
-   names up to 1003.1c here, as the reference's do; libniji's own declarations keep the strict level there. */
+   names up to 1003.1c, here and in libniji's own declarations (__NIJI_POSIX above). */
 #undef __USE_ISOC95
 #undef __USE_ISOC99
 #undef __USE_ISOC11
@@ -258,7 +299,10 @@
 #if __NIJI_INLINES
 # define __USE_EXTERN_INLINES 1
 #endif
-#if !__NIJI_GNU && !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && (__NIJI_MISC || __NIJI_XSI >= 500)
+/* Also where a GNU language mode's header defines _POSIX_C_SOURCE itself (__NIJI_POSIX_ISOGNU, or _REENTRANT raising
+   the level), as the reference's (black-box probe, HEADERS-STAGE2-GAPS-M). */
+#if !__NIJI_GNU && !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && (__NIJI_MISC || __NIJI_XSI >= 500 \
+  || __NIJI_POSIX_ISOGNU || (__NIJI_POSIX_RT && !defined __STRICT_ANSI__))
 # define __USE_POSIX_IMPLICITLY 1
 #endif
 
@@ -330,6 +374,13 @@ typedef double _Float32x;
 typedef long double _Float64x;
 #endif
 
+/* _BSD_SOURCE and _SVID_SOURCE are the old names of _DEFAULT_SOURCE: a program that defines either without it is
+   warned, in C and C++, whatever else it defines (feature_test_macros(7); a -Wcpp diagnostic, an error under
+   -Werror, as the reference's; dhcpcd's configure relies on it). Tested before features.h defines _DEFAULT_SOURCE. */
+#if (defined _BSD_SOURCE || defined _SVID_SOURCE) && !defined _DEFAULT_SOURCE
+# warning "_BSD_SOURCE and _SVID_SOURCE are deprecated, use _DEFAULT_SOURCE"
+#endif
+
 /* The feature-test macros these levels imply (visibility.tsv). */
 #if defined __USE_MISC
 # ifndef _DEFAULT_SOURCE
@@ -371,6 +422,24 @@ typedef long double _Float64x;
 #  define _POSIX_C_SOURCE __NIJI_POSIX_C
 # endif
 #endif
+#if __NIJI_POSIX_RT
+# undef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE __NIJI_POSIX_C
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE 1
+# endif
+#endif
+#if __NIJI_POSIX_ISOGNU
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE __NIJI_POSIX_C
+# endif
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE 1
+# endif
+# ifndef _ATFILE_SOURCE
+#  define _ATFILE_SOURCE 1
+# endif
+#endif
 #if __NIJI_XSI >= 400
 # ifndef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 700
@@ -398,5 +467,10 @@ typedef long double _Float64x;
 #endif
 
 #include <sys/cdefs.h>
+
+/* The __stub_ macros of the functions libniji provides only as ENOSYS stubs, visible through every header, so
+   autoconf's AC_CHECK_FUNC (which includes <limits.h> and tests __stub_<name>) finds them, as with the reference's
+   (black-box probe: the same names in every configuration, HEADERS-STAGE2-GAPS-M). */
+#include <gnu/stubs.h>
 
 #endif

@@ -354,7 +354,7 @@ typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws
 #  define __NIJI_D_fgetws 1
-extern wchar_t *fgetws (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
+extern wchar_t *fgetws (wchar_t *, int, __FILE *) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
@@ -427,7 +427,7 @@ extern unsigned int ungetwc (unsigned int, __FILE *);
 # endif
 # ifndef __NIJI_D_wcrtomb
 #  define __NIJI_D_wcrtomb 1
-extern unsigned long wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
+extern unsigned long wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D_wcscat
 #  define __NIJI_D_wcscat 1
@@ -818,7 +818,7 @@ typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws_unlocked
 #  define __NIJI_D_fgetws_unlocked 1
-extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
+extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *) __NIJI_FWUR;
 # endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1

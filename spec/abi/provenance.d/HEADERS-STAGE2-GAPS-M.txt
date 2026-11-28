@@ -1,0 +1,11 @@
+---
+order: 230
+---
+HEADERS-STAGE2-GAPS-M: visibility.tsv rows for <bits/types.h> (63 `__*_t` typedefs, visible in every configuration
+the header compiles in, and the include-error row for the time64-only configuration) and for pthread.h's
+PTHREAD_MUTEX_FAST_NP, PTHREAD_MUTEX_RECURSIVE_NP and PTHREAD_MUTEX_ERRORCHECK_NP enumerators, from header_probe.py
+and visprobe.py runs on the reference system (glibc 2.39, GCC 13.3, every configuration of ftm-configs.tsv, C and
+C++). enumerators.tsv `anon PTHREAD_MUTEX_ADAPTIVE_NP` rows FAST_NP 0, RECURSIVE_NP 1, ERRORCHECK_NP 2: printed values
+of a black-box probe on the same system (_GNU_SOURCE). diagattrs.tsv `wur` column: attr_probe.py `table` with its `r`
+tests rerun in configuration gnu without fortification (warn_unused_result reported only under _FORTIFY_SOURCE > 0:
+value `fortify`, 147 rows) and with it (always reported: value `1`, 7 rows). No header text read.
