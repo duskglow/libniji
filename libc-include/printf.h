@@ -156,8 +156,8 @@ enum {
 #  endif
 # endif
 # define PA_FLAG_LONG 512
-# define PA_FLAG_LONG_DOUBLE PA_FLAG_LONG_LONG
 # define PA_FLAG_LONG_LONG 256
+# define PA_FLAG_LONG_DOUBLE PA_FLAG_LONG_LONG
 # define PA_FLAG_MASK 65280
 # define PA_FLAG_PTR 2048
 # define PA_FLAG_SHORT 1024

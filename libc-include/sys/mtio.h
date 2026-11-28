@@ -264,6 +264,10 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define __NIJI_D_m_MT_ST_DEF_BLKSIZE 1
 # define MT_ST_DEF_BLKSIZE 0x50000000
 # endif
+# ifndef __NIJI_D_m_MT_ST_DEF_OPTIONS
+#  define __NIJI_D_m_MT_ST_DEF_OPTIONS 1
+# define MT_ST_DEF_OPTIONS 0x60000000
+# endif
 # ifndef __NIJI_D_m_MT_ST_DEF_COMPRESSION
 #  define __NIJI_D_m_MT_ST_DEF_COMPRESSION 1
 # define MT_ST_DEF_COMPRESSION (MT_ST_DEF_OPTIONS | 0x200000)
@@ -275,10 +279,6 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef __NIJI_D_m_MT_ST_DEF_DRVBUFFER
 #  define __NIJI_D_m_MT_ST_DEF_DRVBUFFER 1
 # define MT_ST_DEF_DRVBUFFER (MT_ST_DEF_OPTIONS | 0x300000)
-# endif
-# ifndef __NIJI_D_m_MT_ST_DEF_OPTIONS
-#  define __NIJI_D_m_MT_ST_DEF_OPTIONS 1
-# define MT_ST_DEF_OPTIONS 0x60000000
 # endif
 # ifndef __NIJI_D_m_MT_ST_DEF_WRITES
 #  define __NIJI_D_m_MT_ST_DEF_WRITES 1

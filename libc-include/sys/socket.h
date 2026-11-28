@@ -543,59 +543,113 @@ enum {
 };
 #  endif
 # endif
+# define PF_ALG 38
 # define AF_ALG PF_ALG
+# define PF_APPLETALK 5
 # define AF_APPLETALK PF_APPLETALK
+# define PF_ASH 18
 # define AF_ASH PF_ASH
+# define PF_ATMPVC 8
 # define AF_ATMPVC PF_ATMPVC
+# define PF_ATMSVC 20
 # define AF_ATMSVC PF_ATMSVC
+# define PF_AX25 3
 # define AF_AX25 PF_AX25
+# define PF_BLUETOOTH 31
 # define AF_BLUETOOTH PF_BLUETOOTH
+# define PF_BRIDGE 7
 # define AF_BRIDGE PF_BRIDGE
+# define PF_CAIF 37
 # define AF_CAIF PF_CAIF
+# define PF_CAN 29
 # define AF_CAN PF_CAN
+# define PF_DECnet 12
 # define AF_DECnet PF_DECnet
+# define PF_ECONET 19
 # define AF_ECONET PF_ECONET
+# define PF_LOCAL 1
+# define PF_FILE PF_LOCAL
 # define AF_FILE PF_FILE
+# define PF_IB 27
 # define AF_IB PF_IB
+# define PF_IEEE802154 36
 # define AF_IEEE802154 PF_IEEE802154
+# define PF_INET 2
 # define AF_INET PF_INET
+# define PF_INET6 10
 # define AF_INET6 PF_INET6
+# define PF_IPX 4
 # define AF_IPX PF_IPX
+# define PF_IRDA 23
 # define AF_IRDA PF_IRDA
+# define PF_ISDN 34
 # define AF_ISDN PF_ISDN
+# define PF_IUCV 32
 # define AF_IUCV PF_IUCV
+# define PF_KCM 41
 # define AF_KCM PF_KCM
+# define PF_KEY 15
 # define AF_KEY PF_KEY
+# define PF_LLC 26
 # define AF_LLC PF_LLC
 # define AF_LOCAL PF_LOCAL
+# define PF_MAX 46
 # define AF_MAX PF_MAX
+# define PF_MCTP 45
 # define AF_MCTP PF_MCTP
+# define PF_MPLS 28
 # define AF_MPLS PF_MPLS
+# define PF_NETBEUI 13
 # define AF_NETBEUI PF_NETBEUI
+# define PF_NETLINK 16
 # define AF_NETLINK PF_NETLINK
+# define PF_NETROM 6
 # define AF_NETROM PF_NETROM
+# define PF_NFC 39
 # define AF_NFC PF_NFC
+# define PF_PACKET 17
 # define AF_PACKET PF_PACKET
+# define PF_PHONET 35
 # define AF_PHONET PF_PHONET
+# ifndef PF_PPPOX
+#  define PF_PPPOX 24
+# endif
 # ifndef AF_PPPOX
 #  define AF_PPPOX PF_PPPOX
 # endif
+# define PF_QIPCRTR 42
 # define AF_QIPCRTR PF_QIPCRTR
+# define PF_RDS 21
 # define AF_RDS PF_RDS
+# define PF_ROSE 11
 # define AF_ROSE PF_ROSE
+# define PF_ROUTE PF_NETLINK
 # define AF_ROUTE PF_ROUTE
+# define PF_RXRPC 33
 # define AF_RXRPC PF_RXRPC
+# define PF_SECURITY 14
 # define AF_SECURITY PF_SECURITY
+# define PF_SMC 43
 # define AF_SMC PF_SMC
+# define PF_SNA 22
 # define AF_SNA PF_SNA
+# ifndef PF_TIPC
+#  define PF_TIPC 30
+# endif
 # ifndef AF_TIPC
 #  define AF_TIPC PF_TIPC
 # endif
+# define PF_UNIX PF_LOCAL
 # define AF_UNIX PF_UNIX
+# define PF_UNSPEC 0
 # define AF_UNSPEC PF_UNSPEC
+# define PF_VSOCK 40
 # define AF_VSOCK PF_VSOCK
+# define PF_WANPIPE 25
 # define AF_WANPIPE PF_WANPIPE
+# define PF_X25 9
 # define AF_X25 PF_X25
+# define PF_XDP 44
 # define AF_XDP PF_XDP
 # define MSG_BATCH MSG_BATCH
 # define MSG_CMSG_CLOEXEC MSG_CMSG_CLOEXEC
@@ -618,60 +672,6 @@ enum {
 # define MSG_WAITALL MSG_WAITALL
 # define MSG_WAITFORONE MSG_WAITFORONE
 # define MSG_ZEROCOPY MSG_ZEROCOPY
-# define PF_ALG 38
-# define PF_APPLETALK 5
-# define PF_ASH 18
-# define PF_ATMPVC 8
-# define PF_ATMSVC 20
-# define PF_AX25 3
-# define PF_BLUETOOTH 31
-# define PF_BRIDGE 7
-# define PF_CAIF 37
-# define PF_CAN 29
-# define PF_DECnet 12
-# define PF_ECONET 19
-# define PF_FILE PF_LOCAL
-# define PF_IB 27
-# define PF_IEEE802154 36
-# define PF_INET 2
-# define PF_INET6 10
-# define PF_IPX 4
-# define PF_IRDA 23
-# define PF_ISDN 34
-# define PF_IUCV 32
-# define PF_KCM 41
-# define PF_KEY 15
-# define PF_LLC 26
-# define PF_LOCAL 1
-# define PF_MAX 46
-# define PF_MCTP 45
-# define PF_MPLS 28
-# define PF_NETBEUI 13
-# define PF_NETLINK 16
-# define PF_NETROM 6
-# define PF_NFC 39
-# define PF_PACKET 17
-# define PF_PHONET 35
-# ifndef PF_PPPOX
-#  define PF_PPPOX 24
-# endif
-# define PF_QIPCRTR 42
-# define PF_RDS 21
-# define PF_ROSE 11
-# define PF_ROUTE PF_NETLINK
-# define PF_RXRPC 33
-# define PF_SECURITY 14
-# define PF_SMC 43
-# define PF_SNA 22
-# ifndef PF_TIPC
-#  define PF_TIPC 30
-# endif
-# define PF_UNIX PF_LOCAL
-# define PF_UNSPEC 0
-# define PF_VSOCK 40
-# define PF_WANPIPE 25
-# define PF_X25 9
-# define PF_XDP 44
 # define SCM_RIGHTS SCM_RIGHTS
 # define SHUT_RD SHUT_RD
 # define SHUT_RDWR SHUT_RDWR
@@ -724,6 +724,11 @@ enum {
 # define SO_OOBINLINE 10
 # define SO_RCVBUF 8
 # define SO_RCVLOWAT 18
+#endif
+#if defined __USE_MISC
+# define SO_RCVTIMEO_OLD 20
+#endif
+#if 1
 # ifndef SO_RCVTIMEO
 #  if defined __USE_MISC
 #   define SO_RCVTIMEO SO_RCVTIMEO_OLD
@@ -734,6 +739,11 @@ enum {
 # define SO_REUSEADDR 2
 # define SO_SNDBUF 7
 # define SO_SNDLOWAT 19
+#endif
+#if defined __USE_MISC
+# define SO_SNDTIMEO_OLD 21
+#endif
+#if 1
 # ifndef SO_SNDTIMEO
 #  if defined __USE_MISC
 #   define SO_SNDTIMEO SO_SNDTIMEO_OLD
@@ -741,6 +751,11 @@ enum {
 #   define SO_SNDTIMEO 21
 #  endif
 # endif
+#endif
+#if defined __USE_MISC
+# define SO_TIMESTAMP_OLD 29
+#endif
+#if 1
 # ifndef SO_TIMESTAMP
 #  if defined __USE_MISC
 #   define SO_TIMESTAMP SO_TIMESTAMP_OLD
@@ -748,6 +763,11 @@ enum {
 #   define SO_TIMESTAMP 29
 #  endif
 # endif
+#endif
+#if defined __USE_MISC
+# define SO_TIMESTAMPING_OLD 37
+#endif
+#if 1
 # ifndef SO_TIMESTAMPING
 #  if defined __USE_MISC
 #   define SO_TIMESTAMPING SO_TIMESTAMPING_OLD
@@ -755,6 +775,11 @@ enum {
 #   define SO_TIMESTAMPING 37
 #  endif
 # endif
+#endif
+#if defined __USE_MISC
+# define SO_TIMESTAMPNS_OLD 35
+#endif
+#if 1
 # ifndef SO_TIMESTAMPNS
 #  if defined __USE_MISC
 #   define SO_TIMESTAMPNS SO_TIMESTAMPNS_OLD
@@ -784,7 +809,9 @@ enum {
 # define SCM_TIMESTAMPING_OPT_STATS 54
 # define SCM_TIMESTAMPING_PKTINFO 58
 # define SCM_TIMESTAMPNS SO_TIMESTAMPNS
+# define SO_TXTIME 61
 # define SCM_TXTIME SO_TXTIME
+# define SO_WIFI_STATUS 41
 # define SCM_WIFI_STATUS SO_WIFI_STATUS
 # ifndef SIOCATMARK
 #  define SIOCATMARK 35077
@@ -814,8 +841,8 @@ enum {
 # define SO_BUSY_POLL_BUDGET 70
 # define SO_CNX_ADVICE 53
 # define SO_COOKIE 57
-# define SO_DETACH_BPF SO_DETACH_FILTER
 # define SO_DETACH_FILTER 27
+# define SO_DETACH_BPF SO_DETACH_FILTER
 # define SO_DETACH_REUSEPORT_BPF 68
 # define SO_DOMAIN 39
 # define SO_GET_FILTER SO_ATTACH_FILTER
@@ -845,7 +872,6 @@ enum {
 # define SO_RCVBUFFORCE 33
 # define SO_RCVMARK 75
 # define SO_RCVTIMEO_NEW 66
-# define SO_RCVTIMEO_OLD 20
 # define SO_RESERVE_MEM 73
 # define SO_REUSEPORT 15
 # define SO_RXQ_OVFL 40
@@ -855,16 +881,10 @@ enum {
 # define SO_SELECT_ERR_QUEUE 45
 # define SO_SNDBUFFORCE 32
 # define SO_SNDTIMEO_NEW 67
-# define SO_SNDTIMEO_OLD 21
 # define SO_TIMESTAMPING_NEW 65
-# define SO_TIMESTAMPING_OLD 37
 # define SO_TIMESTAMPNS_NEW 64
-# define SO_TIMESTAMPNS_OLD 35
 # define SO_TIMESTAMP_NEW 63
-# define SO_TIMESTAMP_OLD 29
 # define SO_TXREHASH 74
-# define SO_TXTIME 61
-# define SO_WIFI_STATUS 41
 # define SO_ZEROCOPY 60
 #endif
 #if __NIJI_FORTIFY > 0

@@ -707,6 +707,9 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 #  define __NIJI_D_m_TTYDEF_LFLAG 1
 # define TTYDEF_LFLAG (ECHO | ICANON | ISIG | IEXTEN | ECHOE | ECHOKE | ECHOCTL)
 # endif
+# ifndef XTABS
+#  define XTABS 6144
+# endif
 # ifndef __NIJI_D_m_TTYDEF_OFLAG
 #  define __NIJI_D_m_TTYDEF_OFLAG 1
 # define TTYDEF_OFLAG (OPOST | ONLCR | XTABS)
@@ -714,9 +717,6 @@ extern int cfsetspeed (struct termios *, unsigned int) __NIJI_NOTHROW;
 # ifndef __NIJI_D_m_TTYDEF_SPEED
 #  define __NIJI_D_m_TTYDEF_SPEED 1
 # define TTYDEF_SPEED B9600
-# endif
-# ifndef XTABS
-#  define XTABS 6144
 # endif
 #endif
 #if defined __USE_MISC || (__NIJI_POSIX < 200112 && __NIJI_XSI >= 400)

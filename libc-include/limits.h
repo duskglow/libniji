@@ -15,15 +15,15 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #endif
 #if 1
 # define CHAR_BIT 8
+# define SCHAR_MAX 127
 # define CHAR_MAX SCHAR_MAX
+# define SCHAR_MIN (-128)
 # define CHAR_MIN SCHAR_MIN
 # define INT_MAX 2147483647
 # define INT_MIN (-2147483647-1)
 # define LONG_MAX 9223372036854775807L
 # define LONG_MIN (-9223372036854775807L-1)
 # define MB_LEN_MAX 16
-# define SCHAR_MAX 127
-# define SCHAR_MIN (-128)
 # define SHRT_MAX 32767
 # define SHRT_MIN (-32768)
 # define UCHAR_MAX 255
@@ -89,6 +89,7 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define NGROUPS_MAX 65536
 # define PATH_MAX 4096
 # define PIPE_BUF 4096
+# define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
 # define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
 # define PTHREAD_KEYS_MAX 1024
 # define RTSIG_MAX 32
@@ -127,7 +128,6 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define _POSIX_STREAM_MAX 8
 # define _POSIX_SYMLINK_MAX 255
 # define _POSIX_SYMLOOP_MAX 8
-# define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
 # define _POSIX_THREAD_KEYS_MAX 128
 # define _POSIX_THREAD_THREADS_MAX 64
 # define _POSIX_TIMER_MAX 32
@@ -135,15 +135,19 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define _POSIX_TZNAME_MAX 6
 #endif
 #if __NIJI_POSIX >= 2
+# define _POSIX2_BC_BASE_MAX 99
 # ifndef BC_BASE_MAX
 #  define BC_BASE_MAX _POSIX2_BC_BASE_MAX
 # endif
+# define _POSIX2_BC_DIM_MAX 2048
 # ifndef BC_DIM_MAX
 #  define BC_DIM_MAX _POSIX2_BC_DIM_MAX
 # endif
+# define _POSIX2_BC_SCALE_MAX 99
 # ifndef BC_SCALE_MAX
 #  define BC_SCALE_MAX _POSIX2_BC_SCALE_MAX
 # endif
+# define _POSIX2_BC_STRING_MAX 1000
 # ifndef BC_STRING_MAX
 #  define BC_STRING_MAX _POSIX2_BC_STRING_MAX
 # endif
@@ -153,21 +157,17 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # ifndef COLL_WEIGHTS_MAX
 #  define COLL_WEIGHTS_MAX 255
 # endif
+# define _POSIX2_EXPR_NEST_MAX 32
 # ifndef EXPR_NEST_MAX
 #  define EXPR_NEST_MAX _POSIX2_EXPR_NEST_MAX
 # endif
+# define _POSIX2_LINE_MAX 2048
 # ifndef LINE_MAX
 #  define LINE_MAX _POSIX2_LINE_MAX
 # endif
 # define RE_DUP_MAX 32767
-# define _POSIX2_BC_BASE_MAX 99
-# define _POSIX2_BC_DIM_MAX 2048
-# define _POSIX2_BC_SCALE_MAX 99
-# define _POSIX2_BC_STRING_MAX 1000
 # define _POSIX2_CHARCLASS_NAME_MAX 14
 # define _POSIX2_COLL_WEIGHTS_MAX 2
-# define _POSIX2_EXPR_NEST_MAX 32
-# define _POSIX2_LINE_MAX 2048
 # define _POSIX2_RE_DUP_MAX 255
 #endif
 #if __NIJI_XSI >= 400
@@ -180,6 +180,11 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define NL_TEXTMAX INT_MAX
 # define NZERO 20
 # define WORD_BIT 32
+#endif
+#if defined __USE_GNU || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
+# define _POSIX_UIO_MAXIOV 16
+#endif
+#if __NIJI_XSI >= 400
 # if __NIJI_ISOC >= 2023 || __NIJI_POSIX < 200112
 #  define _XOPEN_IOV_MAX _POSIX_UIO_MAXIOV
 # else
@@ -198,7 +203,6 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 # define _POSIX_FD_SETSIZE _POSIX_OPEN_MAX
 # define _POSIX_HIWAT _POSIX_PIPE_BUF
 # define _POSIX_QLIMIT 1
-# define _POSIX_UIO_MAXIOV 16
 #endif
 
 /* Under _DYNAMIC_STACK_SIZE_SOURCE the minimum stack size is the run-time value of sysconf(3); otherwise

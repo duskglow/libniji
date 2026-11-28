@@ -76,6 +76,9 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef IOCSIZE_MASK
 #  define IOCSIZE_MASK 1073676288
 # endif
+# ifndef _IOC_SIZESHIFT
+#  define _IOC_SIZESHIFT 16
+# endif
 # ifndef IOCSIZE_SHIFT
 #  define IOCSIZE_SHIFT _IOC_SIZESHIFT
 # endif
@@ -402,10 +405,10 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # ifndef TIOCM_LE
 #  define TIOCM_LE 1
 # endif
-# define TIOCM_RI TIOCM_RNG
 # ifndef TIOCM_RNG
 #  define TIOCM_RNG 128
 # endif
+# define TIOCM_RI TIOCM_RNG
 # ifndef TIOCM_RTS
 #  define TIOCM_RTS 4
 # endif
@@ -544,9 +547,6 @@ extern int ioctl (int, long unsigned int, ...) __NIJI_NOTHROW;
 # endif
 # ifndef _IOC_SIZEMASK
 #  define _IOC_SIZEMASK 16383
-# endif
-# ifndef _IOC_SIZESHIFT
-#  define _IOC_SIZESHIFT 16
 # endif
 # define _IOC_TYPEBITS 8
 # ifndef _IOC_TYPEMASK

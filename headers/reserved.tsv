@@ -171,3 +171,4 @@ __exp10f64	emit	R-H7: as __exp10
 __exp10f32x	emit	R-H7: as __exp10
 __exp10f64x	emit	R-H7: as __exp10
 __exp10f128	emit	R-H7: as __exp10
+__cpu_mask	emit	R-H7: elogind 255 src/test/test-sizeof.c (the element type of cpu_set_t's bit array)

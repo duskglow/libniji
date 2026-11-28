@@ -186,9 +186,9 @@ extern int ntp_gettimex (struct ntptimeval *) __NIJI_NOTHROW __attribute__ ((__n
 # ifndef STA_UNSYNC
 #  define STA_UNSYNC 64
 # endif
+# define TIME_ERROR 5
 # define TIME_BAD TIME_ERROR
 # define TIME_DEL 2
-# define TIME_ERROR 5
 # define TIME_INS 1
 # define TIME_OK 0
 # define TIME_OOP 3

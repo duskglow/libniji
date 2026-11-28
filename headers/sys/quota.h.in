@@ -8,7 +8,14 @@
 
 __NIJI_BEGIN_C
 
+@@owns QCMD
 @@emit
+
+/* quotactl(2)'s command word: the subcommand above SUBCMDSHIFT, the quota type in SUBCMDMASK (the kernel UAPI
+   <linux/quota.h>'s form; black-box probe: the reference's has these values, types and precedence, also in #if). */
+@@when QCMD
+# define QCMD(cmd, type) (((cmd) << SUBCMDSHIFT) | ((type) & SUBCMDMASK))
+#endif
 
 __NIJI_END_C
 

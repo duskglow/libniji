@@ -126,13 +126,13 @@ extern int *__errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # define ENOTNAM 118
 # define ENOTRECOVERABLE 131
 # define ENOTSOCK 88
+# define EOPNOTSUPP 95
 # ifndef ENOTSUP
 #  define ENOTSUP EOPNOTSUPP
 # endif
 # define ENOTTY 25
 # define ENOTUNIQ 76
 # define ENXIO 6
-# define EOPNOTSUPP 95
 # define EOVERFLOW 75
 # define EOWNERDEAD 130
 # define EPERM 1

@@ -109,6 +109,7 @@ __NIJI_BEGIN_C
 # define SLC_XON 15
 # define SUSP 237
 # define SYNCH 242
+# define xEOF 236
 # define TELCMD_FIRST xEOF
 # define TELCMD_LAST IAC
 # define TELOPT_3270REGIME 29
@@ -159,7 +160,6 @@ __NIJI_BEGIN_C
 # define TELQUAL_SEND 1
 # define WILL 251
 # define WONT 252
-# define xEOF 236
 #endif
 
 /* The printable names of the TELNET commands (RFC 854), options (RFC 855 and the option RFCs), line-mode special

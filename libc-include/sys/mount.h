@@ -271,11 +271,11 @@ enum {
 #  define __NIJI_D_m_BLKSSZGET 1
 # define BLKSSZGET _IO(0x12,104)
 # endif
+# define BLOCK_SIZE_BITS 10
 # ifndef __NIJI_D_m_BLOCK_SIZE
 #  define __NIJI_D_m_BLOCK_SIZE 1
 # define BLOCK_SIZE (1<<BLOCK_SIZE_BITS)
 # endif
-# define BLOCK_SIZE_BITS 10
 # ifndef FSMOUNT_CLOEXEC
 #  define FSMOUNT_CLOEXEC 1
 # endif

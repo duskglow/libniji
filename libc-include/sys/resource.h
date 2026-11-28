@@ -610,10 +610,10 @@ extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, stru
 # endif
 #endif
 #if defined __USE_GNU
-# define RUSAGE_LWP RUSAGE_THREAD
 # ifndef RUSAGE_THREAD
 #  define RUSAGE_THREAD RUSAGE_THREAD
 # endif
+# define RUSAGE_LWP RUSAGE_THREAD
 #endif
 
 

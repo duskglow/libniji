@@ -108,10 +108,10 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef RTF_MODIFIED
 #  define RTF_MODIFIED 32
 # endif
-# define RTF_MSS RTF_MTU
 # ifndef RTF_MTU
 #  define RTF_MTU 64
 # endif
+# define RTF_MSS RTF_MTU
 # define RTF_MULTICAST 536870912
 # define RTF_NAT 134217728
 # define RTF_NOFORWARD 4096

@@ -398,10 +398,10 @@ extern int mincore (void *, unsigned long, unsigned char *) __NIJI_NOTHROW;
 # ifndef MAP_ABOVE4G
 #  define MAP_ABOVE4G 128
 # endif
-# define MAP_ANON MAP_ANONYMOUS
 # ifndef MAP_ANONYMOUS
 #  define MAP_ANONYMOUS 32
 # endif
+# define MAP_ANON MAP_ANONYMOUS
 # ifndef MAP_DENYWRITE
 #  define MAP_DENYWRITE 2048
 # endif

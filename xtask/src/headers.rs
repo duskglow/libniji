@@ -766,6 +766,7 @@ impl Gen<'_> {
             items.push((rank, c, name, kind));
         }
         items.sort();
+        let items = self.definitions_first(items);
         let mut open: Option<String> = None;
         for (_, c, name, kind) in items {
             if open.as_ref() != Some(&c) {
@@ -780,6 +781,50 @@ impl Gen<'_> {
         if open.is_some() {
             self.out.push("#endif".into());
         }
+    }
+
+    /// `items` (sorted) with each macro after the macros of this list its definition names (HEADERS-STAGE2-GAPS-N):
+    /// `AF_INET` after `PF_INET`, `ENOTSUP` after `EOPNOTSUPP`. A tool that reads definitions in order (gcc's
+    /// `-fdump-go-spec`, which libgo's `mksysinfo.sh` greps) keeps a macro only when every name in its body is
+    /// already a macro, as the reference's headers have it. Otherwise the sorted order stands; a cycle keeps it too.
+    fn definitions_first(&mut self, items: Vec<(usize, String, String, String)>) -> Vec<(usize, String, String, String)> {
+        let at: BTreeMap<String, usize> = items.iter().enumerate().filter(|(_, it)| it.3 == "macro").map(|(i, it)| (it.2.clone(), i)).collect();
+        let mut deps: Vec<Vec<usize>> = Vec::with_capacity(items.len());
+        for it in &items {
+            if it.3 != "macro" {
+                deps.push(Vec::new());
+                continue;
+            }
+            // A dry run of the definition: its text is read for names and dropped, and so are any errors (the real
+            // emission reports them).
+            let (out_len, err_len) = (self.out.len(), self.errors.len());
+            self.macro_def(&it.2);
+            let text = self.out.split_off(out_len);
+            self.errors.truncate(err_len);
+            let mut d = Vec::new();
+            for line in text.iter().filter_map(|l| l.trim_start_matches(['#', ' ']).strip_prefix("define ")) {
+                let body = line.split_once(' ').map_or("", |(_, b)| b);
+                d.extend(identifiers(body).filter(|n| *n != it.2).filter_map(|n| at.get(n).copied()));
+            }
+            deps.push(d);
+        }
+        fn visit(i: usize, deps: &[Vec<usize>], done: &mut [bool], order: &mut Vec<usize>) {
+            if done[i] {
+                return;
+            }
+            done[i] = true;
+            for &d in &deps[i] {
+                visit(d, deps, done, order);
+            }
+            order.push(i);
+        }
+        let mut done = vec![false; items.len()];
+        let mut order = Vec::with_capacity(items.len());
+        for i in 0..items.len() {
+            visit(i, &deps, &mut done, &mut order);
+        }
+        let mut slots: Vec<Option<(usize, String, String, String)>> = items.into_iter().map(Some).collect();
+        order.into_iter().filter_map(|i| slots[i].take()).collect()
     }
 
     /// The definition of macro `name` in this header's form ([`Gen::item`]).
@@ -875,6 +920,35 @@ impl Gen<'_> {
             _ => self.object(name),
         }
     }
+}
+
+/// The identifiers of C text `s` (outside string and character literals; a number's suffix such as `0x10UL` is not
+/// one), in order.
+fn identifiers(s: &str) -> impl Iterator<Item = &str> {
+    let b = s.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c == b'"' || c == b'\'' {
+            i += 1;
+            while i < b.len() && b[i] != c {
+                i += if b[i] == b'\\' { 2 } else { 1 };
+            }
+            i += 1;
+        } else if c.is_ascii_alphanumeric() || c == b'_' {
+            let start = i;
+            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_' || (b[start].is_ascii_digit() && b[i] == b'.')) {
+                i += 1;
+            }
+            if !b[start].is_ascii_digit() {
+                out.push(&s[start..i]);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out.into_iter()
 }
 
 /// Every file below `base` (paths relative to it, sorted; symbolic links followed); none when `base` does
@@ -1275,6 +1349,14 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// No spec clause: the generator's own rule (HEADERS-STAGE2-GAPS-N) that a macro definition is read for the macro
+    /// names it uses, so the emitter can place it after them: identifiers outside literals, not a number's suffix.
+    #[test]
+    fn identifiers_skip_literals_and_number_suffixes() {
+        let got: Vec<&str> = super::identifiers(r#"(PF_INET | 0x10UL | 1.5e3f) "AF_X\"Q" 'Y' __A_1"#).collect();
+        assert_eq!(got, ["PF_INET", "__A_1"]);
+    }
+
     use super::values::literal;
     use super::*;
 
