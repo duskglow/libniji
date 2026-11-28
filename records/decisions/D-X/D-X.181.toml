@@ -1,0 +1,8 @@
+id = "D-X.181"
+section = "x"
+status = "active"
+story = "XTASK-SO-PRODUCT-CACHE"
+date = "2026-11-28"
+body = '''
+**`cargo xtask so` restores a product set, and a trace-at-build reuses its lists, when every input has the content of an earlier full build** (XTASK-SO-PRODUCT-CACHE; coordinator rulings #8827 and #8851). The set key (`xtask/src/so_cache.rs`) is the sha256 of every tree file but `target/`, `fuzz/target/` and `.git`, of the headers staged from the host (kernel UAPI), of the trace probes preprocessed (system headers), of the xtask binary and the tools by content and version, of the environment (`NIJI_*`, `CARGO*`, `RUST*`, `PATH`, `CC`, `AR`, ...) and of the profile and layout; the trace key takes the pre-group archive by content and the tree without `crates/**/*.rs`. Never a modification time. A restored file is checked against its stored sha256 before the profile marker is put in place; one that does not verify is a miss. Off under `NIJI_TRAIN` (as the layout verdict cache) and with `NIJI_SO_CACHE=0`. The layout, CET and placement checks are not re-run on a hit: the stored set passed them when it was built.
+'''
