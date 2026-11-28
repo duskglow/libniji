@@ -73,8 +73,8 @@
 //!    `spec/symbols.tsv` section (`abi_reach`; FULL when none); a user's trait method selects the module as if it
 //!    changed; a symbol named by an xtask step (`XTASK_ASM_STEPS`) selects that command; a file `so.rs` links into
 //!    ld.so that no source uses, or used only by `crates/boundary/src/ld/`, adds `LOADER_TARGETS`; an unreadable file
-//!    stays FULL and adds the targets naming the file or its `niji_` names (`csys_labels`); `csys/start/*.S` and
-//!    `csys/owner/owner.S` select every conformance program and the targets naming them (`crt_map`).
+//!    stays FULL and adds the targets naming the file or its `niji_` names (`csys_labels`); `csys/start/*.S` selects
+//!    the targets naming it (FULL if none), `csys/owner/owner.S` those and every conformance program (`crt_map`).
 //! 7. An xtask audit/report module (`XTASK_AUDITS`: policy, symgap, status, schedule, plants): the
 //!    xtask unit tests, clippy, the policy checks and the module's own command.
 //!    XTASK-AFFECTED-XTASK (#4684): an xtask tool module off the product path (`XTASK_TOOLS`: the records and view
@@ -3512,18 +3512,28 @@ fn asm_namers(repo: &Repo, f: &str, names: &[String], sel: &mut Selection) {
 }
 
 /// XTASK-PRECHECK-SKIP-ASM-AFFECTED (direct tier): a start object source (`csys/start/*.S`) or the owner shims
-/// (`csys/owner/owner.S`): every conformance program (each links the crt files and libc.so.6), the test targets that
-/// name the file or its stem (`gcrt1`: the `-pg` start object only its tests link), and clippy of the crate whose
-/// build compiles csys. The wide and full tiers still escalate.
+/// (`csys/owner/owner.S`): the test targets that name the file or its stem (`crti`, `gcrt1`: the products tests that
+/// link them) and clippy of the crate whose build compiles csys; for the owner shims (linked into libc.so.6, which
+/// the dynamic-link programs load) also every conformance program. A conformance program links `niji-crt1.o` or
+/// `niji-rcrt1.o` alone (`conformance/run.sh`, `-nostdlib`; both from `machine/entry.S`), never a `csys/start`
+/// object, so a start object is not selected for them; one no test names stays FULL. The wide and full tiers still
+/// escalate.
 fn crt_map(repo: &Repo, f: &str, sel: &mut Selection) {
     if !sel.direct {
         return sel.full.push(format!("{f}: csys/ (the C layer under everything; only its assembly sources are mapped)"));
     }
     let file = f.rsplit('/').next().unwrap_or(f);
-    sel.all_conf(repo, &format!("{f}: a start object or owner shim every program links"));
+    let before = sel.tests.len();
     asm_namers(repo, f, &[file.trim_end_matches(".S").to_string()], sel);
     add(&mut sel.clippy, CSYS_CRATE.to_string(), &format!("{f} changed"));
-    sel.notes.push(format!("{f}: linked into every program (crt files) or libc.so.6 (owner shims): every conformance program and the tests naming it"));
+    if f == crate::so::OWNER_SHIMS {
+        sel.all_conf(repo, &format!("{f}: linked into libc.so.6, which the dynamic-link programs load"));
+        sel.notes.push(format!("{f}: linked into libc.so.6 (owner shims): every conformance program and the tests naming it"));
+    } else if sel.tests.len() == before {
+        sel.full.push(format!("{f}: a start object no test names"));
+    } else {
+        sel.notes.push(format!("{f}: a start object, linked only by the tests naming it (conformance programs link niji-crt1.o or niji-rcrt1.o alone)"));
+    }
 }
 
 fn csys_map(repo: &Repo, f: &str, sel: &mut Selection) {
@@ -6910,9 +6920,14 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // Unreadable: FULL stays (the train's), plus the targets naming its `niji_` names.
         let tl = d("csys/src/machine/tlsdesc.S");
         assert!(!tl.no_escalation() && tl.tests.values().any(|r| r.contains("tlsdesc.S: the test names")), "{:?}", tl.tests);
-        // A start object: every conformance program and the targets naming it; the wide rules still escalate.
+        // A start object: the targets naming it, no conformance program (they link niji-crt1.o alone); the owner
+        // shims (libc.so.6): every conformance program too; the wide rules still escalate.
         let g = d("csys/start/gcrt1.S");
-        assert!(g.no_escalation() && g.conf.len() == repo.conf.len() && g.tests.values().any(|r| r.contains("names `gcrt1`")), "{:?}", g.train);
+        assert!(g.no_escalation() && g.conf.is_empty() && g.tests.values().any(|r| r.contains("names `gcrt1`")), "{:?}", g.train);
+        let c = d("csys/start/crti.S");
+        assert!(c.no_escalation() && c.conf.is_empty() && c.tests.keys().any(|(k, n)| k == "niji" && n == "crt_products"), "{:?}", c.tests);
+        let o = d("csys/owner/owner.S");
+        assert!(o.no_escalation() && o.conf.len() == repo.conf.len(), "{:?}", o.train);
         assert!(!sel(&["csys/start/gcrt1.S"]).1.no_escalation(), "the wide rules still escalate a start object");
     }
 

@@ -31,8 +31,8 @@
 | csys/src/machine/unwinder.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 69 of 329, 41 of 156, 1 libs |
 | csys/src/machine/vdso.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 260 of 329, 55 of 156, 2 libs |
 | csys/src/machine/vfork.S | no: 4 of 329, 4 of 156, 0 libs | no: 4 of 329, 4 of 156, 0 libs |
-| csys/start/Mcrt1.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 1 of 329, 156 of 156, 0 libs |
-| csys/start/crti.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 123 of 329, 156 of 156, 0 libs |
-| csys/start/crtn.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 123 of 329, 156 of 156, 0 libs |
-| csys/start/gcrt1.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 157 of 329, 156 of 156, 0 libs |
-| csys/start/unwinder.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 91 of 329, 156 of 156, 0 libs |
+| csys/start/Mcrt1.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 1 of 329, 0 of 156, 0 libs |
+| csys/start/crti.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 123 of 329, 0 of 156, 0 libs |
+| csys/start/crtn.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 123 of 329, 0 of 156, 0 libs |
+| csys/start/gcrt1.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 157 of 329, 0 of 156, 0 libs |
+| csys/start/unwinder.S | FULL: 3 of 329, 0 of 156, 4 libs | no: 91 of 329, 0 of 156, 0 libs |
