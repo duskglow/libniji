@@ -1,0 +1,26 @@
+{
+  "task": "PLANTS-WARM-COPY-2",
+  "result": "Warm plants copies keep one build tag per copy (plants-warm-<k>); verdicts identical cold and warm on 5 files plus a left-mutant check; wall median 760 s cold -> 600 s warm (paired median -17%), warm baseline so 194 s -> 53 s when the previous run left the product crates unchanged",
+  "branch": "task/plants-warm-copy-2",
+  "head": null,
+  "jobs": [
+    {"host": "mei", "label": "plants-warm-copy-2-gate-3"},
+    {"host": "mei", "label": "plants-warm-copy-2-plants-3"},
+    {"host": "mei", "label": "pwc2-m-cold"},
+    {"host": "mei", "label": "pwc2-m-old"},
+    {"host": "mei", "label": "pwc2-m-new"}
+  ],
+  "rulings": [
+    {"item": "Next step toward the ~45%: the loader-side builds (ld-so, ldconfig-bin, localedef-bin) each build niji-boundary with their own feature set in target/product/ld-pie, so any product-crate change (every product mutant, and the next run's baseline after one) compiles boundary three more times (~57 s each on 12 CPUs)", "recommendation": "a product-build story to build them without three boundary builds, measured per mutant build; then cache libc-archive post-processing (24-48 s)"}
+  ],
+  "informational": [
+    "A warm baseline after a run whose last plant was in a product crate still rebuilds what is built on that crate (~190 s): the cache holds that mutant's build and the restore's fresh mtime correctly invalidates it",
+    "Measurement slots shared the host (three runs at once on separate CPU sets), so single rows carry noise"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "perf", "what": "plants job wall, median of 5 plants files, cold copy -> warm copy with the fixed tag (mei, 12 CPUs)", "before": 760, "after": 600, "unit": "s/job", "measured": true},
+    {"kind": "perf", "what": "plants job wall, median of 5 plants files, warm copy per-run tag -> fixed tag (mei, 12 CPUs)", "before": 839, "after": 600, "unit": "s/job", "measured": true},
+    {"kind": "perf", "what": "warm baseline cargo xtask so phases when the previous run left the product crates unchanged (XTASK-PRECHECK-SKIP-ASM-AFFECTED)", "before": 194, "after": 53, "unit": "s", "measured": true}
+  ]
+}

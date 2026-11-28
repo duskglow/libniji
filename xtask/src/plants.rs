@@ -1,10 +1,11 @@
-//! `cargo xtask plants <file> --dir <new-dir> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]`: run a story's plants (mutations
+//! `cargo xtask plants <file> --dir <new-dir> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto] [--warm <dir>|--cold]`: run a story's plants (mutations
 //! that its tests must catch) the one way the rules ask for, instead of a hand-written script per
 //! story (XTASK-PLANTS; `docs/plants.md`).
 //!
 //! It removes four failure classes that repeated in hand-written plants scripts:
 //! - a reused copy directory (rsync restores old mtimes, so cargo skipped the rebuild and tested a
-//!   stale mutant): `--dir` must not exist, and nothing is ever deleted;
+//!   stale mutant): `--dir` must not exist, and nothing in it is ever deleted; the one copy that is reused, the role's
+//!   warm copy (PLANTS-WARM-COPY), is synced by content with fresh mtimes ([`sync_warm`]);
 //! - a copy without the products (`cargo xtask so` is run in the copy before the baseline);
 //! - a products test run against the baseline products, blind to the mutant (XTASK-PLANTS-PRODUCTS-REBUILD: the
 //!   products are rebuilt with each plant whose command may use them, see [`cmd_uses_products`]);
@@ -25,12 +26,20 @@
 //! that must occur exactly once) or `perl:s/<re>/<replacement>/<flags>` (applied by `perl`, which
 //! must match exactly once; no `g` or `r` flag). `cmd` runs with `sh -c` in the copy's root.
 //!
-//! Everything is written under `--dir`: the copy in `<dir>/src` and the logs in `<dir>/logs`.
+//! Everything is written under `--dir` (the copy in `<dir>/src` and the logs in `<dir>/logs`), except the warm copy.
 //!
 //! PLANTS-COPIES: `--copies <n>` runs the plants in `n` tree copies at the same time (`<dir>/src-2`, `<dir>/logs-2`, ...),
 //! plant `i` in copy `i % n` ([`distribute`]); each copy builds and runs the baselines of its own plants, and the verdicts
 //! and `results.txt` come out in the plants file's order, as a serial run's. The default, `auto`, is two copies when the
-//! RAM this job may use holds two ([`auto_copies`], [`ram_limit`]), else one.
+//! RAM this job may use holds two and the slot's CPUs or the file's plants make the split pay ([`auto_copies`],
+//! [`ram_limit`]), else one.
+//!
+//! PLANTS-WARM-COPY: copy `k` runs in the role's warm copy `<warm>/copy-<k>` when no other run holds it (its `flock`),
+//! instead of a cold copy in `--dir`: the cargo cache stays, so the baseline build costs what the change since the last
+//! run costs, not a build from nothing. Before use the warm copy is brought to the tree by content ([`sync_warm`]: a
+//! changed file gets a fresh mtime, a path the tree lacks goes, `target/` keeps cargo's cache only,
+//! [`prune_to_cargo_cache`]). `<warm>` is `--warm <dir>`, else [`default_warm`]; `--cold` makes every copy cold. The
+//! logs and `results.txt` stay in `--dir`.
 
 use std::fs;
 use std::io::Write as _;
@@ -148,6 +157,9 @@ pub struct Config {
     /// PLANTS-COPIES: how many tree copies run plants at the same time (1: serial); `--copies`, default
     /// [`auto_copies`].
     pub copies: usize,
+    /// PLANTS-WARM-COPY: the role's warm copies, `<warm>/copy-<k>` (each locked by `<warm>/copy-<k>.lock` for one run
+    /// at a time); `None`: every copy is cold, in `--dir` (`--cold`). Default [`default_warm`].
+    pub warm: Option<PathBuf>,
 }
 
 /// XTASK-PLANTS-PRODUCTS-REBUILD: per plant, whether its command may use the products, so that
@@ -484,16 +496,20 @@ pub fn main(root: &Path, args: &[String]) -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]";
+const USAGE: &str = "usage: cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto] [--warm <dir>|--cold]";
 
 fn parse_args(root: &Path, args: &[String]) -> Result<Config, String> {
     let (mut file, mut dir, mut timeout, mut prepare_timeout) = (None, None, DEFAULT_TIMEOUT, DEFAULT_PREPARE_TIMEOUT);
     // `None`: auto.
     let mut copies: Option<usize> = None;
+    // `None`: the default ([`default_warm`]); `Some(None)`: `--cold`.
+    let mut warm: Option<Option<PathBuf>> = None;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dir" => dir = Some(PathBuf::from(it.next().ok_or("--dir needs a directory")?)),
+            "--warm" => warm = Some(Some(PathBuf::from(it.next().ok_or("--warm needs a directory")?))),
+            "--cold" => warm = Some(None),
             "--copies" => {
                 copies = match it.next().map(String::as_str) {
                     Some("auto") => None,
@@ -510,16 +526,23 @@ fn parse_args(root: &Path, args: &[String]) -> Result<Config, String> {
     let file = file.ok_or(USAGE)?;
     let dir = dir.ok_or(format!("--dir is required: a NEW directory in RAM, e.g. /dev/shm/claude/<story>/plants-<n> ({USAGE})"))?;
     let text = fs::read_to_string(&file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
-    let dir = if dir.is_absolute() { dir } else { std::env::current_dir().map_err(|e| e.to_string())?.join(dir) };
+    let absolute = |p: PathBuf| -> Result<PathBuf, String> { Ok(if p.is_absolute() { p } else { std::env::current_dir().map_err(|e| e.to_string())?.join(p) }) };
+    let dir = absolute(dir)?;
+    let warm = match warm {
+        None => default_warm(&dir, root),
+        Some(w) => w.map(absolute).transpose()?,
+    };
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let plants = parse_plants(&text)?;
     let copies = copies.unwrap_or_else(|| {
         let limit = ram_limit();
-        let n = auto_copies(limit);
+        let cpus = std::thread::available_parallelism().map_or(1, usize::from);
+        let n = auto_copies(limit, cpus, plants.len());
         let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
-        println!("plants: --copies auto: {n} (RAM this job may use: {}; one copy needs up to {}; --copies <n> overrides)", limit.map_or("unknown".into(), gib), gib(COPY_PEAK_BYTES));
+        println!("plants: --copies auto: {n} (RAM this job may use: {}; one copy needs up to {}; {cpus} CPUs, {} plants; --copies <n> overrides)", limit.map_or("unknown".into(), gib), gib(COPY_PEAK_BYTES), plants.len());
         n
     });
-    Ok(Config { src: root.to_path_buf(), plants: parse_plants(&text)?, text, dir, prepare: vec![cargo, "xtask".into(), "so".into()], timeout, prepare_timeout, uses_products: plants_use_products, reads_products: plants_read_products, copies })
+    Ok(Config { src: root.to_path_buf(), plants, text, dir, prepare: vec![cargo, "xtask".into(), "so".into()], timeout, prepare_timeout, uses_products: plants_use_products, reads_products: plants_read_products, copies, warm })
 }
 
 /// Parse a plants file (see the module comment). Every line is checked; the errors are joined.
@@ -706,9 +729,21 @@ fn run_build_tag() -> String {
     format!("plants-{}", std::process::id())
 }
 
+/// PLANTS-WARM-COPY-2: the build tag of warm copy `k` (from 0), the same in every run that uses that copy. The tag is a
+/// cargo input of the crates that carry it (`niji-boundary`, `niji-ld`) and of the loader-side builds (`ld.so`,
+/// `ldconfig`, `localedef`), so a tag new in every run ([`run_build_tag`]) rebuilt them, and everything built on them,
+/// in every warm copy's baseline whatever the tree held. With one tag per copy cargo's own freshness check decides, as
+/// it does for every other crate of a warm copy and for every mutant of one run (which share one tag): a file the sync
+/// or a restore wrote has a fresh mtime, so what was built from its old text rebuilds. Both products of one build
+/// still carry one tag (the ld.so start-up check). A cold copy keeps the run's tag.
+fn warm_build_tag(k: usize) -> String {
+    format!("plants-warm-{}", k + 1)
+}
+
 /// Run `argv` (or `sh -c <cmd>`) in `cwd` under `timeout`, its output into `log`, with `NIJI_LAYOUT_TRACE` set
-/// for `layout` (a product build, and a command that builds the products itself, get the plant's layout); the exit code.
-fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout) -> Result<i32, String> {
+/// for `layout` (a product build, and a command that builds the products itself, get the plant's layout) and the copy's
+/// build `tag` ([`run_build_tag`], [`warm_build_tag`]); the exit code.
+fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout, tag: &str) -> Result<i32, String> {
     let file = fs::File::create(log).map_err(|e| format!("cannot create {}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
     // The child leads its own process group (timeout(1) makes the same group), so one group signal reaches every
@@ -721,7 +756,7 @@ fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: cra
         // A target directory from the environment would build (and test) outside the copy.
         .env_remove("CARGO_TARGET_DIR")
         .env(crate::hotlists::TRACE_ENV, layout_env(layout))
-        .env(crate::so::PLANTS_TAG_ENV, run_build_tag())
+        .env(crate::so::PLANTS_TAG_ENV, tag)
         .stdin(Stdio::null())
         .stdout(file)
         .stderr(err)
@@ -901,16 +936,180 @@ fn missing_in(copy: &Path, paths: &[String]) -> Vec<String> {
     paths.iter().filter(|p| fs::symlink_metadata(copy.join(p)).is_err()).cloned().collect()
 }
 
+/// The rsync arguments that leave a copy's build directories out of it: the source only.
+const COPY_EXCLUDES: [&str; 4] = ["--exclude", "/target", "--exclude", "/fuzz/target"];
+
+/// PLANTS-WARM-COPY: the role's warm copies when `--warm` and `--cold` are not given: `plants-warm/<tree name>` in
+/// `--dir`'s grandparent, beside the story directories (`/dev/shm/claude/<story>/plants-<n>` gives
+/// `/dev/shm/claude/plants-warm/<role>`). `None` (every copy cold) when that grandparent is `/` or absent.
+pub fn default_warm(dir: &Path, src: &Path) -> Option<PathBuf> {
+    let grand = dir.parent()?.parent()?;
+    grand.parent()?;
+    Some(grand.join("plants-warm").join(src.file_name()?))
+}
+
+/// PLANTS-WARM-COPY: one warm copy, held by this run: its path and its lock (released when dropped, or when the process
+/// ends however it ends).
+struct Warm {
+    path: PathBuf,
+    _lock: fs::File,
+}
+
+/// PLANTS-WARM-COPY: take warm copy `k` (from 0) of `root`, `<root>/copy-<k+1>`, by its exclusive `flock`
+/// (`<root>/copy-<k+1>.lock`); `None` when another run holds it.
+// xtask is host tooling built with the pinned stable toolchain; `File::try_lock` needs 1.89 (as in `so::lock_exclusive`).
+#[allow(clippy::incompatible_msrv)]
+fn take_warm(root: &Path, k: usize) -> Result<Option<Warm>, String> {
+    fs::create_dir_all(root).map_err(|e| format!("{}: {e}", root.display()))?;
+    let lock = root.join(format!("copy-{}.lock", k + 1));
+    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(&lock).map_err(|e| format!("{}: {e}", lock.display()))?;
+    match file.try_lock() {
+        Ok(()) => Ok(Some(Warm { path: root.join(format!("copy-{}", k + 1)), _lock: file })),
+        Err(fs::TryLockError::WouldBlock) => Ok(None),
+        Err(fs::TryLockError::Error(e)) => Err(format!("{}: {e}", lock.display())),
+    }
+}
+
+/// PLANTS-WARM-COPY: cargo's own entries of a profile directory (`target/debug`, `target/product/release`, ...), the
+/// ones a warm copy keeps. The uplifted binaries and libraries beside them go: cargo links them again for every unit
+/// a build uses, fresh or rebuilt, so a command finds one only when its build ran in this run.
+const CARGO_PROFILE_ENTRIES: &[&str] = &[".fingerprint", "build", "deps", "examples", "incremental"];
+
+/// PLANTS-WARM-COPY: prune the cargo target directory `dir` of a warm copy (`target`, `fuzz/target`) to cargo's build
+/// cache, so the copy holds what a cold copy holds plus what cargo itself judges fresh. Kept: in a target directory
+/// its `CACHEDIR.TAG`, its profile directories (holding `.fingerprint`) with [`CARGO_PROFILE_ENTRIES`] only, and its
+/// nested target directories (holding `CACHEDIR.TAG` or a profile directory, as `target/product`), pruned the same
+/// way. Everything else goes: the products (`target/niji`), test scratch (`target/tmp`), test caches and logs, and
+/// what a test or a killed run left. The number of entries removed.
+pub fn prune_to_cargo_cache(dir: &Path) -> Result<usize, String> {
+    let is_profile = |d: &Path| d.join(".fingerprint").is_dir();
+    let mut removed = 0;
+    for e in fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+        let e = e.map_err(|e| e.to_string())?;
+        let (path, name) = (e.path(), e.file_name());
+        let is_dir = e.file_type().map_err(|e| e.to_string())?.is_dir();
+        if !is_dir && name == "CACHEDIR.TAG" {
+            continue;
+        }
+        if is_dir && is_profile(&path) {
+            for p in fs::read_dir(&path).map_err(|e| format!("{}: {e}", path.display()))? {
+                let p = p.map_err(|e| e.to_string())?;
+                let keep = p.file_type().map_err(|e| e.to_string())?.is_dir() && CARGO_PROFILE_ENTRIES.iter().any(|k| p.file_name() == *k);
+                if !keep {
+                    remove_all(&p.path())?;
+                    removed += 1;
+                }
+            }
+            continue;
+        }
+        if is_dir && holds_cargo(&path, 2) {
+            removed += prune_to_cargo_cache(&path)?;
+        } else {
+            remove_all(&path)?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+/// Whether the directory `d` is a cargo target directory: it holds `CACHEDIR.TAG` or a profile directory (holding
+/// `.fingerprint`), or, `depth` levels down, a directory that does (`target/product` holding only `ld-pie/release`).
+fn holds_cargo(d: &Path, depth: usize) -> bool {
+    d.join("CACHEDIR.TAG").is_file()
+        || fs::read_dir(d).into_iter().flatten().flatten().any(|c| c.file_type().is_ok_and(|t| t.is_dir()) && (c.path().join(".fingerprint").is_dir() || (depth > 0 && holds_cargo(&c.path(), depth - 1))))
+}
+
+/// Remove `path` (a file, a symlink, or a directory with everything in it, symlinks not followed), first making
+/// every directory below it writable and searchable when a test left one that is not.
+fn remove_all(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let meta = fs::symlink_metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    if !meta.is_dir() {
+        return fs::remove_file(path).map_err(|e| format!("{}: {e}", path.display()));
+    }
+    if fs::remove_dir_all(path).is_ok() {
+        return Ok(());
+    }
+    fn open_up(d: &Path) {
+        let _ = fs::set_permissions(d, fs::Permissions::from_mode(0o700));
+        for e in fs::read_dir(d).into_iter().flatten().flatten() {
+            if e.file_type().is_ok_and(|t| t.is_dir()) {
+                open_up(&e.path());
+            }
+        }
+    }
+    open_up(path);
+    fs::remove_dir_all(path).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// What a warm sync did.
+pub struct Synced {
+    /// Files written (changed or new in the tree), each with a fresh mtime.
+    pub written: usize,
+    /// Paths removed from the copy because the tree has none.
+    pub deleted: usize,
+    /// Entries removed from the copy's target directories ([`prune_to_cargo_cache`]).
+    pub pruned: usize,
+}
+
+/// PLANTS-WARM-COPY: bring the warm copy `copy` to the tree `src`. Its target directories are pruned to cargo's cache;
+/// then rsync compares every file by content (`-c`) and keeps no times (no `-t`): a file that differs, such as a
+/// plant's mutant a killed run left, is written again with a fresh mtime, newer than every build cargo made from the
+/// old text, and a path the tree lacks is deleted. A second rsync pass that only compares (`-n`) must then find
+/// nothing to change, else the copy is not used.
+pub fn sync_warm(src: &Path, copy: &Path) -> Result<Synced, String> {
+    let mut pruned = 0;
+    for t in ["target", "fuzz/target"] {
+        let t = copy.join(t);
+        if fs::symlink_metadata(&t).is_ok_and(|m| m.is_dir()) {
+            pruned += prune_to_cargo_cache(&t)?;
+        }
+    }
+    let rsync = |check: bool| -> Result<String, String> {
+        let mut cmd = Command::new("rsync");
+        cmd.args(["-rlpDc", "--delete", "--itemize-changes"]).args(COPY_EXCLUDES);
+        if check {
+            cmd.arg("--dry-run");
+        }
+        let out = cmd.arg(format!("{}/", src.display())).arg(copy).stdin(Stdio::null()).output().map_err(|e| format!("rsync: {e}"))?;
+        if !out.status.success() {
+            return Err(format!("rsync{} failed ({}): {}", if check { " --dry-run" } else { "" }, out.status, String::from_utf8_lossy(&out.stderr).trim()));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+    let changes = rsync(false)?;
+    let written = changes.lines().filter(|l| l.starts_with(">f")).count();
+    let deleted = changes.lines().filter(|l| l.starts_with("*deleting")).count();
+    let left = rsync(true)?;
+    if !left.trim().is_empty() {
+        let shown: Vec<&str> = left.lines().take(10).collect();
+        return Err(format!("after the sync the copy still differs from the tree: {}", shown.join("; ")));
+    }
+    Ok(Synced { written, deleted, pruned })
+}
+
 /// PLANTS-COPIES: the peak RAM one plants copy needs, in bytes: its tree and target directories on the RAM file system plus
 /// the build and the tests. Measured per copy on the current head (docs/plants.md, "Copies"); the larger host's figure,
 /// rounded up.
 pub const COPY_PEAK_BYTES: u64 = 14 << 30;
 
-/// PLANTS-COPIES: how many copies `--copies auto` (the default) runs, given the RAM this job may use (`None`: unknown):
-/// two when that holds two copies at [`COPY_PEAK_BYTES`] each, else one (a serial run, the old behaviour).
-pub fn auto_copies(limit: Option<u64>) -> usize {
+/// PLANTS-WARM-COPY: below this many CPUs a slot runs two copies only for a file of more than [`SPLIT_PLANTS`] plants:
+/// the copies share the CPUs, so each copy's builds slow down and the split must win it back over enough plants.
+pub const SPLIT_CPUS: usize = 8;
+
+/// PLANTS-WARM-COPY: in a slot of fewer than [`SPLIT_CPUS`] CPUs, the plant count past which two copies pay. Cold, on
+/// a 4-CPU slot, the split paid only past about 6 plants (one copy's baseline 10.2 min, two copies' 14.5 min each,
+/// handoff/PIPELINE-TEST-TIME-1127-report.md); warm, on 4 CPUs, a 6-plant file took 1221 s in two copies against
+/// 1433 s in one (handoff/PLANTS-WARM-COPY.md), so two copies from 6 plants on.
+pub const SPLIT_PLANTS: usize = 5;
+
+/// PLANTS-COPIES: how many copies `--copies auto` (the default) runs, given the RAM this job may use (`None`: unknown),
+/// the CPUs it may use and the plants in the file: two when that RAM holds two copies at [`COPY_PEAK_BYTES`] each, the
+/// file has two plants or more, and (PLANTS-WARM-COPY) the slot has [`SPLIT_CPUS`] CPUs or the file more than
+/// [`SPLIT_PLANTS`] plants; else one (a serial run).
+pub fn auto_copies(limit: Option<u64>, cpus: usize, plants: usize) -> usize {
     match limit {
-        Some(l) if l >= 2 * COPY_PEAK_BYTES => 2,
+        Some(l) if l >= 2 * COPY_PEAK_BYTES && plants >= 2 && (cpus >= SPLIT_CPUS || plants > SPLIT_PLANTS) => 2,
         _ => 1,
     }
 }
@@ -963,6 +1162,11 @@ pub fn run(cfg: &Config) -> Outcome {
     }
     if cfg.dir.starts_with(&cfg.src) {
         return refused(format!("{} is inside the tree it copies", cfg.dir.display()));
+    }
+    if let Some(warm) = &cfg.warm {
+        if warm.starts_with(&cfg.src) || cfg.src.starts_with(warm) || cfg.dir.starts_with(warm) || warm.starts_with(&cfg.dir) {
+            return refused(format!("the warm copies' directory {} overlaps the tree {} or --dir {} (--warm <dir> elsewhere, or --cold)", warm.display(), cfg.src.display(), cfg.dir.display()));
+        }
     }
     if let Err(e) = check_all(&cfg.src, &cfg.plants) {
         return refused(e);
@@ -1060,7 +1264,7 @@ fn merge(cfg: &Config, copies: usize, runs: Vec<CopyRun>) -> Outcome {
 /// (`share`, indices into the plants file). It stops before its next step when `abort` is set (another copy stopped).
 fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std::sync::atomic::AtomicBool) -> CopyRun {
     use std::sync::atomic::Ordering;
-    let (copy, logs) = if k == 0 { (cfg.dir.join("src"), cfg.dir.join("logs")) } else { (cfg.dir.join(format!("src-{}", k + 1)), cfg.dir.join(format!("logs-{}", k + 1))) };
+    let (cold, logs) = if k == 0 { (cfg.dir.join("src"), cfg.dir.join("logs")) } else { (cfg.dir.join(format!("src-{}", k + 1)), cfg.dir.join(format!("logs-{}", k + 1))) };
     // The first copy's lines read as a serial run's; another copy's say which copy.
     let pre = if k == 0 { "plants:".to_string() } else { format!("plants[copy {}]:", k + 1) };
     let mut out = CopyRun { stop: None, aborted: false, plants: Vec::new(), failed: false };
@@ -1073,13 +1277,37 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
     if step("mkdir", fs::create_dir(&logs).map_err(|e| e.to_string())).is_err() {
         return stop(out, EXIT_SURVIVED);
     }
-    // The source only: `target/` holds deliberately unreadable test files and stale builds.
-    let mut rsync = Command::new("rsync");
-    rsync.args(["-a", "--exclude", "/target", "--exclude", "/fuzz/target"]).arg(format!("{}/", cfg.src.display())).arg(&copy);
-    if step("copy", crate::run(&mut rsync)).is_err() {
-        return stop(out, EXIT_SURVIVED);
+    // PLANTS-WARM-COPY: this copy's warm copy when it is free and syncs, held (locked) until the copy's work ends;
+    // otherwise a cold copy in `--dir`, as without one.
+    let mut warm: Option<Warm> = None;
+    if let Some(root) = &cfg.warm {
+        match take_warm(root, k) {
+            Ok(Some(w)) => {
+                let start = Instant::now();
+                match sync_warm(&cfg.src, &w.path) {
+                    Ok(s) => {
+                        println!("{pre} warm copy {} -> {} (synced by content in {:.1}s: {} files written with a fresh mtime, {} paths deleted; target directories pruned to cargo's cache, {} entries removed)", cfg.src.display(), w.path.display(), start.elapsed().as_secs_f64(), s.written, s.deleted, s.pruned);
+                        warm = Some(w);
+                    }
+                    Err(e) => println!("{pre} warm copy {} not used ({e}); a cold copy instead", w.path.display()),
+                }
+            }
+            Ok(None) => println!("{pre} warm copy {}/copy-{} is busy (another run holds its lock); a cold copy instead", root.display(), k + 1),
+            Err(e) => println!("{pre} warm copy in {} not used ({e}); a cold copy instead", root.display()),
+        }
     }
-    println!("{pre} copy {} -> {}", cfg.src.display(), copy.display());
+    let copy = warm.as_ref().map_or_else(|| cold.clone(), |w| w.path.clone());
+    let tag = if warm.is_some() { warm_build_tag(k) } else { run_build_tag() };
+    println!("{pre} build tag {tag} ({})", if warm.is_some() { "this warm copy's, the same every run" } else { "this run's" });
+    if warm.is_none() {
+        // The source only: `target/` holds deliberately unreadable test files and stale builds.
+        let mut rsync = Command::new("rsync");
+        rsync.arg("-a").args(COPY_EXCLUDES).arg(format!("{}/", cfg.src.display())).arg(&copy);
+        if step("copy", crate::run(&mut rsync)).is_err() {
+            return stop(out, EXIT_SURVIVED);
+        }
+        println!("{pre} copy {} -> {}", cfg.src.display(), copy.display());
+    }
     match source_paths(&cfg.src) {
         Ok((paths, how)) => {
             let missing = missing_in(&copy, &paths);
@@ -1135,7 +1363,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         let build = name.starts_with("so");
         let limit = if build { cfg.prepare_timeout } else { cfg.timeout };
         let start = Instant::now();
-        match run_logged(&copy, argv, &log, limit, *layout) {
+        match run_logged(&copy, argv, &log, limit, *layout, &tag) {
             Ok(0) if build => {
                 held = *layout;
                 println!("{pre} {name} ok ({}; layout {}, NIJI_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
@@ -1179,7 +1407,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
         if restore {
             let log = logs.join(format!("{}.so-restore.log", p.id));
             let start = Instant::now();
-            match run_logged(&copy, &cfg.prepare, &log, cfg.prepare_timeout, restore_layout) {
+            match run_logged(&copy, &cfg.prepare, &log, cfg.prepare_timeout, restore_layout, &tag) {
                 Ok(0) => {
                     products_hold_mutant = false;
                     held = restore_layout;
@@ -1222,7 +1450,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
             products_hold_mutant = true;
             let so_log = logs.join(format!("{}.so.log", p.id));
             let start = Instant::now();
-            built = run_logged(&copy, &cfg.prepare, &so_log, cfg.prepare_timeout, layout);
+            built = run_logged(&copy, &cfg.prepare, &so_log, cfg.prepare_timeout, layout, &tag);
             held = layout;
             build = format!("the products, rebuilt with the mutant, layout {}, in {:.0}s (log {})", layout_name(layout), start.elapsed().as_secs_f64(), so_log.display());
             if !matches!(built, Ok(0)) {
@@ -1232,7 +1460,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], needs: &[Need], abort: &std
             }
         }
         let build_timed_out = products && matches!(built, Ok(TIMED_OUT));
-        let rc = if matches!(built, Ok(0)) { run_logged(&copy, &sh(&p.cmd), &log, cfg.timeout, layout) } else { built };
+        let rc = if matches!(built, Ok(0)) { run_logged(&copy, &sh(&p.cmd), &log, cfg.timeout, layout, &tag) } else { built };
         // Restore by writing (a fresh mtime) before anything else can go wrong.
         if let Err(e) = write_fresh(&file, &original) {
             println!("{pre} {}: ERROR: restore: {e}; stopping (the copy holds the mutant)", p.id);
@@ -1289,7 +1517,7 @@ mod tests {
     const CHECK: &str = "grep -q answer=42 src/value.txt || { echo WRONG-ANSWER; exit 1; }";
 
     fn config(src: &Path, dir: &Path, plants: &str) -> Config {
-        Config { src: src.to_path_buf(), text: plants.to_string(), plants: parse_plants(plants).unwrap(), dir: dir.to_path_buf(), prepare: sh("true"), timeout: 60, prepare_timeout: 60, uses_products: |_, ps| vec![false; ps.len()], reads_products: |_, ps| vec![false; ps.len()], copies: 1 }
+        Config { src: src.to_path_buf(), text: plants.to_string(), plants: parse_plants(plants).unwrap(), dir: dir.to_path_buf(), prepare: sh("true"), timeout: 60, prepare_timeout: 60, uses_products: |_, ps| vec![false; ps.len()], reads_products: |_, ps| vec![false; ps.len()], copies: 1, warm: None }
     }
 
     /// The toy's products: `product.txt`, a copy of `src/value.txt`; every build appends a line to `builds.txt`.
@@ -1396,6 +1624,31 @@ mod tests {
         assert!(run_build_tag().starts_with("plants-") && run_build_tag().len() > "plants-".len());
         let cmds = fs::read_to_string(dir.join("src/cmds.txt")).unwrap();
         assert!(cmds.lines().all(|l| l == format!("cmd={}", tags.iter().next().unwrap())), "{cmds:?}");
+        // PLANTS-WARM-COPY-2: in a warm copy every build and command of every run gets that copy's one tag, and
+        // another copy gets another; never the run's tag (new each run: the tagged crates would rebuild every run).
+        // The record is kept outside the copies: the sync deletes what the tree lacks.
+        let base = src.parent().unwrap().to_path_buf();
+        let record = base.join("warm-tags.txt");
+        let warm_cfg = |dir: &Path| {
+            let mut c = Config { warm: Some(base.join("warm")), copies: 2, ..config(&src, dir, &plants) };
+            c.prepare = sh(&format!("cp src/value.txt product.txt && echo build $(basename \"$PWD\") ${} >> {}", crate::so::PLANTS_TAG_ENV, record.display()));
+            c.uses_products = |_, ps| vec![true; ps.len()];
+            c
+        };
+        for (n, dir) in [base.join("w1"), base.join("w2")].iter().enumerate() {
+            let out = run(&warm_cfg(dir));
+            assert_eq!(out.verdicts, vec![("pr".into(), Verdict::Caught), ("p2".into(), Verdict::Caught)], "warm run {n}");
+        }
+        let lines = fs::read_to_string(&record).unwrap();
+        for k in [0, 1] {
+            let copy = format!("build copy-{} ", k + 1);
+            let tags: Vec<&str> = lines.lines().filter_map(|l| l.strip_prefix(copy.as_str())).collect();
+            assert!(tags.len() >= 4, "the baseline and the mutant of two runs built in copy {k}: {lines:?}");
+            assert!(tags.iter().all(|t| *t == warm_build_tag(k)), "copy {k}: {lines:?}");
+        }
+        assert_eq!(lines.lines().count(), lines.lines().filter(|l| l.starts_with("build copy-")).count(), "every build in a warm copy: {lines:?}");
+        assert_ne!(warm_build_tag(0), warm_build_tag(1));
+        assert!(!warm_build_tag(0).contains(&std::process::id().to_string()));
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 
@@ -1501,6 +1754,82 @@ mod tests {
         let results = fs::read_to_string(dir.join("results.txt")).unwrap();
         assert!(results.starts_with(&plants), "results.txt keeps the plants file: {results}");
         assert!(results.contains("\n# p1: CAUGHT, caught by no test the log names\n# p2: WARN-RC-ONLY, caught by "), "{results}");
+        let _ = fs::remove_dir_all(src.parent().unwrap());
+    }
+
+    // no spec clause (PLANTS-WARM-COPY): a run in the role's warm copy judges as a cold run does, and the next run brings
+    // the copy back to the tree by content: a mutant a killed run left (its mtime older than the build made from it) is
+    // written again with a fresh mtime, an unchanged file keeps its mtime, a path the tree lacks goes, and target/ keeps
+    // cargo's cache only (no products, test scratch or uplifted binaries), so no run tests a left mutant
+    #[test]
+    fn a_warm_copy_is_synced_by_content_and_never_tests_a_left_mutant() {
+        let (src, dir) = toy("warm");
+        fs::write(src.join("src/keep.txt"), "kept\n").unwrap();
+        fs::create_dir_all(src.join("fuzz")).unwrap();
+        fs::write(src.join("fuzz/Cargo.toml"), "").unwrap();
+        let base = src.parent().unwrap().to_path_buf();
+        let plants = format!("p1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:WRONG-ANSWER\n");
+        let warm_cfg = |dir: &Path| Config { warm: Some(base.join("warm")), ..config(&src, dir, &plants) };
+        let out = run(&warm_cfg(&dir));
+        assert_eq!((out.verdicts, out.code), (vec![("p1".to_string(), Verdict::Caught)], EXIT_OK));
+        let copy = base.join("warm/copy-1");
+        assert!(!dir.join("src").exists() && copy.join("src/keep.txt").is_file(), "the warm copy is used, not a cold one");
+        // What a killed run leaves behind.
+        let left = copy.join("src/value.txt");
+        let old = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+        fs::write(&left, "answer=43\nother=7\nother=7\n").unwrap();
+        for f in [&left, &copy.join("src/keep.txt")] {
+            fs::File::options().write(true).open(f).unwrap().set_modified(old).unwrap();
+        }
+        fs::write(copy.join("stray.txt"), "x").unwrap();
+        for d in ["target/niji", "target/tmp/t", "target/debug/.fingerprint/a", "target/debug/deps", "target/debug/niji-deps", "target/product/ld-pie/release/.fingerprint", "fuzz/target/x"] {
+            fs::create_dir_all(copy.join(d)).unwrap();
+        }
+        for (f, text) in [("target/niji/libc.a", "stale"), ("target/debug/xtask", "uplifted"), ("target/debug/deps/kept", "cache"), ("target/CACHEDIR.TAG", "tag"), ("target/needed.sh", "log")] {
+            fs::write(copy.join(f), text).unwrap();
+        }
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            fs::set_permissions(copy.join("target/tmp/t"), fs::Permissions::from_mode(0o000)).unwrap();
+        }
+        let before = std::time::SystemTime::now();
+        let s = sync_warm(&src, &copy).unwrap();
+        assert_eq!((s.written, s.deleted), (1, 1), "only the left mutant rewritten, only stray.txt deleted");
+        assert_eq!(fs::read_to_string(&left).unwrap(), "answer=42\nother=7\nother=7\n");
+        assert!(fs::metadata(&left).unwrap().modified().unwrap() >= before, "the rewritten file has a fresh mtime");
+        assert_eq!(fs::metadata(copy.join("src/keep.txt")).unwrap().modified().unwrap(), old, "an unchanged file is not rewritten");
+        for gone in ["stray.txt", "target/niji", "target/tmp", "target/needed.sh", "target/debug/niji-deps", "target/debug/xtask", "fuzz/target/x"] {
+            assert!(fs::symlink_metadata(copy.join(gone)).is_err(), "{gone} kept in the warm copy");
+        }
+        for kept in ["target/CACHEDIR.TAG", "target/debug/deps/kept", "target/debug/.fingerprint/a", "target/product/ld-pie/release/.fingerprint"] {
+            assert!(copy.join(kept).exists(), "{kept} (cargo's cache) removed");
+        }
+        // The mutant again, and a full run: its baseline would fail on it.
+        fs::write(&left, "answer=43\nother=7\nother=7\n").unwrap();
+        let out = run(&warm_cfg(&base.join("run-2")));
+        assert_eq!((out.verdicts, out.code), (vec![("p1".to_string(), Verdict::Caught)], EXIT_OK));
+        assert_eq!(fs::read_to_string(&left).unwrap(), "answer=42\nother=7\nother=7\n");
+        // A copy the sync cannot bring to the tree is not used: the tree loses fuzz/, which the copy keeps around its
+        // protected fuzz/target.
+        fs::remove_dir_all(src.join("fuzz")).unwrap();
+        let e = sync_warm(&src, &copy).err().expect("a copy that still differs from the tree is refused");
+        assert!(e.contains("still differs") || e.contains("rsync failed"), "{e}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    // no spec clause (PLANTS-WARM-COPY): a warm copy another run holds is never shared: this run copies cold into --dir,
+    // and the warm copy is free again once its holder ends
+    #[test]
+    fn a_busy_warm_copy_gives_a_cold_copy() {
+        let (src, dir) = toy("warmbusy");
+        let warm = src.parent().unwrap().join("warm");
+        let held = take_warm(&warm, 0).unwrap().expect("a new warm copy is free");
+        let plants = format!("p1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:WRONG-ANSWER\n");
+        let out = run(&Config { warm: Some(warm.clone()), ..config(&src, &dir, &plants) });
+        assert_eq!((out.verdicts, out.code), (vec![("p1".to_string(), Verdict::Caught)], EXIT_OK));
+        assert!(dir.join("src/src/value.txt").is_file() && !warm.join("copy-1").exists(), "a cold copy, the busy warm copy untouched");
+        drop(held);
+        assert!(take_warm(&warm, 0).unwrap().is_some(), "the lock ends with its holder");
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 
@@ -1785,7 +2114,7 @@ mod tests {
         let pidfile = dir.join("grandchild.pid");
         let log = dir.join("step.log");
         let cmd = format!("(trap '' TERM; exec sleep 300) & echo $! > {}; wait", pidfile.display());
-        let rc = run_logged(&dir, &sh(&cmd), &log, 1, crate::hotlists::Layout::Ungrouped).unwrap();
+        let rc = run_logged(&dir, &sh(&cmd), &log, 1, crate::hotlists::Layout::Ungrouped, &run_build_tag()).unwrap();
         assert_eq!(rc, TIMED_OUT);
         let pid = fs::read_to_string(&pidfile).unwrap().trim().to_string();
         let alive = |pid: &str| fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|st| !st.rsplit(')').next().unwrap_or("").trim_start().starts_with('Z'));
@@ -1923,13 +2252,20 @@ mod tests {
         }
     }
 
-    // no spec clause (PLANTS-COPIES): auto runs two copies only when the job's RAM holds two at the measured peak
+    // no spec clause (PLANTS-COPIES): auto runs two copies only when the job's RAM holds two at the measured peak, and
+    // (PLANTS-WARM-COPY) only when the slot's CPUs or the file's plants make the split pay
     #[test]
     fn auto_copies_follows_the_ram_limit() {
-        assert_eq!(auto_copies(None), 1);
-        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES - 1)), 1);
-        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES)), 2);
-        assert_eq!(auto_copies(Some(u64::MAX)), 2);
+        let big = SPLIT_CPUS;
+        assert_eq!(auto_copies(None, big, 9), 1);
+        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES - 1), big, 9), 1);
+        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES), big, 9), 2);
+        assert_eq!(auto_copies(Some(u64::MAX), big, 9), 2);
+        assert_eq!(auto_copies(Some(u64::MAX), big, 1), 1, "one plant needs one copy");
+        // A small slot: one copy up to SPLIT_PLANTS plants, two past it.
+        assert_eq!(auto_copies(Some(u64::MAX), SPLIT_CPUS - 1, SPLIT_PLANTS), 1);
+        assert_eq!(auto_copies(Some(u64::MAX), SPLIT_CPUS - 1, SPLIT_PLANTS + 1), 2);
+        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES - 1), SPLIT_CPUS - 1, 50), 1, "RAM still decides first");
     }
 
     // no spec clause (PLANTS-COPIES): the RAM a job may use is the smallest of the role budget, every cgroup's
@@ -1958,6 +2294,15 @@ mod tests {
         for bad in ["0", "9", "two"] {
             assert!(parse_args(&src, &args(bad)).is_err(), "--copies {bad} accepted");
         }
+        // PLANTS-WARM-COPY: warm copies by default beside the story directories, `--warm <dir>` elsewhere, `--cold` none.
+        let base = src.parent().unwrap();
+        assert_eq!(parse_args(&src, &args("1")).unwrap().warm, Some(base.parent().unwrap().join("plants-warm/tree")));
+        assert_eq!(default_warm(Path::new("/dev/shm/claude/S-1/plants-2"), Path::new("/w/sh1")), Some(PathBuf::from("/dev/shm/claude/plants-warm/sh1")));
+        assert_eq!(default_warm(Path::new("/s/plants-1"), Path::new("/w/sh1")), None, "no warm copies in /");
+        let with = |extra: &[&str]| parse_args(&src, &[args("1"), extra.iter().map(|s| s.to_string()).collect()].concat()).map(|c| c.warm);
+        assert_eq!(with(&["--warm", "/r/warm"]).unwrap(), Some(PathBuf::from("/r/warm")));
+        assert_eq!(with(&["--cold"]).unwrap(), None);
+        assert!(with(&["--warm"]).is_err(), "--warm without a directory accepted");
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 

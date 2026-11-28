@@ -1,0 +1,11 @@
+pwc2-warm-gets-run-tag | xtask/src/plants.rs | lit:let tag = if warm.is_some() { warm_build_tag(k) } else { run_build_tag() }; ==> let tag = run_build_tag(); | cargo test -p xtask --bin xtask plants::tests::every_build_of_a_run_gets_one_build_tag | msg:copy 0: "build copy-[12] plants-[0-9]
+pwc2-cold-gets-warm-tag | xtask/src/plants.rs | lit:let tag = if warm.is_some() { warm_build_tag(k) } ==> let tag = if true { warm_build_tag(k) } | cargo test -p xtask --bin xtask plants::tests::every_build_of_a_run_gets_one_build_tag | msg:left: \{"plants-warm-1"\}
+pwc2-one-tag-all-copies | xtask/src/plants.rs | lit:format!("plants-warm-{}", k + 1) ==> format!("plants-warm-{}", 1 + k * 0) | cargo test -p xtask --bin xtask plants::tests::every_build_of_a_run_gets_one_build_tag | msg:assertion .left != right. failed
+pwc2-warm-tag-per-run | xtask/src/plants.rs | lit:format!("plants-warm-{}", k + 1) ==> format!("plants-warm-{}-{}", k + 1, std::process::id()) | cargo test -p xtask --bin xtask plants::tests::every_build_of_a_run_gets_one_build_tag | msg:warm_build_tag\(0\)\.contains
+pwc2-tag-not-passed | xtask/src/plants.rs | lit:.env(crate::so::PLANTS_TAG_ENV, tag) ==> .env(crate::so::PLANTS_TAG_ENV, if tag.is_empty() { tag.to_string() } else { run_build_tag() }) | cargo test -p xtask --bin xtask plants::tests::every_build_of_a_run_gets_one_build_tag | msg:copy 0: "build copy-[12] plants-[0-9]
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pwc2-warm-gets-run-tag: CAUGHT, caught by xtask plants::tests::every_build_of_a_run_gets_one_build_tag
+# pwc2-cold-gets-warm-tag: CAUGHT, caught by xtask plants::tests::every_build_of_a_run_gets_one_build_tag
+# pwc2-one-tag-all-copies: CAUGHT, caught by xtask plants::tests::every_build_of_a_run_gets_one_build_tag
+# pwc2-warm-tag-per-run: CAUGHT, caught by xtask plants::tests::every_build_of_a_run_gets_one_build_tag
+# pwc2-tag-not-passed: CAUGHT, caught by xtask plants::tests::every_build_of_a_run_gets_one_build_tag

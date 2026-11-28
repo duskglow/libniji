@@ -1,0 +1,10 @@
+id = "D-X.182"
+section = "x"
+status = "active"
+amends = ["D-X.180"]
+story = "PLANTS-WARM-COPY-2"
+date = "2026-11-28"
+tests = ["xtask/src/plants.rs::every_build_of_a_run_gets_one_build_tag"]
+body = '''
+**A warm plants copy builds with one build tag of its own, `plants-warm-<k>`, in every run; a cold copy keeps the run's `plants-<pid>`** (PLANTS-WARM-COPY-2, coordinator #8857; tooling only, no ABI or behaviour change). `NIJI_PLANTS_BUILD_TAG` is a cargo input of `niji-boundary`, `niji-ld` and the loader-side builds (`ld.so`, `ldconfig`, `localedef`), so a tag new in every run rebuilt them and all that is built on them in every warm baseline whatever the tree held (PLANTS-WARM-COPY: `early-cargo-ld` 98 s, `-ldconfig` 90 s, `-localedef` 91 s of a 324 s warm baseline). With one tag per copy, cargo's own freshness check decides for these crates as it already does for every other crate of a warm copy and for every mutant of one run (one tag for the whole run, PLANTS-BUILD-2): the sync (D-X.180) and each restore write a changed file with a fresh mtime. Both products of one build still carry one tag, so the ld.so start-up check (D-27.22) is unchanged. The run prints `build tag <tag>`. Rules in `xtask/src/plants.rs` (`warm_build_tag`) and `docs/plants.md` (step 4). Measured (handoff/PLANTS-WARM-COPY-2.md; one Skylake-SP build host, 12 CPUs a slot, five plants files): verdicts identical cold and warm on all five, and a mutant left built in the warm cache under its fixed tag was not tested by the next run; wall median 760 s cold, 839 s warm with the per-run tag, 600 s warm with the fixed tag (median paired ratio to cold 0.83). A warm baseline `so` falls from 194 s to 53 s when the previous run left the product crates unchanged; after a product-crate plant it still rebuilds what is built on that crate (~190 s), since the cache holds the mutant.
+'''
