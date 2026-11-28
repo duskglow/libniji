@@ -63339,6 +63339,7 @@ sys/quota.h	NR_DQHASH	macro	!time64only
 sys/quota.h	NR_DQUOTS	macro	!time64only
 sys/quota.h	PDP_ENDIAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/quota.h	PRJQUOTA	macro	!time64only
+sys/quota.h	QCMD	macro	!time64only
 sys/quota.h	QFMT_OCFS2	macro	!time64only
 sys/quota.h	QFMT_SHMEM	macro	!time64only
 sys/quota.h	QFMT_VFS_OLD	macro	!time64only

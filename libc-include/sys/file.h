@@ -624,28 +624,28 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __NIJI_FWUR;
 # endif
 # define F_GETFD 1
 # define F_GETFL 3
-# ifndef F_GETLK
-#  define F_GETLK F_GETLK64
-# endif
 # ifndef F_GETLK64
 #  define F_GETLK64 5
+# endif
+# ifndef F_GETLK
+#  define F_GETLK F_GETLK64
 # endif
 # ifndef F_RDLCK
 #  define F_RDLCK 0
 # endif
 # define F_SETFD 2
 # define F_SETFL 4
-# ifndef F_SETLK
-#  define F_SETLK F_SETLK64
-# endif
 # ifndef F_SETLK64
 #  define F_SETLK64 6
 # endif
-# ifndef F_SETLKW
-#  define F_SETLKW F_SETLKW64
+# ifndef F_SETLK
+#  define F_SETLK F_SETLK64
 # endif
 # ifndef F_SETLKW64
 #  define F_SETLKW64 7
+# endif
+# ifndef F_SETLKW
+#  define F_SETLKW F_SETLKW64
 # endif
 # define F_SHLCK 8
 # define F_UNLCK 2
@@ -676,24 +676,24 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __NIJI_FWUR;
 # ifndef O_EXCL
 #  define O_EXCL 128
 # endif
+# ifndef O_SYNC
+#  define O_SYNC 1052672
+# endif
 # define O_FSYNC O_SYNC
+# ifndef O_NONBLOCK
+#  define O_NONBLOCK 2048
+# endif
 # ifndef O_NDELAY
 #  define O_NDELAY O_NONBLOCK
 # endif
 # ifndef O_NOCTTY
 #  define O_NOCTTY 256
 # endif
-# ifndef O_NONBLOCK
-#  define O_NONBLOCK 2048
-# endif
 # ifndef O_RDONLY
 #  define O_RDONLY 0
 # endif
 # ifndef O_RDWR
 #  define O_RDWR 2
-# endif
-# ifndef O_SYNC
-#  define O_SYNC 1052672
 # endif
 # ifndef O_TRUNC
 #  define O_TRUNC 512
@@ -995,12 +995,12 @@ extern int lockf (int, int, long) __asm__ ("lockf64") __NIJI_FWUR;
 # ifndef O_TMPFILE
 #  define O_TMPFILE 4259840
 # endif
+# define RWH_WRITE_LIFE_NOT_SET 0
 # define RWF_WRITE_LIFE_NOT_SET RWH_WRITE_LIFE_NOT_SET
 # define RWH_WRITE_LIFE_EXTREME 5
 # define RWH_WRITE_LIFE_LONG 4
 # define RWH_WRITE_LIFE_MEDIUM 3
 # define RWH_WRITE_LIFE_NONE 1
-# define RWH_WRITE_LIFE_NOT_SET 0
 # define RWH_WRITE_LIFE_SHORT 2
 # define SPLICE_F_GIFT 8
 # define SPLICE_F_MORE 4

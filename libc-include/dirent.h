@@ -523,8 +523,16 @@ enum {
 # define _DIRENT_MATCHES_DIRENT64 1
 # define __FD_SETSIZE 1024
 #endif
+#if defined __USE_MISC
+# define _POSIX_OPEN_MAX 20
+#endif
 #if defined __USE_GNU
 # define _POSIX_FD_SETSIZE _POSIX_OPEN_MAX
+#endif
+#if defined __USE_MISC
+# define _POSIX_PIPE_BUF 512
+#endif
+#if defined __USE_GNU
 # define _POSIX_HIWAT _POSIX_PIPE_BUF
 # define _POSIX_QLIMIT 1
 # define _POSIX_UIO_MAXIOV 16
@@ -543,16 +551,17 @@ enum {
 # define DT_WHT DT_WHT
 # define HOST_NAME_MAX 64
 # define LOGIN_NAME_MAX 256
+# define NAME_MAX 255
 # ifndef MAXNAMLEN
 #  define MAXNAMLEN NAME_MAX
 # endif
 # define MAX_CANON 255
 # define MAX_INPUT 255
 # define MQ_PRIO_MAX 32768
-# define NAME_MAX 255
 # define NGROUPS_MAX 65536
 # define PATH_MAX 4096
 # define PIPE_BUF 4096
+# define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
 # define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
 # define PTHREAD_KEYS_MAX 1024
 # define RTSIG_MAX 32
@@ -579,9 +588,7 @@ enum {
 # define _POSIX_MQ_PRIO_MAX 32
 # define _POSIX_NAME_MAX 14
 # define _POSIX_NGROUPS_MAX 8
-# define _POSIX_OPEN_MAX 20
 # define _POSIX_PATH_MAX 256
-# define _POSIX_PIPE_BUF 512
 # define _POSIX_RE_DUP_MAX 255
 # define _POSIX_RTSIG_MAX 8
 # define _POSIX_SEM_NSEMS_MAX 256
@@ -591,7 +598,6 @@ enum {
 # define _POSIX_STREAM_MAX 8
 # define _POSIX_SYMLINK_MAX 255
 # define _POSIX_SYMLOOP_MAX 8
-# define _POSIX_THREAD_DESTRUCTOR_ITERATIONS 4
 # define _POSIX_THREAD_KEYS_MAX 128
 # define _POSIX_THREAD_THREADS_MAX 64
 # define _POSIX_TIMER_MAX 32

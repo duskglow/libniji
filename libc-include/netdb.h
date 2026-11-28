@@ -591,11 +591,15 @@ extern int *__h_errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__))
 # define NETDB_SUCCESS 0
 # define NI_MAXHOST 1025
 # define NI_MAXSERV 32
+#endif
+#if defined __USE_MISC || __NIJI_POSIX < 200809
+# define NO_DATA 4
+#endif
+#if defined __USE_MISC
 # define NO_ADDRESS NO_DATA
 #endif
 #if defined __USE_MISC || __NIJI_POSIX < 200809
 # define HOST_NOT_FOUND 1
-# define NO_DATA 4
 # define NO_RECOVERY 3
 # define TRY_AGAIN 2
 #endif

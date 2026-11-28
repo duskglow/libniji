@@ -81,11 +81,11 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_COPY 128
 # endif
 # define IPOPT_DEBMEAS 64
-# ifndef IPOPT_END
-#  define IPOPT_END IPOPT_EOL
-# endif
 # ifndef IPOPT_EOL
 #  define IPOPT_EOL 0
+# endif
+# ifndef IPOPT_END
+#  define IPOPT_END IPOPT_EOL
 # endif
 # ifndef IPOPT_LSRR
 #  define IPOPT_LSRR 131
@@ -94,11 +94,11 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_MEASUREMENT IPOPT_DEBMEAS
 # endif
 # define IPOPT_MINOFF 4
-# ifndef IPOPT_NOOP
-#  define IPOPT_NOOP IPOPT_NOP
-# endif
 # ifndef IPOPT_NOP
 #  define IPOPT_NOP 1
+# endif
+# ifndef IPOPT_NOOP
+#  define IPOPT_NOOP IPOPT_NOP
 # endif
 # ifndef IPOPT_NUMBER_MASK
 #  define IPOPT_NUMBER_MASK 31
@@ -119,10 +119,10 @@ typedef union pthread_attr_t pthread_attr_t;
 #  define IPOPT_RR 7
 # endif
 # define IPOPT_SATID 136
+# define IPOPT_SECURITY 130
 # ifndef IPOPT_SEC
 #  define IPOPT_SEC IPOPT_SECURITY
 # endif
-# define IPOPT_SECURITY 130
 # define IPOPT_SECUR_CONFID 61749
 # define IPOPT_SECUR_EFTO 30874
 # define IPOPT_SECUR_MMMM 48205
@@ -136,11 +136,11 @@ typedef union pthread_attr_t pthread_attr_t;
 # ifndef IPOPT_SSRR
 #  define IPOPT_SSRR 137
 # endif
-# ifndef IPOPT_TIMESTAMP
-#  define IPOPT_TIMESTAMP IPOPT_TS
-# endif
 # ifndef IPOPT_TS
 #  define IPOPT_TS 68
+# endif
+# ifndef IPOPT_TIMESTAMP
+#  define IPOPT_TIMESTAMP IPOPT_TS
 # endif
 # define IPOPT_TS_PRESPEC 3
 # define IPOPT_TS_TSANDADDR 1

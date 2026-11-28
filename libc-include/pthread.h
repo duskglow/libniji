@@ -1082,6 +1082,33 @@ public:
 # else
 /* C (and C++ without exceptions): the buffer lives in the block; a cancellation jumps back through the
    __sigsetjmp below and runs the handler, then continues unwinding with __pthread_unwind_next. */
+#  ifdef __cplusplus
+/* C++ without exceptions: the functions this form calls, which the tables show in C only (black-box probe: the
+   reference declares them in C++ exactly where this form is in use, every standard; compiler-rt's tsan runtime,
+   built with -fno-exceptions, calls pthread_cleanup_push). One guard each with their C declarations above. */
+#   ifndef __NIJI_D___pthread_register_cancel
+#    define __NIJI_D___pthread_register_cancel 1
+extern void __pthread_register_cancel (__pthread_unwind_buf_t *);
+#   endif
+#   ifndef __NIJI_D___pthread_unregister_cancel
+#    define __NIJI_D___pthread_unregister_cancel 1
+extern void __pthread_unregister_cancel (__pthread_unwind_buf_t *);
+#   endif
+#   ifndef __NIJI_D___pthread_unwind_next
+#    define __NIJI_D___pthread_unwind_next 1
+extern void __pthread_unwind_next (__pthread_unwind_buf_t *) __attribute__ ((__noreturn__));
+#   endif
+#   if __NIJI_GNU
+#    ifndef __NIJI_D___pthread_register_cancel_defer
+#     define __NIJI_D___pthread_register_cancel_defer 1
+extern void __pthread_register_cancel_defer (__pthread_unwind_buf_t *);
+#    endif
+#    ifndef __NIJI_D___pthread_unregister_cancel_restore
+#     define __NIJI_D___pthread_unregister_cancel_restore 1
+extern void __pthread_unregister_cancel_restore (__pthread_unwind_buf_t *);
+#    endif
+#   endif
+#  endif
 #  define pthread_cleanup_push(routine, arg) \
   do { \
     __pthread_unwind_buf_t __cancel_buf; \

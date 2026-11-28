@@ -152,6 +152,12 @@ extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
 # define USRQUOTA 0
 #endif
 
+/* quotactl(2)'s command word: the subcommand above SUBCMDSHIFT, the quota type in SUBCMDMASK (the kernel UAPI
+   <linux/quota.h>'s form; black-box probe: the reference's has these values, types and precedence, also in #if). */
+#if 1
+# define QCMD(cmd, type) (((cmd) << SUBCMDSHIFT) | ((type) & SUBCMDMASK))
+#endif
+
 __NIJI_END_C
 
 #endif

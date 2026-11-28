@@ -96,6 +96,10 @@ typedef long __clock_t;
 #  define __NIJI_D___clockid_t 1
 typedef int __clockid_t;
 # endif
+# ifndef __NIJI_D___cpu_mask
+#  define __NIJI_D___cpu_mask 1
+typedef unsigned long __cpu_mask;
+# endif
 # ifndef __NIJI_D___daddr_t
 #  define __NIJI_D___daddr_t 1
 typedef int __daddr_t;

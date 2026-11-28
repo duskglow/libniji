@@ -1,0 +1,17 @@
+{"task": "HEADERS-STAGE2-GAPS-N",
+ "result": "Macros now follow the macros they name (go-dump order drops 152 names -> 0; libgo's AF_*/ENOTSUP back), C++ -fno-exceptions cleanup declarations, QCMD, __cpu_mask; 0 DIFF vs stock 2.39",
+ "branch": "task/headers-stage2-gaps-n", "head": null,
+ "jobs": [{"host": "mei", "label": "headers-stage2-gaps-n-gate"},
+          {"host": "mei", "label": "headers-stage2-gaps-n-plants"},
+          {"host": "mei", "label": "headers-stage2-gaps-n-proof"}],
+ "rulings": [],
+ "informational": [
+   "Names missing from libniji's headers altogether (stock has them, libgo's dump copies them, no libgo error yet): <netinet/in.h> IPPORT_* (25), <net/route.h> RTCF_*, RTMSG_*, RT_CLASS_*, <netinet/icmp6.h> ICMPV6_EXT_ECHO_*, ND_OPT_RTR_ADV_INTERVAL, <netinet/ip.h> IPTOS_DSCP_VA; 547 names over the sweep: a follow-up story (missing-name class, not order)",
+   "Go-dump consts that differ by spelling only (stock hex/expressions, libniji decimal) and libniji's own __NIJI_* macros in the dump (1490 in sysinfo.c's); stock's internal _BITS_*/__HAVE_* consts absent; libniji keeps some consts stock's own definition order drops (stock has 132 order cases, e.g. SSIZE_MAX before LONG_MAX)",
+   "sizeof_* consts of reserved or kernel-shared struct types that godump sees in stock only (__FILE, __ptrace_*, group_filter, ip_opts, prctl_mm_map, timestamp)",
+   "No D-row recorded for the generator's definition order rule; it is documented in Gen::definitions_first and the fragment"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "gcc -fdump-go-spec macros dropped only for definition order, 153 headers x 6 sets", "before": 152, "after": 0, "unit": "names", "measured": true},
+   {"kind": "unblock", "what": "gcc-14 libgo sysinfo (AF_*/ENOTSUP), llvm-19 tsan_platform_linux.cpp, systemd 257 quota-util.c, elogind 255 test-sizeof.c compile", "before": 0, "after": 4, "unit": "units", "measured": true},
+   {"kind": "coverage", "what": "header_check fragment s13.d/90-stage2-gaps-n.py (macro-order sweep, go-dump repro, C++ -fno-exceptions, QCMD, __cpu_mask)", "before": null, "after": null, "unit": null, "measured": true}]}
