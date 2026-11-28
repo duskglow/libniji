@@ -1,0 +1,5 @@
+# XTASK-PRECHECK-SKIP-ASM-AFFECTED plants: an edit to a .S file that a test the new direct-tier mapping selects catches.
+# cpuid.S (trait method in sys.rs, as if sys.rs changed): appendix_a_primitives is selected; ebx stored in ecx's slot breaks the vendor string.
+xps-trait-cpuid | csys/src/machine/cpuid.S | perl:s/(niji_machine_cpuid:.*?)movl %ebx, 4\(%r8\)/$1movl %ecx, 4(%r8)/s | cargo test -p niji-boundary --test appendix_a_primitives k_cpu_instructions_requiring_os_support | msg:k_cpu_instructions_requiring_os_support
+# tp.S (exported __errno_location, through spec/symbols.tsv namers): tb_foreign_low_words is selected; an unowned process now gets the block's word.
+xps-export-errno | csys/src/machine/tp.S | perl:s/(niji_machine_errno_location:.*?)je niji_errno_rest/$1jne niji_errno_rest/s | cargo test -p niji-boundary --test tb_foreign_low_words | msg:panicked
