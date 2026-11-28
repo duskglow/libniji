@@ -1,4 +1,4 @@
-//! `cargo xtask precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] [--base <ref>] [--logs <dir>]
+//! `cargo xtask precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] [--skip <check>,...] [--base <ref>] [--logs <dir>]
 //! [--base-src <dir>] [--host <name>] [--story <id>]` (HANDBACK-INLOOP-CHECKS): every cheap check that judges a
 //! hand-back, run in the agent's own loop on its role before it hands back. One verdict line per check
 //! (`precheck: <check> ok|RED|WAIT|note ...`), each red naming its fix; exit 0 = green, 1 = a red, 3 = no red but a
@@ -7,7 +7,9 @@
 //! Why: of 30 header-slice reds (11-14 to 11-18), 29 were decided by a check that ran only after the hand-back or was
 //! never read: jobs still queued at a budget checkpoint, named jobs that failed later, jobs that tested older content
 //! than the hand-back head, a FULL-tier `stubs` red, an undiagnosed gate, placeholder record ids. Each cost a whole new
-//! run. The checks, in order (`--only` runs a subset, for a quick rerun; its verdict says it is partial):
+//! run. The checks, in order (`--only` runs a subset, for a quick rerun; its verdict says it is partial. `--skip` leaves
+//! checks out; a skip of `static` and `clippy` alone, which `ops handback-check` runs on the head merged with next,
+//! says so and is still a hand-back precheck, any other skip is partial; XTASK-PRECHECK-SKIP-ASM-AFFECTED):
 //!
 //! 1. `stubs` and every other step of the FULL tier (`cargo xtask test`, `test_steps` in main.rs) that takes seconds:
 //!    the policy audits, `trace`, `fuzz-check`, every `*-gen --check`, `remez --check`, `tables --check`
@@ -137,6 +139,8 @@ pub(crate) struct Opts {
     pub jobs: Vec<String>,
     pub head: Option<String>,
     pub only: Option<BTreeSet<String>>,
+    /// `--skip`: the checks not run (the complement of `--only`; `cheap` names every [`CHEAP_STEPS`] entry).
+    pub skip: BTreeSet<String>,
     pub base: String,
     pub logs: PathBuf,
     pub base_src: Option<PathBuf>,
@@ -144,7 +148,7 @@ pub(crate) struct Opts {
     pub story: Option<String>,
 }
 
-const USAGE: &str = "usage: cargo xtask precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] [--base <ref>] [--logs <dir>] [--base-src <dir>] [--host <name>] [--story <id>]";
+const USAGE: &str = "usage: cargo xtask precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] [--skip <check>,...] [--base <ref>] [--logs <dir>] [--base-src <dir>] [--host <name>] [--story <id>]";
 
 pub fn main(root: &Path, args: &[String]) -> ExitCode {
     let opts = match parse_args(args) {
@@ -172,7 +176,7 @@ pub fn main(root: &Path, args: &[String]) -> ExitCode {
     for (name, secs, v) in run_checks(root, &opts) {
         report(&name, secs, v);
     }
-    let partial = if opts.only.is_some() { " (partial: --only; not a hand-back precheck)" } else { "" };
+    let partial = partial_note(&opts);
     let total = started.elapsed().as_secs_f64();
     match worst {
         Level::Red => {
@@ -221,6 +225,7 @@ fn parse_args(args: &[String]) -> Result<Opts, String> {
             "--jobs" => o.jobs.extend(split_jobs(&val()?)),
             "--head" => o.head = Some(val()?),
             "--only" => o.only = Some(val()?.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()),
+            "--skip" => o.skip.extend(val()?.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty())),
             "--base" => o.base = val()?,
             "--logs" => o.logs = PathBuf::from(val()?),
             "--base-src" => o.base_src = Some(PathBuf::from(val()?)),
@@ -229,13 +234,37 @@ fn parse_args(args: &[String]) -> Result<Opts, String> {
             x => return Err(format!("unknown argument `{x}`")),
         }
     }
-    if let Some(only) = &o.only {
-        let known = check_names();
-        if let Some(bad) = only.iter().find(|c| !known.contains(c.as_str()) && c.as_str() != "cheap") {
-            return Err(format!("--only: unknown check `{bad}` (known: cheap, {})", known.iter().copied().collect::<Vec<_>>().join(", ")));
+    let known = check_names();
+    for (flag, set) in [("--only", o.only.as_ref()), ("--skip", Some(&o.skip))] {
+        if let Some(bad) = set.into_iter().flatten().find(|c| !known.contains(c.as_str()) && c.as_str() != "cheap") {
+            return Err(format!("{flag}: unknown check `{bad}` (known: cheap, {})", known.iter().copied().collect::<Vec<_>>().join(", ")));
         }
     }
+    if o.only.is_some() && !o.skip.is_empty() {
+        return Err("--only and --skip exclude each other".into());
+    }
     Ok(o)
+}
+
+/// The checks `ops handback-check` runs itself on the head merged with next, so a precheck that skips only these is
+/// still a hand-back precheck.
+const MERGED_ELSEWHERE: &[&str] = &["static", "clippy"];
+
+/// The verdict line's qualifier: empty for every check; partial for `--only`, or for a `--skip` of anything beyond
+/// [`MERGED_ELSEWHERE`]; a skip of those alone names them and why, and stays a hand-back precheck.
+fn partial_note(opts: &Opts) -> String {
+    if opts.only.is_some() {
+        return " (partial: --only; not a hand-back precheck)".into();
+    }
+    if opts.skip.is_empty() {
+        return String::new();
+    }
+    let list = opts.skip.iter().cloned().collect::<Vec<_>>().join(", ");
+    if opts.skip.iter().all(|s| MERGED_ELSEWHERE.contains(&s.as_str())) {
+        format!(" (skipped: {list}; `ops handback-check` runs them on the head merged with next)")
+    } else {
+        format!(" (partial: --skip {list}; not a hand-back precheck)")
+    }
 }
 
 /// `a, b (remark), host:c` -> labels; remarks in parentheses are dropped, as the hand-back's JOBS: line allows.
@@ -264,6 +293,9 @@ fn check_names() -> BTreeSet<&'static str> {
 }
 
 fn wanted(opts: &Opts, name: &str) -> bool {
+    if opts.skip.contains(name) || (opts.skip.contains("cheap") && CHEAP_STEPS.contains(&name)) {
+        return false;
+    }
     match &opts.only {
         None => true,
         Some(set) => set.contains(name) || (set.contains("cheap") && CHEAP_STEPS.contains(&name)),
@@ -965,6 +997,24 @@ mod tests {
         assert_eq!(split_jobs("a-gate, b-plants (all caught), otherhost:c"), ["a-gate", "b-plants", "otherhost:c"]);
     }
 
+    #[test]
+    fn skip_of_the_merged_checks_is_a_hand_back_precheck() {
+        // no spec clause: XTASK-PRECHECK-SKIP-ASM-AFFECTED. `--skip static,clippy` (what `ops handback-check` runs on
+        // the merged head) names what it skipped and why and is not partial; any other skip, or `--only`, is partial.
+        let args = |a: &[&str]| parse_args(&a.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        let merged = args(&["--skip", "static,clippy"]).unwrap();
+        assert_eq!(partial_note(&merged), " (skipped: clippy, static; `ops handback-check` runs them on the head merged with next)");
+        assert!(!wanted(&merged, "static") && !wanted(&merged, "clippy") && wanted(&merged, "jobs") && wanted(&merged, "stubs"));
+        let more = args(&["--skip", "clippy,jobs"]).unwrap();
+        assert_eq!(partial_note(&more), " (partial: --skip clippy, jobs; not a hand-back precheck)");
+        let cheap = args(&["--skip", "cheap"]).unwrap();
+        assert!(!wanted(&cheap, "stubs") && wanted(&cheap, "static"));
+        assert_eq!(partial_note(&args(&["--only", "jobs"]).unwrap()), " (partial: --only; not a hand-back precheck)");
+        assert_eq!(partial_note(&args(&[]).unwrap()), "");
+        assert!(args(&["--skip", "nosuch"]).unwrap_err().contains("--skip: unknown check `nosuch`"));
+        assert!(args(&["--skip", "static", "--only", "jobs"]).is_err());
+    }
+
     fn copy_dir(from: &Path, to: &Path) {
         fs::create_dir_all(to).unwrap();
         for e in fs::read_dir(from).unwrap().flatten() {
@@ -1033,6 +1083,7 @@ mod tests {
             base_src: Some(base),
             host: "fixturehost".into(),
             story: None,
+            skip: BTreeSet::new(),
         };
         let r = run_checks(&role, &opts);
         let _ = fs::remove_dir_all(&tmp);

@@ -68,6 +68,13 @@
 //!    `#include` or `.set` (which can define symbols unseen), a symbol not prefixed `niji_`
 //!    (may be exported C ABI), a symbol named by another csys source, a link list, a script or
 //!    xtask, or no user at all.
+//!    XTASK-PRECHECK-SKIP-ASM-AFFECTED, in the direct tier only (the wide and full tiers are unchanged): an exported
+//!    symbol `MACHINE_EXPORTS` does not list selects the targets naming it, the programs calling it and those of its
+//!    `spec/symbols.tsv` section (`abi_reach`; FULL when none); a user's trait method selects the module as if it
+//!    changed; a symbol named by an xtask step (`XTASK_ASM_STEPS`) selects that command; a file `so.rs` links into
+//!    ld.so that no source uses, or used only by `crates/boundary/src/ld/`, adds `LOADER_TARGETS`; an unreadable file
+//!    stays FULL and adds the targets naming the file or its `niji_` names (`csys_labels`); `csys/start/*.S` selects
+//!    the targets naming it (FULL if none), `csys/owner/owner.S` those and every conformance program (`crt_map`).
 //! 7. An xtask audit/report module (`XTASK_AUDITS`: policy, symgap, status, schedule, plants): the
 //!    xtask unit tests, clippy, the policy checks and the module's own command.
 //!    XTASK-AFFECTED-XTASK (#4684): an xtask tool module off the product path (`XTASK_TOOLS`: the records and view
@@ -259,6 +266,9 @@ struct CsysFile {
     generated: bool,
     /// The symbols it defines (see `csys_symbols`); `None`: unmappable.
     symbols: Option<Vec<String>>,
+    /// XTASK-PRECHECK-SKIP-ASM-AFFECTED: the `niji_` names it labels or declares global (`csys_labels`), read even
+    /// when `symbols` is `None`: an unmappable file still selects the tests that name them (its FULL stays).
+    labels: Vec<String>,
 }
 
 /// One occurrence of a csys symbol outside comments: the file (relative, `/`) and whether the
@@ -295,6 +305,8 @@ pub struct Repo {
     /// TOOLS-7 (3): `git diff -U0` of `csys/include/` against the base, which the sync writes to `.changed.hdr` (a VM
     /// tree has no history). `None`: not available, so a changed header is not mapped (FULL).
     hdr_diff: Option<String>,
+    /// XTASK-PRECHECK-SKIP-ASM-AFFECTED: the exported C symbols of `spec/symbols.tsv` -> their spec section.
+    abi_sections: BTreeMap<String, u32>,
     /// XTASK-AFFECTED-MATH-2: the fit files in the tree (`crates/math/fits/<name>.fit`). A changed fit that is not
     /// here was removed, and `cargo xtask remez --check` cannot check it: FULL.
     fits: BTreeSet<String>,
@@ -323,6 +335,26 @@ pub struct Repo {
 /// reading does not see (a macro, `#define`, `#include`, `.set`/`.equ`): unmappable. A one-line `.symver a, name@VER` alias is mapped (it defines `a` and `name`).
 /// C sources are not read (definitions behind macros and multi-line declarators need the
 /// compiler to be sure): `None`.
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED: the `niji_` names an assembly source labels at column 0 or names in a
+/// `.globl`/`.global`/`.weak`/`.hidden` line, whatever else it holds (macros, includes): the names a test can use to
+/// reach it even when `csys_symbols` cannot map the file.
+fn csys_labels(text: &str) -> Vec<String> {
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for l in text.lines() {
+        let t = l.trim_start();
+        let first = t.split([' ', '\t']).next().unwrap_or("");
+        let names: Vec<&str> = if matches!(first, ".globl" | ".global" | ".weak" | ".hidden") {
+            t[first.len()..].split(',').map(str::trim).collect()
+        } else if l.starts_with("niji_") {
+            l.split_once(':').map(|(x, _)| x).into_iter().collect()
+        } else {
+            continue;
+        };
+        out.extend(names.into_iter().filter(|n| n.starts_with("niji_") && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')).map(str::to_string));
+    }
+    out.into_iter().collect()
+}
+
 fn csys_symbols(path: &str, text: &str) -> Option<Vec<String>> {
     if !path.ends_with(".S") {
         return None;
@@ -396,8 +428,10 @@ fn sym_refs(rel: &str, text: &str, symbols: &HashSet<&str>, out: &mut BTreeMap<S
             continue;
         }
         for w in t.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).filter(|w| symbols.contains(*w)) {
-            // `fn name(...);` in an extern block, or a C prototype: a declaration, not a use.
-            let decl = code && t.ends_with(';') && !t.contains('=') && !t.contains('{') && (t.contains(&format!("fn {w}(")) || (!rel.ends_with(".rs") && t.contains(&format!("{w}("))) || t.contains(&format!("static {w}:")) || t.contains(&format!("static mut {w}:")));
+            // `fn name(...);` in an extern block, or a C prototype, or a C `extern` object declaration
+            // (`extern unsigned char name;`, XTASK-PRECHECK-SKIP-ASM-AFFECTED): a declaration, not a use.
+            let c_object = !rel.ends_with(".rs") && t.starts_with("extern ") && !t.contains('(') && t.trim_end_matches(';').trim_end().ends_with(w);
+            let decl = code && t.ends_with(';') && !t.contains('=') && !t.contains('{') && (t.contains(&format!("fn {w}(")) || (!rel.ends_with(".rs") && t.contains(&format!("{w}("))) || t.contains(&format!("static {w}:")) || t.contains(&format!("static mut {w}:")) || c_object);
             out.entry(w.to_string()).or_default().push(SymRef { file: rel.to_string(), decl });
         }
     }
@@ -1253,7 +1287,7 @@ impl Repo {
         let rel = |p: &Path| p.strip_prefix(root).unwrap_or(p).to_string_lossy().replace('\\', "/");
         for p in &all_csys {
             let (r, text) = (rel(p), read(p));
-            csys.insert(r.clone(), CsysFile { generated: text.contains("@generated"), symbols: csys_symbols(&r, &text) });
+            csys.insert(r.clone(), CsysFile { generated: text.contains("@generated"), symbols: csys_symbols(&r, &text), labels: csys_labels(&text) });
         }
         // AFFECTED-TESTS-ONE-LOAD, D-X.160: a hash set, since `sym_refs` asks it about every word of the scanned files.
         let symbols: HashSet<&str> = csys.values().filter_map(|c| c.symbols.as_ref()).flatten().map(String::as_str).collect();
@@ -1309,7 +1343,8 @@ impl Repo {
             examples.extend(xs.iter().map(|p| (rel(p), p)).filter(|(r, _)| r.strip_prefix(&top).is_some_and(|n| !n.contains('/'))).map(|(r, p)| (r, read(p))));
         }
         examples.sort();
-        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok(), entry_diff: fs::read_to_string(root.join(".changed.abi")).ok(), entry_texts: ENTRY_TABLES.iter().filter_map(|f| fs::read_to_string(root.join(f)).ok().map(|t| (f.to_string(), t))).collect() }
+        let abi_sections = read(&root.join("spec/symbols.tsv")).lines().skip(1).filter_map(|l| { let mut c = l.split('\t'); Some((c.next()?.to_string(), c.next()?.parse().ok()?)) }).collect();
+        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, abi_sections, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok(), entry_diff: fs::read_to_string(root.join(".changed.abi")).ok(), entry_texts: ENTRY_TABLES.iter().filter_map(|f| fs::read_to_string(root.join(f)).ok().map(|t| (f.to_string(), t))).collect() }
     }
 
     /// The module of the graph a source path belongs to, `(crate, module)`, as `classify_path` names it.
@@ -1916,6 +1951,8 @@ impl Selection {
 
 enum Class {
     Full(&'static str),
+    /// XTASK-PRECHECK-SKIP-ASM-AFFECTED: `csys/start/*.S`, `csys/owner/owner.S` (`crt_map`).
+    CrtObject,
     /// AFFECTED-COVERAGE: a data file code reads at build or test time ([`DATA_FILES`]).
     Data(&'static DataFile),
     Docs,
@@ -2231,6 +2268,9 @@ fn classify(path: &str) -> Option<Class> {
     }
     if path.starts_with("csys/src/") && path.ends_with(".S") {
         return None;
+    }
+    if path.ends_with(".S") && (path.starts_with("csys/start/") || path == "csys/owner/owner.S") {
+        return Some(Class::CrtObject);
     }
     if path.starts_with("csys/") {
         return full("csys/ (the C layer under everything; only its assembly sources are mapped)");
@@ -2651,6 +2691,7 @@ fn select_files(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Se
                 sel.notes.push(format!("{f}: a validation script with self-tests ({}; not FULL)", tests.join(", ")));
             }
             Some(Class::AllConf) => sel.all_conf(repo, &format!("{f}: every conformance program")),
+            Some(Class::CrtObject) => crt_map(repo, f, &mut sel),
             Some(Class::Records) => {
                 sel.xtask_tests = true;
                 sel.xtask_cmds.insert("static".to_string());
@@ -3406,6 +3447,95 @@ fn machine_export(f: &str, s: &str) -> Option<&'static [&'static str]> {
     MACHINE_EXPORTS.iter().find(|(x, y, t)| *x == file && *y == s && !t.is_empty()).map(|(_, _, t)| *t)
 }
 
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED: xtask steps that name a csys symbol to find it in what they build and run
+/// (`cargo xtask <command>`); a symbol named there selects the command (with the products), not FULL.
+const XTASK_ASM_STEPS: &[(&str, &str)] = &[("xtask/src/native_examples.rs", "native")];
+
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED: the loader's test targets, (crate, name prefix): what reaches code linked into
+/// ld.so only (`ld_names.S`) or used only by the loader (`tool.S`, through `crates/boundary/src/ld/`).
+const LOADER_TARGETS: &[(&str, &str)] = &[("niji-boundary", "dl_"), ("niji-boundary", "ld"), ("niji-ld", "dl"), ("niji-ld", "ld")];
+
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED: an exported C symbol of `f` that `MACHINE_EXPORTS` does not list (direct tier):
+/// the test targets that name it, the conformance programs that call it, and, when `spec/symbols.tsv` lists it, the
+/// targets and programs of its spec section (the products tests reach an entry through its section, as
+/// `narrow_direct` selects them for a Rust entry). `Err(symbol)` when nothing reaches one of them (the caller
+/// escalates).
+fn abi_reach<'a>(repo: &Repo, f: &str, abi: &[&'a str], sel: &mut Selection) -> Result<(), &'a str> {
+    for &s in abi {
+        let sec = repo.abi_sections.get(s).copied();
+        let mut n = 0;
+        for t in &repo.targets {
+            let why = if is_word(&t.text, s) {
+                format!("{f}: the test names exported `{s}`")
+            } else if let Some(x) = sec.filter(|x| t.sections.contains(x)) {
+                format!("{f}: exported `{s}` is of spec section {x} (spec/symbols.tsv), which the test carries")
+            } else {
+                continue;
+            };
+            n += 1;
+            add(&mut sel.tests, (t.krate.clone(), t.name.clone()), &why);
+        }
+        let callers: BTreeSet<&str> = repo.csys_refs.get(s).into_iter().flatten().filter(|r| !r.decl && r.file.starts_with("conformance/c/") && r.file.ends_with(".c")).map(|r| r.file["conformance/c/".len()..].trim_end_matches(".c")).collect();
+        for c in &repo.conf {
+            let why = if callers.contains(c.name.as_str()) {
+                format!("{f}: the program calls exported `{s}`")
+            } else if let Some(x) = sec.filter(|x| c.sections.contains(x)) {
+                format!("{f}: exported `{s}` is of spec section {x} (spec/symbols.tsv), which the program carries")
+            } else {
+                continue;
+            };
+            n += 1;
+            add(&mut sel.conf, c.name.clone(), &why);
+        }
+        if n == 0 {
+            return Err(s);
+        }
+    }
+    sel.notes.push(format!("{f}: exported {} (not in MACHINE_EXPORTS): the tests and programs that name them or carry their spec section", abi.join(", ")));
+    Ok(())
+}
+
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED: the test targets whose source names assembly file `f` (its file name) or one of
+/// `names`.
+fn asm_namers(repo: &Repo, f: &str, names: &[String], sel: &mut Selection) {
+    let file = f.rsplit('/').next().unwrap_or(f);
+    for t in &repo.targets {
+        let why = if t.text.contains(file) {
+            format!("{f}: the test names the file")
+        } else if let Some(w) = names.iter().find(|w| is_word(&t.text, w)) {
+            format!("{f}: the test names `{w}`")
+        } else {
+            continue;
+        };
+        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), &why);
+    }
+}
+
+/// XTASK-PRECHECK-SKIP-ASM-AFFECTED (direct tier): a start object source (`csys/start/*.S`) or the owner shims
+/// (`csys/owner/owner.S`): the test targets that name the file or its stem (`crti`, `gcrt1`: the products tests that
+/// link them) and clippy of the crate whose build compiles csys; for the owner shims (linked into libc.so.6, which
+/// the dynamic-link programs load) also every conformance program. A conformance program links `niji-crt1.o` or
+/// `niji-rcrt1.o` alone (`conformance/run.sh`, `-nostdlib`; both from `machine/entry.S`), never a `csys/start`
+/// object, so a start object is not selected for them; one no test names stays FULL. The wide and full tiers still
+/// escalate.
+fn crt_map(repo: &Repo, f: &str, sel: &mut Selection) {
+    if !sel.direct {
+        return sel.full.push(format!("{f}: csys/ (the C layer under everything; only its assembly sources are mapped)"));
+    }
+    let file = f.rsplit('/').next().unwrap_or(f);
+    let before = sel.tests.len();
+    asm_namers(repo, f, &[file.trim_end_matches(".S").to_string()], sel);
+    add(&mut sel.clippy, CSYS_CRATE.to_string(), &format!("{f} changed"));
+    if f == crate::so::OWNER_SHIMS {
+        sel.all_conf(repo, &format!("{f}: linked into libc.so.6, which the dynamic-link programs load"));
+        sel.notes.push(format!("{f}: linked into libc.so.6 (owner shims): every conformance program and the tests naming it"));
+    } else if sel.tests.len() == before {
+        sel.full.push(format!("{f}: a start object no test names"));
+    } else {
+        sel.notes.push(format!("{f}: a start object, linked only by the tests naming it (conformance programs link niji-crt1.o or niji-rcrt1.o alone)"));
+    }
+}
+
 fn csys_map(repo: &Repo, f: &str, sel: &mut Selection) {
     csys_map_in(repo, f, sel, &mut BTreeSet::new());
 }
@@ -3416,18 +3546,25 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
     seen.insert(f.to_string());
     let direct = sel.direct;
     let mut siblings: BTreeSet<&str> = BTreeSet::new();
-    let mut full = |why: String| sel.full.push(format!("{f}: {why}"));
+    let full = |sel: &mut Selection, why: String| sel.full.push(format!("{f}: {why}"));
     let Some(cf) = repo.csys.get(f) else {
-        return full("a csys file not in the tree (new or deleted): cannot map its symbols".into());
+        return full(sel, "a csys file not in the tree (new or deleted): cannot map its symbols".into());
     };
     if cf.generated {
-        return full("generated by `cargo xtask csys-gen` (its check runs in the full gate)".into());
+        return full(sel, "generated by `cargo xtask csys-gen` (its check runs in the full gate)".into());
     }
     let Some(symbols) = cf.symbols.as_ref().filter(|s| !s.is_empty()) else {
-        return full("a csys source whose symbols cannot be read statically (C, or a macro/include/.set)".into());
+        // XTASK-PRECHECK-SKIP-ASM-AFFECTED: FULL stays (the train's), and the direct tier adds the tests that name the
+        // file or one of its `niji_` names, which the bounded set alone did not run.
+        if direct {
+            asm_namers(repo, f, &cf.labels, sel);
+        }
+        return full(sel, "a csys source whose symbols cannot be read statically (C, or a macro/include/.set)".into());
     };
     let mut users: BTreeSet<&str> = BTreeSet::new();
     let mut exported: Vec<(&str, &[&str])> = Vec::new();
+    let mut abi: Vec<&str> = Vec::new();
+    let mut steps: BTreeSet<&str> = BTreeSet::new();
     let mut layout: BTreeSet<&str> = BTreeSet::new();
     for s in symbols {
         if !s.starts_with("niji_") {
@@ -3436,7 +3573,14 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
                     exported.push((s, t));
                     continue;
                 }
-                None => return full(format!("defines `{s}`, which may be part of the exported C ABI")),
+                // XTASK-PRECHECK-SKIP-ASM-AFFECTED: an exported symbol `MACHINE_EXPORTS` does not list is reached
+                // through the C ABI, by the tests and programs that name it and those of its spec section
+                // (`abi_reach`); its word occurrences elsewhere (`read`, `close`) are not callers of this definition.
+                None if direct => {
+                    abi.push(s);
+                    continue;
+                }
+                None => return full(sel, format!("defines `{s}`, which may be part of the exported C ABI")),
             }
         }
         for r in repo.csys_refs.get(s).into_iter().flatten().filter(|r| r.file != f) {
@@ -3460,14 +3604,41 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
                 siblings.insert(&r.file);
                 continue;
             }
+            // XTASK-PRECHECK-SKIP-ASM-AFFECTED: an xtask step that names the symbol (`native_examples.rs` finds
+            // `niji_machine_barrier` in the built examples) is selected with its products; its Rust users still count.
+            if let Some((_, cmd)) = XTASK_ASM_STEPS.iter().find(|(p, _)| *p == r.file).filter(|_| direct) {
+                steps.insert(cmd);
+                continue;
+            }
             if !(rust || program) {
-                return full(format!("`{s}` is named by `{}` (not a Rust or conformance source)", r.file));
+                return full(sel, format!("`{s}` is named by `{}` (not a Rust or conformance source)", r.file));
             }
             users.insert(&r.file);
         }
     }
-    if users.is_empty() && exported.is_empty() && siblings.is_empty() {
-        return full("no Rust or conformance source uses its symbols".into());
+    // XTASK-PRECHECK-SKIP-ASM-AFFECTED: a file the product build links into ld.so (`so.rs` names it) whose symbols no
+    // source uses (`ld_names.S`: ld.so's own `strcmp`), or whose Rust users are all loader code
+    // (`crates/boundary/src/ld/`, `tool.S`), is reached through the loader: its targets run (`LOADER_TARGETS`).
+    let linked_into_ld = repo.xtask_texts.iter().any(|(p, t)| p == "xtask/src/so.rs" && t.contains(&format!("\"{f}\"")));
+    let loader = direct && f.starts_with("csys/src/machine/") && ((users.is_empty() && linked_into_ld) || (!users.is_empty() && users.iter().all(|u| u.starts_with("crates/boundary/src/ld/"))));
+    if users.is_empty() && exported.is_empty() && siblings.is_empty() && abi.is_empty() && steps.is_empty() && !loader {
+        return full(sel, "no Rust or conformance source uses its symbols".into());
+    }
+    if !abi.is_empty() {
+        if let Err(s) = abi_reach(repo, f, &abi, sel) {
+            return full(sel, format!("defines `{s}`, which may be part of the exported C ABI, and no test or conformance program names it nor carries its spec section"));
+        }
+    }
+    for cmd in &steps {
+        sel.xtask_cmds.insert(cmd.to_string());
+        sel.example_steps = true;
+        sel.notes.push(format!("{f}: its symbols are named by the xtask step `cargo xtask {cmd}`, selected with the products it links against"));
+    }
+    if loader {
+        for t in repo.targets.iter().filter(|t| LOADER_TARGETS.iter().any(|(k, p)| t.krate == *k && t.name.starts_with(p))) {
+            add(&mut sel.tests, (t.krate.clone(), t.name.clone()), &format!("{f}: linked into ld.so; reached through the loader (LOADER_TARGETS)"));
+        }
+        sel.notes.push(format!("{f}: loader code (linked into ld.so by `cargo xtask so`, used by no source or only by crates/boundary/src/ld/): the loader targets"));
     }
     for (s, targets) in &exported {
         for t in targets.iter() {
@@ -3627,6 +3798,11 @@ fn csys_user(repo: &Repo, f: &str, u: &str, symbols: &[String], sel: &mut Select
     // A trait method (`impl T for X`, or a default body in `trait T`) is called through the
     // trait without naming this module, which neither the module graph nor a name search sees.
     if let Some(w) = fn_list.iter().find(|w| in_trait(&node.text, w)) {
+        // XTASK-PRECHECK-SKIP-ASM-AFFECTED (direct tier): the module as if it changed, which is the selection an edit of
+        // the method's own body gets (`sys.rs` for `Machine::cpuid`); the wide tier still escalates.
+        if sel.direct {
+            return fallback(sel, &format!("`{w}` uses its symbols and is a trait method, reached through the trait: the selection an edit of its body gets"));
+        }
         sel.full.push(format!("{f}: {u}: `{w}` uses its symbols and is a trait method (reached through the trait, not by name)"));
         return;
     }
@@ -6721,6 +6897,38 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // A trait method that uses a symbol escalates (cpuid.S: `Machine::cpuid` in sys.rs).
         let (_, s) = sel(&["csys/src/machine/cpuid.S"]);
         assert!(s.full.iter().any(|r| r.contains("trait method")), "{s:?}");
+        // XTASK-PRECHECK-SKIP-ASM-AFFECTED: in the direct tier each rule maps its file (`select` above keeps the wide
+        // rules, which still escalate).
+        let d = |f: &str| select_tier(repo, &[f.to_string()], Tier::Direct);
+        // A trait method's module as if it changed (sys.rs).
+        let c = d("csys/src/machine/cpuid.S");
+        assert!(c.no_escalation() && c.notes.iter().any(|n| n.contains("trait method") && n.contains("sys.rs")), "{:?} {:?}", c.train, c.notes);
+        // An unlisted export: the targets naming it and those of its spec section.
+        let sj = d("csys/src/machine/setjmp.S");
+        assert!(sj.no_escalation() && sj.tests.values().any(|r| r.contains("names exported `")) && sj.tests.values().any(|r| r.contains("(spec/symbols.tsv)")), "{:?}", sj.train);
+        // points.S's `niji_machine_aio_used` is declared, not used, by `extern unsigned char ...;` in niji_csys.h.
+        let p = d("csys/src/machine/points.S");
+        assert!(p.no_escalation(), "{:?}", p.train);
+        // A symbol an xtask step names: that command, with the products.
+        let b = d("csys/src/machine/barrier.S");
+        assert!(b.no_escalation() && b.xtask_cmds.contains("native") && b.example_steps, "{:?}", b.train);
+        // Linked into ld.so and used by no source, or used only by the loader: the loader targets.
+        for f in ["csys/src/machine/ld_names.S", "csys/src/machine/tool.S"] {
+            let l = d(f);
+            assert!(l.no_escalation() && l.tests.keys().any(|(k, n)| k == "niji-ld" && n == "dlopen"), "{f}: {:?}", l.train);
+        }
+        // Unreadable: FULL stays (the train's), plus the targets naming its `niji_` names.
+        let tl = d("csys/src/machine/tlsdesc.S");
+        assert!(!tl.no_escalation() && tl.tests.values().any(|r| r.contains("tlsdesc.S: the test names")), "{:?}", tl.tests);
+        // A start object: the targets naming it, no conformance program (they link niji-crt1.o alone); the owner
+        // shims (libc.so.6): every conformance program too; the wide rules still escalate.
+        let g = d("csys/start/gcrt1.S");
+        assert!(g.no_escalation() && g.conf.is_empty() && g.tests.values().any(|r| r.contains("names `gcrt1`")), "{:?}", g.train);
+        let c = d("csys/start/crti.S");
+        assert!(c.no_escalation() && c.conf.is_empty() && c.tests.keys().any(|(k, n)| k == "niji" && n == "crt_products"), "{:?}", c.tests);
+        let o = d("csys/owner/owner.S");
+        assert!(o.no_escalation() && o.conf.len() == repo.conf.len(), "{:?}", o.train);
+        assert!(!sel(&["csys/start/gcrt1.S"]).1.no_escalation(), "the wide rules still escalate a start object");
     }
 
     #[test]
@@ -6780,8 +6988,9 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // fold.S defines `niji_machine_chr_limit`, read by scan.S: the sibling is mapped as if it changed (direct tier).
         let d = &fold;
         assert!(d.notes.iter().any(|n| n.contains("mapped as if it changed") && n.contains("scan.S")), "{:?}", d.notes);
-        for f in ["csys/src/machine/setjmp.S", "csys/src/machine/context.S", "csys/src/machine/entry.S"] {
-            assert!(!t(f, Tier::Direct).no_escalation(), "{f}: an unlisted export must stay FULL in the direct tier");
+        // XTASK-PRECHECK-SKIP-ASM-AFFECTED: setjmp.S's unlisted exports now map through their namers and spec section.
+        for f in ["csys/src/machine/context.S", "csys/src/machine/entry.S"] {
+            assert!(!t(f, Tier::Direct).no_escalation(), "{f}: an unreadable file must stay FULL in the direct tier");
         }
         // The fixture is consistent with the map (each listed export mapped to existing targets that name it).
         assert_eq!(machine_exports_problems(&fx), None);
