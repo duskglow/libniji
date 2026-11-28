@@ -632,9 +632,11 @@ pub fn libm_panicked() -> ! {
     fatal::fatal(&CSys, &[b"niji: internal error in libm\n"], crate::ret::trap)
 }
 
-/// The libresolv product's panic handler (LIBRESOLV-OWN-CODE): a diagnostic, then abort, as libm's.
+/// The libresolv product's panic handler (LIBRESOLV-OWN-CODE): a diagnostic, then abort, as libm's
+/// (`ret::abort`: libc.so.6's, which keeps the process's record of its first abort, D-1.15).
 pub fn libresolv_panicked() -> ! {
-    fatal::fatal(&CSys, &[b"niji: internal error in libresolv\n"], crate::ret::trap)
+    fatal::message(&CSys, &[b"niji: internal error in libresolv\n"]);
+    crate::ret::abort()
 }
 
 /// A panic inside the library (a bug): the location, then abort (`niji_rt::panic`).
