@@ -1,0 +1,26 @@
+{"task": "PIPELINE-TEST-TIME-1127", "model": "opus", "tokens": null,
+ "result": "Test time since 10-19 measured: growth is product builds (plants ~70% builds, cold copy ~45%; CI gate +7 min release check since 11-13) and job waits (+39 of +37 min per leg), not more tests; data products now built beside the libraries (cold so 273->254 s, no-op 64->52 s)",
+ "branch": "task/pipeline-test-time-1127", "head": "750cace21",
+ "gate": {"affected": "8 suites, 773 passed / 0 failed", "peak": "4.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Plants: one warm copy per role (cargo cache kept, content-synced source with fresh mtimes, products cleared, one run per copy)", "recommendation": "yes as its own story: saves the cold baseline, median 6.8-14.5 min per plants job (~45%)"},
+  {"item": "CI gate: release-profile start-up check (NIJI_FULL_PROFILE so + hot_text_products, +425 s median since 11-13) moved into the ci-instr job that builds the release products for the same tip, or run beside the full run", "recommendation": "yes: ~7 min per train off the gate's critical path"},
+  {"item": "cargo xtask so: skip re-assembling unchanged products (80-110 s per call, a content-keyed cache)", "recommendation": "ruling first; key on content hashes only"}
+ ],
+ "informational": [
+  "Full CI gate: tests 10490 -> 12365, test binaries 192 -> 338, test-seconds only 9833 -> 10552 (+7%); plants per job unchanged (median 6)",
+  "ci-instr: bench rounds 4.5 -> 6.8 min; 12.4 min of the job not split by its log (no step lines in cargo xtask bench)",
+  "--copies auto counts RAM only: on a 4-core slot two cold copies take 14.5 min each vs 10.2 for one"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "cold cargo xtask so in a fresh plants copy, Zen 1 48-CPU host", "before": 273, "after": 254, "unit": "s", "measured": true},
+  {"kind": "perf", "what": "no-op cargo xtask so (the post-cargo assembly every mutant build pays), Zen 1 48-CPU host", "before": 64, "after": 52, "unit": "s", "measured": true},
+  {"kind": "coverage", "what": "plants on the data products' thread", "before": 0, "after": 3, "unit": "plants", "measured": true},
+  {"kind": "none", "what": "measurement report: plants, CI steps and agent legs since 10-19, with recommendations", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "cargo xtask plants should print a step line per phase (copy, baseline commands, each plant's command): the per-plant logs are pruned and only the build seconds survive in job logs",
+ "next_step": "land; route the three rulings (warm plants copy, CI release check placement, product-assembly skip)",
+ "report_file": "handoff/PIPELINE-TEST-TIME-1127-report.md",
+ "jobs": ["pipeline-test-time-1127-gate", "pipeline-test-time-1127-plants-2", "pipeline-test-time-1127-ab", "pipeline-test-time-1127-lint"]}

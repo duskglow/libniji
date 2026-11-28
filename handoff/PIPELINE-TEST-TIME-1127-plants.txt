@@ -1,0 +1,9 @@
+# PIPELINE-TEST-TIME-1127 plants: the data products written by EarlyData must all be there when the run ends
+# (the product build's own D-X.164 check of every shipped file stops it first; deb_manifest's lint is the second line)
+ptt-data-no-charmaps | xtask/src/so.rs | lit:let n = crate::charmaps::write(root, &release.join("charmaps"))?; ==> let n = 0usize; | cargo test -p niji --test deb_manifest | msg:lack the SHSTK property \(D-X\.164\): charmaps/|tables_are_sorted_well_formed_and_name_built_products.*(FAILED|panicked)
+ptt-data-no-locale-charmaps | xtask/src/so.rs | lit:let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?; ==> let n = 0usize; | cargo test -p niji --test deb_manifest | msg:lack the SHSTK property \(D-X\.164\): locale-charmaps/|tables_are_sorted_well_formed_and_name_built_products.*(FAILED|panicked)
+ptt-data-no-locale-sources | xtask/src/so.rs | lit:let n = crate::locales::write(root, &sources)?; ==> let n = 0usize; | cargo test -p niji --test deb_manifest | msg:lack the SHSTK property \(D-X\.164\): locale-sources/|tables_are_sorted_well_formed_and_name_built_products.*(FAILED|panicked)
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# ptt-data-no-charmaps: CAUGHT, caught by no test the log names
+# ptt-data-no-locale-charmaps: CAUGHT, caught by no test the log names
+# ptt-data-no-locale-sources: CAUGHT, caught by no test the log names
