@@ -1,0 +1,9 @@
+# XTASK-PRECHECK-SKIP-ASM-AFFECTED plants, part 2: the product-level mapping rules (part 1: ...-plants.txt).
+# barrier.S (named by the xtask step `cargo xtask native`, plus its Rust users): s04_strings_symbols is selected through conv.rs's secure_zero; the barrier traps.
+xps-xtask-barrier | csys/src/machine/barrier.S | perl:s/(niji_machine_barrier:\n)\tret/$1\tud2/s | cargo test -p niji-boundary --test s04_strings_symbols sym_explicit_bzero | msg:SIGILL
+# tool.S (loader-only: LOADER_TARGETS): ldso_run is selected; the client request's frame is given back 8 bytes short, so its return goes astray in ld.so.
+xps-loader-tool | csys/src/machine/tool.S | perl:s/(niji_machine_running_on_valgrind:.*?)addq \$56, %rsp/$1addq \$48, %rsp/s | cargo test -p niji-ld --test ldso_run | msg:FAILED|panicked
+# tlsdesc.S (unreadable: FULL, plus the tests naming the file): dl_tls_threads is selected; the static descriptor returns the function word, not the offset.
+xps-unreadable-tlsdesc | csys/src/machine/tlsdesc.S | perl:s/(\nniji_machine_ld_tlsdesc_static:.*?)movq 8\(%rax\), %rax/$1movq (%rax), %rax/s | cargo test -p niji-boundary --test dl_tls_threads tlsdesc_functions_keep_every_register_but_rax | msg:TLS descriptor convention broken
+# crti.S (crt file: every conformance program): fpu_control_default is selected; _init's prologue loses its 8 bytes, so crtn.o's epilogue returns through the caller's frame.
+xps-crt-crti | csys/start/crti.S | perl:s/(\.Lniji_machine_crti_init:\n\tendbr64\n)\tsubq \$8, %rsp\n/$1/s | cargo xtask affected --only conformance:fpu_control_default --run | msg:conformance: FAIL fpu_control_default
