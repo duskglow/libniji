@@ -11,3 +11,10 @@ xps-loader-tool | csys/src/machine/tool.S | perl:s/(niji_machine_running_on_valg
 xps-unreadable-tlsdesc | csys/src/machine/tlsdesc.S | perl:s/(\nniji_machine_ld_tlsdesc_static:.*?)movq 8\(%rax\), %rax/$1movq (%rax), %rax/s | cargo test -p niji-boundary --test dl_tls_threads tlsdesc_functions_keep_every_register_but_rax | msg:TLS descriptor convention broken
 # crti.S (a start object: the tests naming it; no conformance program links crti.o): crt_products is selected; _init loses its 8-byte frame, so crtn.o returns through the caller's frame.
 xps-crt-crti | csys/start/crti.S | perl:s/(\.Lniji_machine_crti_init:\n\tendbr64\n)\tsubq \$8, %rsp\n/$1/s | cargo test -p niji --test crt_products start_files_follow_the_psabi | msg:the prologue
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# xps-trait-cpuid: CAUGHT, caught by appendix_a_primitives k_cpu_instructions_requiring_os_support
+# xps-export-errno: CAUGHT, caught by tb_foreign_low_words spare_words_hold_no_heap_cache
+# xps-xtask-barrier: CAUGHT, caught by s04_strings_symbols (the log names no failing test)
+# xps-loader-tool: CAUGHT, caught by ldso_run ldso_run_reads_ld_settings
+# xps-unreadable-tlsdesc: CAUGHT, caught by dl_tls_threads tlsdesc_functions_keep_every_register_but_rax
+# xps-crt-crti: CAUGHT, caught by crt_products start_files_follow_the_psabi
