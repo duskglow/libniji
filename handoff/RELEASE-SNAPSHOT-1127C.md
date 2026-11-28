@@ -1,57 +1,74 @@
 # RELEASE-SNAPSHOT-1127C: snapshot validation of af6f8acaf (serial 2026-11-27.3: HEADERS-STAGE2-GAPS-K, -L)
 
-WIP (leg 1 ended by a context refresh at 22:45Z; every job below was started and is running or queued). Procedure =
-`handoff/RELEASE-SNAPSHOT-1127B.md`; this note lists only what differs and what the next leg does.
+WIP (leg 2 ended by a context refresh at about 00:05Z on 11-28). Procedure = `handoff/RELEASE-SNAPSHOT-1127B.md`.
+Every blocking step is judged below and passes; open: cdiff-1 (step 9, non-blocking, slow), g14b-2's stop (step 6
+part 2, non-blocking), then the report, precheck and hand-back.
 
 ## State
-* Branch `task/release-snapshot-1127c` = origin/next af6f8acaf + handoff/ only (this note, the plants list).
-  Head under validation: `af6f8acaf2fb8666c108a71f01a76f4a804aa356` "Regenerate train-owned views", commit time
-  2026-11-27T18:57:58Z (epoch 1795805878). First-parent log since 27.2 (16e03637e): release-snapshot-1127b
-  (28f509c98), headers-stage2-gaps-k (35d10ff8b), regen (6295b2301), configure-diff (ef56c5635), headers-stage2-gaps-l
-  (81cce672f), regen (af6f8acaf). Nothing else landed on next at the start.
-* Serial **3**: system `2.39+niji20261127.3-1`, coexist `0.0~snapshot20261127.3+af6f8acaf2fb` (27.1 staged not
-  published, 27.2 published; no 27.3 in keke `~/release-staging/`). TODO: `dpkg --compare-versions` both against 27.2's.
-* Role **keke `~/w/n1`** (Zen 1). Unlike 1127B (role on mei s1), the role jobs (product build, .debs, plants, gate,
-  heapnode) run on keke; mei runs its non-role checks on products and .debs relayed from keke (keke ssh's to mei
-  directly: `relay.sh`, sha256 checked on arrival by the waiting drivers). tree.tgz = `git archive af6f8acaf`
-  (sha256 a46915ed0070...), uploaded to both hosts.
+* Branch `task/release-snapshot-1127c` = origin/next af6f8acaf + handoff/ only (this note, the plants list, the
+  configure-diff two-side mode c99118740). origin/next still af6f8acaf at 22:50Z.
+* Head under validation `af6f8acaf2fb8666c108a71f01a76f4a804aa356`, commit 2026-11-27T18:57:58Z (epoch 1795805878).
+  First-parent log since 27.2 (16e03637e): release-snapshot-1127b (28f509c98), headers-stage2-gaps-k (35d10ff8b),
+  regen (6295b2301), configure-diff (ef56c5635), headers-stage2-gaps-l (81cce672f), regen (af6f8acaf).
+* Serial 3: `2.39+niji20261127.3-1` and `0.0~snapshot20261127.3+af6f8acaf2fb`; `dpkg --compare-versions` gt 27.2's
+  both (checked). libc.so.6 sha256 `1d9e2e6e25c4a536...`, ld.so `20a09f9f187602e7...` = 27.2's (headers-only change).
+* Staged keke `~/release-staging/snapshot-20261127.3/`: 9 debs + SHA256SUMS + MANIFEST, 9 OK, sums = built debs.
+* Role keke `~/w/n1` (Zen 1); mei (Skylake-SP) ran its checks on relayed products/debs. Job dirs keke and mei
+  `~/work/RELEASE-SNAPSHOT-1127C/`.
 
-## Job dirs: keke and mei `~/work/RELEASE-SNAPSHOT-1127C/`
-Made by `copyrun.sh` = 1127A's `copy.sh OLD=1127B NEW=1127C` with this run's `subst.sed` (head, epoch, serial 3, role
-n1, labels 1127b->1127c, comparison side 26.3->27.2: `RELEASE-SNAPSHOT-1126C`->`1127B`, `20261126.3`->`20261127.2`,
-`-ref263`->`-ref272` (labels and log dirs only; no data file renamed: the only ref-named data file, y23p/ref241.txt,
-is the same in both), products labels p229->p231 (27.2) and p231->p232 (head)), links restored, logs-ystage2-stock
-copied (23 files, as 1127B's INFORMATIONAL asks). Fixed after the copy (new files written, never sed -i):
-* `cmp13.sh`, `tails.sh` (mei, via `cmpfix.sed`): old side = `release-snapshot-1127b-<job>-1` (the copy still said
-  1126c), mask also covers 16e03637e and `-ref27x`.
-* `run-hand.sh` (mei): gi.sh and g14.sh run under bash (1127B's leg-1 defect).
-New scripts: `run-role.sh` (keke: 1127B's mei run-role with role n1, RAM dir /dev/shm), `relay.sh` (keke),
-`run-keke3.sh` (keke: g14m, units2, addstock vs 27.2's libc6-dev), `g14m.sh` (step 6: gm2-libs-ch/wrapc.c as C++,
-GAPS-L's units3 stub method, on the packaged libc6-dev; plus a bare `<math.h>` C99-macro probe in C++, C++98..20),
-`run-g14b.sh` + `g14b.sh` + `g14b/b.sh` (step 6 part 2: trixie chroot, system debs swapped in, upstream gcc 14.2.0
-from Debian's orig tarball, Debian's `gcc-14 -v` configure line with languages c,c++,m2, no multilib/offload/LTO
-config, dpkg-buildflags, `make -j32 bootstrap`, 140 min cap), `run-cdiff.sh` (mei: CONFIGURE-DIFF tool from the
-tree, system debs: gcc-14 alone = `cdiffg14-1`, then the 438-package `~/work/CONFIGURE-DIFF/stage2.list` -j16 =
-`cdiff-1`, run dirs `/mnt/zram/claude/release-snapshot-1127c/`). Not run, as in 1127B: run-ref.sh.
+## Steps (labels `release-snapshot-1127c-<x>`; keke unless "mei")
+* 4 header rows: [mei yb11-1] same=900 diff=0 (27.2's fixed rows: it has NO GAPS-K/-L rows) -> added [hc-2]: the
+  218 header_check units GAPS-K (142) and GAPS-L (76) added, all C and C++ configurations, on the PACKAGED headers:
+  system 218 ok, coexist 218 ok, tree control 218 ok, per-unit lists equal (hc.sh; hc-1 superseded: multiarch dir
+  not merged, harness). [mei yb9-1] diff=20 = recorded sched_attr; [mei yb10-1] diff=6 ftp-tables order;
+  [mei cxxp-1] identical to 27.2's log; yb6/yb8/hp2/hp3 0 DIFF, hp4 14 = syslog names (as 27.2).
+  [mei dupval-1] 6583 same diff 0; [mei dupval-2] 6517 same diff 0 (27.2: 6532; the 5 TTYDEF_* rows left
+  dup-listed.tsv with GAPS-K: defined once now; GAPS-K's handoff names only TTYDEF_SPEED: INFORMATIONAL).
+  [addstock-1] added vs 27.2's libc6-dev 364, not in stock 329, user-namespace-not-in-stock 0; osockaddr 0
+  (1127B's RULING resolved: [hdrdiff-1] REMOVED protocols/timed.h AF_* etc., the sys/socket.h names; hdrdiff rc 1 =
+  removals present, as 27.2's run). Added: `__environ` (unistd.h, L10), `__iscanonicall`, __NIJI_D_* guards.
+* 5 fixincludes [mei gi-1]: 0 rewritten (installed 242, merged 331); gi-1 log = 27.2's gi-2 (masked diff empty).
+* 6 gcc-14 blocking part: [mei cdiffg14-1] libstdc++-v3 configure, `g++-14 -nostdinc++`, trixie chroot, four sides:
+  "ISO C99 support in <math.h> for C++98... yes", "generic macro support ... C++11... yes" on libniji (and stock
+  2.41, stock 2.39). Differing 2 = HAVE_STRERROR_R / _GLIBCXX_HAVE_STRERROR_R (known L2 row, libniji-vs-both);
+  27.2's 10 gcc-14 rows -> 2 (all c99 math rows gone). [g14m-1] wrapc.c as C++ + bare math.h probe C++98..20:
+  same=10 diff=0, niji failing 0. [mei g14-1] = 27.2's g14-2 (libstdc++ 16 SAME, libgomp 50 SAME).
+  Part 2 (non-blocking): [g14b-1] bootstrap stopped after 81 s in stage-1 libcpp on -Werror=format-security;
+  [g14bstock-1] the same job without the libc swap (stock 2.41) stops identically -> driver flags, not libniji.
+  [g14b-2] rerun with DEB_BUILD_MAINT_OPTIONS=hardening=-format: stopped after 84 s, rc 2 (Makefile:25068
+  bootstrap); first real error NOT YET READ ("Python3 is missing" / pod errors are ignored ones).
+* 7 llvm-19 [units2-1]: sanitizer_platform_limits_posix.cpp clang 0/0 and g++ 0/0 (27.2: niji=1 on SIOCAIPX*);
+  units2 4/4.
+* 8 [mei ybuild-1] util-linux 43=43, inetutils 24=24, npth, gnupg2, libev, keyutils PASS. [units-1] 15/15,
+  [mei gi-1] units ok=89 fail=3 (as 27.2), uuid_time64@@UUID_2.40 yes. [mei cmp13a-1] 19 jobs 0 differing, roots 4 =
+  job dir path (as 27.2); [mei cmp13b-1] 46 jobs 0 differing (perl ystage2-niji, yapt, ypk incl.).
+  [mei tails-1] 22 SAME; DIFF: yapt (seconds), kstart/rstart-mei (kernel side only, user equal), sig32 (product
+  label), ystage2cmp bad=1 vs 27.2's superseded -1 (bad=4; 27.2's valid -2 had bad=1). fp now SAME (6 -> 6).
+* 9 configure diff [mei cdiff-1]: running, two stock sides (coordinator note 22:52Z), tool = branch's c99118740
+  unpacked in mei `$W/cdtool`, stock 2.39 = Ubuntu noble 2.39-0ubuntu8.12 debs in `$W/stock239` (SHA256SUMS).
+  28 of 438 packages done at 00:02Z (started 23:27Z, -j20): will NOT finish before hand-back.
+* 10 [kcmp-1] keke jobs vs 27.2: start-up user side equal (Zen 1 pie0 156,365 instr/52 faults; Skylake-SP via
+  tails), only max/kernel jitter; gaimass bad=0; pkgdiff small size deltas, no package missing; install fails=0,
+  system debs different 0; [heapnode-1] only #21 fails (as 27.2); [mei lint-1] = 27.2 (cmp13a).
+* Product/role: [smoke-n1-1] SMOKE bad=0, [debs-1] DEBS bad=0, [gate-1] clippy -D warnings all-features, xtask
+  clippy, static, records check, affected: all RC 0. [plants-1] 6 CAUGHT, 0 SURVIVED, no WARN-RC-ONLY/NO-MSG
+  (WARN-DEV-SHM only, informational).
 
-## Drivers started (outputs `<driver>.out` in the job dir); labels `release-snapshot-1127c-<x>`
-* keke: run-role (smoke-n1-1, debs-1, plants-1, gate-1, heapnode-1), run-keke2 (smoke-keke-1, startup-keke-1,
-  kstart-keke-1, startup215-keke-1, rstart-keke-1, gaimass-1, units-1, pkgdiff-1, stage-1, install-1, hdrdiff-1),
-  relay, run-keke3 (g14m-1, units2-1, addstock-1), run-g14b (g14b-1).
-* mei: run-mei, run-hdr, run-hand, run-extra (the 1127B mei jobs, same names, `-ref272` for the 27.2-debs reruns),
-  run-cdiff (cdiffg14-1, cdiff-1).
-
-## Exact next step
-1. Wait (`~/bin/jobwait`, one call per host) for the drivers; read results with grep/tail only.
-2. mei, once run-mei/run-hdr/run-hand/run-extra are done: `jobrun release-snapshot-1127c-cmp13a-1 check -- sh
-   ~/work/RELEASE-SNAPSHOT-1127C/cmp13.sh <1127B's cmp13-a.list>`; cmp13b-1 with `../RELEASE-SNAPSHOT-1127B/cmp13-b.list`
-   with `-ref263` -> `-ref272`; tails-1 on the job list 1127B's tails-1 log names (`grep -o 'tails: [A-Z]* [^:]*'`).
-3. Judge per brief step against 1127B's numbers (its handoff "Steps"). New expectations: yb11 rows incl. GAPS-K/-L's
-   rows 0 DIFF; units2 llvm-19 `sanitizer_platform_limits_posix.cpp` now niji=0 (the SIOCAIPX* stop gone) or the next
-   stop; g14m RESULT diff=0, failing 0; cdiffg14: `glibcxx_cv_c99_math_cxx98`/`_cxx11` yes on the libniji side;
-   cdiff-1 vs `handoff/configure-diff/results-20261127.2/diff.tsv` (cols pkg class probe stock libniji): only the L1
-   (gcc-14 c99 math rows) and L10 (google-perftools `HAVE___ENVIRON`) rows gone, any new row a finding; `diff.py
-   --sides stockA,stockB` control; CONFIGURE-DIFF needed a retry list for packages whose chroot never started.
-   1127B's osockaddr RULING: GAPS-K says timed.h no longer includes sys/socket.h: addstock should no longer list it.
-4. Copy this note's form to the final report (1127B's layout), JOBS = every label above that ran on the final head,
-   precheck on keke n1 (`cargo xtask precheck --jobs <labels> --head <sha>`), report json, handback-check.
+## Exact next step (leg 3)
+1. g14b-2: read the first real error (`~/work/RELEASE-SNAPSHOT-1127C/logs-g14b2/out/make-errors.txt`, `b.txt`
+   around the Makefile:25068 line; grep `error:`), judge libniji-only or not (a stock control = g14bs.sh with the
+   same DEB_BUILD_MAINT_OPTIONS); report as far as it got. No third attempt.
+2. cdiff-1 at about 01:20Z (partial; cdiff.sh runs extract.py and diff.py only at its end): as a jobrun check job
+   on mei, `python3 -I $W/cdtool/configure-diff/extract.py <run> <the packages whose out/status.txt has "cdiff:
+   done">` then `diff.py <run>` (packages still running show NODATA; the final run rewrites probes/ and diff.tsv
+   anyway). Compare its diff.tsv with `handoff/configure-diff/results-20261127.2/diff.tsv` for the same packages
+   (L1 and L10 rows gone; any new row a finding), report the TWO-SIDE line (libniji-vs-both / 2.41-only). Leave
+   cdiff-1 running, named in JOBS as a long job; say the full result is the coordinator's to collect.
+3. Report (1127B's layout, first line `COMPLETE: snapshot-ready at af6f8acaf...` if nothing new), json
+   (`handoff/reports/RELEASE-SNAPSHOT-1127C.json`), sync role, precheck on keke n1 with the JOBS labels, push,
+   handback-check. JOBS: keke smoke-n1-1, debs-1, gate-1, plants-1, heapnode-1, hc-2, g14m-1, units-1, units2-1,
+   addstock-1, hdrdiff-1, kcmp-1, stage-1, install-1, pkgdiff-1, gaimass-1, startup*-keke-1, g14b-2,
+   g14bstock-1; mei yb11-1, yb9-1, yb10-1, cxxp-1, dupval-1/-2, gi-1, g14-1, ybuild-1, cmp13a-1, cmp13b-1,
+   tails-1, cdiffg14-1, cdiff-1 (running). SUPERSEDED: hc-1 (multiarch not merged), g14b-1 (driver flags).
+4. INFORMATIONAL for the report: dupval-2 TTYDEF rows; leg 2's two ssh calls that chained a cd before a detached
+   start hung the local ssh (killed by the harness; the remote jobs were setsid and ran on).
